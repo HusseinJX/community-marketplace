@@ -1,18 +1,16 @@
 # Deployment — Community Marketplace
 
 ## Live URL
-TBD — deploy to Netlify
+https://comfy-zuccutto-73b27f.netlify.app
 
 ## Platform
-Netlify (static export or SSR)
+Netlify (SSR via @netlify/plugin-nextjs)
 
 ## Repo
-TBD
+https://github.com/HusseinJX/community-marketplace
 
 ## How to Deploy
-1. Push to GitHub
-2. Connect to Netlify
-3. Set env var: NEXT_PUBLIC_API_BASE = https://community-connector-agent.netlify.app
+Push to `main` — manually re-run `netlify deploy --prod` from the project dir (auto-deploy via GitHub not yet wired; connect in Netlify dashboard under Site settings > Build & deploy > GitHub).
 
 ## Environment Variables
 - `NEXT_PUBLIC_API_BASE` — base URL of the Community Connector Agent Netlify deployment
