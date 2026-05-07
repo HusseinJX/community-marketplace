@@ -115,6 +115,8 @@ export default function MemberProfilePage({
   const services = (p.services ?? []) as string[];
   const specialties = (p.specialties ?? []) as string[];
   const menuHighlights = (p.menuHighlights ?? []) as string[];
+  const products = (p.products ?? []) as string[];
+  const shopUrl = (p.shopUrl || p.etsyUrl || p.shopifyUrl || "") as string;
   const venueTypes = (p.venueTypes ?? []) as string[];
   const needsMost = (p.needsMost ?? []) as string[];
   const connectWith = (p.connectWith ?? []) as string[];
@@ -127,7 +129,7 @@ export default function MemberProfilePage({
     "instagramHandle", "tiktokHandle", "facebookUrl", "eventbriteUrl",
     "bandsintownUrl", "songkickUrl", "meetupUrl", "youtubeUrl", "youtubeHandle",
     "twitterHandle", "xHandle", "linkedinUrl", "spotifyUrl", "threadsHandle",
-    "pinterestUrl", "soundcloudUrl",
+    "pinterestUrl", "soundcloudUrl", "etsyUrl", "shopifyUrl",
   ]);
 
   // Dynamic catch-all: any *Handle or *Url field not already known or shown elsewhere
@@ -203,6 +205,33 @@ export default function MemberProfilePage({
           {(services.length > 0 || specialties.length > 0) && (
             <Section title="What they offer">
               <Tags items={[...services, ...specialties]} color="indigo" />
+            </Section>
+          )}
+
+          {(products.length > 0 || p.priceRange || p.featuredProduct || shopUrl) && (
+            <Section title="Shop & Products">
+              {p.priceRange && (
+                <span className="mt-2 inline-block rounded-full bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700">
+                  {p.priceRange as string}
+                </span>
+              )}
+              {p.featuredProduct && (
+                <div className="mt-3 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-indigo-400">Featured</p>
+                  <p className="mt-1 text-base font-medium text-indigo-900">{p.featuredProduct as string}</p>
+                </div>
+              )}
+              {products.length > 0 && <Tags items={products} color="stone" />}
+              {shopUrl && (
+                <a
+                  href={shopUrl.startsWith("http") ? shopUrl : `https://${shopUrl}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-indigo-700 hover:underline"
+                >
+                  Visit shop &rarr;
+                </a>
+              )}
             </Section>
           )}
 

@@ -54,6 +54,12 @@ export interface MemberProfile {
   services?: string[];
   specialties?: string[];
   menuHighlights?: string[];
+  products?: string[];
+  priceRange?: string;
+  featuredProduct?: string;
+  shopUrl?: string;
+  etsyUrl?: string;
+  shopifyUrl?: string;
   shareTypes?: string[];
   reviewsSummary?: string;
   enrichedAt?: string;
