@@ -6,6 +6,7 @@ import { getMember, listEvents } from "@/lib/api";
 import type { Member, EventSuggestion } from "@/lib/types";
 import { MemberTypeBadge } from "@/components/MemberTypeBadge";
 import { EventCard } from "@/components/EventCard";
+import { MiniMap } from "@/components/MiniMap";
 
 function Tags({ items, color = "stone" }: { items: string[]; color?: string }) {
   const cls =
@@ -121,6 +122,12 @@ export default function MemberProfilePage({
 
   const hasBusiness = p.businessName || p.websiteUrl || p.businessDescription || p.businessCategory || p.businessHours || p.businessAddress || p.businessPhone;
   const hasSocials = p.instagramHandle || p.facebookUrl || p.eventbriteUrl || p.tiktokHandle || p.bandsintownUrl || p.songkickUrl || p.meetupUrl;
+  const hasLocation = typeof p.latitude === "number" && typeof p.longitude === "number";
+  const memberTypeColor: Record<string, string> = {
+    vendor: "#3B82F6", artist: "#8B5CF6", organizer: "#10B981",
+    shopper: "#F97316", influencer: "#EC4899",
+  };
+  const pinColor = memberTypeColor[p.memberType as string] ?? "#6B7280";
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-10">
@@ -313,6 +320,29 @@ export default function MemberProfilePage({
               )}
               {p.meetupUrl && (
                 <SocialLink href={p.meetupUrl as string} label="Meetup" icon="🤝" />
+              )}
+            </aside>
+          )}
+          {hasLocation && (
+            <aside className="rounded-2xl border border-stone-200 bg-white overflow-hidden shadow-sm">
+              <MiniMap
+                lat={p.latitude as number}
+                lng={p.longitude as number}
+                color={pinColor}
+              />
+              {p.googleMapsUrl && (
+                <a
+                  href={p.googleMapsUrl as string}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-indigo-700 hover:bg-stone-50 transition"
+                >
+                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  Open in Google Maps
+                </a>
               )}
             </aside>
           )}
