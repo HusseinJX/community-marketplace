@@ -121,7 +121,24 @@ export default function MemberProfilePage({
   const shareTypes = (p.shareTypes ?? []) as string[];
 
   const hasBusiness = p.businessName || p.websiteUrl || p.businessDescription || p.businessCategory || p.businessHours || p.businessAddress || p.businessPhone;
-  const hasSocials = p.instagramHandle || p.facebookUrl || p.eventbriteUrl || p.tiktokHandle || p.bandsintownUrl || p.songkickUrl || p.meetupUrl;
+
+  // Known social platform fields (hardcoded display)
+  const knownSocialKeys = new Set([
+    "instagramHandle", "tiktokHandle", "facebookUrl", "eventbriteUrl",
+    "bandsintownUrl", "songkickUrl", "meetupUrl", "youtubeUrl", "youtubeHandle",
+    "twitterHandle", "xHandle", "linkedinUrl", "spotifyUrl", "threadsHandle",
+    "pinterestUrl", "soundcloudUrl",
+  ]);
+
+  // Dynamic catch-all: any *Handle or *Url field not already known or shown elsewhere
+  const extraSocials = Object.entries(p).filter(([k, v]) => {
+    if (!v || typeof v !== "string") return false;
+    if (knownSocialKeys.has(k)) return false;
+    if (k === "websiteUrl" || k === "googleMapsUrl") return false;
+    return k.endsWith("Handle") || k.endsWith("Url");
+  });
+
+  const hasSocials = [...knownSocialKeys].some((k) => p[k]) || extraSocials.length > 0;
   const hasLocation = typeof p.latitude === "number" && typeof p.longitude === "number";
   const memberTypeColor: Record<string, string> = {
     vendor: "#3B82F6", artist: "#8B5CF6", organizer: "#10B981",
@@ -320,6 +337,36 @@ export default function MemberProfilePage({
                   icon="🎵"
                 />
               )}
+              {(p.twitterHandle || p.xHandle) && (
+                <SocialLink
+                  href={`https://x.com/${p.twitterHandle || p.xHandle}`}
+                  label={`@${p.twitterHandle || p.xHandle}`}
+                  icon="𝕏"
+                />
+              )}
+              {p.threadsHandle && (
+                <SocialLink
+                  href={`https://threads.net/@${p.threadsHandle}`}
+                  label={`@${p.threadsHandle}`}
+                  icon="🧵"
+                />
+              )}
+              {(p.youtubeUrl || p.youtubeHandle) && (
+                <SocialLink
+                  href={p.youtubeUrl as string || `https://youtube.com/@${p.youtubeHandle}`}
+                  label="YouTube"
+                  icon="▶️"
+                />
+              )}
+              {p.linkedinUrl && (
+                <SocialLink href={p.linkedinUrl as string} label="LinkedIn" icon="💼" />
+              )}
+              {p.spotifyUrl && (
+                <SocialLink href={p.spotifyUrl as string} label="Spotify" icon="🎧" />
+              )}
+              {p.soundcloudUrl && (
+                <SocialLink href={p.soundcloudUrl as string} label="SoundCloud" icon="☁️" />
+              )}
               {p.facebookUrl && (
                 <SocialLink href={p.facebookUrl as string} label="Facebook" icon="👥" />
               )}
@@ -335,6 +382,15 @@ export default function MemberProfilePage({
               {p.meetupUrl && (
                 <SocialLink href={p.meetupUrl as string} label="Meetup" icon="🤝" />
               )}
+              {p.pinterestUrl && (
+                <SocialLink href={p.pinterestUrl as string} label="Pinterest" icon="📌" />
+              )}
+              {extraSocials.map(([key, val]) => {
+                const label = key.replace(/(Handle|Url)$/, "").replace(/([A-Z])/g, " $1").trim();
+                return (
+                  <SocialLink key={key} href={val as string} label={label} icon="🔗" />
+                );
+              })}
             </aside>
           )}
           {hasLocation && (
