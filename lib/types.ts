@@ -20,19 +20,36 @@ export interface MemberProfile {
   dislikes?: string[];
   dietaryRestrictions?: string[];
   eventPostingPlatforms?: string[];
+  // enriched business fields
   businessName?: string;
   businessCategory?: string;
+  businessType?: string;
   businessDescription?: string;
   businessHours?: string;
   businessAddress?: string;
+  businessPhone?: string;
   websiteUrl?: string;
   instagramHandle?: string;
   facebookUrl?: string;
   eventbriteUrl?: string;
+  tiktokHandle?: string;
+  bandsintownUrl?: string;
+  songkickUrl?: string;
+  meetupUrl?: string;
   services?: string[];
   specialties?: string[];
+  menuHighlights?: string[];
+  shareTypes?: string[];
   reviewsSummary?: string;
   enrichedAt?: string;
+  // artist fields
+  discipline?: string;
+  venueTypes?: string[];
+  yearsExperience?: string;
+  // organizer fields
+  cause?: string;
+  needsMost?: string[];
+  connectWith?: string[];
   [key: string]: unknown;
 }
 

@@ -7,6 +7,50 @@ import type { Member, EventSuggestion } from "@/lib/types";
 import { MemberTypeBadge } from "@/components/MemberTypeBadge";
 import { EventCard } from "@/components/EventCard";
 
+function Tags({ items, color = "stone" }: { items: string[]; color?: string }) {
+  const cls =
+    color === "indigo"
+      ? "bg-indigo-50 text-indigo-700"
+      : color === "emerald"
+      ? "bg-emerald-50 text-emerald-700"
+      : "bg-stone-100 text-stone-700";
+  return (
+    <div className="mt-2 flex flex-wrap gap-2">
+      {items.map((item) => (
+        <span key={item} className={`rounded-full px-3 py-1 text-sm ${cls}`}>
+          {item}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section>
+      <h2 className="text-xs font-semibold uppercase tracking-widest text-stone-400">
+        {title}
+      </h2>
+      {children}
+    </section>
+  );
+}
+
+function SocialLink({ href, label, icon }: { href: string; label: string; icon: string }) {
+  const url = href.startsWith("http") ? href : `https://${href}`;
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex items-center gap-2 text-sm text-indigo-700 hover:underline"
+    >
+      <span>{icon}</span>
+      <span>{label}</span>
+    </a>
+  );
+}
+
 export default function MemberProfilePage({
   params,
 }: {
@@ -27,15 +71,13 @@ export default function MemberProfilePage({
         setMember(m.member);
         setEvents(ev.events);
       })
-      .catch(err => {
+      .catch((err) => {
         if (!cancelled) setError(err.message || "Failed to load profile.");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [id]);
 
   if (loading) {
@@ -60,22 +102,33 @@ export default function MemberProfilePage({
   }
 
   const p = member.profile ?? {};
-  const name = p.name || "Anonymous member";
+  const name = (p.name || "Anonymous member") as string;
   const location = [p.neighborhood, p.city].filter(Boolean).join(", ");
-  const interests = p.interests ?? [];
-  const goals = p.goals ?? [];
-  const notesStr = Array.isArray(p.notes) ? (p.notes as string[]).join(" · ") : (p.notes as string | undefined);
+  const notesStr = Array.isArray(p.notes)
+    ? (p.notes as string[]).join(" · ")
+    : (p.notes as string | undefined);
   const bio = (p.approvedBlurb || p.personalNote || p.businessDescription || notesStr || "") as string;
+
+  const interests = (p.interests ?? []) as string[];
+  const goals = (p.goals ?? []) as string[];
+  const services = (p.services ?? []) as string[];
+  const specialties = (p.specialties ?? []) as string[];
+  const menuHighlights = (p.menuHighlights ?? []) as string[];
+  const venueTypes = (p.venueTypes ?? []) as string[];
+  const needsMost = (p.needsMost ?? []) as string[];
+  const connectWith = (p.connectWith ?? []) as string[];
+  const shareTypes = (p.shareTypes ?? []) as string[];
+
+  const hasBusiness = p.businessName || p.websiteUrl || p.businessDescription || p.businessCategory || p.businessHours || p.businessAddress || p.businessPhone;
+  const hasSocials = p.instagramHandle || p.facebookUrl || p.eventbriteUrl || p.tiktokHandle || p.bandsintownUrl || p.songkickUrl || p.meetupUrl;
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-10">
-      <Link
-        href="/"
-        className="text-sm font-medium text-indigo-700 hover:underline"
-      >
+      <Link href="/" className="text-sm font-medium text-indigo-700 hover:underline">
         &larr; Back to browse
       </Link>
 
+      {/* Header */}
       <header className="mt-6 flex flex-col gap-3 border-b border-stone-200 pb-8">
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl">
@@ -83,102 +136,197 @@ export default function MemberProfilePage({
           </h1>
           <MemberTypeBadge type={p.memberType} size="md" />
         </div>
-        {location && <p className="text-base text-stone-600">{location}</p>}
+        {location && <p className="text-base text-stone-500">{location}</p>}
         {p.vibe && (
-          <p className="text-sm italic text-stone-500">&ldquo;{p.vibe}&rdquo;</p>
+          <p className="text-sm italic text-stone-400">&ldquo;{p.vibe as string}&rdquo;</p>
         )}
       </header>
 
       <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-3">
+        {/* Main column */}
         <div className="lg:col-span-2 space-y-8">
+
           {bio && (
-            <section>
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-stone-500">
-                About
-              </h2>
-              <p className="mt-2 whitespace-pre-line text-base text-stone-800">
+            <Section title="About">
+              <p className="mt-2 whitespace-pre-line text-base leading-relaxed text-stone-800">
                 {bio}
               </p>
-            </section>
+            </Section>
+          )}
+
+          {p.reviewsSummary && (
+            <Section title="What people say">
+              <p className="mt-2 text-base italic leading-relaxed text-stone-700">
+                &ldquo;{p.reviewsSummary as string}&rdquo;
+              </p>
+            </Section>
+          )}
+
+          {(services.length > 0 || specialties.length > 0) && (
+            <Section title="What they offer">
+              <Tags items={[...services, ...specialties]} color="indigo" />
+            </Section>
+          )}
+
+          {menuHighlights.length > 0 && (
+            <Section title="Menu highlights">
+              <Tags items={menuHighlights} color="emerald" />
+            </Section>
+          )}
+
+          {/* Artist-specific */}
+          {p.discipline && (
+            <Section title="Discipline">
+              <p className="mt-2 text-base text-stone-800">{p.discipline as string}</p>
+            </Section>
+          )}
+
+          {venueTypes.length > 0 && (
+            <Section title="Venues & events they play">
+              <Tags items={venueTypes} />
+            </Section>
+          )}
+
+          {p.yearsExperience && (
+            <Section title="Experience">
+              <p className="mt-2 text-base text-stone-800">{p.yearsExperience as string}</p>
+            </Section>
+          )}
+
+          {/* Organizer-specific */}
+          {p.cause && (
+            <Section title="Cause / Community">
+              <p className="mt-2 text-base text-stone-800">{p.cause as string}</p>
+            </Section>
+          )}
+
+          {needsMost.length > 0 && (
+            <Section title="What they need most">
+              <Tags items={needsMost} />
+            </Section>
+          )}
+
+          {connectWith.length > 0 && (
+            <Section title="Looking to connect with">
+              <Tags items={connectWith} />
+            </Section>
           )}
 
           {goals.length > 0 && (
-            <section>
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-stone-500">
-                Goals
-              </h2>
-              <ul className="mt-2 list-disc space-y-1 pl-5 text-base text-stone-800">
+            <Section title="Goals">
+              <ul className="mt-2 space-y-1.5">
                 {goals.map((g, i) => (
-                  <li key={i}>{g}</li>
+                  <li key={i} className="flex items-start gap-2 text-base text-stone-800">
+                    <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-400" />
+                    {g}
+                  </li>
                 ))}
               </ul>
-            </section>
+            </Section>
           )}
 
           {interests.length > 0 && (
-            <section>
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-stone-500">
-                Interests
-              </h2>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {interests.map(i => (
-                  <span
-                    key={i}
-                    className="rounded-full bg-stone-100 px-3 py-1 text-sm text-stone-700"
-                  >
-                    {i}
-                  </span>
-                ))}
-              </div>
-            </section>
+            <Section title="Interests">
+              <Tags items={interests} />
+            </Section>
+          )}
+
+          {shareTypes.length > 0 && (
+            <Section title="They share">
+              <Tags items={shareTypes} />
+            </Section>
           )}
         </div>
 
-        {(p.businessName || p.websiteUrl || p.businessDescription || p.businessCategory) && (
-          <aside className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-stone-500">
-              Business
-            </h2>
-            {p.businessName && (
-              <p className="mt-2 text-base font-semibold text-stone-900">
-                {p.businessName}
-              </p>
-            )}
-            {p.businessCategory && (
-              <p className="mt-1 text-xs text-stone-500 capitalize">{p.businessCategory}</p>
-            )}
-            {p.businessDescription && (
-              <p className="mt-2 text-sm text-stone-700">{p.businessDescription}</p>
-            )}
-            {p.businessAddress && (
-              <p className="mt-2 text-xs text-stone-500">{p.businessAddress}</p>
-            )}
-            {p.businessHours && (
-              <p className="mt-1 text-xs text-stone-500">{p.businessHours}</p>
-            )}
-            {p.websiteUrl && (
-              <a
-                href={p.websiteUrl.startsWith("http") ? p.websiteUrl : `https://${p.websiteUrl}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-3 inline-block text-sm font-medium text-indigo-700 hover:underline"
-              >
-                Visit website &rarr;
-              </a>
-            )}
-          </aside>
-        )}
+        {/* Sidebar */}
+        <div className="space-y-5">
+          {hasBusiness && (
+            <aside className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm space-y-3">
+              <h2 className="text-xs font-semibold uppercase tracking-widest text-stone-400">
+                Business
+              </h2>
+              {p.businessName && (
+                <p className="text-base font-semibold text-stone-900">{p.businessName as string}</p>
+              )}
+              {(p.businessCategory || p.businessType) && (
+                <p className="text-xs text-stone-500 capitalize">
+                  {(p.businessCategory || p.businessType) as string}
+                </p>
+              )}
+              {p.businessAddress && (
+                <p className="text-sm text-stone-600">{p.businessAddress as string}</p>
+              )}
+              {p.businessHours && (
+                <div>
+                  <p className="text-xs font-medium text-stone-400 uppercase tracking-wide">Hours</p>
+                  <p className="mt-0.5 text-sm text-stone-600">{p.businessHours as string}</p>
+                </div>
+              )}
+              {p.businessPhone && (
+                <a href={`tel:${p.businessPhone}`} className="block text-sm text-stone-700 hover:text-indigo-700">
+                  {p.businessPhone as string}
+                </a>
+              )}
+              {p.websiteUrl && (
+                <a
+                  href={(p.websiteUrl as string).startsWith("http") ? p.websiteUrl as string : `https://${p.websiteUrl}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block text-sm font-medium text-indigo-700 hover:underline"
+                >
+                  Visit website &rarr;
+                </a>
+              )}
+            </aside>
+          )}
+
+          {hasSocials && (
+            <aside className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm space-y-3">
+              <h2 className="text-xs font-semibold uppercase tracking-widest text-stone-400">
+                Find them online
+              </h2>
+              {p.instagramHandle && (
+                <SocialLink
+                  href={`https://instagram.com/${p.instagramHandle}`}
+                  label={`@${p.instagramHandle}`}
+                  icon="📸"
+                />
+              )}
+              {p.tiktokHandle && (
+                <SocialLink
+                  href={`https://tiktok.com/@${p.tiktokHandle}`}
+                  label={`@${p.tiktokHandle}`}
+                  icon="🎵"
+                />
+              )}
+              {p.facebookUrl && (
+                <SocialLink href={p.facebookUrl as string} label="Facebook" icon="👥" />
+              )}
+              {p.eventbriteUrl && (
+                <SocialLink href={p.eventbriteUrl as string} label="Eventbrite" icon="🎟️" />
+              )}
+              {p.bandsintownUrl && (
+                <SocialLink href={p.bandsintownUrl as string} label="Bandsintown" icon="🎸" />
+              )}
+              {p.songkickUrl && (
+                <SocialLink href={p.songkickUrl as string} label="Songkick" icon="🎤" />
+              )}
+              {p.meetupUrl && (
+                <SocialLink href={p.meetupUrl as string} label="Meetup" icon="🤝" />
+              )}
+            </aside>
+          )}
+        </div>
       </div>
 
+      {/* Events */}
       <section className="mt-12">
         <h2 className="text-xl font-semibold text-stone-900">Events</h2>
         {events.length === 0 ? (
-          <p className="mt-2 text-sm text-stone-500">
-            No upcoming events from this member yet.
-          </p>
+          <p className="mt-2 text-sm text-stone-500">No upcoming events from this member yet.</p>
         ) : (
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {events.map(ev => (
+            {events.map((ev) => (
               <EventCard key={ev.id} event={ev} />
             ))}
           </div>
