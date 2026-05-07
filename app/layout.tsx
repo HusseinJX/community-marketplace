@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { AuthNav } from "@/components/auth-nav";
+import { StoreProvider } from "@/lib/store";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -30,6 +31,7 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
+        <StoreProvider>
         <header className="border-b border-stone-200 bg-white/80 backdrop-blur sticky top-0 z-10">
           <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
             <Link href="/" className="flex items-center gap-2 text-lg font-semibold text-stone-900">
@@ -49,6 +51,7 @@ export default function RootLayout({
         <footer className="border-t border-stone-200 bg-white/60 py-6 text-center text-xs text-stone-500">
           Community Marketplace
         </footer>
+        </StoreProvider>
       </body>
     </html>
     </ClerkProvider>

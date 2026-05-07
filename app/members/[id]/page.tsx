@@ -7,6 +7,7 @@ import type { Member, EventSuggestion } from "@/lib/types";
 import { MemberTypeBadge } from "@/components/MemberTypeBadge";
 import { EventCard } from "@/components/EventCard";
 import { MiniMap } from "@/components/MiniMap";
+import { useStore } from "@/lib/store";
 
 function Tags({ items, color = "stone" }: { items: string[]; color?: string }) {
   const cls =
@@ -62,6 +63,20 @@ export default function MemberProfilePage({
   const [events, setEvents] = useState<EventSuggestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { toggleFavorite, isFavorite, addToCart, removeFromCart, isInCart } = useStore();
+
+  function makeProductId(productName: string) {
+    return `${id}__${productName}`;
+  }
+
+  function makeProduct(productName: string) {
+    return {
+      id: makeProductId(productName),
+      name: productName,
+      memberId: id,
+      memberName: (member?.profile?.name || "Anonymous member") as string,
+    };
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -215,13 +230,72 @@ export default function MemberProfilePage({
                   {p.priceRange as string}
                 </span>
               )}
-              {p.featuredProduct && (
-                <div className="mt-3 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3">
-                  <p className="text-xs font-semibold uppercase tracking-widest text-indigo-400">Featured</p>
-                  <p className="mt-1 text-base font-medium text-indigo-900">{p.featuredProduct as string}</p>
+              {p.featuredProduct && (() => {
+                const prod = makeProduct(p.featuredProduct as string);
+                return (
+                  <div className="mt-3 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3">
+                    <p className="text-xs font-semibold uppercase tracking-widest text-indigo-400">Featured</p>
+                    <div className="mt-1 flex items-center justify-between gap-3">
+                      <p className="text-base font-medium text-indigo-900">{p.featuredProduct as string}</p>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          onClick={() => toggleFavorite(prod)}
+                          title={isFavorite(prod.id) ? "Remove from favorites" : "Save to favorites"}
+                          className="rounded-full p-1.5 text-sm hover:bg-indigo-100 transition-colors"
+                        >
+                          {isFavorite(prod.id) ? "❤️" : "🤍"}
+                        </button>
+                        <button
+                          onClick={() => isInCart(prod.id) ? removeFromCart(prod.id) : addToCart(prod)}
+                          title={isInCart(prod.id) ? "Remove from cart" : "Add to cart"}
+                          className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                            isInCart(prod.id)
+                              ? "bg-indigo-600 text-white hover:bg-indigo-700"
+                              : "bg-white border border-indigo-200 text-indigo-700 hover:bg-indigo-100"
+                          }`}
+                        >
+                          {isInCart(prod.id) ? "In cart" : "+ Cart"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+              {products.length > 0 && (
+                <div className="mt-2 flex flex-col gap-2">
+                  {products.map((productName) => {
+                    const prod = makeProduct(productName);
+                    return (
+                      <div
+                        key={productName}
+                        className="flex items-center justify-between gap-3 rounded-xl border border-stone-100 bg-stone-50 px-4 py-2.5"
+                      >
+                        <span className="text-sm text-stone-800">{productName}</span>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            onClick={() => toggleFavorite(prod)}
+                            title={isFavorite(prod.id) ? "Remove from favorites" : "Save to favorites"}
+                            className="rounded-full p-1 text-sm hover:bg-stone-200 transition-colors"
+                          >
+                            {isFavorite(prod.id) ? "❤️" : "🤍"}
+                          </button>
+                          <button
+                            onClick={() => isInCart(prod.id) ? removeFromCart(prod.id) : addToCart(prod)}
+                            title={isInCart(prod.id) ? "Remove from cart" : "Add to cart"}
+                            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                              isInCart(prod.id)
+                                ? "bg-indigo-600 text-white hover:bg-indigo-700"
+                                : "bg-white border border-stone-200 text-stone-700 hover:border-indigo-300 hover:text-indigo-700"
+                            }`}
+                          >
+                            {isInCart(prod.id) ? "In cart" : "+ Cart"}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
-              {products.length > 0 && <Tags items={products} color="stone" />}
               {shopUrl && (
                 <a
                   href={shopUrl.startsWith("http") ? shopUrl : `https://${shopUrl}`}
