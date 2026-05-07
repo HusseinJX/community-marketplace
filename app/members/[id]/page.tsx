@@ -144,6 +144,20 @@ export default function MemberProfilePage({
           <MemberTypeBadge type={p.memberType} size="md" />
         </div>
         {location && <p className="text-base text-stone-500">{location}</p>}
+        {(p.category || p.subcategory) && (
+          <div className="flex items-center gap-2">
+            {p.category && (
+              <span className="rounded-full bg-stone-100 px-3 py-1 text-sm text-stone-600">
+                {p.category as string}
+              </span>
+            )}
+            {p.subcategory && (
+              <span className="rounded-full bg-stone-100 px-3 py-1 text-sm text-stone-600">
+                {p.subcategory as string}
+              </span>
+            )}
+          </div>
+        )}
         {p.vibe && (
           <p className="text-sm italic text-stone-400">&ldquo;{p.vibe as string}&rdquo;</p>
         )}

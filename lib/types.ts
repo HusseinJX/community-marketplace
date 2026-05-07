@@ -20,6 +20,8 @@ export interface MemberProfile {
   dislikes?: string[];
   dietaryRestrictions?: string[];
   eventPostingPlatforms?: string[];
+  category?: string;
+  subcategory?: string;
   // location
   latitude?: number;
   longitude?: number;

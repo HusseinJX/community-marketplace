@@ -30,6 +30,8 @@ async function getJson<T>(url: string): Promise<T> {
 export interface ListMembersParams {
   type?: MemberType | "all";
   city?: string;
+  category?: string;
+  subcategory?: string;
   limit?: number;
   cursor?: string;
 }
@@ -40,6 +42,8 @@ export async function listMembers(params: ListMembersParams = {}): Promise<Membe
     fnUrl("marketplace-members", {
       type,
       city: params.city,
+      category: params.category,
+      subcategory: params.subcategory,
       limit: params.limit ? String(params.limit) : undefined,
       cursor: params.cursor,
     })

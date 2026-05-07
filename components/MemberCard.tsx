@@ -26,6 +26,14 @@ export function MemberCard({ member }: { member: Member }) {
         <p className="mt-1 text-sm text-stone-500">{location}</p>
       )}
 
+      {(p.category || p.subcategory) && (
+        <div className="mt-1 flex flex-wrap gap-1">
+          {p.category && <span className="text-xs text-stone-500">{p.category as string}</span>}
+          {p.category && p.subcategory && <span className="text-xs text-stone-400">·</span>}
+          {p.subcategory && <span className="text-xs text-stone-500">{p.subcategory as string}</span>}
+        </div>
+      )}
+
       {blurb && (
         <p className="mt-3 line-clamp-3 text-sm text-stone-700">{blurb}</p>
       )}

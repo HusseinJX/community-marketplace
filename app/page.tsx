@@ -12,6 +12,8 @@ type ViewMode = "grid" | "map";
 export default function BrowsePage() {
   const [type, setType] = useState<FilterType>("all");
   const [city, setCity] = useState("");
+  const [category, setCategory] = useState("");
+  const [subcategory, setSubcategory] = useState("");
   const [view, setView] = useState<ViewMode>("grid");
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
@@ -21,7 +23,13 @@ export default function BrowsePage() {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    listMembers({ type, city: city || undefined, limit: 100 })
+    listMembers({
+      type,
+      city: city || undefined,
+      category: category || undefined,
+      subcategory: subcategory || undefined,
+      limit: 100,
+    })
       .then((res) => {
         if (!cancelled) setMembers(res.members);
       })
@@ -32,7 +40,7 @@ export default function BrowsePage() {
         if (!cancelled) setLoading(false);
       });
     return () => { cancelled = true; };
-  }, [type, city]);
+  }, [type, city, category, subcategory]);
 
   const visible = useMemo(() => members.filter((m) => m.profile?.name), [members]);
 
@@ -52,8 +60,19 @@ export default function BrowsePage() {
         <FilterBar
           type={type}
           city={city}
-          onTypeChange={setType}
+          category={category}
+          subcategory={subcategory}
+          onTypeChange={(t) => {
+            setType(t);
+            setCategory("");
+            setSubcategory("");
+          }}
           onCityChange={setCity}
+          onCategoryChange={(c) => {
+            setCategory(c);
+            setSubcategory("");
+          }}
+          onSubcategoryChange={setSubcategory}
         />
 
         {/* View toggle */}
