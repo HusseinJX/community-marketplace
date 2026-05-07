@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Geist, Geist_Mono } from "next/font/google";
-import { ClerkProvider, SignInButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
+import { ClerkProvider } from "@clerk/nextjs";
+import { AuthNav } from "@/components/auth-nav";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -38,16 +39,7 @@ export default function RootLayout({
             <div className="flex items-center gap-6 text-sm font-medium text-stone-600">
               <Link href="/" className="hover:text-indigo-700">Browse</Link>
               <Link href="/events" className="hover:text-indigo-700">Events</Link>
-              <SignedOut>
-                <SignInButton mode="modal">
-                  <button className="rounded-full bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 transition-colors">
-                    Sign in
-                  </button>
-                </SignInButton>
-              </SignedOut>
-              <SignedIn>
-                <UserButton afterSignOutUrl="/" />
-              </SignedIn>
+              <AuthNav />
             </div>
           </nav>
         </header>
