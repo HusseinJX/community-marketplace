@@ -1,65 +1,89 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useEffect, useMemo, useState } from "react";
+import { listMembers } from "@/lib/api";
+import type { Member } from "@/lib/types";
+import { MemberCard } from "@/components/MemberCard";
+import { FilterBar, type FilterType } from "@/components/FilterBar";
+
+export default function BrowsePage() {
+  const [type, setType] = useState<FilterType>("all");
+  const [city, setCity] = useState("");
+  const [members, setMembers] = useState<Member[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    listMembers({ type, city: city || undefined, limit: 100 })
+      .then(res => {
+        if (!cancelled) setMembers(res.members);
+      })
+      .catch(err => {
+        if (!cancelled) setError(err.message || "Failed to load members.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [type, city]);
+
+  const visible = useMemo(
+    () => members.filter(m => m.profile?.name),
+    [members]
+  );
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div className="mx-auto max-w-6xl px-6 py-10">
+      <section className="mb-10">
+        <h1 className="text-4xl font-semibold tracking-tight text-stone-900 sm:text-5xl">
+          Discover Your Community
+        </h1>
+        <p className="mt-3 max-w-2xl text-base text-stone-600">
+          Browse the makers, organizers, vendors, and neighbors building local
+          life around you. Filter by who you are looking for.
+        </p>
+      </section>
+
+      <section className="mb-8">
+        <FilterBar
+          type={type}
+          city={city}
+          onTypeChange={setType}
+          onCityChange={setCity}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+      </section>
+
+      {loading && (
+        <div className="py-20 text-center text-stone-500">Loading members...</div>
+      )}
+
+      {error && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+          {error}
+        </div>
+      )}
+
+      {!loading && !error && visible.length === 0 && (
+        <div className="rounded-2xl border border-dashed border-stone-300 bg-white/40 p-12 text-center">
+          <p className="text-base text-stone-700">No members match your filters yet.</p>
+          <p className="mt-1 text-sm text-stone-500">
+            Try clearing the city filter or selecting a different category.
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      )}
+
+      {!loading && visible.length > 0 && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {visible.map(m => (
+            <MemberCard key={m.id} member={m} />
+          ))}
         </div>
-      </main>
+      )}
     </div>
   );
 }
