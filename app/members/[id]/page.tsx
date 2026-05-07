@@ -64,7 +64,8 @@ export default function MemberProfilePage({
   const location = [p.neighborhood, p.city].filter(Boolean).join(", ");
   const interests = p.interests ?? [];
   const goals = p.goals ?? [];
-  const bio = p.approvedBlurb || p.personalNote || p.notes || "";
+  const notesStr = Array.isArray(p.notes) ? (p.notes as string[]).join(" · ") : (p.notes as string | undefined);
+  const bio = (p.approvedBlurb || p.personalNote || p.businessDescription || notesStr || "") as string;
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-10">
@@ -133,7 +134,7 @@ export default function MemberProfilePage({
           )}
         </div>
 
-        {(p.businessName || p.website || p.description) && (
+        {(p.businessName || p.websiteUrl || p.businessDescription || p.businessCategory) && (
           <aside className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-stone-500">
               Business
@@ -143,12 +144,21 @@ export default function MemberProfilePage({
                 {p.businessName}
               </p>
             )}
-            {p.description && (
-              <p className="mt-2 text-sm text-stone-700">{p.description}</p>
+            {p.businessCategory && (
+              <p className="mt-1 text-xs text-stone-500 capitalize">{p.businessCategory}</p>
             )}
-            {p.website && (
+            {p.businessDescription && (
+              <p className="mt-2 text-sm text-stone-700">{p.businessDescription}</p>
+            )}
+            {p.businessAddress && (
+              <p className="mt-2 text-xs text-stone-500">{p.businessAddress}</p>
+            )}
+            {p.businessHours && (
+              <p className="mt-1 text-xs text-stone-500">{p.businessHours}</p>
+            )}
+            {p.websiteUrl && (
               <a
-                href={p.website}
+                href={p.websiteUrl.startsWith("http") ? p.websiteUrl : `https://${p.websiteUrl}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="mt-3 inline-block text-sm font-medium text-indigo-700 hover:underline"

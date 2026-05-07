@@ -7,7 +7,8 @@ export function MemberCard({ member }: { member: Member }) {
   const name = p.name || "Anonymous member";
   const location = [p.neighborhood, p.city].filter(Boolean).join(", ");
   const interests = (p.interests ?? []).slice(0, 3);
-  const blurb = p.approvedBlurb || p.personalNote || p.notes || p.description || "";
+  const notesStr = Array.isArray(p.notes) ? (p.notes as string[]).join(" · ") : (p.notes as string | undefined);
+  const blurb = (p.approvedBlurb || p.personalNote || p.businessDescription || notesStr || p.description || "") as string;
 
   return (
     <Link

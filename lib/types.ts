@@ -21,8 +21,17 @@ export interface MemberProfile {
   dietaryRestrictions?: string[];
   eventPostingPlatforms?: string[];
   businessName?: string;
-  website?: string;
-  description?: string;
+  businessCategory?: string;
+  businessDescription?: string;
+  businessHours?: string;
+  businessAddress?: string;
+  websiteUrl?: string;
+  instagramHandle?: string;
+  facebookUrl?: string;
+  eventbriteUrl?: string;
+  services?: string[];
+  specialties?: string[];
+  reviewsSummary?: string;
   enrichedAt?: string;
   [key: string]: unknown;
 }
