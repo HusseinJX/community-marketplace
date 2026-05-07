@@ -20,6 +20,10 @@ export interface MemberProfile {
   dislikes?: string[];
   dietaryRestrictions?: string[];
   eventPostingPlatforms?: string[];
+  // location
+  latitude?: number;
+  longitude?: number;
+  googleMapsUrl?: string;
   // enriched business fields
   businessName?: string;
   businessCategory?: string;
