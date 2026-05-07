@@ -14,7 +14,10 @@ Push to `main` — manually re-run `netlify deploy --prod` from the project dir 
 
 ## Environment Variables
 - `NEXT_PUBLIC_API_BASE` — base URL of the Community Connector Agent Netlify deployment
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` — Clerk publishable key (from dashboard.clerk.com)
+- `CLERK_SECRET_KEY` — Clerk secret key (from dashboard.clerk.com)
 
 ## Notes
-- Public marketplace app — no auth required
+- Public marketplace — all routes accessible without sign-in; Clerk auth is optional (modal sign-in)
 - Data sourced from Community Connector Agent Firestore via public marketplace API endpoints
+- Clerk keys must be set in Netlify environment variables (Site settings > Environment variables) before deploying
