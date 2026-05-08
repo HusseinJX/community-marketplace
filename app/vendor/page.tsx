@@ -1,7 +1,23 @@
 import { withAuth } from "@workos-inc/authkit-nextjs";
+import Link from "next/link";
+import { getVendorProfile, getVendorConnectAccount } from "@/lib/vendor-connect";
+import { stripe } from "@/lib/stripe-server";
 
 export default async function VendorDashboard() {
   const { user } = await withAuth();
+
+  const profile = user ? await getVendorProfile(user.id) : null;
+
+  let stripeStatus: 'none' | 'pending' | 'active' = 'none'
+  if (profile) {
+    const account = await getVendorConnectAccount(profile.member_id)
+    if (account) {
+      const stripeAccount = await stripe.accounts.retrieve(account.stripe_account_id)
+      stripeStatus = stripeAccount.details_submitted && stripeAccount.charges_enabled
+        ? 'active'
+        : 'pending'
+    }
+  }
 
   const cards = [
     { label: "Products", icon: "📦", value: "—", href: "/vendor/products" },
@@ -31,12 +47,35 @@ export default async function VendorDashboard() {
         ))}
       </div>
 
-      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
-        <p className="text-sm font-medium text-amber-900">Account setup required</p>
-        <p className="mt-1 text-sm text-amber-700">
-          Connect your store profile to start managing products and receiving payments.
-        </p>
-      </div>
+      {!profile && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+          <p className="text-sm font-medium text-amber-900">Link your member profile</p>
+          <p className="mt-1 text-sm text-amber-700">
+            Connect your store profile to start managing products and receiving payments.
+          </p>
+          <Link
+            href="/vendor/setup"
+            className="mt-3 inline-block rounded-lg bg-amber-900 px-4 py-2 text-xs font-medium text-white hover:bg-amber-800"
+          >
+            Get started
+          </Link>
+        </div>
+      )}
+
+      {profile && stripeStatus === 'pending' && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+          <p className="text-sm font-medium text-amber-900">Complete your Stripe setup</p>
+          <p className="mt-1 text-sm text-amber-700">
+            Finish connecting your bank account to receive payments from customers.
+          </p>
+          <a
+            href={`/members/${profile.member_id}?stripe_connect=refresh`}
+            className="mt-3 inline-block rounded-lg bg-amber-900 px-4 py-2 text-xs font-medium text-white hover:bg-amber-800"
+          >
+            Continue setup
+          </a>
+        </div>
+      )}
     </div>
   );
 }
