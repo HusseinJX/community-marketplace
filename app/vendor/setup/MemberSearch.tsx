@@ -1,21 +1,28 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import VerifyOwnership from './VerifyOwnership'
+
+interface MemberProfile {
+  businessPhone?: string
+  websiteUrl?: string
+  instagramHandle?: string
+  googleMapsUrl?: string
+}
 
 interface Member {
   id: string
   name: string
+  profile?: MemberProfile
   city?: string
   type?: string
 }
 
 export default function MemberSearch() {
-  const router = useRouter()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<Member[]>([])
   const [loading, setLoading] = useState(false)
-  const [claiming, setClaiming] = useState<string | null>(null)
+  const [selected, setSelected] = useState<Member | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   async function search() {
@@ -37,22 +44,13 @@ export default function MemberSearch() {
     }
   }
 
-  async function claim(member: Member) {
-    setClaiming(member.id)
-    setError(null)
-    try {
-      const res = await fetch('/api/vendor/profile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ memberId: member.id }),
-      })
-      if (!res.ok) throw new Error('Failed to link profile')
-      router.push('/vendor')
-      router.refresh()
-    } catch {
-      setError('Failed to link profile. Try again.')
-      setClaiming(null)
-    }
+  if (selected) {
+    return (
+      <VerifyOwnership
+        member={selected}
+        onBack={() => setSelected(null)}
+      />
+    )
   }
 
   return (
@@ -86,11 +84,10 @@ export default function MemberSearch() {
                 {m.city && <p className="text-xs text-stone-500">{m.city}</p>}
               </div>
               <button
-                onClick={() => claim(m)}
-                disabled={claiming === m.id}
-                className="rounded-lg bg-stone-900 px-4 py-2 text-xs font-medium text-white hover:bg-stone-700 disabled:opacity-50"
+                onClick={() => setSelected(m)}
+                className="rounded-lg bg-stone-900 px-4 py-2 text-xs font-medium text-white hover:bg-stone-700"
               >
-                {claiming === m.id ? 'Linking…' : 'This is me'}
+                This is me
               </button>
             </li>
           ))}
