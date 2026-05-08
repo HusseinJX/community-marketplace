@@ -1,13 +1,11 @@
-"use client";
-
-import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { getMember, listEvents } from "@/lib/api";
-import type { Member, EventSuggestion } from "@/lib/types";
+import type { EventSuggestion } from "@/lib/types";
+import { getProductsByMember, type SupabaseProduct } from "@/lib/vendor-connect";
 import { MemberTypeBadge } from "@/components/MemberTypeBadge";
 import { EventCard } from "@/components/EventCard";
 import { MiniMap } from "@/components/MiniMap";
-import { useStore } from "@/lib/store";
+import { ShopSection } from "@/components/ShopSection";
 
 function Tags({ items, color = "stone" }: { items: string[]; color?: string }) {
   const cls =
@@ -53,65 +51,39 @@ function SocialLink({ href, label, icon }: { href: string; label: string; icon: 
   );
 }
 
-export default function MemberProfilePage({
+export default async function MemberProfilePage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = use(params);
-  const [member, setMember] = useState<Member | null>(null);
-  const [events, setEvents] = useState<EventSuggestion[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const { toggleFavorite, isFavorite, addToCart, removeFromCart, isInCart } = useStore();
+  const { id } = await params;
 
-  function makeProductId(productName: string) {
-    return `${id}__${productName}`;
+  let member = null;
+  let events: EventSuggestion[] = [];
+  let supabaseProducts: SupabaseProduct[] = [];
+  let fetchError: string | null = null;
+
+  try {
+    const [memberRes, eventsRes, prods] = await Promise.all([
+      getMember(id),
+      listEvents({ memberId: id, limit: 20 }),
+      getProductsByMember(id),
+    ]);
+    member = memberRes.member;
+    events = eventsRes.events;
+    supabaseProducts = prods;
+  } catch (err) {
+    fetchError = err instanceof Error ? err.message : "Failed to load profile.";
   }
 
-  function makeProduct(productName: string) {
-    return {
-      id: makeProductId(productName),
-      name: productName,
-      memberId: id,
-      memberName: (member?.profile?.name || "Anonymous member") as string,
-    };
-  }
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    Promise.all([getMember(id), listEvents({ memberId: id, limit: 20 })])
-      .then(([m, ev]) => {
-        if (cancelled) return;
-        setMember(m.member);
-        setEvents(ev.events);
-      })
-      .catch((err) => {
-        if (!cancelled) setError(err.message || "Failed to load profile.");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => { cancelled = true; };
-  }, [id]);
-
-  if (loading) {
-    return (
-      <div className="mx-auto max-w-4xl px-6 py-16 text-center text-stone-500">
-        Loading profile...
-      </div>
-    );
-  }
-
-  if (error || !member) {
+  if (fetchError || !member) {
     return (
       <div className="mx-auto max-w-4xl px-6 py-16">
         <Link href="/" className="text-sm text-indigo-700 hover:underline">
           &larr; Back to browse
         </Link>
         <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-          {error || "Member not found."}
+          {fetchError || "Member not found."}
         </div>
       </div>
     );
@@ -223,91 +195,15 @@ export default function MemberProfilePage({
             </Section>
           )}
 
-          {(products.length > 0 || p.priceRange || p.featuredProduct || shopUrl) && (
-            <Section title="Shop & Products">
-              {p.priceRange && (
-                <span className="mt-2 inline-block rounded-full bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700">
-                  {p.priceRange as string}
-                </span>
-              )}
-              {p.featuredProduct && (() => {
-                const prod = makeProduct(p.featuredProduct as string);
-                return (
-                  <div className="mt-3 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3">
-                    <p className="text-xs font-semibold uppercase tracking-widest text-indigo-400">Featured</p>
-                    <div className="mt-1 flex items-center justify-between gap-3">
-                      <p className="text-base font-medium text-indigo-900">{p.featuredProduct as string}</p>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <button
-                          onClick={() => toggleFavorite(prod)}
-                          title={isFavorite(prod.id) ? "Remove from favorites" : "Save to favorites"}
-                          className="rounded-full p-1.5 text-sm hover:bg-indigo-100 transition-colors"
-                        >
-                          {isFavorite(prod.id) ? "❤️" : "🤍"}
-                        </button>
-                        <button
-                          onClick={() => isInCart(prod.id) ? removeFromCart(prod.id) : addToCart(prod)}
-                          title={isInCart(prod.id) ? "Remove from cart" : "Add to cart"}
-                          className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                            isInCart(prod.id)
-                              ? "bg-indigo-600 text-white hover:bg-indigo-700"
-                              : "bg-white border border-indigo-200 text-indigo-700 hover:bg-indigo-100"
-                          }`}
-                        >
-                          {isInCart(prod.id) ? "In cart" : "+ Cart"}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
-              {products.length > 0 && (
-                <div className="mt-2 flex flex-col gap-2">
-                  {products.map((productName) => {
-                    const prod = makeProduct(productName);
-                    return (
-                      <div
-                        key={productName}
-                        className="flex items-center justify-between gap-3 rounded-xl border border-stone-100 bg-stone-50 px-4 py-2.5"
-                      >
-                        <span className="text-sm text-stone-800">{productName}</span>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <button
-                            onClick={() => toggleFavorite(prod)}
-                            title={isFavorite(prod.id) ? "Remove from favorites" : "Save to favorites"}
-                            className="rounded-full p-1 text-sm hover:bg-stone-200 transition-colors"
-                          >
-                            {isFavorite(prod.id) ? "❤️" : "🤍"}
-                          </button>
-                          <button
-                            onClick={() => isInCart(prod.id) ? removeFromCart(prod.id) : addToCart(prod)}
-                            title={isInCart(prod.id) ? "Remove from cart" : "Add to cart"}
-                            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                              isInCart(prod.id)
-                                ? "bg-indigo-600 text-white hover:bg-indigo-700"
-                                : "bg-white border border-stone-200 text-stone-700 hover:border-indigo-300 hover:text-indigo-700"
-                            }`}
-                          >
-                            {isInCart(prod.id) ? "In cart" : "+ Cart"}
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-              {shopUrl && (
-                <a
-                  href={shopUrl.startsWith("http") ? shopUrl : `https://${shopUrl}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-indigo-700 hover:underline"
-                >
-                  Visit shop &rarr;
-                </a>
-              )}
-            </Section>
-          )}
+          <ShopSection
+            memberId={id}
+            memberName={name}
+            supabaseProducts={supabaseProducts}
+            apiProducts={products}
+            priceRange={p.priceRange as string | undefined}
+            featuredProduct={p.featuredProduct as string | undefined}
+            shopUrl={shopUrl || undefined}
+          />
 
           {menuHighlights.length > 0 && (
             <Section title="Menu highlights">

@@ -41,6 +41,30 @@ export async function setVendorConnectAccount(
   if (error) throw new Error(`Failed to save vendor connect account: ${error.message}`)
 }
 
+export interface SupabaseProduct {
+  id: string
+  member_id: string
+  member_name: string
+  name: string
+  description: string | null
+  price: number
+  currency: string
+  image_url: string | null
+  active: boolean
+}
+
+export async function getProductsByMember(memberId: string): Promise<SupabaseProduct[]> {
+  const { data, error } = await supabase
+    .from('products')
+    .select('*')
+    .eq('member_id', memberId)
+    .eq('active', true)
+    .order('created_at', { ascending: true })
+
+  if (error || !data) return []
+  return data as SupabaseProduct[]
+}
+
 export async function updateVendorConnectStatus(stripeAccountId: string, status: string): Promise<void> {
   const { error } = await supabase
     .from('stripe_connect_accounts')
