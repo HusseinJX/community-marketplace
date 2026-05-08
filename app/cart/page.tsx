@@ -2,9 +2,11 @@
 
 import Link from 'next/link'
 import { useStore } from '@/lib/store'
+import { useRouter } from 'next/navigation'
 
 export default function CartPage() {
   const { cart, removeFromCart, clearCart, toggleFavorite, isFavorite } = useStore()
+  const router = useRouter()
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-10">
@@ -81,9 +83,15 @@ export default function CartPage() {
           <div className="mt-8 rounded-2xl border border-indigo-100 bg-indigo-50 p-6">
             <h2 className="text-base font-semibold text-indigo-900">Ready to buy?</h2>
             <p className="mt-1 text-sm text-indigo-700">
-              Visit each vendor&apos;s profile to find their shop link or contact them directly.
+              Proceed to checkout to pay vendors directly, or visit their profiles.
             </p>
-            <div className="mt-4 flex flex-wrap gap-2">
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <button
+                onClick={() => router.push('/checkout')}
+                className="rounded-full bg-indigo-600 px-5 py-2 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors"
+              >
+                Checkout &rarr;
+              </button>
               {Array.from(new Map(cart.map(p => [p.memberId, p])).values()).map((product) => (
                 <Link
                   key={product.memberId}

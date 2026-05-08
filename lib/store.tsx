@@ -7,6 +7,7 @@ export interface StoredProduct {
   name: string
   memberId: string
   memberName: string
+  price?: number   // price in cents
 }
 
 interface StoreContextType {
