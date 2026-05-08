@@ -41,7 +41,7 @@ npm run dev
 
 ## Environment Variables
 - `NEXT_PUBLIC_API_BASE` — Community Connector Agent API
-- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` / `CLERK_SECRET_KEY` — shared with zahabenergy project
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` / `CLERK_SECRET_KEY` — shared with zahabenergy project; **both must be set in Netlify** (`CLERK_SECRET_KEY` is server-only, no `NEXT_PUBLIC_` prefix)
 - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` / `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` — live Stripe keys (from prolocaliq account)
 - `SUPABASE_URL` / `SUPABASE_ANON_KEY` — xeno Supabase project (NOT prolocaliq)
 
