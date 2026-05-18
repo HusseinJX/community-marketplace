@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Member } from "@/lib/types";
 import { MemberTypeBadge } from "./MemberTypeBadge";
 import { ImageCarousel } from "./ImageCarousel";
+import { HeroMedia } from "./HeroMedia";
 import { MEMBER_HERO_IMAGES } from "@/lib/member-images";
 
 const TYPE_GRADIENTS: Record<string, string> = {
@@ -33,23 +34,31 @@ export function MemberCard({ member, matchedOn }: { member: Member; matchedOn?: 
   const blurb = (p.approvedBlurb || p.personalNote || p.businessDescription || notesStr || p.description || "") as string;
   const type = (p.memberType as string | undefined)?.toLowerCase() ?? "";
   const gradient = TYPE_GRADIENTS[type] ?? "from-stone-200 to-stone-300";
-  const images = MEMBER_HERO_IMAGES[member.id];
+  const heroImages = MEMBER_HERO_IMAGES[member.id];
+  // Fallback for imported members: the single imageUrl saved by the
+  // prolocaliq import / google-places harvest. Some sources (legacybusiness.org)
+  // can be flaky, so HeroMedia swaps to the gradient on load error.
+  const fallbackImage = (p as { imageUrl?: string; image_url?: string }).imageUrl
+    || (p as { imageUrl?: string; image_url?: string }).image_url;
+  const cardImages = heroImages && heroImages.length > 0
+    ? heroImages
+    : (fallbackImage ? [fallbackImage] : []);
 
   return (
     <Link
       href={`/members/${member.id}`}
       className="group card-soft card-hover flex flex-col overflow-hidden"
     >
-      {images && images.length > 0 ? (
+      {heroImages && heroImages.length > 0 ? (
         <ImageCarousel
-          images={images}
+          images={heroImages}
           alt={name}
           aspect="video"
           rounded="rounded-none"
           showCounter={false}
         />
       ) : (
-        <div className={`aspect-[16/10] w-full bg-gradient-to-br ${gradient}`} />
+        <HeroMedia images={cardImages} gradientClass={gradient} alt={name} />
       )}
       <div className="flex flex-1 flex-col gap-3 p-5">
         <div className="flex items-start justify-between gap-3">
