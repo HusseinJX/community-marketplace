@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { LayoutGrid, Map as MapIcon, ShoppingBag, Plane, Heart, Apple, DollarSign, CreditCard, X } from "lucide-react";
 import { listMembers, searchMembers } from "@/lib/api";
@@ -26,6 +26,15 @@ type ViewMode = "grid" | "map";
 // Module-level cache survives across re-mounts (e.g. when navigating back to /).
 // Keyed by JSON of filter params.
 const memberCache = new Map<string, Member[]>();
+const PAGE_SIZE = 40;
+
+function lastActiveMs(m: Member): number {
+  const t = m.lastActiveAt;
+  if (!t) return 0;
+  if (typeof t === "string") return Date.parse(t) || 0;
+  if (typeof t === "object" && "_seconds" in t) return t._seconds * 1000;
+  return 0;
+}
 
 export default function BrowsePage() {
   const [type, setType] = useState<FilterType>("all");
@@ -39,6 +48,11 @@ export default function BrowsePage() {
   const [loading, setLoading] = useState(!cached);
   const [error, setError] = useState<string | null>(null);
   const [donateOpen, setDonateOpen] = useState(false);
+
+  // Infinite-scroll pagination state
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   // Smart search mode — when active, suspends filter-based browse and shows
   // matchedOn breadcrumbs on each card.
@@ -65,15 +79,18 @@ export default function BrowsePage() {
     setSearchIntent(null);
   };
 
+  // Initial load (or filter change) — fetch the first page.
   useEffect(() => {
     let cancelled = false;
     const hit = memberCache.get(cacheKey);
     if (hit) {
       setMembers(hit);
       setLoading(false);
-      // stale-while-revalidate: refresh silently in background
+      setHasMore(hit.length >= PAGE_SIZE);
     } else {
       setLoading(true);
+      setMembers([]);
+      setHasMore(true);
     }
     setError(null);
     listMembers({
@@ -81,12 +98,13 @@ export default function BrowsePage() {
       city: city || undefined,
       category: category || undefined,
       subcategory: subcategory || undefined,
-      limit: 100,
+      limit: PAGE_SIZE,
     })
       .then((res) => {
         if (cancelled) return;
         memberCache.set(cacheKey, res.members);
         setMembers(res.members);
+        setHasMore(res.members.length >= PAGE_SIZE);
       })
       .catch((err) => {
         if (!cancelled) setError(err.message || "Failed to load members.");
@@ -96,6 +114,48 @@ export default function BrowsePage() {
       });
     return () => { cancelled = true; };
   }, [type, city, category, subcategory, cacheKey]);
+
+  // Fetch next page — appends to existing members.
+  const fetchMore = useCallback(async () => {
+    if (loadingMore || !hasMore || searchQuery) return;
+    setLoadingMore(true);
+    try {
+      const oldestMs = members.reduce<number>((min, m) => {
+        const t = lastActiveMs(m);
+        return t && (min === 0 || t < min) ? t : min;
+      }, 0);
+      const res = await listMembers({
+        type,
+        city: city || undefined,
+        category: category || undefined,
+        subcategory: subcategory || undefined,
+        limit: PAGE_SIZE,
+        cursor: oldestMs ? String(oldestMs) : undefined,
+      });
+      const seen = new Set(members.map((m) => m.id));
+      const fresh = res.members.filter((m) => !seen.has(m.id));
+      const next = [...members, ...fresh];
+      memberCache.set(cacheKey, next);
+      setMembers(next);
+      setHasMore(fresh.length >= PAGE_SIZE);
+    } catch (err) {
+      setError((err as Error).message || "Failed to load more.");
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loadingMore, hasMore, searchQuery, members, type, city, category, subcategory, cacheKey]);
+
+  // Wire up an IntersectionObserver on the sentinel below the grid.
+  useEffect(() => {
+    const node = sentinelRef.current;
+    if (!node || !hasMore || searchQuery) return;
+    const obs = new IntersectionObserver(
+      (entries) => { if (entries[0]?.isIntersecting) fetchMore(); },
+      { rootMargin: "400px 0px" }, // pre-fetch before user reaches the bottom
+    );
+    obs.observe(node);
+    return () => obs.disconnect();
+  }, [hasMore, searchQuery, fetchMore]);
 
   const visible = useMemo(() => {
     const real = members.filter((m) => m.profile?.name);
@@ -317,11 +377,30 @@ export default function BrowsePage() {
             )}
 
             {view === "grid" && visible.length > 0 && (
-              <div className="grid auto-rows-fr grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                {visible.map((m) => (
-                  <MemberCard key={m.id} member={m} />
-                ))}
-              </div>
+              <>
+                <div className="grid auto-rows-fr grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  {visible.map((m) => (
+                    <MemberCard key={m.id} member={m} />
+                  ))}
+                </div>
+
+                {/* Sentinel + bottom-of-list states */}
+                {hasMore && (
+                  <div ref={sentinelRef} className="mt-6 h-px w-full" aria-hidden />
+                )}
+                {loadingMore && (
+                  <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <MemberCardSkeleton key={`more-${i}`} />
+                    ))}
+                  </div>
+                )}
+                {!hasMore && !loadingMore && (
+                  <div className="mt-10 text-center text-xs text-stone-500">
+                    You've reached the end of the directory.
+                  </div>
+                )}
+              </>
             )}
           </>
         )}

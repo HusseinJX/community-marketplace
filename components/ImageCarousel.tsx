@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -46,15 +47,17 @@ export function ImageCarousel({
         style={{ transform: `translateX(-${i * 100}%)` }}
       >
         {images.map((src, idx) => (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            key={idx}
-            src={src}
-            alt={alt}
-            loading="lazy"
-            className="h-full w-full shrink-0 object-cover"
-            draggable={false}
-          />
+          <div key={idx} className="relative h-full w-full shrink-0">
+            <Image
+              src={src}
+              alt={alt}
+              fill
+              sizes="(min-width:1024px) 320px, (min-width:640px) 50vw, 100vw"
+              className="object-cover"
+              loading={idx === 0 ? "eager" : "lazy"}
+              draggable={false}
+            />
+          </div>
         ))}
       </div>
 
