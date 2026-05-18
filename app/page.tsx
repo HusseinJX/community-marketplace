@@ -10,6 +10,16 @@ import { FilterBar, type FilterType } from "@/components/FilterBar";
 import { MapView } from "@/components/MapView";
 import { SearchBar } from "@/components/SearchBar";
 import { DEMO_MEMBERS } from "@/lib/demo-members";
+import { MEMBER_HERO_IMAGES } from "@/lib/member-images";
+
+function memberHasImage(m: Member): boolean {
+  if (MEMBER_HERO_IMAGES[m.id]?.length) return true;
+  const p = m.profile;
+  if (!p) return false;
+  if (Array.isArray(p.images) && p.images.length) return true;
+  if (p.imageUrl) return true;
+  return false;
+}
 
 type ViewMode = "grid" | "map";
 
@@ -90,7 +100,12 @@ export default function BrowsePage() {
   const visible = useMemo(() => {
     const real = members.filter((m) => m.profile?.name);
     const demos = DEMO_MEMBERS.filter((m) => type === "all" || m.profile?.memberType === type);
-    return [...real, ...demos];
+    const all = [...real, ...demos];
+    // Stable partition: members with images first, then without. Keeps the
+    // existing rank within each group (no reshuffling beyond that).
+    const withImg: Member[] = [], withoutImg: Member[] = [];
+    for (const m of all) (memberHasImage(m) ? withImg : withoutImg).push(m);
+    return [...withImg, ...withoutImg];
   }, [members, type]);
 
   return (
