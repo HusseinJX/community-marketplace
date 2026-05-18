@@ -20,7 +20,8 @@ function fnUrl(name: string, params?: Record<string, string | undefined>) {
 }
 
 async function getJson<T>(url: string): Promise<T> {
-  const res = await fetch(url, { next: { revalidate: 60 } });
+  // Long server-side cache window; pages can revalidate via on-demand.
+  const res = await fetch(url, { next: { revalidate: 300 } });
   if (!res.ok) {
     throw new Error(`Request failed: ${res.status} ${res.statusText}`);
   }

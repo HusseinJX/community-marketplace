@@ -1,71 +1,80 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { listEvents } from "@/lib/api";
-import type { EventSuggestion } from "@/lib/types";
-import { EventCard } from "@/components/EventCard";
+import { useMemo, useState } from "react";
+import { DEMO_FEED, type FeedItem } from "@/lib/demo-feed";
+import { EventFeedCard } from "@/components/feed/EventFeedCard";
+import { VendorPostCard } from "@/components/feed/VendorPostCard";
 
-export default function EventsPage() {
-  const [events, setEvents] = useState<EventSuggestion[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+type Filter = "all" | "event" | "post";
 
-  useEffect(() => {
-    let cancelled = false;
-    listEvents({ limit: 50 })
-      .then(res => {
-        if (!cancelled) setEvents(res.events);
-      })
-      .catch(err => {
-        if (!cancelled) setError(err.message || "Failed to load events.");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+const tabs: { id: Filter; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "event", label: "Events" },
+  { id: "post", label: "Vendor Posts" },
+];
+
+export default function FeedPage() {
+  const [filter, setFilter] = useState<Filter>("all");
+  const [visible, setVisible] = useState(5);
+
+  const filtered: FeedItem[] = useMemo(() => {
+    const sorted = [...DEMO_FEED].sort((a, b) => a.postedAtOrder - b.postedAtOrder);
+    if (filter === "all") return sorted;
+    return sorted.filter((i) => i.kind === filter);
+  }, [filter]);
+
+  const shown = filtered.slice(0, visible);
+  const hasMore = visible < filtered.length;
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-10">
-      <header className="mb-8">
-        <h1 className="text-4xl font-semibold tracking-tight text-stone-900 sm:text-5xl">
-          Community Events
-        </h1>
-        <p className="mt-3 max-w-2xl text-base text-stone-600">
-          Hand-picked events surfaced from neighbors, organizers, and venues
-          around the community.
-        </p>
+    <main className="mx-auto w-full max-w-[680px] px-4 py-10 sm:px-6">
+      <header className="mb-6">
+        <h1 className="text-3xl font-semibold tracking-tight text-stone-900">Community Feed</h1>
+        <p className="mt-1 text-stone-600">Events and updates from local makers and vendors.</p>
       </header>
 
-      {loading && (
-        <div className="py-20 text-center text-stone-500">Loading events...</div>
-      )}
+      <div className="mb-6 -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
+        {tabs.map((t) => {
+          const active = filter === t.id;
+          return (
+            <button
+              key={t.id}
+              onClick={() => {
+                setFilter(t.id);
+                setVisible(5);
+              }}
+              className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition ${
+                active
+                  ? "bg-indigo-600 text-white"
+                  : "border border-stone-200 bg-white text-stone-700 hover:border-stone-300"
+              }`}
+            >
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
 
-      {error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-          {error}
+      <div className="space-y-4">
+        {shown.map((item) =>
+          item.kind === "event" ? (
+            <EventFeedCard key={item.id} item={item} />
+          ) : (
+            <VendorPostCard key={item.id} item={item} />
+          ),
+        )}
+      </div>
+
+      {hasMore && (
+        <div className="mt-6 flex justify-center">
+          <button
+            onClick={() => setVisible((v) => v + 5)}
+            className="rounded-full border border-stone-200 bg-white px-5 py-2 text-sm font-medium text-stone-700 hover:border-stone-300"
+          >
+            Load more
+          </button>
         </div>
       )}
-
-      {!loading && !error && events.length === 0 && (
-        <div className="rounded-2xl border border-dashed border-stone-300 bg-white/40 p-12 text-center">
-          <p className="text-base text-stone-700">No events posted yet.</p>
-          <p className="mt-1 text-sm text-stone-500">
-            Check back soon — community events will appear here as they are
-            approved.
-          </p>
-        </div>
-      )}
-
-      {!loading && events.length > 0 && (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {events.map(ev => (
-            <EventCard key={ev.id} event={ev} />
-          ))}
-        </div>
-      )}
-    </div>
+    </main>
   );
 }

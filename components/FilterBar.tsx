@@ -9,17 +9,13 @@ const TYPES: { key: FilterType; label: string }[] = [
   { key: "all", label: "All" },
   { key: "vendor", label: "Vendors" },
   { key: "artist", label: "Artists" },
-  { key: "organizer", label: "Organizers" },
-  { key: "shopper", label: "Shoppers" },
-  { key: "influencer", label: "Influencers" },
+  { key: "organizer", label: "Community" },
 ];
 
 const TYPE_LABEL_PLURAL: Record<string, string> = {
   vendor: "Vendors",
   artist: "Artists",
-  organizer: "Organizers",
-  shopper: "Shoppers",
-  influencer: "Influencers",
+  organizer: "Community",
 };
 
 export type FilterBarProps = {

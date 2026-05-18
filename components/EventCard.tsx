@@ -1,43 +1,35 @@
 import Link from "next/link";
 import type { EventSuggestion } from "@/lib/types";
 
+const EVENT_GRADIENTS = [
+  "from-emerald-300 to-teal-500",
+  "from-indigo-300 to-purple-500",
+  "from-amber-300 to-orange-500",
+  "from-pink-300 to-rose-500",
+  "from-sky-300 to-blue-500",
+  "from-lime-300 to-emerald-500",
+];
+
+function eventGradient(s: string) {
+  let h = 0;
+  for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return EVENT_GRADIENTS[h % EVENT_GRADIENTS.length];
+}
+
 export function EventCard({ event }: { event: EventSuggestion }) {
   const title = event.title || "Untitled event";
-  const description = event.reworded || event.description || event.originalExcerpt || "";
-  const platform = event.source?.platform;
-
+  const grad = eventGradient(title);
   return (
-    <article className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <h3 className="text-lg font-semibold text-stone-900">{title}</h3>
-        {platform && (
-          <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700 ring-1 ring-inset ring-indigo-100">
-            {platform}
-          </span>
-        )}
+    <Link
+      href={`/events/${event.id}`}
+      className="card-soft group flex items-stretch gap-3 p-3 transition hover:shadow-md"
+    >
+      <div className={`shrink-0 self-stretch w-20 rounded-lg bg-gradient-to-br ${grad}`} />
+      <div className="min-w-0 flex-1 py-0.5">
+        <div className="truncate font-medium text-stone-900 group-hover:text-indigo-700">{title}</div>
+        {event.date && <div className="mt-1 text-sm text-stone-500">{event.date}</div>}
+        {event.location && <div className="truncate text-sm text-stone-500">{event.location}</div>}
       </div>
-
-      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-stone-500">
-        {event.date && <span>{event.date}</span>}
-        {event.time && <span>{event.time}</span>}
-        {event.location && <span>{event.location}</span>}
-      </div>
-
-      {description && (
-        <p className="mt-3 text-sm text-stone-700">{description}</p>
-      )}
-
-      {event.memberId && event.memberName && (
-        <div className="mt-4 border-t border-stone-100 pt-3 text-sm">
-          <span className="text-stone-500">Posted by </span>
-          <Link
-            href={`/members/${event.memberId}`}
-            className="font-medium text-indigo-700 hover:underline"
-          >
-            {event.memberName}
-          </Link>
-        </div>
-      )}
-    </article>
+    </Link>
   );
 }

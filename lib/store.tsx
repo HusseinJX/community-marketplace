@@ -8,6 +8,7 @@ export interface StoredProduct {
   memberId: string
   memberName: string
   price?: number   // price in cents
+  qty?: number
 }
 
 interface StoreContextType {
@@ -19,6 +20,9 @@ interface StoreContextType {
   removeFromCart: (id: string) => void
   isInCart: (id: string) => boolean
   clearCart: () => void
+  setCartQty: (id: string, qty: number) => void
+  incrementCartItem: (id: string) => void
+  decrementCartItem: (id: string) => void
 }
 
 const StoreContext = createContext<StoreContextType | null>(null)
@@ -73,7 +77,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }
 
   function addToCart(product: StoredProduct) {
-    setCart(prev => prev.some(p => p.id === product.id) ? prev : [...prev, product])
+    setCart(prev => {
+      const existing = prev.find(p => p.id === product.id)
+      if (existing) {
+        return prev.map(p => p.id === product.id ? { ...p, qty: (p.qty ?? 1) + 1 } : p)
+      }
+      return [...prev, { ...product, qty: product.qty ?? 1 }]
+    })
   }
 
   function removeFromCart(id: string) {
@@ -88,6 +98,28 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setCart([])
   }
 
+  function setCartQty(id: string, qty: number) {
+    if (qty <= 0) {
+      removeFromCart(id)
+      return
+    }
+    setCart(prev => prev.map(p => p.id === id ? { ...p, qty } : p))
+  }
+
+  function incrementCartItem(id: string) {
+    setCart(prev => prev.map(p => p.id === id ? { ...p, qty: (p.qty ?? 1) + 1 } : p))
+  }
+
+  function decrementCartItem(id: string) {
+    setCart(prev => {
+      const item = prev.find(p => p.id === id)
+      if (!item) return prev
+      const nextQty = (item.qty ?? 1) - 1
+      if (nextQty <= 0) return prev.filter(p => p.id !== id)
+      return prev.map(p => p.id === id ? { ...p, qty: nextQty } : p)
+    })
+  }
+
   return (
     <StoreContext.Provider value={{
       favorites,
@@ -98,6 +130,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       removeFromCart,
       isInCart,
       clearCart,
+      setCartQty,
+      incrementCartItem,
+      decrementCartItem,
     }}>
       {children}
     </StoreContext.Provider>

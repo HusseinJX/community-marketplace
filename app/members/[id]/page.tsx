@@ -2,10 +2,58 @@ import Link from "next/link";
 import { getMember, listEvents } from "@/lib/api";
 import type { EventSuggestion } from "@/lib/types";
 import { getProductsByMember, type SupabaseProduct } from "@/lib/vendor-connect";
+import { getDemoMember } from "@/lib/demo-members";
 import { MemberTypeBadge } from "@/components/MemberTypeBadge";
 import { EventCard } from "@/components/EventCard";
 import { MiniMap } from "@/components/MiniMap";
 import { ShopSection } from "@/components/ShopSection";
+import { ActionBar } from "@/components/ActionBar";
+import { GroupChat } from "@/components/GroupChat";
+import { ImageCarousel } from "@/components/ImageCarousel";
+import { MEMBER_HERO_IMAGES } from "@/lib/member-images";
+import { ENDORSEMENTS } from "@/lib/endorsements";
+import { EndorsementRows } from "@/components/EndorsementRows";
+
+const DEMO_EVENTS = [
+  {
+    id: "demo-e1",
+    title: "Free Solar Consultation Day",
+    date: "Sat, Jun 7",
+    time: "10:00 AM – 2:00 PM",
+    location: "Downtown LA Maker Space",
+    description: "Meet our engineers for a one-on-one rooftop assessment. Learn about incentives, tax credits, and custom install quotes — no pressure.",
+    gradient: "from-amber-300 to-orange-500",
+    platform: "In-person",
+  },
+  {
+    id: "demo-e2",
+    title: "Clean Energy Workshop",
+    date: "Thu, Jun 19",
+    time: "6:00 PM – 8:00 PM",
+    location: "Echo Park Community Center",
+    description: "Hands-on intro to home solar + battery systems. Walk through real installs, costs, and the new CA incentive programs.",
+    gradient: "from-emerald-300 to-teal-500",
+    platform: "Free",
+  },
+  {
+    id: "demo-e3",
+    title: "Sustainable Living Expo 2026",
+    date: "Sat, Jul 12",
+    time: "9:00 AM – 5:00 PM",
+    location: "Grand Park, Los Angeles",
+    description: "Stop by booth 14 for live demos, giveaways, and exclusive expo pricing on our full product line.",
+    gradient: "from-sky-300 to-indigo-500",
+    platform: "Expo",
+  },
+];
+
+const TYPE_GRADIENTS: Record<string, string> = {
+  vendor: "from-blue-300 to-indigo-400",
+  artist: "from-violet-300 to-purple-400",
+  organizer: "from-emerald-300 to-teal-400",
+  shopper: "from-orange-200 to-amber-300",
+  influencer: "from-pink-300 to-rose-400",
+};
 
 function Tags({ items, color = "stone" }: { items: string[]; color?: string }) {
   const cls =
@@ -15,7 +63,7 @@ function Tags({ items, color = "stone" }: { items: string[]; color?: string }) {
       ? "bg-emerald-50 text-emerald-700"
       : "bg-stone-100 text-stone-700";
   return (
-    <div className="mt-2 flex flex-wrap gap-2">
+    <div className="flex flex-wrap gap-2">
       {items.map((item) => (
         <span key={item} className={`rounded-full px-3 py-1 text-sm ${cls}`}>
           {item}
@@ -25,13 +73,14 @@ function Tags({ items, color = "stone" }: { items: string[]; color?: string }) {
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, right, children }: { title: string; right?: React.ReactNode; children: React.ReactNode }) {
   return (
     <section>
-      <h2 className="text-xs font-semibold uppercase tracking-widest text-stone-400">
-        {title}
-      </h2>
-      {children}
+      <div className="flex items-center justify-between">
+        <div className="section-label">{title}</div>
+        {right}
+      </div>
+      <div className="mt-3 space-y-3">{children}</div>
     </section>
   );
 }
@@ -39,12 +88,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function SocialLink({ href, label, icon }: { href: string; label: string; icon: string }) {
   const url = href.startsWith("http") ? href : `https://${href}`;
   return (
-    <a
-      href={url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="flex items-center gap-2 text-sm text-indigo-700 hover:underline"
-    >
+    <a href={url} target="_blank" rel="noopener noreferrer"
+      className="flex items-center gap-2 text-sm text-indigo-700 hover:underline">
       <span>{icon}</span>
       <span>{label}</span>
     </a>
@@ -63,24 +108,29 @@ export default async function MemberProfilePage({
   let supabaseProducts: SupabaseProduct[] = [];
   let fetchError: string | null = null;
 
-  try {
-    const [memberRes, eventsRes, prods] = await Promise.all([
-      getMember(id),
-      listEvents({ memberId: id, limit: 20 }),
-      getProductsByMember(id),
-    ]);
-    member = memberRes.member;
-    events = eventsRes.events;
-    supabaseProducts = prods;
-  } catch (err) {
-    fetchError = err instanceof Error ? err.message : "Failed to load profile.";
+  const demo = getDemoMember(id);
+  if (demo) {
+    member = demo;
+  } else {
+    try {
+      const [memberRes, eventsRes, prods] = await Promise.all([
+        getMember(id),
+        listEvents({ memberId: id, limit: 20 }),
+        getProductsByMember(id),
+      ]);
+      member = memberRes.member;
+      events = eventsRes.events;
+      supabaseProducts = prods;
+    } catch (err) {
+      fetchError = err instanceof Error ? err.message : "Failed to load profile.";
+    }
   }
 
   if (fetchError || !member) {
     return (
       <div className="mx-auto max-w-4xl px-6 py-16">
-        <Link href="/" className="text-sm text-indigo-700 hover:underline">
-          &larr; Back to browse
+        <Link href="/" className="inline-flex items-center gap-1 text-sm text-indigo-700 hover:underline">
+          ← Back to browse
         </Link>
         <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
           {fetchError || "Member not found."}
@@ -96,6 +146,8 @@ export default async function MemberProfilePage({
     ? (p.notes as string[]).join(" · ")
     : (p.notes as string | undefined);
   const bio = (p.approvedBlurb || p.personalNote || p.businessDescription || notesStr || "") as string;
+  const memberType = (p.memberType as string | undefined)?.toLowerCase() ?? "";
+  const gradient = TYPE_GRADIENTS[memberType] ?? "from-stone-200 to-stone-300";
 
   const interests = (p.interests ?? []) as string[];
   const goals = (p.goals ?? []) as string[];
@@ -111,7 +163,6 @@ export default async function MemberProfilePage({
 
   const hasBusiness = p.businessName || p.websiteUrl || p.businessDescription || p.businessCategory || p.businessHours || p.businessAddress || p.businessPhone;
 
-  // Known social platform fields (hardcoded display)
   const knownSocialKeys = new Set([
     "instagramHandle", "tiktokHandle", "facebookUrl", "eventbriteUrl",
     "bandsintownUrl", "songkickUrl", "meetupUrl", "youtubeUrl", "youtubeHandle",
@@ -119,7 +170,6 @@ export default async function MemberProfilePage({
     "pinterestUrl", "soundcloudUrl", "etsyUrl", "shopifyUrl",
   ]);
 
-  // Dynamic catch-all: any *Handle or *Url field not already known or shown elsewhere
   const extraSocials = Object.entries(p).filter(([k, v]) => {
     if (!v || typeof v !== "string") return false;
     if (knownSocialKeys.has(k)) return false;
@@ -133,59 +183,81 @@ export default async function MemberProfilePage({
     vendor: "#3B82F6", artist: "#8B5CF6", organizer: "#10B981",
     shopper: "#F97316", influencer: "#EC4899",
   };
-  const pinColor = memberTypeColor[p.memberType as string] ?? "#6B7280";
+  const pinColor = memberTypeColor[memberType] ?? "#6B7280";
 
   return (
-    <div className="mx-auto max-w-4xl px-6 py-10">
-      <Link href="/" className="text-sm font-medium text-indigo-700 hover:underline">
-        &larr; Back to browse
+    <div className="mx-auto max-w-7xl px-4 pb-24 pt-8 md:px-8">
+      <Link href="/" className="inline-flex items-center gap-1 text-sm text-indigo-700 hover:underline">
+        ← Back to browse
       </Link>
 
-      {/* Header */}
-      <header className="mt-6 flex flex-col gap-3 border-b border-stone-200 pb-8">
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl">
-            {name}
-          </h1>
-          <MemberTypeBadge type={p.memberType} size="md" />
+      {/* Hero */}
+      {MEMBER_HERO_IMAGES[id] ? (
+        <div className="mt-6">
+          <ImageCarousel images={MEMBER_HERO_IMAGES[id]} alt={name} aspect="wide" />
         </div>
-        {location && <p className="text-base text-stone-500">{location}</p>}
+      ) : (
+        <div className={`mt-6 aspect-[21/9] w-full rounded-2xl bg-gradient-to-br ${gradient}`} />
+      )}
+
+      {/* Header */}
+      <header className="mt-8 border-b border-stone-200 pb-8">
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-3xl font-semibold tracking-tight text-stone-900 md:text-4xl">{name}</h1>
+          <MemberTypeBadge type={p.memberType} />
+        </div>
+        {location && <div className="mt-2 text-stone-500">{location}</div>}
         {(p.category || p.subcategory) && (
-          <div className="flex items-center gap-2">
+          <div className="mt-3 flex flex-wrap gap-1.5">
             {p.category && (
-              <span className="rounded-full bg-stone-100 px-3 py-1 text-sm text-stone-600">
+              <span className="rounded-full bg-stone-100 px-2.5 py-0.5 text-xs text-stone-700">
                 {p.category as string}
               </span>
             )}
             {p.subcategory && (
-              <span className="rounded-full bg-stone-100 px-3 py-1 text-sm text-stone-600">
+              <span className="rounded-full bg-stone-100 px-2.5 py-0.5 text-xs text-stone-700">
                 {p.subcategory as string}
               </span>
             )}
           </div>
         )}
         {p.vibe && (
-          <p className="text-sm italic text-stone-400">&ldquo;{p.vibe as string}&rdquo;</p>
+          <p className="mt-4 italic text-stone-400">&ldquo;{p.vibe as string}&rdquo;</p>
         )}
+        {memberType === "vendor" && ENDORSEMENTS[id] && (
+          <EndorsementRows data={ENDORSEMENTS[id]} />
+        )}
+        <ActionBar memberName={name} memberId={id} isVendor={memberType === "vendor"} />
       </header>
 
-      <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-3">
+      <div className="mt-10 grid gap-10 lg:grid-cols-3">
         {/* Main column */}
-        <div className="lg:col-span-2 space-y-8">
-
-          {bio && (
-            <Section title="About">
-              <p className="mt-2 whitespace-pre-line text-base leading-relaxed text-stone-800">
-                {bio}
-              </p>
-            </Section>
+        <main className="space-y-10 lg:col-span-2">
+          {memberType === "organizer" ? (
+            <section>
+              <div className="flex items-center justify-between">
+                <div className="section-label">Community Group Chat</div>
+                <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
+                  Members only
+                </span>
+              </div>
+              <div className="mt-3">
+                <GroupChat communityName={name} />
+              </div>
+            </section>
+          ) : (
+            bio && (
+              <Section title="About">
+                <p className="leading-relaxed text-stone-800">{bio}</p>
+              </Section>
+            )
           )}
 
           {p.reviewsSummary && (
             <Section title="What people say">
-              <p className="mt-2 text-base italic leading-relaxed text-stone-700">
+              <blockquote className="border-l-2 border-indigo-200 pl-4 italic text-stone-700">
                 &ldquo;{p.reviewsSummary as string}&rdquo;
-              </p>
+              </blockquote>
             </Section>
           )}
 
@@ -195,26 +267,15 @@ export default async function MemberProfilePage({
             </Section>
           )}
 
-          <ShopSection
-            memberId={id}
-            memberName={name}
-            supabaseProducts={supabaseProducts}
-            apiProducts={products}
-            priceRange={p.priceRange as string | undefined}
-            featuredProduct={p.featuredProduct as string | undefined}
-            shopUrl={shopUrl || undefined}
-          />
-
           {menuHighlights.length > 0 && (
             <Section title="Menu highlights">
               <Tags items={menuHighlights} color="emerald" />
             </Section>
           )}
 
-          {/* Artist-specific */}
           {p.discipline && (
             <Section title="Discipline">
-              <p className="mt-2 text-base text-stone-800">{p.discipline as string}</p>
+              <p className="text-stone-800">{p.discipline as string}</p>
             </Section>
           )}
 
@@ -226,14 +287,13 @@ export default async function MemberProfilePage({
 
           {p.yearsExperience && (
             <Section title="Experience">
-              <p className="mt-2 text-base text-stone-800">{p.yearsExperience as string}</p>
+              <p className="text-stone-800">{p.yearsExperience as string}</p>
             </Section>
           )}
 
-          {/* Organizer-specific */}
           {p.cause && (
             <Section title="Cause / Community">
-              <p className="mt-2 text-base text-stone-800">{p.cause as string}</p>
+              <p className="text-stone-800">{p.cause as string}</p>
             </Section>
           )}
 
@@ -251,10 +311,10 @@ export default async function MemberProfilePage({
 
           {goals.length > 0 && (
             <Section title="Goals">
-              <ul className="mt-2 space-y-1.5">
+              <ul className="space-y-1.5">
                 {goals.map((g, i) => (
-                  <li key={i} className="flex items-start gap-2 text-base text-stone-800">
-                    <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-400" />
+                  <li key={i} className="flex items-start gap-2 text-stone-800">
+                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-400" />
                     {g}
                   </li>
                 ))}
@@ -273,164 +333,173 @@ export default async function MemberProfilePage({
               <Tags items={shareTypes} />
             </Section>
           )}
-        </div>
+
+          {memberType !== "organizer" && (
+            <Section title="Events">
+              {events.length > 0 ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {events.map((ev) => (
+                    <EventCard key={ev.id} event={ev} />
+                  ))}
+                </div>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {DEMO_EVENTS.map((ev) => (
+                    <Link
+                      key={ev.id}
+                      href={`/events/${ev.id}`}
+                      className="card-soft group flex items-stretch gap-3 p-3 transition hover:shadow-md"
+                    >
+                      <div className={`shrink-0 self-stretch w-20 rounded-lg bg-gradient-to-br ${ev.gradient}`} />
+                      <div className="min-w-0 flex-1 py-0.5">
+                        <div className="truncate font-medium text-stone-900 group-hover:text-indigo-700">
+                          {ev.title}
+                        </div>
+                        <div className="mt-1 text-sm text-stone-500">{ev.date}</div>
+                        <div className="truncate text-sm text-stone-500">{ev.location}</div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </Section>
+          )}
+
+          <ShopSection
+            memberId={id}
+            memberName={name}
+            supabaseProducts={supabaseProducts}
+            apiProducts={products}
+            priceRange={p.priceRange as string | undefined}
+            featuredProduct={p.featuredProduct as string | undefined}
+            shopUrl={shopUrl || undefined}
+          />
+        </main>
 
         {/* Sidebar */}
-        <div className="space-y-5">
+        <aside className="space-y-6">
+          {memberType === "organizer" && (
+            <div className="card-soft p-5">
+              <div className="section-label">Events</div>
+              <ul className="mt-3 space-y-3">
+                {(events.length > 0
+                  ? events.map((e) => ({
+                      id: e.id,
+                      title: e.title || "Untitled event",
+                      date: e.date || "",
+                      location: e.location || "",
+                      gradient: TYPE_GRADIENTS[memberType] ?? "from-emerald-300 to-teal-500",
+                    }))
+                  : DEMO_EVENTS.map((e) => ({
+                      id: e.id,
+                      title: e.title,
+                      date: e.date,
+                      location: e.location,
+                      gradient: e.gradient,
+                    }))
+                ).map((ev) => (
+                  <li key={ev.id}>
+                    <Link
+                      href={`/events/${ev.id}`}
+                      className="group flex items-stretch gap-3 rounded-lg p-1 -m-1 transition hover:bg-stone-50"
+                    >
+                      <div className={`shrink-0 self-stretch w-14 rounded-md bg-gradient-to-br ${ev.gradient}`} />
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-medium text-stone-900 group-hover:text-indigo-700">
+                          {ev.title}
+                        </div>
+                        <div className="text-xs text-stone-500">{ev.date}</div>
+                        <div className="truncate text-xs text-stone-500">{ev.location}</div>
+                      </div>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {hasBusiness && (
-            <aside className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm space-y-3">
-              <h2 className="text-xs font-semibold uppercase tracking-widest text-stone-400">
-                Business
-              </h2>
+            <div className="card-soft p-5">
+              <div className="section-label">Business</div>
               {p.businessName && (
-                <p className="text-base font-semibold text-stone-900">{p.businessName as string}</p>
+                <div className="mt-2 text-base font-semibold text-stone-900">{p.businessName as string}</div>
               )}
               {(p.businessCategory || p.businessType) && (
-                <p className="text-xs text-stone-500 capitalize">
+                <div className="text-xs text-stone-500 capitalize">
                   {(p.businessCategory || p.businessType) as string}
-                </p>
+                </div>
               )}
               {p.businessAddress && (
-                <p className="text-sm text-stone-600">{p.businessAddress as string}</p>
+                <div className="mt-3 text-sm text-stone-600">{p.businessAddress as string}</div>
               )}
               {p.businessHours && (
-                <div>
-                  <p className="text-xs font-medium text-stone-400 uppercase tracking-wide">Hours</p>
-                  <p className="mt-0.5 text-sm text-stone-600">{p.businessHours as string}</p>
+                <div className="mt-3">
+                  <div className="section-label">Hours</div>
+                  <div className="mt-1 text-sm text-stone-700">{p.businessHours as string}</div>
                 </div>
               )}
               {p.businessPhone && (
-                <a href={`tel:${p.businessPhone}`} className="block text-sm text-stone-700 hover:text-indigo-700">
+                <a href={`tel:${p.businessPhone}`} className="mt-3 block text-sm text-stone-700 hover:text-indigo-700">
                   {p.businessPhone as string}
                 </a>
               )}
               {p.websiteUrl && (
                 <a
                   href={(p.websiteUrl as string).startsWith("http") ? p.websiteUrl as string : `https://${p.websiteUrl}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-block text-sm font-medium text-indigo-700 hover:underline"
+                  target="_blank" rel="noopener noreferrer"
+                  className="mt-3 inline-flex items-center gap-1 text-sm text-indigo-700 hover:underline"
                 >
-                  Visit website &rarr;
+                  Visit website →
                 </a>
               )}
-            </aside>
+            </div>
           )}
 
           {hasSocials && (
-            <aside className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm space-y-3">
-              <h2 className="text-xs font-semibold uppercase tracking-widest text-stone-400">
-                Find them online
-              </h2>
-              {p.instagramHandle && (
-                <SocialLink
-                  href={`https://instagram.com/${p.instagramHandle}`}
-                  label={`@${p.instagramHandle}`}
-                  icon="📸"
-                />
-              )}
-              {p.tiktokHandle && (
-                <SocialLink
-                  href={`https://tiktok.com/@${p.tiktokHandle}`}
-                  label={`@${p.tiktokHandle}`}
-                  icon="🎵"
-                />
-              )}
-              {(p.twitterHandle || p.xHandle) && (
-                <SocialLink
-                  href={`https://x.com/${p.twitterHandle || p.xHandle}`}
-                  label={`@${p.twitterHandle || p.xHandle}`}
-                  icon="𝕏"
-                />
-              )}
-              {p.threadsHandle && (
-                <SocialLink
-                  href={`https://threads.net/@${p.threadsHandle}`}
-                  label={`@${p.threadsHandle}`}
-                  icon="🧵"
-                />
-              )}
-              {(p.youtubeUrl || p.youtubeHandle) && (
-                <SocialLink
-                  href={p.youtubeUrl as string || `https://youtube.com/@${p.youtubeHandle}`}
-                  label="YouTube"
-                  icon="▶️"
-                />
-              )}
-              {p.linkedinUrl && (
-                <SocialLink href={p.linkedinUrl as string} label="LinkedIn" icon="💼" />
-              )}
-              {p.spotifyUrl && (
-                <SocialLink href={p.spotifyUrl as string} label="Spotify" icon="🎧" />
-              )}
-              {p.soundcloudUrl && (
-                <SocialLink href={p.soundcloudUrl as string} label="SoundCloud" icon="☁️" />
-              )}
-              {p.facebookUrl && (
-                <SocialLink href={p.facebookUrl as string} label="Facebook" icon="👥" />
-              )}
-              {p.eventbriteUrl && (
-                <SocialLink href={p.eventbriteUrl as string} label="Eventbrite" icon="🎟️" />
-              )}
-              {p.bandsintownUrl && (
-                <SocialLink href={p.bandsintownUrl as string} label="Bandsintown" icon="🎸" />
-              )}
-              {p.songkickUrl && (
-                <SocialLink href={p.songkickUrl as string} label="Songkick" icon="🎤" />
-              )}
-              {p.meetupUrl && (
-                <SocialLink href={p.meetupUrl as string} label="Meetup" icon="🤝" />
-              )}
-              {p.pinterestUrl && (
-                <SocialLink href={p.pinterestUrl as string} label="Pinterest" icon="📌" />
-              )}
-              {extraSocials.map(([key, val]) => {
-                const label = key.replace(/(Handle|Url)$/, "").replace(/([A-Z])/g, " $1").trim();
-                return (
-                  <SocialLink key={key} href={val as string} label={label} icon="🔗" />
-                );
-              })}
-            </aside>
+            <div className="card-soft p-5">
+              <div className="section-label">Find them online</div>
+              <ul className="mt-3 space-y-2 text-sm">
+                {p.instagramHandle && <li><SocialLink href={`https://instagram.com/${p.instagramHandle}`} label={`@${p.instagramHandle}`} icon="📸" /></li>}
+                {p.tiktokHandle && <li><SocialLink href={`https://tiktok.com/@${p.tiktokHandle}`} label={`@${p.tiktokHandle}`} icon="🎵" /></li>}
+                {(p.twitterHandle || p.xHandle) && <li><SocialLink href={`https://x.com/${p.twitterHandle || p.xHandle}`} label={`@${p.twitterHandle || p.xHandle}`} icon="𝕏" /></li>}
+                {p.threadsHandle && <li><SocialLink href={`https://threads.net/@${p.threadsHandle}`} label={`@${p.threadsHandle}`} icon="🧵" /></li>}
+                {(p.youtubeUrl || p.youtubeHandle) && <li><SocialLink href={p.youtubeUrl as string || `https://youtube.com/@${p.youtubeHandle}`} label="YouTube" icon="▶️" /></li>}
+                {p.linkedinUrl && <li><SocialLink href={p.linkedinUrl as string} label="LinkedIn" icon="💼" /></li>}
+                {p.spotifyUrl && <li><SocialLink href={p.spotifyUrl as string} label="Spotify" icon="🎧" /></li>}
+                {p.soundcloudUrl && <li><SocialLink href={p.soundcloudUrl as string} label="SoundCloud" icon="☁️" /></li>}
+                {p.facebookUrl && <li><SocialLink href={p.facebookUrl as string} label="Facebook" icon="👥" /></li>}
+                {p.eventbriteUrl && <li><SocialLink href={p.eventbriteUrl as string} label="Eventbrite" icon="🎟️" /></li>}
+                {p.bandsintownUrl && <li><SocialLink href={p.bandsintownUrl as string} label="Bandsintown" icon="🎸" /></li>}
+                {p.songkickUrl && <li><SocialLink href={p.songkickUrl as string} label="Songkick" icon="🎤" /></li>}
+                {p.meetupUrl && <li><SocialLink href={p.meetupUrl as string} label="Meetup" icon="🤝" /></li>}
+                {p.pinterestUrl && <li><SocialLink href={p.pinterestUrl as string} label="Pinterest" icon="📌" /></li>}
+                {extraSocials.map(([key, val]) => {
+                  const label = key.replace(/(Handle|Url)$/, "").replace(/([A-Z])/g, " $1").trim();
+                  return <li key={key}><SocialLink href={val as string} label={label} icon="🔗" /></li>;
+                })}
+              </ul>
+            </div>
           )}
+
           {hasLocation && (
-            <aside className="rounded-2xl border border-stone-200 bg-white overflow-hidden shadow-sm">
-              <MiniMap
-                lat={p.latitude as number}
-                lng={p.longitude as number}
-                color={pinColor}
-              />
+            <div className="card-soft overflow-hidden">
+              <div className="section-label px-5 pt-5 pb-4">Location</div>
+              {location && <div className="px-5 pb-4 -mt-2 text-sm text-stone-600">{location}</div>}
+              <MiniMap lat={p.latitude as number} lng={p.longitude as number} color={pinColor} />
               {p.googleMapsUrl && (
                 <a
                   href={p.googleMapsUrl as string}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-indigo-700 hover:bg-stone-50 transition"
+                  target="_blank" rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-1.5 border-t border-stone-100 py-3 text-xs text-indigo-700 hover:bg-stone-50 transition"
                 >
-                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  Open in Google Maps
+                  Open in Google Maps →
                 </a>
               )}
-            </aside>
+            </div>
           )}
-        </div>
+        </aside>
       </div>
 
-      {/* Events */}
-      <section className="mt-12">
-        <h2 className="text-xl font-semibold text-stone-900">Events</h2>
-        {events.length === 0 ? (
-          <p className="mt-2 text-sm text-stone-500">No upcoming events from this member yet.</p>
-        ) : (
-          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {events.map((ev) => (
-              <EventCard key={ev.id} event={ev} />
-            ))}
-          </div>
-        )}
-      </section>
     </div>
   );
 }

@@ -126,7 +126,7 @@ function VendorCheckoutCard({ group, onVendorPaid }: VendorCheckoutCardProps) {
   >({ stage: 'idle' })
 
   const hasAllPrices = group.items.every(item => typeof item.price === 'number')
-  const total = group.items.reduce((sum, item) => sum + (item.price ?? 0), 0)
+  const total = group.items.reduce((sum, item) => sum + (item.price ?? 0) * (item.qty ?? 1), 0)
 
   const handlePay = useCallback(async () => {
     setState({ stage: 'loading' })
@@ -140,7 +140,7 @@ function VendorCheckoutCard({ group, onVendorPaid }: VendorCheckoutCardProps) {
             name: item.name,
             memberId: item.memberId,
             price: item.price ?? 0,
-            quantity: 1,
+            quantity: item.qty ?? 1,
           })),
         }),
       })
@@ -184,16 +184,23 @@ function VendorCheckoutCard({ group, onVendorPaid }: VendorCheckoutCardProps) {
       </div>
 
       <ul className="mt-3 space-y-2">
-        {group.items.map(item => (
-          <li key={item.id} className="flex items-center justify-between gap-4 text-sm">
-            <span className="text-stone-700">{item.name}</span>
-            {typeof item.price === 'number' ? (
-              <span className="font-medium text-stone-900">{formatCents(item.price)}</span>
-            ) : (
-              <span className="text-stone-400 italic">Price not set — contact vendor</span>
-            )}
-          </li>
-        ))}
+        {group.items.map(item => {
+          const qty = item.qty ?? 1
+          const line = (item.price ?? 0) * qty
+          return (
+            <li key={item.id} className="flex items-center justify-between gap-4 text-sm">
+              <span className="text-stone-700">
+                {item.name}
+                {qty > 1 && <span className="ml-1 text-stone-400">× {qty}</span>}
+              </span>
+              {typeof item.price === 'number' ? (
+                <span className="font-medium text-stone-900">{formatCents(line)}</span>
+              ) : (
+                <span className="text-stone-400 italic">Price not set — contact vendor</span>
+              )}
+            </li>
+          )
+        })}
       </ul>
 
       <div className="mt-4">
