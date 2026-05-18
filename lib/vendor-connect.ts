@@ -73,3 +73,48 @@ export async function updateVendorConnectStatus(stripeAccountId: string, status:
 
   if (error) throw new Error(`Failed to update vendor connect status: ${error.message}`)
 }
+
+export interface VendorProfile {
+  workos_user_id: string
+  member_id: string
+  email: string | null
+  verification_status: string
+  verification_method: string | null
+  verification_evidence: Record<string, unknown> | null
+}
+
+export async function getVendorProfile(workosUserId: string): Promise<VendorProfile | null> {
+  const { data, error } = await supabase
+    .from('vendor_profiles')
+    .select('*')
+    .eq('workos_user_id', workosUserId)
+    .single()
+
+  if (error || !data) return null
+  return data as VendorProfile
+}
+
+export async function setVendorProfile(
+  workosUserId: string,
+  memberId: string,
+  email: string | null,
+  verificationStatus: string = 'pending',
+  verificationMethod?: string,
+  verificationEvidence?: Record<string, unknown>
+): Promise<void> {
+  const { error } = await supabase
+    .from('vendor_profiles')
+    .upsert(
+      {
+        workos_user_id: workosUserId,
+        member_id: memberId,
+        email,
+        verification_status: verificationStatus,
+        verification_method: verificationMethod ?? null,
+        verification_evidence: verificationEvidence ?? null,
+      },
+      { onConflict: 'workos_user_id' }
+    )
+
+  if (error) throw new Error(`Failed to save vendor profile: ${error.message}`)
+}
