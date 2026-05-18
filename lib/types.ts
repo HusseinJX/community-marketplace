@@ -115,3 +115,20 @@ export interface MemberResponse {
 export interface EventsResponse {
   events: EventSuggestion[];
 }
+
+export interface SearchIntent {
+  semantic?: string;
+  filters?: Record<string, unknown>;
+  excludes?: Record<string, unknown>;
+  intent?: "find" | "vibe" | "compare" | "recommend";
+}
+
+export interface SearchResultMember extends Member {
+  matchedOn?: string[];
+  score?: number;
+}
+
+export interface SearchResponse {
+  intent: SearchIntent;
+  results: SearchResultMember[];
+}

@@ -3,6 +3,7 @@ import type {
   MemberResponse,
   EventsResponse,
   MemberType,
+  SearchResponse,
 } from "./types";
 
 const API_BASE =
@@ -53,6 +54,23 @@ export async function listMembers(params: ListMembersParams = {}): Promise<Membe
 
 export async function getMember(id: string): Promise<MemberResponse> {
   return getJson<MemberResponse>(fnUrl("marketplace-member", { id }));
+}
+
+// Smart natural-language search.
+// "buzz cut under $15 in Chinatown with a TV", "family-owned jewelry maker",
+// "historic Italian restaurant in North Beach" — all valid. The backend GPT-
+// parses intent, applies structured filters at the Pinecone metadata level,
+// and returns each result with a matchedOn[] array of breadcrumbs.
+export async function searchMembers(
+  query: string,
+  opts: { limit?: number } = {}
+): Promise<SearchResponse> {
+  return getJson<SearchResponse>(
+    fnUrl("marketplace-search", {
+      q: query,
+      limit: opts.limit ? String(opts.limit) : undefined,
+    })
+  );
 }
 
 export async function listEvents(params: { memberId?: string; limit?: number } = {}): Promise<EventsResponse> {

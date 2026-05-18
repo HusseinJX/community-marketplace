@@ -24,7 +24,7 @@ function collectTags(p: Member["profile"]): string[] {
   return Array.from(new Set(candidates)).slice(0, 2);
 }
 
-export function MemberCard({ member }: { member: Member }) {
+export function MemberCard({ member, matchedOn }: { member: Member; matchedOn?: string[] }) {
   const p = member.profile ?? {};
   const name = p.name || "Anonymous member";
   const location = [p.neighborhood, p.city].filter(Boolean).join(", ");
@@ -73,6 +73,20 @@ export function MemberCard({ member }: { member: Member }) {
 
         {blurb && (
           <p className="line-clamp-3 text-sm text-stone-700">{blurb}</p>
+        )}
+
+        {matchedOn && matchedOn.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 pt-1">
+            {matchedOn.map((chip) => (
+              <span
+                key={chip}
+                className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-800 ring-1 ring-emerald-200"
+                title="matched this filter"
+              >
+                {chip}
+              </span>
+            ))}
+          </div>
         )}
 
         {tags.length > 0 && (

@@ -3,11 +3,12 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { LayoutGrid, Map as MapIcon, ShoppingBag, Plane, Heart, Apple, DollarSign, CreditCard, X } from "lucide-react";
-import { listMembers } from "@/lib/api";
-import type { Member } from "@/lib/types";
+import { listMembers, searchMembers } from "@/lib/api";
+import type { Member, SearchResultMember, SearchIntent } from "@/lib/types";
 import { MemberCard, MemberCardSkeleton } from "@/components/MemberCard";
 import { FilterBar, type FilterType } from "@/components/FilterBar";
 import { MapView } from "@/components/MapView";
+import { SearchBar } from "@/components/SearchBar";
 import { DEMO_MEMBERS } from "@/lib/demo-members";
 
 type ViewMode = "grid" | "map";
@@ -28,6 +29,31 @@ export default function BrowsePage() {
   const [loading, setLoading] = useState(!cached);
   const [error, setError] = useState<string | null>(null);
   const [donateOpen, setDonateOpen] = useState(false);
+
+  // Smart search mode — when active, suspends filter-based browse and shows
+  // matchedOn breadcrumbs on each card.
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchResultMember[] | null>(null);
+  const [searchIntent, setSearchIntent] = useState<SearchIntent | null>(null);
+  const [searchLoading, setSearchLoading] = useState(false);
+
+  const runSearch = (q: string) => {
+    setSearchQuery(q);
+    setSearchLoading(true);
+    setError(null);
+    searchMembers(q, { limit: 60 })
+      .then((r) => {
+        setSearchResults(r.results);
+        setSearchIntent(r.intent);
+      })
+      .catch((err) => setError(err.message || "Search failed."))
+      .finally(() => setSearchLoading(false));
+  };
+  const clearSearch = () => {
+    setSearchQuery("");
+    setSearchResults(null);
+    setSearchIntent(null);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -171,65 +197,118 @@ export default function BrowsePage() {
         </div>
       )}
 
-      {/* Filters + view toggle */}
-      <section className="space-y-3">
-        <div className="flex items-start justify-between gap-3">
-          <FilterBar
-            type={type}
-            city={city}
-            category={category}
-            subcategory={subcategory}
-            onTypeChange={(t) => { setType(t); setCategory(""); setSubcategory(""); }}
-            onCityChange={setCity}
-            onCategoryChange={(c) => { setCategory(c); setSubcategory(""); }}
-            onSubcategoryChange={setSubcategory}
-          />
-          <div className="hidden shrink-0 rounded-full border border-stone-200 bg-white p-1 md:flex">
-            <ToggleBtn active={view === "grid"} onClick={() => setView("grid")}>
-              <LayoutGrid className="h-4 w-4" /> Grid
-            </ToggleBtn>
-            <ToggleBtn active={view === "map"} onClick={() => setView("map")}>
-              <MapIcon className="h-4 w-4" /> Map
-            </ToggleBtn>
-          </div>
-        </div>
+      {/* Smart search bar */}
+      <section className="mb-3">
+        <SearchBar
+          value={searchQuery}
+          onSubmit={runSearch}
+          onClear={clearSearch}
+          loading={searchLoading}
+        />
       </section>
+
+      {/* Filters + view toggle — hidden while in search mode */}
+      {!searchQuery && (
+        <section className="space-y-3">
+          <div className="flex items-start justify-between gap-3">
+            <FilterBar
+              type={type}
+              city={city}
+              category={category}
+              subcategory={subcategory}
+              onTypeChange={(t) => { setType(t); setCategory(""); setSubcategory(""); }}
+              onCityChange={setCity}
+              onCategoryChange={(c) => { setCategory(c); setSubcategory(""); }}
+              onSubcategoryChange={setSubcategory}
+            />
+            <div className="hidden shrink-0 rounded-full border border-stone-200 bg-white p-1 md:flex">
+              <ToggleBtn active={view === "grid"} onClick={() => setView("grid")}>
+                <LayoutGrid className="h-4 w-4" /> Grid
+              </ToggleBtn>
+              <ToggleBtn active={view === "map"} onClick={() => setView("map")}>
+                <MapIcon className="h-4 w-4" /> Map
+              </ToggleBtn>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Intent summary while in search mode */}
+      {searchQuery && searchIntent && (
+        <section className="mb-2 rounded-2xl border border-stone-200 bg-white/70 px-4 py-3 text-xs text-stone-600">
+          <span className="font-medium text-stone-800">{searchResults?.length ?? 0} results</span>
+          {searchIntent.filters && Object.keys(searchIntent.filters).length > 0 && (
+            <span className="ml-2">
+              filtered by{" "}
+              <span className="font-mono text-stone-700">
+                {Object.entries(searchIntent.filters).map(([k, v]) =>
+                  Array.isArray(v) ? `${k}:[${v.join(",")}]` : `${k}:${v}`
+                ).join(" · ")}
+              </span>
+            </span>
+          )}
+        </section>
+      )}
 
       {/* Results */}
       <section className="mt-8">
-        {error && visible.length === 0 && (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+        {error && (
+          <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
             {error}
           </div>
         )}
 
-        {view === "map" && visible.length > 0 && (
-          <MapView members={visible} />
-        )}
+        {/* Search mode — show search results with matchedOn chips */}
+        {searchQuery ? (
+          searchLoading ? (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {Array.from({ length: 8 }).map((_, i) => <MemberCardSkeleton key={i} />)}
+            </div>
+          ) : (searchResults && searchResults.length > 0) ? (
+            <div className="grid auto-rows-fr grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {searchResults.map((m) => (
+                <MemberCard key={m.id} member={m} matchedOn={m.matchedOn} />
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-stone-300 bg-white/60 p-12 text-center">
+              <p className="text-base font-medium text-stone-800">No results for “{searchQuery}”.</p>
+              <p className="mt-1 text-sm text-stone-500">
+                Try simpler phrasing, drop the neighborhood, or clear the search to browse.
+              </p>
+            </div>
+          )
+        ) : (
+          <>
+            {view === "map" && visible.length > 0 && (
+              <MapView members={visible} />
+            )}
 
-        {view === "grid" && loading && visible.length === 0 && (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <MemberCardSkeleton key={i} />
-            ))}
-          </div>
-        )}
+            {view === "grid" && loading && visible.length === 0 && (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <MemberCardSkeleton key={i} />
+                ))}
+              </div>
+            )}
 
-        {view === "grid" && !loading && visible.length === 0 && !error && (
-          <div className="rounded-2xl border border-dashed border-stone-300 bg-white/60 p-12 text-center">
-            <p className="text-base font-medium text-stone-800">No members match your filters yet.</p>
-            <p className="mt-1 text-sm text-stone-500">
-              Try clearing the city filter or selecting a different category.
-            </p>
-          </div>
-        )}
+            {view === "grid" && !loading && visible.length === 0 && !error && (
+              <div className="rounded-2xl border border-dashed border-stone-300 bg-white/60 p-12 text-center">
+                <p className="text-base font-medium text-stone-800">No members match your filters yet.</p>
+                <p className="mt-1 text-sm text-stone-500">
+                  Try clearing the city filter or selecting a different category.
+                </p>
+              </div>
+            )}
 
-        {view === "grid" && visible.length > 0 && (
-          <div className="grid auto-rows-fr grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {visible.map((m) => (
-              <MemberCard key={m.id} member={m} />
-            ))}
-          </div>
+            {view === "grid" && visible.length > 0 && (
+              <div className="grid auto-rows-fr grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {visible.map((m) => (
+                  <MemberCard key={m.id} member={m} />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </section>
     </div>
