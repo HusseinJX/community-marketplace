@@ -58,6 +58,9 @@ export interface MemberProfile {
   priceRange?: string;
   featuredProduct?: string;
   shopUrl?: string;
+  // hero imagery
+  imageUrl?: string;
+  images?: string[];
   etsyUrl?: string;
   shopifyUrl?: string;
   shareTypes?: string[];

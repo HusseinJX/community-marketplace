@@ -34,31 +34,34 @@ export function MemberCard({ member, matchedOn }: { member: Member; matchedOn?: 
   const blurb = (p.approvedBlurb || p.personalNote || p.businessDescription || notesStr || p.description || "") as string;
   const type = (p.memberType as string | undefined)?.toLowerCase() ?? "";
   const gradient = TYPE_GRADIENTS[type] ?? "from-stone-200 to-stone-300";
-  const heroImages = MEMBER_HERO_IMAGES[member.id];
-  // Fallback for imported members: the single imageUrl saved by the
-  // prolocaliq import / google-places harvest. Some sources (legacybusiness.org)
-  // can be flaky, so HeroMedia swaps to the gradient on load error.
-  const fallbackImage = (p as { imageUrl?: string; image_url?: string }).imageUrl
-    || (p as { imageUrl?: string; image_url?: string }).image_url;
-  const cardImages = heroImages && heroImages.length > 0
-    ? heroImages
-    : (fallbackImage ? [fallbackImage] : []);
+  // Image priority:
+  //   1) hand-curated MEMBER_HERO_IMAGES (for showcased demo members)
+  //   2) imported profile.images[] (e.g. prolocaliq DigitalOcean Spaces — 3/biz)
+  //   3) single profile.imageUrl fallback
+  //   4) coloured gradient
+  const curated = MEMBER_HERO_IMAGES[member.id];
+  const profileImages = Array.isArray(p.images) && p.images.length ? p.images : null;
+  const carouselImages = curated && curated.length ? curated : profileImages;
 
   return (
     <Link
       href={`/members/${member.id}`}
       className="group card-soft card-hover flex flex-col overflow-hidden"
     >
-      {heroImages && heroImages.length > 0 ? (
+      {carouselImages && carouselImages.length > 0 ? (
         <ImageCarousel
-          images={heroImages}
+          images={carouselImages}
           alt={name}
           aspect="video"
           rounded="rounded-none"
-          showCounter={false}
+          showCounter={carouselImages.length > 1}
         />
       ) : (
-        <HeroMedia images={cardImages} gradientClass={gradient} alt={name} />
+        <HeroMedia
+          images={p.imageUrl ? [p.imageUrl] : []}
+          gradientClass={gradient}
+          alt={name}
+        />
       )}
       <div className="flex flex-1 flex-col gap-3 p-5">
         <div className="flex items-start justify-between gap-3">
