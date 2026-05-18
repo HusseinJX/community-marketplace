@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server'
 import { withAuth } from '@workos-inc/authkit-nextjs'
-import { getMember } from '@/lib/api'
 import { setVendorProfile } from '@/lib/vendor-connect'
-import { verifyBusinessOwnership, availableVerificationMethods } from '@/lib/vendor-verify'
-import type { VerificationMethod } from '@/lib/vendor-verify'
 
+type VerificationMethod = 'phone' | 'website_email' | 'instagram' | 'gemini'
+
+// Verification engine lives in the connector-agent — single source of truth.
+// This route is a thin proxy that adds WorkOS auth + persists the result
+// into Supabase (vendor_profiles). The connector-agent /verify endpoint
+// already handles Gemini fallback on structured-check failure.
 export async function POST(request: Request) {
   const { user } = await withAuth()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -16,28 +19,31 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'memberId, method, and value are required' }, { status: 400 })
   }
 
-  const { member } = await getMember(memberId)
-  const profile = member.profile ?? {}
-
-  const available = availableVerificationMethods(profile)
-  if (!available.includes(method)) {
-    return NextResponse.json({ error: 'Verification method not available for this member' }, { status: 400 })
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE || 'https://community-connector-agent.netlify.app'
+  const adminToken = process.env.CONNECTOR_ADMIN_TOKEN
+  if (!adminToken) {
+    return NextResponse.json({ error: 'CONNECTOR_ADMIN_TOKEN not configured' }, { status: 500 })
   }
 
-  const result = await verifyBusinessOwnership(method, value, profile)
+  const res = await fetch(`${apiBase}/.netlify/functions/verify`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${adminToken}`,
+    },
+    body: JSON.stringify({ memberId, method, value }),
+  })
+
+  if (!res.ok) {
+    const err = await res.text()
+    return NextResponse.json({ error: err || 'Verification service failed' }, { status: res.status })
+  }
+
+  const result = await res.json()
 
   if (result.verified) {
-    await setVendorProfile(user.id, memberId, user.email ?? null, 'verified', method, result.evidence)
+    await setVendorProfile(user.id, memberId, user.email ?? null, 'verified', result.method, result.evidence)
     return NextResponse.json({ verified: true, method: result.method })
-  }
-
-  // If structured check failed, escalate to Gemini automatically
-  if (method !== 'gemini') {
-    const geminiResult = await verifyBusinessOwnership('gemini', value, profile)
-    if (geminiResult.verified) {
-      await setVendorProfile(user.id, memberId, user.email ?? null, 'verified', 'gemini', geminiResult.evidence)
-      return NextResponse.json({ verified: true, method: 'gemini' })
-    }
   }
 
   return NextResponse.json({ verified: false, evidence: result.evidence })
