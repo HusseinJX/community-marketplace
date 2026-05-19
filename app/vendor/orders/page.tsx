@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { ShoppingCart, CheckCircle, Truck, PackageCheck, XCircle, Clock } from 'lucide-react'
+import { useEffect, useState, useCallback } from 'react'
+import { ShoppingCart, CheckCircle, Truck, PackageCheck, XCircle, Clock, ExternalLink } from 'lucide-react'
 
 interface OrderItem {
   name: string
@@ -42,12 +42,18 @@ export default function VendorOrdersPage() {
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState<string | null>(null)
 
-  useEffect(() => {
+  const fetchOrders = useCallback(() => {
     fetch('/api/vendor/orders')
       .then(r => r.json())
       .then(d => setOrders(d.orders ?? []))
       .finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => {
+    fetchOrders()
+    const interval = setInterval(fetchOrders, 30_000)
+    return () => clearInterval(interval)
+  }, [fetchOrders])
 
   async function markReady(order: Order) {
     setUpdating(order.id)
@@ -72,6 +78,17 @@ export default function VendorOrdersPage() {
     } else {
       setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: 'ready' } : o))
     }
+    setUpdating(null)
+  }
+
+  async function markDelivered(order: Order) {
+    setUpdating(order.id)
+    await fetch('/api/vendor/orders', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId: order.id, status: 'delivered' }),
+    })
+    setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: 'delivered' } : o))
     setUpdating(null)
   }
 
@@ -107,7 +124,15 @@ export default function VendorOrdersPage() {
               <div key={order.id} className="card-soft p-6 space-y-4">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="font-semibold text-stone-900">{order.order_number}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-stone-900">{order.order_number}</p>
+                      {order.delivery_requested && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-teal-50 px-2.5 py-0.5 text-xs font-medium text-teal-700">
+                          <Truck className="h-3 w-3" />
+                          Delivery requested
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-stone-400 mt-0.5">{formatDate(order.created_at)}</p>
                   </div>
                   <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${cfg.color}`}>
@@ -128,20 +153,28 @@ export default function VendorOrdersPage() {
                   ))}
                 </div>
 
-                <div className="flex items-center justify-between border-t border-stone-100 pt-3">
-                  <span className="text-sm font-semibold text-stone-900">
-                    Total {formatCents(order.subtotal_cents)}
-                  </span>
+                <div className="space-y-3 border-t border-stone-100 pt-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold text-stone-900">
+                      Total {formatCents(order.subtotal_cents)}
+                    </span>
+                    {order.delivery_fee_cents != null && order.delivery_fee_cents > 0 && (
+                      <span className="text-sm text-stone-500">
+                        Delivery fee: {formatCents(order.delivery_fee_cents)}
+                      </span>
+                    )}
+                  </div>
+
                   <div className="flex items-center gap-3">
                     {order.uber_tracking_url && (
                       <a
                         href={order.uber_tracking_url}
                         target="_blank"
                         rel="noreferrer"
-                        className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800"
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-teal-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-teal-700 transition"
                       >
-                        <Truck className="h-3.5 w-3.5" />
-                        Track delivery
+                        <ExternalLink className="h-3.5 w-3.5" />
+                        Track with Uber
                       </a>
                     )}
                     {order.status === 'paid' && (
@@ -155,6 +188,15 @@ export default function VendorOrdersPage() {
                           : order.delivery_requested
                           ? 'Ready — Dispatch Uber'
                           : 'Mark Ready'}
+                      </button>
+                    )}
+                    {order.status === 'dispatched' && (
+                      <button
+                        onClick={() => markDelivered(order)}
+                        disabled={updating === order.id}
+                        className="rounded-lg bg-emerald-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 transition"
+                      >
+                        {updating === order.id ? 'Updating…' : 'Confirm Delivered'}
                       </button>
                     )}
                   </div>
