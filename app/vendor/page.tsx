@@ -1,4 +1,4 @@
-import { auth } from '@clerk/nextjs/server'
+import { auth, currentUser } from '@clerk/nextjs/server'
 import { Package, ShoppingCart, CreditCard, Calendar, Plus, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -82,12 +82,13 @@ function formatPrice(cents: number) {
 }
 
 export default async function VendorDashboard() {
-  const { userId, sessionClaims } = await auth()
-  const user = userId
+  const { userId } = await auth()
+  const clerkUser = userId ? await currentUser() : null
+  const user = clerkUser
     ? {
-        id: userId,
-        firstName: (sessionClaims?.firstName as string) ?? null,
-        email: (sessionClaims?.email as string) ?? null,
+        id: clerkUser.id,
+        firstName: clerkUser.firstName ?? null,
+        email: clerkUser.emailAddresses?.[0]?.emailAddress ?? null,
       }
     : null
 

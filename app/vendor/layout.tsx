@@ -1,13 +1,14 @@
-import { auth } from '@clerk/nextjs/server'
+import { auth, currentUser } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { SignOutButton } from '@clerk/nextjs'
 
 export default async function VendorLayout({ children }: { children: React.ReactNode }) {
-  const { userId, sessionClaims } = await auth()
+  const { userId } = await auth()
   if (!userId) redirect('/vendor/sign-in')
 
-  const email = (sessionClaims?.email as string) ?? ''
+  const user = await currentUser()
+  const email = user?.emailAddresses?.[0]?.emailAddress ?? ''
 
   return (
     <div className="min-h-screen bg-stone-50">
