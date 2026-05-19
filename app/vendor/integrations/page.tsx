@@ -9,8 +9,6 @@ interface Settings {
   uber_direct_enabled: boolean
 }
 
-const CONNECTOR_BASE = process.env.NEXT_PUBLIC_CONNECTOR_URL ?? ''
-
 export default function VendorIntegrationsPage() {
   const [settings, setSettings] = useState<Settings | null>(null)
   const [loading, setLoading] = useState(true)
@@ -28,17 +26,14 @@ export default function VendorIntegrationsPage() {
   async function connectPlatform(platform: 'shopify' | 'square') {
     setConnecting(platform)
     try {
-      // ask the connector agent to generate a Composio Magic Link
-      const res = await fetch(`${CONNECTOR_BASE}/.netlify/functions/composio-connect`, {
+      const res = await fetch('/api/vendor/composio', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${process.env.NEXT_PUBLIC_ADMIN_TOKEN ?? ''}`,
-        },
-        body: JSON.stringify({ memberId: settings?.composio_connection_id ?? '', platform }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'connect', platform }),
       })
       const data = await res.json()
       if (data.url) window.location.href = data.url
+      else alert(data.error ?? 'Failed to start connection.')
     } catch {
       alert('Failed to start connection. Try again.')
     }
@@ -49,18 +44,15 @@ export default function VendorIntegrationsPage() {
     setSyncing(true)
     setSyncResult(null)
     try {
-      const res = await fetch(`${CONNECTOR_BASE}/.netlify/functions/composio-sync`, {
+      const res = await fetch('/api/vendor/composio', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${process.env.NEXT_PUBLIC_ADMIN_TOKEN ?? ''}`,
-        },
-        body: JSON.stringify({ memberId: settings?.composio_connection_id ?? '' }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'sync' }),
       })
       const data = await res.json()
-      setSyncResult(`Synced ${data.synced ?? 0} products`)
+      setSyncResult(data.error ? `Error: ${data.error}` : `Synced ${data.synced ?? 0} products`)
     } catch {
-      setSyncResult('Sync failed — check console')
+      setSyncResult('Sync failed — try again')
     }
     setSyncing(false)
   }
