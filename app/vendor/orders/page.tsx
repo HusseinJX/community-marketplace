@@ -16,6 +16,7 @@ interface Order {
   items: OrderItem[]
   subtotal_cents: number
   delivery_requested: boolean
+  delivery_fee_cents: number | null
   uber_tracking_url: string | null
   created_at: string
 }
@@ -48,14 +49,29 @@ export default function VendorOrdersPage() {
       .finally(() => setLoading(false))
   }, [])
 
-  async function markReady(orderId: string) {
-    setUpdating(orderId)
+  async function markReady(order: Order) {
+    setUpdating(order.id)
     await fetch('/api/vendor/orders', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ orderId, status: 'ready' }),
+      body: JSON.stringify({ orderId: order.id, status: 'ready' }),
     })
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'ready' } : o))
+
+    // if delivery was requested, dispatch Uber courier
+    if (order.delivery_requested) {
+      try {
+        await fetch('/api/uber/dispatch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId: order.id }),
+        })
+        setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: 'dispatched' } : o))
+      } catch {
+        setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: 'ready' } : o))
+      }
+    } else {
+      setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: 'ready' } : o))
+    }
     setUpdating(null)
   }
 
@@ -130,11 +146,15 @@ export default function VendorOrdersPage() {
                     )}
                     {order.status === 'paid' && (
                       <button
-                        onClick={() => markReady(order.id)}
+                        onClick={() => markReady(order)}
                         disabled={updating === order.id}
                         className="rounded-lg bg-indigo-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 transition"
                       >
-                        {updating === order.id ? 'Updating…' : 'Mark Ready'}
+                        {updating === order.id
+                          ? 'Updating…'
+                          : order.delivery_requested
+                          ? 'Ready — Dispatch Uber'
+                          : 'Mark Ready'}
                       </button>
                     )}
                   </div>

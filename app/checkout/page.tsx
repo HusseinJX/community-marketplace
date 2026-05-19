@@ -11,6 +11,7 @@ import {
 } from '@stripe/react-stripe-js'
 import { useStore } from '@/lib/store'
 import { StoredProduct } from '@/lib/store'
+import DeliveryRequestModal from '@/components/DeliveryRequestModal'
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
@@ -39,7 +40,7 @@ interface PaymentFormProps {
   clientSecret: string
   paymentIntentId: string
   memberId: string
-  onSuccess: (memberId: string, orderNumber: string) => void
+  onSuccess: (memberId: string, orderNumber: string, orderId: string) => void
 }
 
 function PaymentForm({ clientSecret, paymentIntentId, memberId, onSuccess }: PaymentFormProps) {
@@ -84,7 +85,7 @@ function PaymentForm({ clientSecret, paymentIntentId, memberId, onSuccess }: Pay
       })
       const data = await res.json()
       if (data.success) {
-        onSuccess(memberId, data.orderNumber)
+        onSuccess(memberId, data.orderNumber, data.orderId)
       } else {
         setError(data.error ?? 'Payment confirmation failed')
       }
@@ -113,7 +114,7 @@ function PaymentForm({ clientSecret, paymentIntentId, memberId, onSuccess }: Pay
 
 interface VendorCheckoutCardProps {
   group: VendorGroup
-  onVendorPaid: (memberId: string, orderNumber: string) => void
+  onVendorPaid: (memberId: string, orderNumber: string, orderId: string) => void
 }
 
 function VendorCheckoutCard({ group, onVendorPaid }: VendorCheckoutCardProps) {
@@ -269,14 +270,15 @@ function VendorCheckoutCard({ group, onVendorPaid }: VendorCheckoutCardProps) {
 
 export default function CheckoutPage() {
   const { cart, removeFromCart } = useStore()
-  const [paidVendors, setPaidVendors] = useState<Record<string, string>>({})
+  const [paidVendors, setPaidVendors] = useState<Record<string, { orderNumber: string; orderId: string }>>({})
+  const [deliveryModal, setDeliveryModal] = useState<{ orderId: string; orderNumber: string } | null>(null)
 
   const groups = groupByVendor(cart.filter(item => !paidVendors[item.memberId]))
 
-  function handleVendorPaid(memberId: string, orderNumber: string) {
-    // Remove all items for this vendor from cart
+  function handleVendorPaid(memberId: string, orderNumber: string, orderId: string) {
     cart.filter(item => item.memberId === memberId).forEach(item => removeFromCart(item.id))
-    setPaidVendors(prev => ({ ...prev, [memberId]: orderNumber }))
+    setPaidVendors(prev => ({ ...prev, [memberId]: { orderNumber, orderId } }))
+    setDeliveryModal({ orderId, orderNumber })
   }
 
   const allDone = groups.length === 0 && Object.keys(paidVendors).length > 0
@@ -302,6 +304,15 @@ export default function CheckoutPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-6 py-10">
+      {deliveryModal && (
+        <DeliveryRequestModal
+          orderId={deliveryModal.orderId}
+          orderNumber={deliveryModal.orderNumber}
+          onClose={() => setDeliveryModal(null)}
+          onDeliveryRequested={() => setDeliveryModal(null)}
+        />
+      )}
+
       <Link href="/cart" className="text-sm font-medium text-indigo-700 hover:underline">
         &larr; Back to cart
       </Link>
@@ -315,8 +326,8 @@ export default function CheckoutPage() {
         <div className="mt-10 rounded-2xl border border-green-200 bg-green-50 p-6 text-center">
           <p className="text-lg font-semibold text-green-800">All payments complete!</p>
           <div className="mt-3 space-y-1">
-            {Object.entries(paidVendors).map(([mid, order]) => (
-              <p key={mid} className="text-sm text-green-700">Order {order} placed</p>
+            {Object.entries(paidVendors).map(([_, v]) => (
+              <p key={v.orderId} className="text-sm text-green-700">Order {v.orderNumber} placed</p>
             ))}
           </div>
           <Link
@@ -328,9 +339,9 @@ export default function CheckoutPage() {
         </div>
       ) : (
         <div className="mt-6 space-y-4">
-          {Object.entries(paidVendors).map(([_mid, order]) => (
-            <div key={order} className="rounded-2xl border border-green-200 bg-green-50 px-5 py-3 text-sm text-green-700">
-              Order {order} — paid successfully
+          {Object.entries(paidVendors).map(([_, v]) => (
+            <div key={v.orderId} className="rounded-2xl border border-green-200 bg-green-50 px-5 py-3 text-sm text-green-700">
+              Order {v.orderNumber} — paid successfully
             </div>
           ))}
           {groups.map(group => (
