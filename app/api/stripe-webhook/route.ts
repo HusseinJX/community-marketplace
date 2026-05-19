@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe-server'
-import { updateVendorConnectStatus, createOrder, getOrderByPaymentIntent, updateOrderStatus } from '@/lib/vendor-connect'
+import { updateVendorConnectStatus, createOrder, getOrderByPaymentIntent, updateOrderStatus, getVendorSettings } from '@/lib/vendor-connect'
 import Stripe from 'stripe'
 
 function generateOrderNumber() {
@@ -42,9 +42,9 @@ export async function POST(request: Request) {
       }
       case 'payment_intent.succeeded': {
         const pi = event.data.object as Stripe.PaymentIntent
+        const meta = pi.metadata ?? {}
         const existing = await getOrderByPaymentIntent(pi.id)
         if (!existing) {
-          const meta = pi.metadata ?? {}
           const items = meta.items ? JSON.parse(meta.items) : []
           await createOrder({
             order_number: generateOrderNumber(),
@@ -62,6 +62,26 @@ export async function POST(request: Request) {
           })
           console.log(`Order created via webhook for payment_intent ${pi.id}`)
         }
+
+        // push order back to Shopify via connector agent (fire-and-forget)
+        const memberId = meta.memberId
+        if (memberId) {
+            const vendorSettings = await getVendorSettings(memberId)
+            if (vendorSettings?.composio_connection_id && vendorSettings?.composio_platform === 'shopify') {
+              const connectorUrl = process.env.CONNECTOR_URL
+              if (connectorUrl) {
+                const orderToSync = existing ?? await getOrderByPaymentIntent(pi.id)
+                fetch(`${connectorUrl}/.netlify/functions/composio-push-order`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${process.env.ADMIN_TOKEN}`,
+                  },
+                  body: JSON.stringify({ memberId, order: orderToSync }),
+                }).catch(e => console.error('Shopify order push failed:', e))
+              }
+            }
+          }
         break
       }
 
