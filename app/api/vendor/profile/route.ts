@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server'
-import { withAuth } from '@workos-inc/authkit-nextjs'
+import { auth } from '@clerk/nextjs/server'
 import { setVendorProfile } from '@/lib/vendor-connect'
 
 export async function POST(request: Request) {
-  const { user } = await withAuth()
+  const { userId, sessionClaims } = await auth()
 
-  if (!user) {
+  if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -16,7 +16,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'memberId is required' }, { status: 400 })
   }
 
-  await setVendorProfile(user.id, memberId, user.email ?? null)
+  const email = (sessionClaims?.email as string) ?? null
+  await setVendorProfile(userId, memberId, email)
 
   return NextResponse.json({ ok: true })
 }

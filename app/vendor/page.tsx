@@ -1,4 +1,4 @@
-import { withAuth } from "@workos-inc/authkit-nextjs";
+import { auth } from '@clerk/nextjs/server'
 import { Package, ShoppingCart, CreditCard, Calendar, Plus, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -82,7 +82,14 @@ function formatPrice(cents: number) {
 }
 
 export default async function VendorDashboard() {
-  const { user } = await withAuth();
+  const { userId, sessionClaims } = await auth()
+  const user = userId
+    ? {
+        id: userId,
+        firstName: (sessionClaims?.firstName as string) ?? null,
+        email: (sessionClaims?.email as string) ?? null,
+      }
+    : null
 
   const profile = user ? await getVendorProfile(user.id) : null;
 

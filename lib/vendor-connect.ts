@@ -192,7 +192,7 @@ export async function updateVendorConnectStatus(stripeAccountId: string, status:
 }
 
 export interface VendorProfile {
-  workos_user_id: string
+  clerk_user_id: string
   member_id: string
   email: string | null
   verification_status: string
@@ -200,11 +200,11 @@ export interface VendorProfile {
   verification_evidence: Record<string, unknown> | null
 }
 
-export async function getVendorProfile(workosUserId: string): Promise<VendorProfile | null> {
+export async function getVendorProfile(clerkUserId: string): Promise<VendorProfile | null> {
   const { data, error } = await supabase
     .from('vendor_profiles')
     .select('*')
-    .eq('workos_user_id', workosUserId)
+    .eq('clerk_user_id', clerkUserId)
     .single()
 
   if (error || !data) return null
@@ -212,7 +212,7 @@ export async function getVendorProfile(workosUserId: string): Promise<VendorProf
 }
 
 export async function setVendorProfile(
-  workosUserId: string,
+  clerkUserId: string,
   memberId: string,
   email: string | null,
   verificationStatus: string = 'pending',
@@ -223,14 +223,14 @@ export async function setVendorProfile(
     .from('vendor_profiles')
     .upsert(
       {
-        workos_user_id: workosUserId,
+        clerk_user_id: clerkUserId,
         member_id: memberId,
         email,
         verification_status: verificationStatus,
         verification_method: verificationMethod ?? null,
         verification_evidence: verificationEvidence ?? null,
       },
-      { onConflict: 'workos_user_id' }
+      { onConflict: 'clerk_user_id' }
     )
 
   if (error) throw new Error(`Failed to save vendor profile: ${error.message}`)

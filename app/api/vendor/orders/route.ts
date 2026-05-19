@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server'
-import { withAuth } from '@workos-inc/authkit-nextjs'
+import { auth } from '@clerk/nextjs/server'
 import { getVendorProfile, getOrdersByMember, updateOrderStatus } from '@/lib/vendor-connect'
 
 export async function GET() {
-  const { user } = await withAuth()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { userId } = await auth()
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const profile = await getVendorProfile(user.id)
+  const profile = await getVendorProfile(userId)
   if (!profile) return NextResponse.json({ error: 'No vendor profile' }, { status: 403 })
 
   const orders = await getOrdersByMember(profile.member_id)
@@ -14,10 +14,10 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
-  const { user } = await withAuth()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { userId } = await auth()
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const profile = await getVendorProfile(user.id)
+  const profile = await getVendorProfile(userId)
   if (!profile) return NextResponse.json({ error: 'No vendor profile' }, { status: 403 })
 
   const body = await request.json()

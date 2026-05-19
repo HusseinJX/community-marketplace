@@ -1,14 +1,14 @@
 import { NextResponse } from 'next/server'
-import { withAuth } from '@workos-inc/authkit-nextjs'
+import { auth } from '@clerk/nextjs/server'
 import { dispatchDelivery } from '@/lib/uber-direct'
 import { getVendorProfile, updateOrderStatus, updateOrderUber, getVendorSettings } from '@/lib/vendor-connect'
 import { createClient } from '@supabase/supabase-js'
 
 export async function POST(request: Request) {
-  const { user } = await withAuth()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { userId } = await auth()
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const profile = await getVendorProfile(user.id)
+  const profile = await getVendorProfile(userId)
   if (!profile) return NextResponse.json({ error: 'No vendor profile' }, { status: 403 })
 
   try {

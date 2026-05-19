@@ -1,16 +1,16 @@
 import { NextResponse } from 'next/server'
-import { withAuth } from '@workos-inc/authkit-nextjs'
+import { auth } from '@clerk/nextjs/server'
 import { setVendorProfile } from '@/lib/vendor-connect'
 
 type VerificationMethod = 'phone' | 'website_email' | 'instagram' | 'gemini'
 
 // Verification engine lives in the connector-agent — single source of truth.
-// This route is a thin proxy that adds WorkOS auth + persists the result
+// This route is a thin proxy that adds Clerk auth + persists the result
 // into Supabase (vendor_profiles). The connector-agent /verify endpoint
 // already handles Gemini fallback on structured-check failure.
 export async function POST(request: Request) {
-  const { user } = await withAuth()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { userId, sessionClaims } = await auth()
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await request.json()
   const { memberId, method, value }: { memberId: string; method: VerificationMethod; value: string } = body
@@ -42,7 +42,8 @@ export async function POST(request: Request) {
   const result = await res.json()
 
   if (result.verified) {
-    await setVendorProfile(user.id, memberId, user.email ?? null, 'verified', result.method, result.evidence)
+    const email = (sessionClaims?.email as string) ?? null
+    await setVendorProfile(userId, memberId, email, 'verified', result.method, result.evidence)
     return NextResponse.json({ verified: true, method: result.method })
   }
 
