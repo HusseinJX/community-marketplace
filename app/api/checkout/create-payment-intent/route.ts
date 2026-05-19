@@ -46,7 +46,10 @@ export async function POST(request: Request) {
       },
       metadata: {
         memberId,
-        items: JSON.stringify(items.map(i => ({ name: i.name, qty: i.quantity }))),
+        items: JSON.stringify(items.map(i => ({ name: i.name, qty: i.quantity, price_cents: i.price }))),
+        subtotal_cents: String(totalCents),
+        platform_fee_cents: String(platformFee),
+        vendor_amount_cents: String(vendorAmount),
       },
     })
 

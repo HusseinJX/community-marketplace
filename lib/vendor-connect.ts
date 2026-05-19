@@ -65,6 +65,123 @@ export async function getProductsByMember(memberId: string): Promise<SupabasePro
   return data as SupabaseProduct[]
 }
 
+// ── Orders ────────────────────────────────────────────────────────────────────
+
+export interface OrderItem {
+  name: string
+  qty: number
+  price_cents: number
+  product_id?: string
+}
+
+export interface Order {
+  id: string
+  order_number: string
+  payment_intent_id: string
+  member_id: string
+  buyer_email: string | null
+  status: string
+  items: OrderItem[]
+  subtotal_cents: number
+  platform_fee_cents: number
+  vendor_amount_cents: number
+  delivery_requested: boolean
+  uber_delivery_id: string | null
+  uber_tracking_url: string | null
+  created_at: string
+  updated_at: string
+}
+
+export async function createOrder(order: Omit<Order, 'id' | 'created_at' | 'updated_at'>): Promise<Order> {
+  const { data, error } = await supabase
+    .from('orders')
+    .upsert(order, { onConflict: 'payment_intent_id' })
+    .select()
+    .single()
+
+  if (error || !data) throw new Error(`Failed to create order: ${error?.message}`)
+  return data as Order
+}
+
+export async function getOrdersByMember(memberId: string): Promise<Order[]> {
+  const { data, error } = await supabase
+    .from('orders')
+    .select('*')
+    .eq('member_id', memberId)
+    .order('created_at', { ascending: false })
+
+  if (error || !data) return []
+  return data as Order[]
+}
+
+export async function getOrderByPaymentIntent(paymentIntentId: string): Promise<Order | null> {
+  const { data, error } = await supabase
+    .from('orders')
+    .select('*')
+    .eq('payment_intent_id', paymentIntentId)
+    .single()
+
+  if (error || !data) return null
+  return data as Order
+}
+
+export async function updateOrderStatus(id: string, status: string): Promise<void> {
+  const { error } = await supabase
+    .from('orders')
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq('id', id)
+
+  if (error) throw new Error(`Failed to update order status: ${error.message}`)
+}
+
+export async function updateOrderUber(
+  id: string,
+  uberDeliveryId: string,
+  uberTrackingUrl: string
+): Promise<void> {
+  const { error } = await supabase
+    .from('orders')
+    .update({ uber_delivery_id: uberDeliveryId, uber_tracking_url: uberTrackingUrl, status: 'dispatched', updated_at: new Date().toISOString() })
+    .eq('id', id)
+
+  if (error) throw new Error(`Failed to update order uber fields: ${error.message}`)
+}
+
+// ── Vendor Settings ───────────────────────────────────────────────────────────
+
+export interface VendorSettings {
+  member_id: string
+  uber_direct_enabled: boolean
+  uber_pickup_address: string | null
+  uber_pickup_phone: string | null
+  composio_connection_id: string | null
+  composio_platform: string | null
+}
+
+export async function getVendorSettings(memberId: string): Promise<VendorSettings | null> {
+  const { data, error } = await supabase
+    .from('vendor_settings')
+    .select('*')
+    .eq('member_id', memberId)
+    .single()
+
+  if (error || !data) return null
+  return data as VendorSettings
+}
+
+export async function upsertVendorSettings(
+  memberId: string,
+  fields: Partial<Omit<VendorSettings, 'member_id'>>
+): Promise<void> {
+  const { error } = await supabase
+    .from('vendor_settings')
+    .upsert({ member_id: memberId, ...fields, updated_at: new Date().toISOString() }, { onConflict: 'member_id' })
+
+  if (error) throw new Error(`Failed to upsert vendor settings: ${error.message}`)
+}
+
+// ── Stripe Connect ────────────────────────────────────────────────────────────
+
 export async function updateVendorConnectStatus(stripeAccountId: string, status: string): Promise<void> {
   const { error } = await supabase
     .from('stripe_connect_accounts')

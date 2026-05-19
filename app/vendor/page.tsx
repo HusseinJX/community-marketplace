@@ -2,7 +2,7 @@ import { withAuth } from "@workos-inc/authkit-nextjs";
 import { Package, ShoppingCart, CreditCard, Calendar, Plus, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
-import { getVendorProfile, getVendorConnectAccount } from "@/lib/vendor-connect";
+import { getVendorProfile, getVendorConnectAccount, getOrdersByMember } from "@/lib/vendor-connect";
 import { stripe } from "@/lib/stripe-server";
 
 const iconMap = {
@@ -87,17 +87,20 @@ export default async function VendorDashboard() {
   const profile = user ? await getVendorProfile(user.id) : null;
 
   let stripeStatus: "none" | "pending" | "active" = "none";
+  let orderCount = 0;
   if (profile) {
     const account = await getVendorConnectAccount(profile.member_id);
     if (account) {
       const stripeAccount = await stripe.accounts.retrieve(account.stripe_account_id);
       stripeStatus = stripeAccount.details_submitted && stripeAccount.charges_enabled ? "active" : "pending";
     }
+    const orders = await getOrdersByMember(profile.member_id);
+    orderCount = orders.length;
   }
 
   const cards = [
     { label: "Products", value: "3", href: "/vendor/products" },
-    { label: "Orders", value: "—", href: "/vendor/orders" },
+    { label: "Orders", value: orderCount > 0 ? String(orderCount) : "—", href: "/vendor/orders" },
     { label: "Payments", value: "—", href: "/vendor/payments" },
   ] as const;
 
