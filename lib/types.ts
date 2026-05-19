@@ -85,7 +85,8 @@ export interface FirestoreTimestamp {
 export interface Member {
   id: string;
   profile?: MemberProfile;
-  source?: "web" | "sms";
+  source?: "web" | "sms" | "google_places_harvest";
+  status?: "unclaimed" | "claimed";
   lastActiveAt?: FirestoreTimestamp | string | null;
 }
 

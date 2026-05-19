@@ -191,6 +191,17 @@ export default async function MemberProfilePage({
         ← Back to browse
       </Link>
 
+      {/* Unclaimed profile banner */}
+      {member.status === 'unclaimed' && (
+        <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5 mb-6">
+          <p className="font-semibold text-amber-900">Is this your business?</p>
+          <p className="mt-1 text-sm text-amber-700">Claim this profile to manage it, receive payments, and connect with customers.</p>
+          <Link href={`/claim/${member.id}`} className="mt-3 inline-block rounded-lg bg-amber-900 px-4 py-2 text-xs font-medium text-white hover:bg-amber-800">
+            Claim this business
+          </Link>
+        </div>
+      )}
+
       {/* Hero */}
       {MEMBER_HERO_IMAGES[id] ? (
         <div className="mt-6">
