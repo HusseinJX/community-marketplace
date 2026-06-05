@@ -1,6 +1,14 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { getMember, listEvents } from "@/lib/api";
-import type { EventSuggestion } from "@/lib/types";
+import type { EventSuggestion, Member } from "@/lib/types";
+import {
+  SITE_NAME,
+  isIndexable,
+  memberDescription,
+  resolveHeroImages,
+} from "@/lib/seo";
+import { MemberJsonLd } from "@/components/JsonLd";
 import { getProductsByMember, type SupabaseProduct } from "@/lib/vendor-connect";
 import { getDemoMember } from "@/lib/demo-members";
 import { MemberTypeBadge } from "@/components/MemberTypeBadge";
@@ -97,6 +105,64 @@ function SocialLink({ href, label, icon }: { href: string; label: string; icon: 
   );
 }
 
+// Resolve a member from demo data or the connector API. `getMember` uses fetch,
+// which Next memoizes — so calling this in both generateMetadata and the page
+// for the same id hits the network at most once per request.
+async function resolveMember(id: string): Promise<Member | null> {
+  const demo = getDemoMember(id);
+  if (demo) return demo;
+  try {
+    return (await getMember(id)).member;
+  } catch {
+    return null;
+  }
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const member = await resolveMember(id);
+
+  if (!member) {
+    return { title: "Member not found", robots: { index: false, follow: false } };
+  }
+
+  const p = member.profile ?? {};
+  const name = (p.name as string) || "Community member";
+  const city = p.city as string | undefined;
+  const title = city ? `${name} · ${city}` : name;
+  const description = memberDescription(member);
+  const canonical = `/members/${id}`;
+  const images = resolveHeroImages(id, p);
+  const indexable = isIndexable(member);
+
+  return {
+    title,
+    description,
+    alternates: { canonical },
+    robots: indexable
+      ? { index: true, follow: true }
+      : { index: false, follow: true },
+    openGraph: {
+      title,
+      description,
+      url: canonical,
+      siteName: SITE_NAME,
+      type: "profile",
+      images: images.length ? images : undefined,
+    },
+    twitter: {
+      card: images.length ? "summary_large_image" : "summary",
+      title,
+      description,
+      images: images.length ? images : undefined,
+    },
+  };
+}
+
 export default async function MemberProfilePage({
   params,
 }: {
@@ -188,6 +254,7 @@ export default async function MemberProfilePage({
 
   return (
     <div className="mx-auto max-w-7xl px-4 pb-24 pt-8 md:px-8">
+      {isIndexable(member) && <MemberJsonLd member={member} />}
       <Link href="/" className="inline-flex items-center gap-1 text-sm text-indigo-700 hover:underline">
         ← Back to browse
       </Link>

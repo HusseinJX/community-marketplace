@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowLeft, ExternalLink, Leaf, Plane, Sprout, Globe2 } from "lucide-react";
 
 export const metadata = {
-  title: "Wild Earth — The Collective",
+  title: "Wild Earth",
   description: "Exploration, regeneration, and reconnection with the living world.",
 };
 

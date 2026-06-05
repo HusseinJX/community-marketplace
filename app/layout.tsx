@@ -5,11 +5,32 @@ import { Mail } from "lucide-react";
 import { AuthNav } from "@/components/auth-nav";
 import { StoreProvider } from "@/lib/store";
 import { PostHogProvider } from "@/lib/posthog-provider";
+import { SITE_NAME, SITE_URL } from "@/lib/seo";
 import "./globals.css";
 
+const SITE_DESCRIPTION =
+  "Discover the local makers, vendors, artists, and organizers building community life around you.";
+
 export const metadata: Metadata = {
-  title: "The Collective",
-  description: "Discover the makers, vendors, and neighbors building local life around you.",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: `${SITE_NAME} — Discover local makers, vendors & events`,
+    template: `%s | ${SITE_NAME}`,
+  },
+  description: SITE_DESCRIPTION,
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    title: `${SITE_NAME} — Discover local makers, vendors & events`,
+    description: SITE_DESCRIPTION,
+    url: SITE_URL,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: `${SITE_NAME} — Discover local makers, vendors & events`,
+    description: SITE_DESCRIPTION,
+  },
 };
 
 export default function RootLayout({
@@ -37,7 +58,7 @@ export default function RootLayout({
                 <div className="grid gap-10 md:grid-cols-4">
                   <div className="md:col-span-2">
                     <Link href="/" className="text-lg font-semibold tracking-tight text-stone-900">
-                      The Collective
+                      WhatsLocal AI
                     </Link>
                     <p className="mt-3 max-w-sm text-sm text-stone-600">
                       A network of vendors, artists, organizers, and neighbors building the local economy together.
@@ -49,6 +70,8 @@ export default function RootLayout({
                     <ul className="mt-3 space-y-2 text-sm text-stone-600">
                       <li><Link href="/" className="hover:text-indigo-700">Atlas</Link></li>
                       <li><Link href="/events" className="hover:text-indigo-700">Feed</Link></li>
+                      <li><Link href="/category" className="hover:text-indigo-700">Categories</Link></li>
+                      <li><Link href="/city" className="hover:text-indigo-700">Places</Link></li>
                       <li><Link href="/cart" className="hover:text-indigo-700">Shop</Link></li>
                     </ul>
                   </div>
@@ -67,7 +90,7 @@ export default function RootLayout({
                         </a>
                       </li>
                       <li>
-                        <a href="mailto:hello@thecollective.xyz" className="inline-flex items-center gap-1.5 hover:text-indigo-700">
+                        <a href="mailto:hello@whatslocal.ai" className="inline-flex items-center gap-1.5 hover:text-indigo-700">
                           <Mail className="h-4 w-4" /> Email us
                         </a>
                       </li>
@@ -76,7 +99,7 @@ export default function RootLayout({
                 </div>
 
                 <div className="mt-10 flex flex-col items-start justify-between gap-3 border-t border-stone-200 pt-6 text-xs text-stone-500 sm:flex-row sm:items-center">
-                  <p>© {new Date().getFullYear()} The Collective. Made in LA.</p>
+                  <p>© {new Date().getFullYear()} WhatsLocal AI. Made in LA.</p>
                   <p>Built with care for local communities.</p>
                 </div>
               </div>
