@@ -31,6 +31,13 @@ A Next.js 16 (App Router) community marketplace that lets users browse local mem
 - `app/api/stripe-connect/` — `create-account`, `account-status/[memberId]`, `create-account-link`
 - `app/api/stripe-webhook/` — handles `account.updated`, `payment_intent.succeeded` (durability path), `charge.refunded`; fires Shopify order push-back for Composio vendors
 - `app/api/uber/` — `quote/`, `save-delivery/`, `dispatch/`, `webhook/` (Uber Direct delivery lifecycle)
+- `app/api/chat/[memberId]/` — POST, **streaming** per-business customer-service assistant (OpenAI). Tool loop: `capture_lead`, `check_order_status`. Returns `X-Conversation-Id` header; persists transcripts.
+- `app/api/vendor/assistant/` — Clerk-authed GET (settings + knowledge + leads) / POST (`config` | `add_knowledge` | `delete_knowledge`)
+- `app/vendor/assistant/` — vendor config page: enable/disable, tone, custom FAQs, captured-leads inbox
+- `components/AskAssistant.tsx` — floating "Ask <Business>" streaming chat widget; auto-rendered on `vendor`/`artist`/`organizer` profiles
+- `lib/openai.ts` — server-side OpenAI singleton + model constants (`CHAT_MODEL`/`VISION_MODEL`/`IMAGE_MODEL`)
+- `lib/business-context.ts` — `buildBusinessContext(memberId)` (stitches profile + products + events + settings + owner FAQs into a prompt blob) + `buildSystemPrompt()`
+- `lib/storage.ts` — Supabase Storage `uploadImage()` helper (Phase 2 image capture; bucket `marketplace-media`)
 - `app/sitemap.ts` / `app/robots.ts` — dynamic SEO files (paginated member loop + indexable filtering)
 - `app/category/` — category hub (`page.tsx` index) + `[slug]/page.tsx` landing (static params from taxonomy)
 - `app/city/` — place hub (`page.tsx` index) + `[slug]/page.tsx` landing (params derived from live data)
@@ -67,6 +74,7 @@ A Next.js 16 (App Router) community marketplace that lets users browse local mem
 **Order status lifecycle:** `paid → ready → dispatched → delivered | refunded`
 
 ## Pending / TODO
+- **AI assistant (Phase 1) setup before it works:** (1) add `OPENAI_API_KEY` to env; (2) run migration `supabase/migrations/20260605120000_add_chat_assistant_tables.sql`; (3) (Phase 2 only) create the `marketplace-media` Storage bucket. Roadmap: `/Users/xen/.claude/plans/eager-splashing-kazoo.md` — Phase 2 = image→catalog capture, Phase 3 = voice receptionist.
 - **Set `NEXT_PUBLIC_SITE_URL=https://whatslocal.ai` in the production/deploy env** — it's only in local `.env.local`. Without it, prod canonicals/sitemap/JSON-LD fall back to the `https://whatslocal.ai` default in `lib/seo.ts` (currently correct, but make it explicit per environment).
 - **Repoint `whatslocal.ai` DNS to this app** — it currently serves a different app, so none of the SEO output is publicly reachable yet.
 - **(Optional) Per-member OG images** via `@vercel/og` — deferred nice-to-have for richer link previews.
@@ -86,7 +94,10 @@ A Next.js 16 (App Router) community marketplace that lets users browse local mem
 | `stripe_connect_accounts` | `member_id → stripe_account_id` + status |
 | `products` | vendor catalog; `source` (manual/shopify/square), `external_id` for Composio sync |
 | `orders` | one row per payment intent; full item/fee breakdown + delivery fields |
-| `vendor_settings` | per-vendor feature flags: `uber_direct_enabled`, Composio connection, pickup address overrides |
+| `vendor_settings` | per-vendor feature flags: `uber_direct_enabled`, Composio connection, pickup address overrides, `assistant_enabled` + `assistant_persona` |
+| `business_knowledge` | owner-authored FAQs/notes fed into the AI assistant's context |
+| `chat_conversations` / `chat_messages` | AI assistant transcripts (analytics + owner inbox + future RAG) |
+| `chat_leads` | contacts the assistant captured via `capture_lead` |
 
 ## Key Conventions
 - Data comes from Community Connector Agent API (`NEXT_PUBLIC_API_BASE` / `CONNECTOR_URL`)
@@ -123,6 +134,12 @@ npm run dev
 
 **Marketplace ↔ Connector:**
 - `MARKETPLACE_URL` — set in connector-agent env; used by Composio callback redirect
+
+**AI (OpenAI):**
+- `OPENAI_API_KEY` — **required** for the per-business assistant (and Phase 2 vision/image gen). Not yet in `.env.local`.
+- `OPENAI_CHAT_MODEL` / `OPENAI_VISION_MODEL` / `OPENAI_IMAGE_MODEL` — optional overrides (default `gpt-4o-mini` / `gpt-4o` / `gpt-image-1`)
+- `SUPABASE_SERVICE_ROLE_KEY` — preferred for Supabase Storage writes (Phase 2); falls back to anon key
+- `SUPABASE_MEDIA_BUCKET` — storage bucket name (default `marketplace-media`)
 
 **Observability:**
 - `NEXT_PUBLIC_POSTHOG_KEY` / `NEXT_PUBLIC_POSTHOG_HOST` — same PostHog project as connector-agent so visitor + onboarding events stitch into one funnel

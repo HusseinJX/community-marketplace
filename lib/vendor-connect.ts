@@ -125,6 +125,14 @@ export async function getOrderByPaymentIntent(paymentIntentId: string): Promise<
   return data as Order
 }
 
+export async function getOrderByNumber(orderNumber: string, memberId?: string): Promise<Order | null> {
+  let q = supabase.from('orders').select('*').eq('order_number', orderNumber)
+  if (memberId) q = q.eq('member_id', memberId)
+  const { data, error } = await q.single()
+  if (error || !data) return null
+  return data as Order
+}
+
 export async function updateOrderStatus(id: string, status: string): Promise<void> {
   const { error } = await supabase
     .from('orders')
@@ -156,6 +164,8 @@ export interface VendorSettings {
   uber_pickup_phone: string | null
   composio_connection_id: string | null
   composio_platform: string | null
+  assistant_enabled?: boolean
+  assistant_persona?: string | null
 }
 
 export async function getVendorSettings(memberId: string): Promise<VendorSettings | null> {
@@ -189,6 +199,133 @@ export async function updateVendorConnectStatus(stripeAccountId: string, status:
     .eq('stripe_account_id', stripeAccountId)
 
   if (error) throw new Error(`Failed to update vendor connect status: ${error.message}`)
+}
+
+// ── AI Assistant: knowledge, transcripts, leads ────────────────────────────────
+
+export interface BusinessKnowledge {
+  id: string
+  member_id: string
+  content: string
+  source: string
+  created_at: string
+}
+
+export async function getBusinessKnowledge(memberId: string): Promise<BusinessKnowledge[]> {
+  const { data, error } = await supabase
+    .from('business_knowledge')
+    .select('*')
+    .eq('member_id', memberId)
+    .order('created_at', { ascending: true })
+
+  if (error || !data) return []
+  return data as BusinessKnowledge[]
+}
+
+export async function addBusinessKnowledge(memberId: string, content: string, source = 'manual'): Promise<void> {
+  const { error } = await supabase
+    .from('business_knowledge')
+    .insert({ member_id: memberId, content, source })
+  if (error) throw new Error(`Failed to add knowledge: ${error.message}`)
+}
+
+export async function deleteBusinessKnowledge(id: string, memberId: string): Promise<void> {
+  const { error } = await supabase
+    .from('business_knowledge')
+    .delete()
+    .eq('id', id)
+    .eq('member_id', memberId)
+  if (error) throw new Error(`Failed to delete knowledge: ${error.message}`)
+}
+
+export async function createConversation(memberId: string): Promise<string> {
+  const { data, error } = await supabase
+    .from('chat_conversations')
+    .insert({ member_id: memberId })
+    .select('id')
+    .single()
+  if (error || !data) throw new Error(`Failed to create conversation: ${error?.message}`)
+  return (data as { id: string }).id
+}
+
+export async function appendMessages(
+  conversationId: string,
+  memberId: string,
+  messages: { role: string; content: string }[]
+): Promise<void> {
+  if (messages.length === 0) return
+  const rows = messages.map((m) => ({
+    conversation_id: conversationId,
+    member_id: memberId,
+    role: m.role,
+    content: m.content,
+  }))
+  const { error } = await supabase.from('chat_messages').insert(rows)
+  if (error) throw new Error(`Failed to append messages: ${error.message}`)
+}
+
+export interface ChatLead {
+  id: string
+  member_id: string
+  conversation_id: string | null
+  name: string | null
+  contact: string | null
+  message: string | null
+  created_at: string
+}
+
+export async function createLead(lead: {
+  memberId: string
+  conversationId?: string | null
+  name?: string | null
+  contact?: string | null
+  message?: string | null
+}): Promise<void> {
+  const { error } = await supabase.from('chat_leads').insert({
+    member_id: lead.memberId,
+    conversation_id: lead.conversationId ?? null,
+    name: lead.name ?? null,
+    contact: lead.contact ?? null,
+    message: lead.message ?? null,
+  })
+  if (error) throw new Error(`Failed to create lead: ${error.message}`)
+}
+
+export async function getLeadsByMember(memberId: string): Promise<ChatLead[]> {
+  const { data, error } = await supabase
+    .from('chat_leads')
+    .select('*')
+    .eq('member_id', memberId)
+    .order('created_at', { ascending: false })
+  if (error || !data) return []
+  return data as ChatLead[]
+}
+
+export interface ConversationSummary {
+  id: string
+  member_id: string
+  created_at: string
+}
+
+export async function getConversationsByMember(memberId: string, limit = 50): Promise<ConversationSummary[]> {
+  const { data, error } = await supabase
+    .from('chat_conversations')
+    .select('*')
+    .eq('member_id', memberId)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+  if (error || !data) return []
+  return data as ConversationSummary[]
+}
+
+export async function getMessagesByConversation(conversationId: string): Promise<{ role: string; content: string; created_at: string }[]> {
+  const { data, error } = await supabase
+    .from('chat_messages')
+    .select('role, content, created_at')
+    .eq('conversation_id', conversationId)
+    .order('created_at', { ascending: true })
+  if (error || !data) return []
+  return data as { role: string; content: string; created_at: string }[]
 }
 
 export interface VendorProfile {

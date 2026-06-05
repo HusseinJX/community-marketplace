@@ -18,6 +18,7 @@ import { ShopSection } from "@/components/ShopSection";
 import { ActionBar } from "@/components/ActionBar";
 import { GroupChat } from "@/components/GroupChat";
 import { ImageCarousel } from "@/components/ImageCarousel";
+import { AskAssistant } from "@/components/AskAssistant";
 import { MEMBER_HERO_IMAGES } from "@/lib/member-images";
 import { usableImages, isPlaceholder } from "@/lib/image-utils";
 import { ENDORSEMENTS } from "@/lib/endorsements";
@@ -583,6 +584,11 @@ export default async function MemberProfilePage({
             Claim this business
           </Link>
         </div>
+      )}
+
+      {/* Auto-provisioned customer-service assistant for every business */}
+      {["vendor", "artist", "organizer"].includes(memberType) && (
+        <AskAssistant memberId={id} memberName={(p.businessName as string) || name} />
       )}
     </div>
   );
