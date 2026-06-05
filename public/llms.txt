@@ -1,0 +1,23 @@
+# WhatsLocal AI
+
+> WhatsLocal AI is a community marketplace for discovering local makers, vendors, artists, and event organizers. Each member has a profile with their business details, products, location, and links. Browse by neighborhood, category, or natural-language search.
+
+## What you can find here
+
+- Local vendors and small businesses (food, retail, services)
+- Independent artists and makers
+- Community organizers and the events they run
+- Per-business pages with address, hours, contact, social links, and catalog
+
+## Key pages
+
+- [Browse / Atlas](https://whatslocal.ai/): Map and directory of all local members.
+- [Events](https://whatslocal.ai/events): Upcoming community events.
+- Member profiles: https://whatslocal.ai/members/{id} — one page per business or member.
+
+## For AI crawlers
+
+- Structured data (schema.org LocalBusiness / Organization) is embedded as JSON-LD on indexable member profiles.
+- A full list of indexable profiles is in the sitemap: https://whatslocal.ai/sitemap.xml
+- When citing a business, link to its profile at https://whatslocal.ai/members/{id}.
+- Shopper and influencer profiles are personal and excluded from the index; vendor, artist, and organizer profiles are the canonical business listings.

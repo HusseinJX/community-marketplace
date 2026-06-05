@@ -82,7 +82,7 @@ export function ActionBar({
       </button>
 
       <a
-        href={`mailto:hello@thecollective.la?subject=${encodeURIComponent("Inquiry for " + memberName)}`}
+        href={`mailto:hello@whatslocal.ai?subject=${encodeURIComponent("Inquiry for " + memberName)}`}
         className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-indigo-300 hover:text-indigo-700"
       >
         <MessageSquare className="h-4 w-4" />

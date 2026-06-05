@@ -31,6 +31,10 @@ A Next.js 16 (App Router) community marketplace that lets users browse local mem
 - `app/api/stripe-connect/` — `create-account`, `account-status/[memberId]`, `create-account-link`
 - `app/api/stripe-webhook/` — handles `account.updated`, `payment_intent.succeeded` (durability path), `charge.refunded`; fires Shopify order push-back for Composio vendors
 - `app/api/uber/` — `quote/`, `save-delivery/`, `dispatch/`, `webhook/` (Uber Direct delivery lifecycle)
+- `app/sitemap.ts` / `app/robots.ts` — dynamic SEO files (paginated member loop + indexable filtering)
+- `app/category/` — category hub (`page.tsx` index) + `[slug]/page.tsx` landing (static params from taxonomy)
+- `app/city/` — place hub (`page.tsx` index) + `[slug]/page.tsx` landing (params derived from live data)
+- `public/llms.txt` — static AI-crawler manifest
 - `components/auth-nav.tsx` — `'use client'` Clerk component with `Show`/`SignInButton`/`UserButton` + favorites/cart icons
 - `components/ShopSection.tsx` — client component for cart/favorites on vendor profiles
 - `components/DeliveryRequestModal.tsx` — post-payment modal; collects dropoff address, quotes Uber fee, confirms delivery
@@ -39,6 +43,9 @@ A Next.js 16 (App Router) community marketplace that lets users browse local mem
 - `lib/vendor-connect.ts` — Supabase helpers for all tables: `stripe_connect_accounts`, `products`, `orders`, `vendor_settings`, `vendor_profiles`
 - `lib/uber-direct.ts` — `quoteDelivery`, `dispatchDelivery`, `verifyWebhookSignature`
 - `lib/api.ts` — Connector Agent API helpers; `next: { revalidate: 60 }` caching
+- `lib/seo.ts` — SEO helpers: `SITE_URL`/`SITE_NAME`, `isIndexable()`, `memberDescription()`, `socialUrls()`, `resolveHeroImages()`, `lastActiveMs()`
+- `lib/landing.ts` — landing-page data: `slugify()`, `fetchAllMembers()` (cursor loop, capped 1000), `CATEGORIES` (from taxonomy), `citiesFrom()` (derived, drops single-listing cities)
+- `components/JsonLd.tsx` — `MemberJsonLd` (LocalBusiness/Organization) + `CollectionJsonLd` (CollectionPage/ItemList)
 - `middleware.ts` — single `clerkMiddleware` with `createRouteMatcher`; protects `/vendor/*` except `/vendor/sign-in`
 
 ## Auth Architecture
@@ -58,6 +65,19 @@ A Next.js 16 (App Router) community marketplace that lets users browse local mem
 **Delivery (Uber Direct):** After payment, buyer sees `DeliveryRequestModal` — enters address, gets fee quote, confirms. Quote ID + address saved on order. When vendor clicks "Ready — Dispatch Uber" in dashboard, `POST /api/uber/dispatch` fires. Uber webhooks update order status and SMS buyer via connector-agent's `sms-send` function.
 
 **Order status lifecycle:** `paid → ready → dispatched → delivered | refunded`
+
+## Pending / TODO
+- **Set `NEXT_PUBLIC_SITE_URL=https://whatslocal.ai` in the production/deploy env** — it's only in local `.env.local`. Without it, prod canonicals/sitemap/JSON-LD fall back to the `https://whatslocal.ai` default in `lib/seo.ts` (currently correct, but make it explicit per environment).
+- **Repoint `whatslocal.ai` DNS to this app** — it currently serves a different app, so none of the SEO output is publicly reachable yet.
+- **(Optional) Per-member OG images** via `@vercel/og` — deferred nice-to-have for richer link previews.
+
+## SEO & AI Engine Optimization
+- **Brand name is `WhatsLocal AI`** (set as `SITE_NAME` in `lib/seo.ts`). Header, footer, page titles, emails (`hello@whatslocal.ai`) all use it. The old "The Collective" name has been fully removed from visible UI (only `lib/endorsements.ts` "Inglewood Collective" remains — that's a real-world org, not the brand).
+- **Per-page metadata:** root `app/layout.tsx` sets `metadataBase` + title template `%s | WhatsLocal AI`. Member pages export `generateMetadata()` (title, description, canonical, OG/Twitter, type-aware `robots`).
+- **Indexing policy (`isIndexable()` in `lib/seo.ts`):** index real-entity types (`vendor`/`artist`/`organizer`) **with substance** — including *unclaimed* harvested listings (long-tail directory model). Noindex shoppers, influencers, and content-thin profiles. To exclude all unclaimed profiles instead, edit `isIndexable`.
+- **Structured data:** indexable member pages emit `LocalBusiness`/`Organization` JSON-LD; category/city landing pages emit `CollectionPage`+`ItemList`. Only fields we actually hold are emitted (no fabricated address/hours — avoids structured-data penalties).
+- **Landing pages:** `/category` + `/category/[slug]` and `/city` + `/city/[slug]` are server-rendered SEO hubs that list indexable members; linked from the footer and the sitemap. Only non-empty categories / multi-listing cities are included.
+- **Sitemap/robots/llms.txt** all resolve absolute URLs from `NEXT_PUBLIC_SITE_URL`.
 
 ## Supabase Tables (xeno project)
 | Table | Purpose |
@@ -84,6 +104,7 @@ npm run dev
 
 ## Environment Variables
 **Core:**
+- `NEXT_PUBLIC_SITE_URL` — canonical site origin (`https://whatslocal.ai`). Used by `metadataBase`, canonical tags, sitemap, robots, JSON-LD. **⚠️ The domain does not yet point at this app** (currently serving a different app); DNS will be repointed soon. Until then, sitemap/canonical URLs reference an origin that isn't live yet.
 - `NEXT_PUBLIC_API_BASE` — Community Connector Agent base URL (e.g. `http://localhost:8888`)
 - `CONNECTOR_URL` — server-side connector agent URL (same value, not public)
 - `CONNECTOR_ADMIN_TOKEN` — bearer token matching `ADMIN_TOKEN` in connector-agent (for `/verify`, `/claim-profile`, `/composio-*`, `/sms-send`)
@@ -112,3 +133,6 @@ npm run dev
 - Claim flow is self-serve: unclaimed profile banner → `/claim/[memberId]` multi-step → proxy to connector-agent verify + claim-profile — no manual admin intervention needed
 - Vendor orders dashboard auto-refreshes every 30s; Uber dispatch triggered by vendor "Mark Ready" button
 - Supabase `xeno` project is dedicated to this app only (not prolocaliq)
+- **SEO/AEO layer added** (Phases 1–3 of the SEO plan): per-page metadata + canonicals, type-aware JSON-LD, dynamic sitemap/robots, `llms.txt`, and `/category` + `/city` landing hubs. Indexes unclaimed-but-substantive business listings (directory model), noindexes shoppers/influencers/thin profiles.
+- **Brand consolidated to `WhatsLocal AI`** across all visible UI (was mixed "The Collective" / "WhatsLocal AI"). Contact email is `hello@whatslocal.ai`.
+- **Domain `whatslocal.ai` not yet pointed here** — lives on a different app; will be repointed. Deferred: per-member OG images (`@vercel/og`).

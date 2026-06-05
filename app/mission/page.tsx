@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowLeft, Globe2, Network, Sparkles, Users } from "lucide-react";
 
 export const metadata = {
-  title: "Our Mission — The Collective",
+  title: "Our Mission",
   description:
     "Surfacing the real network of local communities — unifying social dynamics, culture, and shared infrastructure into a richer global society.",
 };

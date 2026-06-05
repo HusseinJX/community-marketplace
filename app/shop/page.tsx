@@ -39,7 +39,7 @@ const products: Product[] = [
   { id: "cap-field", name: "Field Cap", price: 32, category: "Headwear", color: "from-emerald-200 to-teal-300", badge: "New", rating: 4.7, reviews: 58, colors: ["#10b981", "#0f172a", "#fef3c7"] },
   { id: "tote-grove", name: "Grove Tote", price: 24, category: "Accessories", color: "from-lime-200 to-emerald-300", rating: 4.6, reviews: 88, colors: ["#84cc16", "#f5f5f4"] },
   { id: "mug-ember", name: "Ember Mug", price: 18, category: "Home", color: "from-rose-200 to-orange-300", badge: "Low stock", rating: 4.5, reviews: 41, colors: ["#fb7185", "#fde68a"] },
-  { id: "pin-set", name: "Collective Pin Set", price: 14, category: "Accessories", color: "from-sky-200 to-indigo-300", rating: 4.8, reviews: 26, colors: ["#0ea5e9", "#6366f1"] },
+  { id: "pin-set", name: "WhatsLocal Pin Set", price: 14, category: "Accessories", color: "from-sky-200 to-indigo-300", rating: 4.8, reviews: 26, colors: ["#0ea5e9", "#6366f1"] },
   { id: "crew-mesa", name: "Mesa Crewneck", price: 72, category: "Apparel", color: "from-stone-300 to-stone-500", badge: "New", rating: 4.7, reviews: 73, colors: ["#78716c", "#1c1917", "#e7e5e4"] },
   { id: "bottle-river", name: "River Bottle", price: 28, category: "Home", color: "from-cyan-200 to-blue-300", rating: 4.4, reviews: 19, colors: ["#06b6d4", "#0f172a"] },
   { id: "beanie-pine", name: "Pine Beanie", price: 26, category: "Headwear", color: "from-emerald-300 to-emerald-500", rating: 4.6, reviews: 47, colors: ["#059669", "#1c1917"] },
@@ -227,7 +227,7 @@ export default function ShopPage() {
           className="mb-6 inline-flex items-center gap-1.5 text-sm text-stone-500 transition hover:text-stone-900"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back to The Collective
+          Back to WhatsLocal AI
         </Link>
 
         {/* Hero section */}
@@ -240,7 +240,7 @@ export default function ShopPage() {
               <h1 className="mt-4 text-4xl font-semibold tracking-tight md:text-5xl">
                 <span className="underline decoration-pink-400 decoration-2 underline-offset-4">We ar</span>
                 <span className="text-pink-300/80">e</span>
-                <span> the Collective.</span>
+                <span> WhatsLocal.</span>
               </h1>
               <p className="mt-3 max-w-md text-stone-300">
                 Limited-run apparel and goods made with the artists, makers, and communities we work with every day.
