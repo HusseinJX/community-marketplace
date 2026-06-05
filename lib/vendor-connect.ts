@@ -51,6 +51,7 @@ export interface SupabaseProduct {
   currency: string
   image_url: string | null
   active: boolean
+  source?: string
 }
 
 export async function getProductsByMember(memberId: string): Promise<SupabaseProduct[]> {
@@ -63,6 +64,149 @@ export async function getProductsByMember(memberId: string): Promise<SupabasePro
 
   if (error || !data) return []
   return data as SupabaseProduct[]
+}
+
+// Owner/admin view — includes drafts (active=false) for the approval queue.
+export async function getAllProductsByMember(memberId: string): Promise<SupabaseProduct[]> {
+  const { data, error } = await supabase
+    .from('products')
+    .select('*')
+    .eq('member_id', memberId)
+    .order('created_at', { ascending: false })
+
+  if (error || !data) return []
+  return data as SupabaseProduct[]
+}
+
+export interface NewProduct {
+  name: string
+  description?: string | null
+  price: number // cents
+  currency?: string
+  image_url?: string | null
+  active?: boolean // false = draft pending approval
+  source?: string // manual | ai_menu | ai_counter | shopify | square
+}
+
+export async function createProduct(
+  memberId: string,
+  memberName: string,
+  p: NewProduct
+): Promise<SupabaseProduct> {
+  const { data, error } = await supabase
+    .from('products')
+    .insert({
+      member_id: memberId,
+      member_name: memberName,
+      name: p.name,
+      description: p.description ?? null,
+      price: p.price,
+      currency: p.currency ?? 'usd',
+      image_url: p.image_url ?? null,
+      active: p.active ?? true,
+      source: p.source ?? 'manual',
+    })
+    .select()
+    .single()
+  if (error || !data) throw new Error(`Failed to create product: ${error?.message}`)
+  return data as SupabaseProduct
+}
+
+export async function updateProduct(
+  id: string,
+  memberId: string,
+  fields: Partial<NewProduct>
+): Promise<void> {
+  const { error } = await supabase
+    .from('products')
+    .update({ ...fields, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .eq('member_id', memberId)
+  if (error) throw new Error(`Failed to update product: ${error.message}`)
+}
+
+export async function deleteProduct(id: string, memberId: string): Promise<void> {
+  const { error } = await supabase.from('products').delete().eq('id', id).eq('member_id', memberId)
+  if (error) throw new Error(`Failed to delete product: ${error.message}`)
+}
+
+// ── Vendor Events (self-serve / AI-captured) ───────────────────────────────────
+
+export interface VendorEvent {
+  id: string
+  member_id: string
+  member_name: string | null
+  title: string
+  description: string | null
+  event_date: string | null
+  event_time: string | null
+  location: string | null
+  poster_image_url: string | null
+  source: string
+  active: boolean
+  created_at: string
+}
+
+export interface NewVendorEvent {
+  title: string
+  description?: string | null
+  event_date?: string | null
+  event_time?: string | null
+  location?: string | null
+  poster_image_url?: string | null
+  active?: boolean
+  source?: string
+}
+
+export async function getVendorEventsByMember(memberId: string, includeDrafts = false): Promise<VendorEvent[]> {
+  let q = supabase.from('vendor_events').select('*').eq('member_id', memberId)
+  if (!includeDrafts) q = q.eq('active', true)
+  const { data, error } = await q.order('created_at', { ascending: false })
+  if (error || !data) return []
+  return data as VendorEvent[]
+}
+
+export async function createVendorEvent(
+  memberId: string,
+  memberName: string,
+  e: NewVendorEvent
+): Promise<VendorEvent> {
+  const { data, error } = await supabase
+    .from('vendor_events')
+    .insert({
+      member_id: memberId,
+      member_name: memberName,
+      title: e.title,
+      description: e.description ?? null,
+      event_date: e.event_date ?? null,
+      event_time: e.event_time ?? null,
+      location: e.location ?? null,
+      poster_image_url: e.poster_image_url ?? null,
+      active: e.active ?? true,
+      source: e.source ?? 'manual',
+    })
+    .select()
+    .single()
+  if (error || !data) throw new Error(`Failed to create event: ${error?.message}`)
+  return data as VendorEvent
+}
+
+export async function updateVendorEvent(
+  id: string,
+  memberId: string,
+  fields: Partial<NewVendorEvent>
+): Promise<void> {
+  const { error } = await supabase
+    .from('vendor_events')
+    .update({ ...fields, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .eq('member_id', memberId)
+  if (error) throw new Error(`Failed to update event: ${error.message}`)
+}
+
+export async function deleteVendorEvent(id: string, memberId: string): Promise<void> {
+  const { error } = await supabase.from('vendor_events').delete().eq('id', id).eq('member_id', memberId)
+  if (error) throw new Error(`Failed to delete event: ${error.message}`)
 }
 
 // ── Orders ────────────────────────────────────────────────────────────────────

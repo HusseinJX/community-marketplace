@@ -37,7 +37,15 @@ A Next.js 16 (App Router) community marketplace that lets users browse local mem
 - `components/AskAssistant.tsx` — floating "Ask <Business>" streaming chat widget; auto-rendered on `vendor`/`artist`/`organizer` profiles
 - `lib/openai.ts` — server-side OpenAI singleton + model constants (`CHAT_MODEL`/`VISION_MODEL`/`IMAGE_MODEL`)
 - `lib/business-context.ts` — `buildBusinessContext(memberId)` (stitches profile + products + events + settings + owner FAQs into a prompt blob) + `buildSystemPrompt()`
-- `lib/storage.ts` — Supabase Storage `uploadImage()` helper (Phase 2 image capture; bucket `marketplace-media`)
+- `lib/storage.ts` — Supabase Storage `uploadImage()` helper (image capture; bucket `marketplace-media`)
+- `lib/admin.ts` — `isAdmin()` (env `ADMIN_CLERK_USER_IDS` allowlist) + `resolveActor(memberId)` — resolves which member a writer may act on (own member, or any member if admin). Gates all catalog writes.
+- `app/api/products/[memberId]/` — now GET (public; `?include_drafts=1` for owner/admin) + POST/PATCH/DELETE. Drafts = `active=false`; approve = flip to `true`. `source`: manual | ai_menu | ai_counter
+- `app/api/events/[memberId]/` — same shape for `vendor_events` (self-serve events with posters)
+- `app/api/upload/` — multipart image upload → Supabase Storage (authed via `resolveActor`)
+- `app/api/ai/extract/` — OpenAI vision, structured-output extraction; `mode: products` (menu → product drafts) | `events` (flyer → event drafts, keeps poster)
+- `app/api/ai/detect-products/` — counter/shelf photo → vision bounding boxes → `sharp` crop → `gpt-image-1` refine → upload → draft products (experimental; falls back to raw crop)
+- `app/vendor/products/` + `app/vendor/events/` — CRUD managers with draft-approval queue; admins can target any member via `?memberId=`
+- `components/ImageCaptureUploader.tsx` — shared photo→draft review/publish flow (Scan menu / Scan counter / Scan flyer)
 - `app/sitemap.ts` / `app/robots.ts` — dynamic SEO files (paginated member loop + indexable filtering)
 - `app/category/` — category hub (`page.tsx` index) + `[slug]/page.tsx` landing (static params from taxonomy)
 - `app/city/` — place hub (`page.tsx` index) + `[slug]/page.tsx` landing (params derived from live data)
@@ -74,7 +82,7 @@ A Next.js 16 (App Router) community marketplace that lets users browse local mem
 **Order status lifecycle:** `paid → ready → dispatched → delivered | refunded`
 
 ## Pending / TODO
-- **AI assistant (Phase 1) setup before it works:** (1) add `OPENAI_API_KEY` to env; (2) run migration `supabase/migrations/20260605120000_add_chat_assistant_tables.sql`; (3) (Phase 2 only) create the `marketplace-media` Storage bucket. Roadmap: `/Users/xen/.claude/plans/eager-splashing-kazoo.md` — Phase 2 = image→catalog capture, Phase 3 = voice receptionist.
+- **AI features setup before they work:** (1) add `OPENAI_API_KEY`; (2) run migrations `20260605120000_add_chat_assistant_tables.sql` (assistant) + `20260605140000_add_vendor_events.sql` (events); (3) create a **public** `marketplace-media` Supabase Storage bucket (image capture writes here); (4) optionally set `ADMIN_CLERK_USER_IDS` for superadmin-on-behalf-of. Roadmap: `/Users/xen/.claude/plans/eager-splashing-kazoo.md` — **Phase 1 (assistant) + Phase 2 (image→catalog capture) shipped; Phase 3 = voice receptionist** remains.
 - **Set `NEXT_PUBLIC_SITE_URL=https://whatslocal.ai` in the production/deploy env** — it's only in local `.env.local`. Without it, prod canonicals/sitemap/JSON-LD fall back to the `https://whatslocal.ai` default in `lib/seo.ts` (currently correct, but make it explicit per environment).
 - **Repoint `whatslocal.ai` DNS to this app** — it currently serves a different app, so none of the SEO output is publicly reachable yet.
 - **(Optional) Per-member OG images** via `@vercel/og` — deferred nice-to-have for richer link previews.
@@ -98,6 +106,7 @@ A Next.js 16 (App Router) community marketplace that lets users browse local mem
 | `business_knowledge` | owner-authored FAQs/notes fed into the AI assistant's context |
 | `chat_conversations` / `chat_messages` | AI assistant transcripts (analytics + owner inbox + future RAG) |
 | `chat_leads` | contacts the assistant captured via `capture_lead` |
+| `vendor_events` | self-serve / AI-captured events (poster image, `active` draft flag, `source`) |
 
 ## Key Conventions
 - Data comes from Community Connector Agent API (`NEXT_PUBLIC_API_BASE` / `CONNECTOR_URL`)
@@ -138,8 +147,9 @@ npm run dev
 **AI (OpenAI):**
 - `OPENAI_API_KEY` — **required** for the per-business assistant (and Phase 2 vision/image gen). Not yet in `.env.local`.
 - `OPENAI_CHAT_MODEL` / `OPENAI_VISION_MODEL` / `OPENAI_IMAGE_MODEL` — optional overrides (default `gpt-4o-mini` / `gpt-4o` / `gpt-image-1`)
-- `SUPABASE_SERVICE_ROLE_KEY` — preferred for Supabase Storage writes (Phase 2); falls back to anon key
+- `SUPABASE_SERVICE_ROLE_KEY` — preferred for Supabase Storage writes; falls back to anon key
 - `SUPABASE_MEDIA_BUCKET` — storage bucket name (default `marketplace-media`)
+- `ADMIN_CLERK_USER_IDS` — comma-separated Clerk user IDs allowed to manage any business's catalog/events on their behalf
 
 **Observability:**
 - `NEXT_PUBLIC_POSTHOG_KEY` / `NEXT_PUBLIC_POSTHOG_HOST` — same PostHog project as connector-agent so visitor + onboarding events stitch into one funnel

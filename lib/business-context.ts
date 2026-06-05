@@ -1,5 +1,5 @@
 import { getMember, listEvents } from './api'
-import { getProductsByMember, getVendorSettings, getBusinessKnowledge } from './vendor-connect'
+import { getProductsByMember, getVendorSettings, getBusinessKnowledge, getVendorEventsByMember } from './vendor-connect'
 import { getDemoMember } from './demo-members'
 import type { MemberProfile } from './types'
 
@@ -42,12 +42,19 @@ export async function buildBusinessContext(memberId: string): Promise<BusinessCo
     }
   }
 
-  const [products, events, settings, knowledge] = await Promise.all([
+  const [products, connectorEvents, vendorEvents, settings, knowledge] = await Promise.all([
     getProductsByMember(memberId).catch(() => []),
     listEvents({ memberId, limit: 20 }).then((r) => r.events).catch(() => []),
+    getVendorEventsByMember(memberId).catch(() => []),
     getVendorSettings(memberId).catch(() => null),
     getBusinessKnowledge(memberId).catch(() => []),
   ])
+
+  // Merge connector (harvested) + self-serve events into one normalized list.
+  const events = [
+    ...vendorEvents.map((e) => ({ title: e.title, date: e.event_date, time: e.event_time, location: e.location, description: e.description })),
+    ...connectorEvents.map((e) => ({ title: e.title, date: e.date, time: e.time, location: e.location, description: e.description })),
+  ]
 
   const businessName = (profile.businessName as string) || (profile.name as string) || 'this business'
 

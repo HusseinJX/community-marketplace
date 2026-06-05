@@ -9,7 +9,7 @@ import {
   resolveHeroImages,
 } from "@/lib/seo";
 import { MemberJsonLd } from "@/components/JsonLd";
-import { getProductsByMember, type SupabaseProduct } from "@/lib/vendor-connect";
+import { getProductsByMember, getVendorEventsByMember, type SupabaseProduct, type VendorEvent } from "@/lib/vendor-connect";
 import { getDemoMember } from "@/lib/demo-members";
 import { MemberTypeBadge } from "@/components/MemberTypeBadge";
 import { EventCard } from "@/components/EventCard";
@@ -173,6 +173,7 @@ export default async function MemberProfilePage({
 
   let member = null;
   let events: EventSuggestion[] = [];
+  let vendorEvents: VendorEvent[] = [];
   let supabaseProducts: SupabaseProduct[] = [];
   let fetchError: string | null = null;
 
@@ -181,14 +182,16 @@ export default async function MemberProfilePage({
     member = demo;
   } else {
     try {
-      const [memberRes, eventsRes, prods] = await Promise.all([
+      const [memberRes, eventsRes, prods, vEvents] = await Promise.all([
         getMember(id),
         listEvents({ memberId: id, limit: 20 }),
         getProductsByMember(id),
+        getVendorEventsByMember(id),
       ]);
       member = memberRes.member;
       events = eventsRes.events;
       supabaseProducts = prods;
+      vendorEvents = vEvents;
     } catch (err) {
       fetchError = err instanceof Error ? err.message : "Failed to load profile.";
     }
@@ -411,13 +414,34 @@ export default async function MemberProfilePage({
 
           {memberType !== "organizer" && (
             <Section title="Events">
+              {vendorEvents.length > 0 && (
+                <div className="mb-3 grid gap-3 sm:grid-cols-2">
+                  {vendorEvents.map((ev) => (
+                    <div key={ev.id} className="card-soft group flex items-stretch gap-3 p-3">
+                      {ev.poster_image_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={ev.poster_image_url} alt={ev.title} className="w-20 shrink-0 self-stretch rounded-lg object-cover" />
+                      ) : (
+                        <div className="w-20 shrink-0 self-stretch rounded-lg bg-gradient-to-br from-indigo-300 to-purple-500" />
+                      )}
+                      <div className="min-w-0 flex-1 py-0.5">
+                        <div className="truncate font-medium text-stone-900">{ev.title}</div>
+                        <div className="mt-1 truncate text-sm text-stone-500">
+                          {[ev.event_date, ev.event_time].filter(Boolean).join(" · ")}
+                        </div>
+                        {ev.location && <div className="truncate text-sm text-stone-500">{ev.location}</div>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
               {events.length > 0 ? (
                 <div className="grid gap-3 sm:grid-cols-2">
                   {events.map((ev) => (
                     <EventCard key={ev.id} event={ev} />
                   ))}
                 </div>
-              ) : (
+              ) : vendorEvents.length > 0 ? null : (
                 <div className="grid gap-3 sm:grid-cols-2">
                   {DEMO_EVENTS.map((ev) => (
                     <Link
