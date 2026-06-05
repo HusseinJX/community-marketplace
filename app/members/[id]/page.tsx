@@ -11,6 +11,7 @@ import { ActionBar } from "@/components/ActionBar";
 import { GroupChat } from "@/components/GroupChat";
 import { ImageCarousel } from "@/components/ImageCarousel";
 import { MEMBER_HERO_IMAGES } from "@/lib/member-images";
+import { usableImages, isPlaceholder } from "@/lib/image-utils";
 import { ENDORSEMENTS } from "@/lib/endorsements";
 import { EndorsementRows } from "@/components/EndorsementRows";
 
@@ -191,25 +192,20 @@ export default async function MemberProfilePage({
         ← Back to browse
       </Link>
 
-      {/* Unclaimed profile banner */}
-      {member.status === 'unclaimed' && (
-        <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5 mb-6">
-          <p className="font-semibold text-amber-900">Is this your business?</p>
-          <p className="mt-1 text-sm text-amber-700">Claim this profile to manage it, receive payments, and connect with customers.</p>
-          <Link href={`/claim/${member.id}`} className="mt-3 inline-block rounded-lg bg-amber-900 px-4 py-2 text-xs font-medium text-white hover:bg-amber-800">
-            Claim this business
-          </Link>
-        </div>
-      )}
-
       {/* Hero */}
-      {MEMBER_HERO_IMAGES[id] ? (
-        <div className="mt-6">
-          <ImageCarousel images={MEMBER_HERO_IMAGES[id]} alt={name} aspect="wide" />
-        </div>
-      ) : (
-        <div className={`mt-6 aspect-[21/9] w-full rounded-2xl bg-gradient-to-br ${gradient}`} />
-      )}
+      {(() => {
+        const curated = MEMBER_HERO_IMAGES[id];
+        const apiImages = Array.isArray(p.images) ? usableImages(p.images as string[]) : [];
+        const single = typeof p.imageUrl === "string" && !isPlaceholder(p.imageUrl) ? [p.imageUrl] : [];
+        const heroImages = (curated && curated.length ? curated : apiImages.length ? apiImages : single);
+        return heroImages.length > 0 ? (
+          <div className="mt-6">
+            <ImageCarousel images={heroImages} alt={name} aspect="wide" fallbackGradient={gradient} priority />
+          </div>
+        ) : (
+          <div className={`mt-6 aspect-[21/9] w-full rounded-2xl bg-gradient-to-br ${gradient}`} />
+        );
+      })()}
 
       {/* Header */}
       <header className="mt-8 border-b border-stone-200 pb-8">
@@ -511,6 +507,16 @@ export default async function MemberProfilePage({
         </aside>
       </div>
 
+      {/* Unclaimed profile banner — placed at the bottom so it doesn't dominate the page */}
+      {member.status === 'unclaimed' && (
+        <div className="mt-12 rounded-2xl border border-amber-200 bg-amber-50 p-5">
+          <p className="font-semibold text-amber-900">Is this your business?</p>
+          <p className="mt-1 text-sm text-amber-700">Claim this profile to manage it, receive payments, and connect with customers.</p>
+          <Link href={`/claim/${member.id}`} className="mt-3 inline-block rounded-lg bg-amber-900 px-4 py-2 text-xs font-medium text-white hover:bg-amber-800">
+            Claim this business
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

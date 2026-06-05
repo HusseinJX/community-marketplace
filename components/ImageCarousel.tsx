@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { usableImages } from "@/lib/image-utils";
 
 type Props = {
   images: string[];
@@ -10,6 +11,9 @@ type Props = {
   aspect?: "video" | "square" | "wide" | "tall";
   rounded?: string;
   showCounter?: boolean;
+  fallbackGradient?: string;
+  sizes?: string;
+  priority?: boolean;
 };
 
 const aspectClass: Record<NonNullable<Props["aspect"]>, string> = {
@@ -19,16 +23,40 @@ const aspectClass: Record<NonNullable<Props["aspect"]>, string> = {
   tall: "aspect-[4/5]",
 };
 
+// "wide" is the profile-page hero (≈1100px on desktop). "video" / "square" are
+// grid cards (≈320px). Defaults match these use cases so next/image picks an
+// appropriately sized variant from the optimizer.
+const defaultSizes: Record<NonNullable<Props["aspect"]>, string> = {
+  wide: "(min-width:1280px) 1200px, 100vw",
+  tall: "(min-width:1024px) 480px, (min-width:640px) 50vw, 100vw",
+  video: "(min-width:1024px) 320px, (min-width:640px) 50vw, 100vw",
+  square: "(min-width:1024px) 320px, (min-width:640px) 50vw, 100vw",
+};
+
 export function ImageCarousel({
   images,
   alt = "",
   aspect = "video",
   rounded = "rounded-2xl",
   showCounter = true,
+  fallbackGradient,
+  sizes,
+  priority,
 }: Props) {
   const [i, setI] = useState(0);
-  if (!images || images.length === 0) return null;
-  const count = images.length;
+  const [broken, setBroken] = useState<Set<number>>(() => new Set());
+  const filtered = usableImages(images);
+  if (filtered.length === 0) {
+    if (fallbackGradient) {
+      return <div className={`w-full ${rounded} ${aspectClass[aspect]} bg-gradient-to-br ${fallbackGradient}`} />;
+    }
+    return null;
+  }
+  const count = filtered.length;
+  const allBroken = broken.size >= count;
+  if (allBroken && fallbackGradient) {
+    return <div className={`w-full ${rounded} ${aspectClass[aspect]} bg-gradient-to-br ${fallbackGradient}`} />;
+  }
   const prev = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -46,17 +74,24 @@ export function ImageCarousel({
         className="flex h-full w-full transition-transform duration-300 ease-out"
         style={{ transform: `translateX(-${i * 100}%)` }}
       >
-        {images.map((src, idx) => (
+        {filtered.map((src, idx) => (
           <div key={idx} className="relative h-full w-full shrink-0">
-            <Image
-              src={src}
-              alt={alt}
-              fill
-              sizes="(min-width:1024px) 320px, (min-width:640px) 50vw, 100vw"
-              className="object-cover"
-              loading={idx === 0 ? "eager" : "lazy"}
-              draggable={false}
-            />
+            {broken.has(idx) ? (
+              <div className={`absolute inset-0 bg-gradient-to-br ${fallbackGradient ?? "from-stone-200 to-stone-300"}`} />
+            ) : (
+              <Image
+                src={src}
+                alt={alt}
+                fill
+                sizes={sizes ?? defaultSizes[aspect]}
+                className="object-cover"
+                loading={idx === 0 && priority ? "eager" : idx === 0 ? "eager" : "lazy"}
+                priority={idx === 0 && priority}
+                quality={aspect === "wide" ? 90 : 75}
+                draggable={false}
+                onError={() => setBroken((b) => { const n = new Set(b); n.add(idx); return n; })}
+              />
+            )}
           </div>
         ))}
       </div>
@@ -79,7 +114,7 @@ export function ImageCarousel({
           </button>
 
           <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 items-center gap-1.5">
-            {images.map((_, idx) => (
+            {filtered.map((_, idx) => (
               <button
                 key={idx}
                 onClick={(e) => {

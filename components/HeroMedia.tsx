@@ -2,21 +2,7 @@
 
 import Image from "next/image";
 import { useState } from "react";
-
-// Single hero image with:
-// - next/image edge-resized AVIF/WebP (Netlify image optimizer)
-// - lazy load below the fold
-// - graceful fallback to type-coloured gradient on load error
-// - junk-placeholder URL filter
-
-const PLACEHOLDER_HINTS = [
-  "photo-1441986300917-64674bd600d8", // prolocaliq seed unsplash garbage
-];
-
-function isPlaceholder(url: string) {
-  if (!url) return true;
-  return PLACEHOLDER_HINTS.some((h) => url.includes(h));
-}
+import { usableImages } from "@/lib/image-utils";
 
 export function HeroMedia({
   images,
@@ -31,7 +17,7 @@ export function HeroMedia({
   aspect?: "video" | "square";
   priority?: boolean;
 }) {
-  const usable = (images || []).filter((u) => u && !isPlaceholder(u));
+  const usable = usableImages(images);
   const [errored, setErrored] = useState(false);
   const aspectClass = aspect === "square" ? "aspect-square" : "aspect-[16/10]";
 

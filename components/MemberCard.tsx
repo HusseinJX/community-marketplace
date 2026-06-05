@@ -4,6 +4,7 @@ import { MemberTypeBadge } from "./MemberTypeBadge";
 import { ImageCarousel } from "./ImageCarousel";
 import { HeroMedia } from "./HeroMedia";
 import { MEMBER_HERO_IMAGES } from "@/lib/member-images";
+import { usableImages } from "@/lib/image-utils";
 
 const TYPE_GRADIENTS: Record<string, string> = {
   vendor: "from-blue-300 to-indigo-400",
@@ -40,8 +41,8 @@ export function MemberCard({ member, matchedOn }: { member: Member; matchedOn?: 
   //   3) single profile.imageUrl fallback
   //   4) coloured gradient
   const curated = MEMBER_HERO_IMAGES[member.id];
-  const profileImages = Array.isArray(p.images) && p.images.length ? p.images : null;
-  const carouselImages = curated && curated.length ? curated : profileImages;
+  const profileImages = Array.isArray(p.images) ? usableImages(p.images) : [];
+  const carouselImages = curated && curated.length ? curated : (profileImages.length ? profileImages : null);
 
   return (
     <Link
@@ -55,6 +56,7 @@ export function MemberCard({ member, matchedOn }: { member: Member; matchedOn?: 
           aspect="video"
           rounded="rounded-none"
           showCounter={carouselImages.length > 1}
+          fallbackGradient={gradient}
         />
       ) : (
         <HeroMedia

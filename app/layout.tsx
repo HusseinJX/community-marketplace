@@ -24,7 +24,7 @@ export default function RootLayout({
             <header className="sticky top-0 z-30 border-b border-stone-200 bg-stone-50/80 backdrop-blur">
               <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 md:px-8">
                 <Link href="/" className="text-lg font-semibold tracking-tight text-stone-900">
-                  The Collective
+                  WhatsLocal AI
                 </Link>
                 <AuthNav />
               </div>

@@ -8,16 +8,17 @@ import type { Member, SearchResultMember, SearchIntent } from "@/lib/types";
 import { MemberCard, MemberCardSkeleton } from "@/components/MemberCard";
 import { FilterBar, type FilterType } from "@/components/FilterBar";
 import { MapView } from "@/components/MapView";
-import { SearchBar } from "@/components/SearchBar";
+import { SearchBar, type SearchMode } from "@/components/SearchBar";
 import { DEMO_MEMBERS } from "@/lib/demo-members";
 import { MEMBER_HERO_IMAGES } from "@/lib/member-images";
+import { usableImages, isPlaceholder } from "@/lib/image-utils";
 
 function memberHasImage(m: Member): boolean {
   if (MEMBER_HERO_IMAGES[m.id]?.length) return true;
   const p = m.profile;
   if (!p) return false;
-  if (Array.isArray(p.images) && p.images.length) return true;
-  if (p.imageUrl) return true;
+  if (Array.isArray(p.images) && usableImages(p.images).length > 0) return true;
+  if (p.imageUrl && !isPlaceholder(p.imageUrl)) return true;
   return false;
 }
 
@@ -54,8 +55,9 @@ export default function BrowsePage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
-  // Smart search mode — when active, suspends filter-based browse and shows
-  // matchedOn breadcrumbs on each card.
+  // Search mode — "normal" (client-side keyword filter) is the default; "ai"
+  // hits the smart-search endpoint and shows matchedOn chips.
+  const [searchMode, setSearchMode] = useState<SearchMode>("normal");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResultMember[] | null>(null);
   const [searchIntent, setSearchIntent] = useState<SearchIntent | null>(null);
@@ -63,6 +65,7 @@ export default function BrowsePage() {
 
   const runSearch = (q: string) => {
     setSearchQuery(q);
+    if (searchMode === "normal") return; // normal mode is purely client-side
     setSearchLoading(true);
     setError(null);
     searchMembers(q, { limit: 60 })
@@ -78,6 +81,14 @@ export default function BrowsePage() {
     setSearchResults(null);
     setSearchIntent(null);
   };
+  const handleModeChange = (m: SearchMode) => {
+    setSearchMode(m);
+    // Clear remote AI results when switching back to normal; clear normal text
+    // when switching to AI so the user gets a fresh prompt.
+    setSearchQuery("");
+    setSearchResults(null);
+    setSearchIntent(null);
+  };
 
   // Initial load (or filter change) — fetch the first page.
   useEffect(() => {
@@ -88,8 +99,10 @@ export default function BrowsePage() {
       setLoading(false);
       setHasMore(hit.length >= PAGE_SIZE);
     } else {
+      // Keep the stale member list visible during the fetch instead of
+      // wiping it — wiping unmounts the Leaflet map and re-instantiates it,
+      // which is jarring (full re-render flash). Just show the loading flag.
       setLoading(true);
-      setMembers([]);
       setHasMore(true);
     }
     setError(null);
@@ -146,27 +159,61 @@ export default function BrowsePage() {
   }, [loadingMore, hasMore, searchQuery, members, type, city, category, subcategory, cacheKey]);
 
   // Wire up an IntersectionObserver on the sentinel below the grid.
+  // Disable infinite scroll only when AI search is active (remote results
+  // replace the feed). Normal-mode keyword filter still lets the grid grow.
+  const aiSearchActive = searchMode === "ai" && !!searchQuery;
   useEffect(() => {
     const node = sentinelRef.current;
-    if (!node || !hasMore || searchQuery) return;
+    if (!node || !hasMore || aiSearchActive) return;
     const obs = new IntersectionObserver(
       (entries) => { if (entries[0]?.isIntersecting) fetchMore(); },
       { rootMargin: "400px 0px" }, // pre-fetch before user reaches the bottom
     );
     obs.observe(node);
     return () => obs.disconnect();
-  }, [hasMore, searchQuery, fetchMore]);
+  }, [hasMore, aiSearchActive, fetchMore]);
 
   const visible = useMemo(() => {
     const real = members.filter((m) => m.profile?.name);
     const demos = DEMO_MEMBERS.filter((m) => type === "all" || m.profile?.memberType === type);
-    const all = [...real, ...demos];
+    let all = [...real, ...demos];
+
+    // Normal-mode keyword filter — substring match across name, category,
+    // descriptions, neighborhood, and a few tag-like arrays.
+    if (searchMode === "normal" && searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      all = all.filter((m) => {
+        const p = m.profile ?? {};
+        const haystack: string[] = [];
+        const push = (v: unknown) => {
+          if (typeof v === "string") haystack.push(v);
+          else if (Array.isArray(v)) for (const x of v) if (typeof x === "string") haystack.push(x);
+        };
+        push(p.name);
+        push(p.businessName);
+        push(p.category);
+        push(p.subcategory);
+        push(p.city);
+        push(p.neighborhood);
+        push(p.approvedBlurb);
+        push(p.businessDescription);
+        push(p.personalNote);
+        push(p.description);
+        push(p.services);
+        push(p.specialties);
+        push(p.menuHighlights);
+        push(p.interests);
+        push(p.shareTypes);
+        return haystack.some((s) => s.toLowerCase().includes(q));
+      });
+    }
+
     // Stable partition: members with images first, then without. Keeps the
     // existing rank within each group (no reshuffling beyond that).
     const withImg: Member[] = [], withoutImg: Member[] = [];
     for (const m of all) (memberHasImage(m) ? withImg : withoutImg).push(m);
     return [...withImg, ...withoutImg];
-  }, [members, type]);
+  }, [members, type, searchMode, searchQuery]);
 
   return (
     <div className="mx-auto max-w-7xl px-4 pb-20 md:px-8">
@@ -276,14 +323,17 @@ export default function BrowsePage() {
       <section className="mb-3">
         <SearchBar
           value={searchQuery}
+          mode={searchMode}
+          onModeChange={handleModeChange}
           onSubmit={runSearch}
+          onChange={setSearchQuery}
           onClear={clearSearch}
           loading={searchLoading}
         />
       </section>
 
-      {/* Filters + view toggle — hidden while in search mode */}
-      {!searchQuery && (
+      {/* Filters + view toggle — hidden while AI search is active */}
+      {!aiSearchActive && (
         <section className="space-y-3">
           <div className="flex items-start justify-between gap-3">
             <FilterBar
@@ -308,8 +358,8 @@ export default function BrowsePage() {
         </section>
       )}
 
-      {/* Intent summary while in search mode */}
-      {searchQuery && searchIntent && (
+      {/* Intent summary while AI search is active */}
+      {aiSearchActive && searchIntent && (
         <section className="mb-2 rounded-2xl border border-stone-200 bg-white/70 px-4 py-3 text-xs text-stone-600">
           <span className="font-medium text-stone-800">{searchResults?.length ?? 0} results</span>
           {searchIntent.filters && Object.keys(searchIntent.filters).length > 0 && (
@@ -333,8 +383,8 @@ export default function BrowsePage() {
           </div>
         )}
 
-        {/* Search mode — show search results with matchedOn chips */}
-        {searchQuery ? (
+        {/* AI search mode — show remote search results with matchedOn chips */}
+        {aiSearchActive ? (
           searchLoading ? (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {Array.from({ length: 8 }).map((_, i) => <MemberCardSkeleton key={i} />)}
@@ -355,8 +405,17 @@ export default function BrowsePage() {
           )
         ) : (
           <>
-            {view === "map" && visible.length > 0 && (
-              <MapView members={visible} />
+            {view === "map" && (
+              <div className="relative">
+                <MapView members={visible} />
+                {visible.length === 0 && !loading && (
+                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                    <div className="rounded-2xl bg-white/90 px-5 py-3 text-sm text-stone-700 shadow-md ring-1 ring-stone-200">
+                      No members match your filters.
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
 
             {view === "grid" && loading && visible.length === 0 && (

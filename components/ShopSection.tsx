@@ -158,7 +158,7 @@ export function ShopSection({
             const grad = productGradient(featuredProduct);
             return (
               <div className="mt-4 overflow-hidden rounded-xl border border-stone-100 bg-stone-50">
-                <div className={`h-2 w-full bg-gradient-to-r ${grad}`} />
+                <div className={`aspect-square w-full bg-gradient-to-br ${grad}`} />
                 <div className="p-4">
                   <p className="section-label">Featured</p>
                   <div className="mt-2 flex items-center justify-between gap-3">
@@ -199,7 +199,7 @@ export function ShopSection({
                 const grad = productGradient(productName);
                 return (
                   <div key={productName} className="overflow-hidden rounded-xl border border-stone-100 bg-stone-50">
-                    <div className={`h-2 w-full bg-gradient-to-r ${grad}`} />
+                    <div className={`aspect-square w-full bg-gradient-to-br ${grad}`} />
                     <div className="p-4">
                       <div className="flex items-center justify-between gap-3">
                         <div className="font-medium text-stone-900">{productName}</div>
