@@ -82,7 +82,10 @@ A Next.js 16 (App Router) community marketplace that lets users browse local mem
 **Order status lifecycle:** `paid → ready → dispatched → delivered | refunded`
 
 ## Pending / TODO
-- **AI features setup before they work:** (1) add `OPENAI_API_KEY`; (2) run migrations `20260605120000_add_chat_assistant_tables.sql` (assistant) + `20260605140000_add_vendor_events.sql` (events); (3) create a **public** `marketplace-media` Supabase Storage bucket (image capture writes here); (4) optionally set `ADMIN_CLERK_USER_IDS` for superadmin-on-behalf-of. Roadmap: `/Users/xen/.claude/plans/eager-splashing-kazoo.md` — **Phase 1 (assistant) + Phase 2 (image→catalog capture) shipped; Phase 3 = voice receptionist** remains.
+- **AI features setup before they work** (only `OPENAI_API_KEY` + a DB push needed; bucket is a migration now):
+  1. Set `OPENAI_API_KEY` in `.env.local` (placeholder already added). Optional: `ADMIN_CLERK_USER_IDS`, `SUPABASE_SERVICE_ROLE_KEY`.
+  2. Apply migrations: `supabase link --project-ref xbbnvkvlrucrzobhopgh` then `supabase db push`. New migrations: `20260605120000` (assistant tables), `20260605140000` (vendor_events), `20260605150000` (public `marketplace-media` storage bucket + policies).
+  - Roadmap: `/Users/xen/.claude/plans/eager-splashing-kazoo.md` — **Phase 1 (assistant) + Phase 2 (image→catalog capture) shipped; Phase 3 = voice receptionist** remains.
 - **Set `NEXT_PUBLIC_SITE_URL=https://whatslocal.ai` in the production/deploy env** — it's only in local `.env.local`. Without it, prod canonicals/sitemap/JSON-LD fall back to the `https://whatslocal.ai` default in `lib/seo.ts` (currently correct, but make it explicit per environment).
 - **Repoint `whatslocal.ai` DNS to this app** — it currently serves a different app, so none of the SEO output is publicly reachable yet.
 - **(Optional) Per-member OG images** via `@vercel/og` — deferred nice-to-have for richer link previews.
