@@ -4,6 +4,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { Mail } from "lucide-react";
 import { AuthNav } from "@/components/auth-nav";
 import { StoreProvider } from "@/lib/store";
+import { PostHogProvider } from "@/lib/posthog-provider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -18,6 +19,7 @@ export default function RootLayout({
     <ClerkProvider>
       <html lang="en" className="h-full antialiased">
         <body className="flex min-h-full flex-col bg-stone-50 text-stone-900">
+          <PostHogProvider>
           <StoreProvider>
             <header className="sticky top-0 z-30 border-b border-stone-200 bg-stone-50/80 backdrop-blur">
               <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 md:px-8">
@@ -80,6 +82,7 @@ export default function RootLayout({
               </div>
             </footer>
           </StoreProvider>
+          </PostHogProvider>
         </body>
       </html>
     </ClerkProvider>
