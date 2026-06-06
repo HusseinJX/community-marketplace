@@ -49,7 +49,24 @@ export async function POST(req: Request) {
 
   const openai = getOpenAI()
 
-  // 1. Detect products + boxes
+  // 1. Load the source image once (used for both detection + cropping). Sent
+  // inline to OpenAI rather than as a URL — its downloader can be slow fetching
+  // Supabase storage URLs (surfaced by integration tests).
+  let srcBuf: Buffer
+  try {
+    const resp = await fetch(imageUrl)
+    if (!resp.ok) throw new Error(`fetch ${resp.status}`)
+    srcBuf = Buffer.from(await resp.arrayBuffer())
+  } catch {
+    return NextResponse.json({ error: 'Could not read image' }, { status: 400 })
+  }
+  const meta = await sharp(srcBuf).metadata()
+  const W = meta.width ?? 0
+  const H = meta.height ?? 0
+  if (!W || !H) return NextResponse.json({ error: 'Unreadable image' }, { status: 502 })
+  const dataUrl = `data:${meta.format === 'jpeg' ? 'image/jpeg' : 'image/png'};base64,${srcBuf.toString('base64')}`
+
+  // 2. Detect products + boxes
   const detection = await openai.chat.completions.create({
     model: VISION_MODEL,
     messages: [
@@ -60,7 +77,7 @@ export async function POST(req: Request) {
             type: 'text',
             text: 'Identify each distinct, individual product visible in this photo (e.g. items on a counter or shelf). For each, give a short name, an optional description, and a tight bounding box as fractions of the image width/height (x,y = top-left corner; w,h = size; all between 0 and 1). Do not include background, people, or duplicates of the same physical item.',
           },
-          { type: 'image_url', image_url: { url: imageUrl } },
+          { type: 'image_url', image_url: { url: dataUrl } },
         ],
       },
     ],
@@ -76,13 +93,6 @@ export async function POST(req: Request) {
   } catch {
     return NextResponse.json({ error: 'Could not parse detection' }, { status: 502 })
   }
-
-  // 2. Load the source image once
-  const srcBuf = Buffer.from(await (await fetch(imageUrl)).arrayBuffer())
-  const meta = await sharp(srcBuf).metadata()
-  const W = meta.width ?? 0
-  const H = meta.height ?? 0
-  if (!W || !H) return NextResponse.json({ error: 'Unreadable image' }, { status: 502 })
 
   // 3. Crop + refine each detected product (best-effort per item)
   const results = []

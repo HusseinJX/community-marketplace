@@ -60,6 +60,20 @@ export async function POST(req: Request) {
   const actor = await resolveActor(body.memberId)
   if (!actor) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
+  // Fetch the image server-side and send it inline (base64) rather than handing
+  // OpenAI the storage URL — OpenAI's downloader can be slow/flaky fetching
+  // Supabase public URLs (surfaced by integration tests).
+  let dataUrl: string
+  try {
+    const resp = await fetch(imageUrl)
+    if (!resp.ok) throw new Error(`fetch ${resp.status}`)
+    const ct = resp.headers.get('content-type') || 'image/png'
+    const buf = Buffer.from(await resp.arrayBuffer())
+    dataUrl = `data:${ct};base64,${buf.toString('base64')}`
+  } catch {
+    return NextResponse.json({ error: 'Could not read image' }, { status: 400 })
+  }
+
   const instruction =
     mode === 'products'
       ? 'Extract every distinct menu item / product from this image. Capture name, a short description if shown, and the price in cents. Do not invent items or prices that are not visible.'
@@ -72,7 +86,7 @@ export async function POST(req: Request) {
         role: 'user',
         content: [
           { type: 'text', text: instruction },
-          { type: 'image_url', image_url: { url: imageUrl } },
+          { type: 'image_url', image_url: { url: dataUrl } },
         ],
       },
     ],
