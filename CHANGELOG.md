@@ -43,6 +43,7 @@ All notable changes to this project are documented here.
 - `app/api/vendor/qr/stylize` (flag `NEXT_PUBLIC_QR_AI=1`, **off by default**): `gpt-image-1` generates a background, then the **real** QR is composited on a white card over it (`lib/qr-compose.ts` via sharp) and uploaded to Supabase. Because the real QR sits on top, the output always scans even with a busy background; if the AI call fails the UI falls back to the basic generator.
 - `components/qr/AiQr.tsx` — style presets + optional prompt + download; only mounted when the flag is on. Each generate is a billable `gpt-image-1` call (~$0.04).
 - `tests/qr.test.ts` — deterministic, **free** (no OpenAI): composites a QR over a noisy synthetic background and decodes it back (`jsqr`) to prove scannability + output dimensions.
+- **Verified live once** end-to-end (real `gpt-image-1` background → composite → `jsqr` decoded back to the exact profile URL): the AI background does not break scannability in practice. To enable in any environment: set `NEXT_PUBLIC_QR_AI=1` (and `OPENAI_API_KEY`).
 - Independent + revertible: AI files import sharp/gpt-image-1; `lib/qr.ts`/`BasicQr` import none of it, so unsetting the flag or deleting the AI files leaves basic + scanner intact.
 
 ### Added — Testing
