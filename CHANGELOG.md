@@ -24,6 +24,15 @@ All notable changes to this project are documented here.
 - `lib/storage.ts` + `marketplace-media` public Storage bucket (created via migration).
 - Published `vendor_events` surfaced on the member profile and fed into the assistant's context.
 
+### Added — Small-business resources hub (`/vendor/resources`)
+- Searchable, category-filterable catalog of local small-business support resources (legal, accounting, energy, green, accessibility, permits, funding, education, market research, library, support orgs) — everything in one place.
+- "Recommended for you" rail: deterministic, rule-based matching of resources to the business's own profile (`recommendResources` in `lib/resources.ts`), e.g. a restaurant gets induction/green/accessibility picks with a plain reason. No model call, unit-tested, free.
+- Grounded chat guide (`app/api/vendor/resources/chat`, streaming) that explains resources and renders them as inline cards via a `suggest_resources` tool.
+- `lib/resources.ts` — static catalog (editing data = editing the file) with `tags`/`recommendFor`/`city`/`cost` shaped for later improvement; unverified entries render a "Find this program →" search link instead of a fabricated URL.
+- UI: `app/vendor/resources/page.tsx`, `components/resources/{ResourceCard,ResourceGrid,ResourceChat}.tsx`; vendor nav link + dashboard quick-access card.
+- `tests/resources.test.ts` — unit tests for the recommender + catalog integrity (no API cost).
+- **v1 ships a placeholder seed (5 entries); real resource curation is the remaining work** (see CLAUDE.md "Pending / TODO").
+
 ### Added — Testing
 - Vitest live integration suite (`tests/`) exercising real OpenAI + Supabase: DB CRUD, assistant grounding, vision extraction, `gpt-image-1` generation, counter detection + crop, Storage upload. `npm test`.
 

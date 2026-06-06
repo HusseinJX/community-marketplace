@@ -1,5 +1,5 @@
 import { auth, currentUser } from '@clerk/nextjs/server'
-import { Package, ShoppingCart, CreditCard, Calendar, Plus, ArrowRight, Sparkles } from "lucide-react";
+import { Package, ShoppingCart, CreditCard, Calendar, Plus, ArrowRight, Sparkles, LifeBuoy } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { getVendorProfile, getVendorConnectAccount, getOrdersByMember } from "@/lib/vendor-connect";
@@ -10,6 +10,7 @@ const iconMap = {
   Orders: ShoppingCart,
   Payments: CreditCard,
   "AI Assistant": Sparkles,
+  Resources: LifeBuoy,
 } as const;
 
 const DEMO_PRODUCTS = [
@@ -112,6 +113,7 @@ export default async function VendorDashboard() {
     { label: "Orders", value: orderCount > 0 ? String(orderCount) : "—", href: "/vendor/orders" },
     { label: "Payments", value: "—", href: "/vendor/payments" },
     { label: "AI Assistant", value: "On", href: "/vendor/assistant" },
+    { label: "Resources", value: "New", href: "/vendor/resources" },
   ] as const;
 
   return (
