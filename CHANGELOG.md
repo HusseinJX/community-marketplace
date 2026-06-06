@@ -33,6 +33,12 @@ All notable changes to this project are documented here.
 - `tests/resources.test.ts` — unit tests for the recommender + catalog integrity (no API cost).
 - **v1 ships a placeholder seed (5 entries); real resource curation is the remaining work** (see CLAUDE.md "Pending / TODO").
 
+### Added — QR codes (basic) + marketplace scanner
+- Vendor portal `/vendor/qr`: client-side QR generator pointing at the vendor's profile (`…/members/{id}`), color presets, PNG + SVG download. Pure (`lib/qr.ts` via `qrcode`) — no AI, no network.
+- Marketplace: a QR-scan button beside the search bar (`components/QrScanButton.tsx`, `@zxing/browser`) opens the camera and routes a scanned profile code straight to that member page.
+- **Tiered + independent by design:** basic generation and the scanner share no code and import nothing AI-related, so they can't be broken by the (not-yet-built) AI tiers. AI-stylized QR / AI poster will be separate files behind `NEXT_PUBLIC_QR_AI` / `NEXT_PUBLIC_QR_POSTER` flags (unset = basic only). Note: camera scanning requires HTTPS or localhost.
+- Vendor nav link + dashboard quick-access card.
+
 ### Added — Testing
 - Vitest live integration suite (`tests/`) exercising real OpenAI + Supabase: DB CRUD, assistant grounding, vision extraction, `gpt-image-1` generation, counter detection + crop, Storage upload. `npm test`.
 

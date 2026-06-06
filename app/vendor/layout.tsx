@@ -21,6 +21,9 @@ export default async function VendorLayout({ children }: { children: React.React
             <Link href="/vendor/resources" className="text-sm text-stone-500 hover:text-stone-900">
               Resources
             </Link>
+            <Link href="/vendor/qr" className="text-sm text-stone-500 hover:text-stone-900">
+              QR code
+            </Link>
           </div>
           <div className="flex items-center gap-4">
             <span className="text-sm text-stone-500">{email}</span>

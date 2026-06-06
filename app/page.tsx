@@ -9,6 +9,7 @@ import { MemberCard, MemberCardSkeleton } from "@/components/MemberCard";
 import { FilterBar, type FilterType } from "@/components/FilterBar";
 import { MapView } from "@/components/MapView";
 import { SearchBar, type SearchMode } from "@/components/SearchBar";
+import { QrScanButton } from "@/components/QrScanButton";
 import { DEMO_MEMBERS } from "@/lib/demo-members";
 import { MEMBER_HERO_IMAGES } from "@/lib/member-images";
 import { usableImages, isPlaceholder } from "@/lib/image-utils";
@@ -319,17 +320,20 @@ export default function BrowsePage() {
         </div>
       )}
 
-      {/* Smart search bar */}
-      <section className="mb-3">
-        <SearchBar
-          value={searchQuery}
-          mode={searchMode}
-          onModeChange={handleModeChange}
-          onSubmit={runSearch}
-          onChange={setSearchQuery}
-          onClear={clearSearch}
-          loading={searchLoading}
-        />
+      {/* Smart search bar + QR scanner */}
+      <section className="mb-3 flex items-start gap-2">
+        <div className="min-w-0 flex-1">
+          <SearchBar
+            value={searchQuery}
+            mode={searchMode}
+            onModeChange={handleModeChange}
+            onSubmit={runSearch}
+            onChange={setSearchQuery}
+            onClear={clearSearch}
+            loading={searchLoading}
+          />
+        </div>
+        <QrScanButton />
       </section>
 
       {/* Filters + view toggle — hidden while AI search is active */}

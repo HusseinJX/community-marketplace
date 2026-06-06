@@ -36,6 +36,8 @@ A Next.js 16 (App Router) community marketplace that lets users browse local mem
 - `app/vendor/assistant/` — vendor config page: enable/disable, tone, custom FAQs, captured-leads inbox
 - `app/vendor/resources/` — small-business **resources hub**: searchable/filterable catalog cards, a "Recommended for you" rail (rule-based, driven by `buildBusinessContext`), and a grounded chat guide (`components/resources/*`). Catalog is a static file (`lib/resources.ts`); no DB.
 - `app/api/vendor/resources/chat/` — Clerk-authed **streaming** resource guide (OpenAI). Single tool `suggest_resources(ids[])` → emitted inline as ` RESOURCES:[...] ` markers the client parses into cards.
+- `app/vendor/qr/` — **QR code** generator (Tier 0, no AI): `lib/qr.ts` (pure `qrcode`) + `components/qr/BasicQr.tsx`, client-side PNG/SVG download, encodes `…/members/{id}`. AI tiers (stylized / poster) intentionally NOT built; when added they're separate files behind `NEXT_PUBLIC_QR_AI` / `NEXT_PUBLIC_QR_POSTER` so basic is always standalone + revertible.
+- `components/QrScanButton.tsx` — marketplace QR scanner (independent; `@zxing/browser`) beside the home search bar; routes a scanned `/members/{id}` code in-app. **Camera needs HTTPS or localhost.**
 - `components/AskAssistant.tsx` — floating "Ask <Business>" streaming chat widget; auto-rendered on `vendor`/`artist`/`organizer` profiles
 - `lib/openai.ts` — server-side OpenAI singleton + model constants (`CHAT_MODEL`/`VISION_MODEL`/`IMAGE_MODEL`)
 - `lib/business-context.ts` — `buildBusinessContext(memberId)` (stitches profile + products + events + settings + owner FAQs into a prompt blob) + `buildSystemPrompt()`
