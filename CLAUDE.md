@@ -125,6 +125,14 @@ A Next.js 16 (App Router) community marketplace that lets users browse local mem
 npm run dev
 ```
 
+## Testing
+```bash
+npm test   # vitest run
+```
+- `tests/` holds **live integration tests** — they call the **real OpenAI + Supabase** (no mocks), so `OPENAI_API_KEY` + the Supabase env must be set. They make billable OpenAI calls (incl. one `gpt-image-1` generation per run, ~$0.04) — run deliberately, not on every commit.
+- Coverage: DB CRUD (`lib/vendor-connect`), assistant grounding (`buildBusinessContext` → OpenAI), vision menu extraction, `gpt-image-1` generation, counter detection + `sharp` crop, Storage upload. Synthetic test images are generated with `sharp` (`tests/helpers/synthetic.ts`).
+- `tests/setup-env.ts` loads `.env.local` into `process.env`. Config: `vitest.config.ts` (node env, `@/` alias, serial).
+
 ## Environment Variables
 **Core:**
 - `NEXT_PUBLIC_SITE_URL` — canonical site origin (`https://whatslocal.ai`). Used by `metadataBase`, canonical tags, sitemap, robots, JSON-LD. **⚠️ The domain does not yet point at this app** (currently serving a different app); DNS will be repointed soon. Until then, sitemap/canonical URLs reference an origin that isn't live yet.
@@ -166,3 +174,7 @@ npm run dev
 - **SEO/AEO layer added** (Phases 1–3 of the SEO plan): per-page metadata + canonicals, type-aware JSON-LD, dynamic sitemap/robots, `llms.txt`, and `/category` + `/city` landing hubs. Indexes unclaimed-but-substantive business listings (directory model), noindexes shoppers/influencers/thin profiles.
 - **Brand consolidated to `WhatsLocal AI`** across all visible UI (was mixed "The Collective" / "WhatsLocal AI"). Contact email is `hello@whatslocal.ai`.
 - **Domain `whatslocal.ai` not yet pointed here** — lives on a different app; will be repointed. Deferred: per-member OG images (`@vercel/og`).
+- **AI layer added (OpenAI):** Phase 1 = per-business CS chat assistant (context-stuffed RAG, streaming, `capture_lead`/`check_order_status` tools). Phase 2 = image→catalog capture (menu/flyer/counter via vision + `gpt-image-1`, approval queue, superadmin on-behalf-of). Both shipped + covered by live integration tests. **Phase 3 = voice receptionist (OpenAI Realtime + Twilio + a new reservations subsystem) is NOT built yet.**
+- **Single AI provider = OpenAI** for chat, vision, and image generation (`gpt-4o-mini` / `gpt-4o` / `gpt-image-1`), kept in this Next.js app rather than the connector-agent.
+- **Catalog drafts reuse `products.active`** (false = draft pending approval) rather than a new status column. Vendor write paths use the **anon key**, so all vendor tables needed explicit grants (fixed in migrations `…160000`/`…170000` after the original migrations granted only `products.SELECT`).
+- **Vision routes send images to OpenAI inline (base64)**, not as Supabase storage URLs — OpenAI's downloader is slow/flaky fetching those (caught by integration tests).
