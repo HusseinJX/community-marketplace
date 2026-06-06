@@ -1,15 +1,13 @@
 import { NextResponse } from 'next/server'
 import {
-  getProductsByMember,
-  getAllProductsByMember,
-  createProduct,
-  updateProduct,
-  deleteProduct,
+  getVendorEventsByMember,
+  createVendorEvent,
+  updateVendorEvent,
+  deleteVendorEvent,
 } from '@/lib/vendor-connect'
 import { resolveActor } from '@/lib/admin'
 
-// GET — public list (active only). With ?include_drafts=1, requires the owner
-// (or an admin) and returns drafts too for the approval queue.
+// GET — public list (active only). With ?include_drafts=1, requires owner/admin.
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ memberId: string }> }
@@ -22,10 +20,9 @@ export async function GET(
     if (!actor || actor.memberId !== memberId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
-    return NextResponse.json(await getAllProductsByMember(memberId))
+    return NextResponse.json(await getVendorEventsByMember(memberId, true))
   }
-
-  return NextResponse.json(await getProductsByMember(memberId))
+  return NextResponse.json(await getVendorEventsByMember(memberId, false))
 }
 
 export async function POST(
@@ -39,21 +36,22 @@ export async function POST(
   }
 
   const body = await req.json().catch(() => ({}))
-  const items = Array.isArray(body.products) ? body.products : [body]
+  const items = Array.isArray(body.events) ? body.events : [body]
   const memberName = String(body.memberName ?? 'Vendor')
 
   const created = []
-  for (const p of items) {
-    if (!p?.name || typeof p.price !== 'number') continue
+  for (const e of items) {
+    if (!e?.title) continue
     created.push(
-      await createProduct(memberId, memberName, {
-        name: String(p.name),
-        description: p.description ?? null,
-        price: Math.max(0, Math.round(p.price)),
-        currency: p.currency ?? 'usd',
-        image_url: p.image_url ?? null,
-        active: p.active ?? false, // default to draft for review
-        source: p.source ?? 'manual',
+      await createVendorEvent(memberId, memberName, {
+        title: String(e.title),
+        description: e.description ?? null,
+        event_date: e.event_date ?? e.date ?? null,
+        event_time: e.event_time ?? e.time ?? null,
+        location: e.location ?? null,
+        poster_image_url: e.poster_image_url ?? null,
+        active: e.active ?? false, // default to draft for review
+        source: e.source ?? 'manual',
       })
     )
   }
@@ -74,10 +72,10 @@ export async function PATCH(
   if (!body.id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
 
   const fields: Record<string, unknown> = {}
-  for (const k of ['name', 'description', 'price', 'currency', 'image_url', 'active', 'source'] as const) {
-    if (k in body) fields[k] = k === 'price' ? Math.max(0, Math.round(body[k])) : body[k]
+  for (const k of ['title', 'description', 'event_date', 'event_time', 'location', 'poster_image_url', 'active'] as const) {
+    if (k in body) fields[k] = body[k]
   }
-  await updateProduct(String(body.id), memberId, fields)
+  await updateVendorEvent(String(body.id), memberId, fields)
   return NextResponse.json({ ok: true })
 }
 
@@ -92,6 +90,6 @@ export async function DELETE(
   }
   const { id } = await req.json().catch(() => ({ id: '' }))
   if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
-  await deleteProduct(String(id), memberId)
+  await deleteVendorEvent(String(id), memberId)
   return NextResponse.json({ ok: true })
 }

@@ -1,0 +1,196 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { Sparkles, Trash2, Plus, Inbox, Save } from 'lucide-react'
+
+interface Knowledge {
+  id: string
+  content: string
+}
+interface Lead {
+  id: string
+  name: string | null
+  contact: string | null
+  message: string | null
+  created_at: string
+}
+
+export default function VendorAssistantPage() {
+  const [loading, setLoading] = useState(true)
+  const [enabled, setEnabled] = useState(true)
+  const [persona, setPersona] = useState('')
+  const [knowledge, setKnowledge] = useState<Knowledge[]>([])
+  const [leads, setLeads] = useState<Lead[]>([])
+  const [newKnowledge, setNewKnowledge] = useState('')
+  const [savingConfig, setSavingConfig] = useState(false)
+  const [savedAt, setSavedAt] = useState<number | null>(null)
+
+  async function load() {
+    const d = await fetch('/api/vendor/assistant').then((r) => r.json())
+    if (!d.error) {
+      setEnabled(d.enabled)
+      setPersona(d.persona ?? '')
+      setKnowledge(d.knowledge ?? [])
+      setLeads(d.leads ?? [])
+    }
+    setLoading(false)
+  }
+  useEffect(() => {
+    load()
+  }, [])
+
+  async function saveConfig() {
+    setSavingConfig(true)
+    await fetch('/api/vendor/assistant', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'config', enabled, persona }),
+    })
+    setSavingConfig(false)
+    setSavedAt(Date.now())
+    setTimeout(() => setSavedAt(null), 2000)
+  }
+
+  async function addKnowledge() {
+    const content = newKnowledge.trim()
+    if (!content) return
+    await fetch('/api/vendor/assistant', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'add_knowledge', content }),
+    })
+    setNewKnowledge('')
+    load()
+  }
+
+  async function removeKnowledge(id: string) {
+    await fetch('/api/vendor/assistant', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete_knowledge', id }),
+    })
+    setKnowledge((prev) => prev.filter((k) => k.id !== id))
+  }
+
+  if (loading) return <p className="text-sm text-stone-500">Loading…</p>
+
+  return (
+    <div className="space-y-10">
+      <div>
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-5 w-5 text-indigo-500" />
+          <h1 className="text-2xl font-semibold text-stone-900">AI Assistant</h1>
+        </div>
+        <p className="mt-1 text-sm text-stone-500">
+          Your storefront has an AI assistant that answers customer questions using your products,
+          hours, events, and the notes you add below.
+        </p>
+      </div>
+
+      {/* Config */}
+      <section className="card-soft space-y-4 p-6">
+        <label className="flex items-center gap-3">
+          <input
+            type="checkbox"
+            checked={enabled}
+            onChange={(e) => setEnabled(e.target.checked)}
+            className="h-4 w-4 rounded border-stone-300"
+          />
+          <span className="text-sm font-medium text-stone-800">
+            Assistant enabled on my public profile
+          </span>
+        </label>
+
+        <div>
+          <label className="section-label">Tone & style (optional)</label>
+          <textarea
+            value={persona}
+            onChange={(e) => setPersona(e.target.value)}
+            rows={3}
+            placeholder="e.g. Friendly and casual. Always mention our weekend specials. Sign off with 'See you soon!'"
+            className="mt-2 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-800 placeholder:text-stone-400 focus:border-indigo-300 focus:bg-white focus:outline-none"
+          />
+        </div>
+
+        <button
+          onClick={saveConfig}
+          disabled={savingConfig}
+          className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
+        >
+          <Save className="h-4 w-4" />
+          {savingConfig ? 'Saving…' : savedAt ? 'Saved' : 'Save settings'}
+        </button>
+      </section>
+
+      {/* Knowledge base */}
+      <section>
+        <p className="section-label mb-3">Custom answers & FAQs</p>
+        <p className="mb-4 text-sm text-stone-500">
+          Add anything the assistant should know that isn&apos;t already on your profile — parking,
+          return policy, catering, allergens, etc.
+        </p>
+        <div className="space-y-2">
+          {knowledge.map((k) => (
+            <div key={k.id} className="flex items-start gap-3 rounded-xl border border-stone-200 bg-white p-3">
+              <p className="flex-1 text-sm text-stone-700">{k.content}</p>
+              <button
+                onClick={() => removeKnowledge(k.id)}
+                className="text-stone-400 hover:text-red-600"
+                aria-label="Delete"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+          {knowledge.length === 0 && (
+            <p className="text-sm text-stone-400">No custom answers yet.</p>
+          )}
+        </div>
+        <div className="mt-3 flex gap-2">
+          <input
+            value={newKnowledge}
+            onChange={(e) => setNewKnowledge(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && addKnowledge()}
+            placeholder="Add a fact or FAQ…"
+            className="flex-1 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-800 placeholder:text-stone-400 focus:border-indigo-300 focus:bg-white focus:outline-none"
+          />
+          <button
+            onClick={addKnowledge}
+            disabled={!newKnowledge.trim()}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-50"
+          >
+            <Plus className="h-4 w-4" /> Add
+          </button>
+        </div>
+      </section>
+
+      {/* Leads */}
+      <section>
+        <div className="mb-3 flex items-center gap-2">
+          <Inbox className="h-4 w-4 text-stone-500" />
+          <p className="section-label">Captured leads</p>
+        </div>
+        {leads.length === 0 ? (
+          <p className="text-sm text-stone-400">
+            When the assistant can&apos;t answer something, it collects the customer&apos;s contact here.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {leads.map((l) => (
+              <div key={l.id} className="rounded-xl border border-stone-200 bg-white p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-stone-900">{l.name || 'Customer'}</span>
+                  <span className="text-xs text-stone-400">
+                    {new Date(l.created_at).toLocaleString()}
+                  </span>
+                </div>
+                {l.contact && <div className="mt-0.5 text-sm text-indigo-700">{l.contact}</div>}
+                {l.message && <p className="mt-1 text-sm text-stone-600">{l.message}</p>}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
+  )
+}

@@ -1,5 +1,5 @@
 import { auth, currentUser } from '@clerk/nextjs/server'
-import { Package, ShoppingCart, CreditCard, Calendar, Plus, ArrowRight } from "lucide-react";
+import { Package, ShoppingCart, CreditCard, Calendar, Plus, ArrowRight, Sparkles, LifeBuoy, QrCode } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { getVendorProfile, getVendorConnectAccount, getOrdersByMember } from "@/lib/vendor-connect";
@@ -9,6 +9,9 @@ const iconMap = {
   Products: Package,
   Orders: ShoppingCart,
   Payments: CreditCard,
+  "AI Assistant": Sparkles,
+  Resources: LifeBuoy,
+  "QR code": QrCode,
 } as const;
 
 const DEMO_PRODUCTS = [
@@ -110,6 +113,9 @@ export default async function VendorDashboard() {
     { label: "Products", value: "3", href: "/vendor/products" },
     { label: "Orders", value: orderCount > 0 ? String(orderCount) : "—", href: "/vendor/orders" },
     { label: "Payments", value: "—", href: "/vendor/payments" },
+    { label: "AI Assistant", value: "On", href: "/vendor/assistant" },
+    { label: "Resources", value: "New", href: "/vendor/resources" },
+    { label: "QR code", value: "Get", href: "/vendor/qr" },
   ] as const;
 
   return (
@@ -159,7 +165,7 @@ export default async function VendorDashboard() {
       {/* Quick access */}
       <div>
         <p className="section-label mb-4">Quick access</p>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {cards.map((card) => {
             const Icon = iconMap[card.label];
             return (

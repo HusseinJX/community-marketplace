@@ -51,6 +51,7 @@ export interface SupabaseProduct {
   currency: string
   image_url: string | null
   active: boolean
+  source?: string
 }
 
 export async function getProductsByMember(memberId: string): Promise<SupabaseProduct[]> {
@@ -63,6 +64,149 @@ export async function getProductsByMember(memberId: string): Promise<SupabasePro
 
   if (error || !data) return []
   return data as SupabaseProduct[]
+}
+
+// Owner/admin view — includes drafts (active=false) for the approval queue.
+export async function getAllProductsByMember(memberId: string): Promise<SupabaseProduct[]> {
+  const { data, error } = await supabase
+    .from('products')
+    .select('*')
+    .eq('member_id', memberId)
+    .order('created_at', { ascending: false })
+
+  if (error || !data) return []
+  return data as SupabaseProduct[]
+}
+
+export interface NewProduct {
+  name: string
+  description?: string | null
+  price: number // cents
+  currency?: string
+  image_url?: string | null
+  active?: boolean // false = draft pending approval
+  source?: string // manual | ai_menu | ai_counter | shopify | square
+}
+
+export async function createProduct(
+  memberId: string,
+  memberName: string,
+  p: NewProduct
+): Promise<SupabaseProduct> {
+  const { data, error } = await supabase
+    .from('products')
+    .insert({
+      member_id: memberId,
+      member_name: memberName,
+      name: p.name,
+      description: p.description ?? null,
+      price: p.price,
+      currency: p.currency ?? 'usd',
+      image_url: p.image_url ?? null,
+      active: p.active ?? true,
+      source: p.source ?? 'manual',
+    })
+    .select()
+    .single()
+  if (error || !data) throw new Error(`Failed to create product: ${error?.message}`)
+  return data as SupabaseProduct
+}
+
+export async function updateProduct(
+  id: string,
+  memberId: string,
+  fields: Partial<NewProduct>
+): Promise<void> {
+  const { error } = await supabase
+    .from('products')
+    .update({ ...fields, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .eq('member_id', memberId)
+  if (error) throw new Error(`Failed to update product: ${error.message}`)
+}
+
+export async function deleteProduct(id: string, memberId: string): Promise<void> {
+  const { error } = await supabase.from('products').delete().eq('id', id).eq('member_id', memberId)
+  if (error) throw new Error(`Failed to delete product: ${error.message}`)
+}
+
+// ── Vendor Events (self-serve / AI-captured) ───────────────────────────────────
+
+export interface VendorEvent {
+  id: string
+  member_id: string
+  member_name: string | null
+  title: string
+  description: string | null
+  event_date: string | null
+  event_time: string | null
+  location: string | null
+  poster_image_url: string | null
+  source: string
+  active: boolean
+  created_at: string
+}
+
+export interface NewVendorEvent {
+  title: string
+  description?: string | null
+  event_date?: string | null
+  event_time?: string | null
+  location?: string | null
+  poster_image_url?: string | null
+  active?: boolean
+  source?: string
+}
+
+export async function getVendorEventsByMember(memberId: string, includeDrafts = false): Promise<VendorEvent[]> {
+  let q = supabase.from('vendor_events').select('*').eq('member_id', memberId)
+  if (!includeDrafts) q = q.eq('active', true)
+  const { data, error } = await q.order('created_at', { ascending: false })
+  if (error || !data) return []
+  return data as VendorEvent[]
+}
+
+export async function createVendorEvent(
+  memberId: string,
+  memberName: string,
+  e: NewVendorEvent
+): Promise<VendorEvent> {
+  const { data, error } = await supabase
+    .from('vendor_events')
+    .insert({
+      member_id: memberId,
+      member_name: memberName,
+      title: e.title,
+      description: e.description ?? null,
+      event_date: e.event_date ?? null,
+      event_time: e.event_time ?? null,
+      location: e.location ?? null,
+      poster_image_url: e.poster_image_url ?? null,
+      active: e.active ?? true,
+      source: e.source ?? 'manual',
+    })
+    .select()
+    .single()
+  if (error || !data) throw new Error(`Failed to create event: ${error?.message}`)
+  return data as VendorEvent
+}
+
+export async function updateVendorEvent(
+  id: string,
+  memberId: string,
+  fields: Partial<NewVendorEvent>
+): Promise<void> {
+  const { error } = await supabase
+    .from('vendor_events')
+    .update({ ...fields, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .eq('member_id', memberId)
+  if (error) throw new Error(`Failed to update event: ${error.message}`)
+}
+
+export async function deleteVendorEvent(id: string, memberId: string): Promise<void> {
+  const { error } = await supabase.from('vendor_events').delete().eq('id', id).eq('member_id', memberId)
+  if (error) throw new Error(`Failed to delete event: ${error.message}`)
 }
 
 // ── Orders ────────────────────────────────────────────────────────────────────
@@ -125,6 +269,14 @@ export async function getOrderByPaymentIntent(paymentIntentId: string): Promise<
   return data as Order
 }
 
+export async function getOrderByNumber(orderNumber: string, memberId?: string): Promise<Order | null> {
+  let q = supabase.from('orders').select('*').eq('order_number', orderNumber)
+  if (memberId) q = q.eq('member_id', memberId)
+  const { data, error } = await q.single()
+  if (error || !data) return null
+  return data as Order
+}
+
 export async function updateOrderStatus(id: string, status: string): Promise<void> {
   const { error } = await supabase
     .from('orders')
@@ -156,6 +308,8 @@ export interface VendorSettings {
   uber_pickup_phone: string | null
   composio_connection_id: string | null
   composio_platform: string | null
+  assistant_enabled?: boolean
+  assistant_persona?: string | null
 }
 
 export async function getVendorSettings(memberId: string): Promise<VendorSettings | null> {
@@ -189,6 +343,133 @@ export async function updateVendorConnectStatus(stripeAccountId: string, status:
     .eq('stripe_account_id', stripeAccountId)
 
   if (error) throw new Error(`Failed to update vendor connect status: ${error.message}`)
+}
+
+// ── AI Assistant: knowledge, transcripts, leads ────────────────────────────────
+
+export interface BusinessKnowledge {
+  id: string
+  member_id: string
+  content: string
+  source: string
+  created_at: string
+}
+
+export async function getBusinessKnowledge(memberId: string): Promise<BusinessKnowledge[]> {
+  const { data, error } = await supabase
+    .from('business_knowledge')
+    .select('*')
+    .eq('member_id', memberId)
+    .order('created_at', { ascending: true })
+
+  if (error || !data) return []
+  return data as BusinessKnowledge[]
+}
+
+export async function addBusinessKnowledge(memberId: string, content: string, source = 'manual'): Promise<void> {
+  const { error } = await supabase
+    .from('business_knowledge')
+    .insert({ member_id: memberId, content, source })
+  if (error) throw new Error(`Failed to add knowledge: ${error.message}`)
+}
+
+export async function deleteBusinessKnowledge(id: string, memberId: string): Promise<void> {
+  const { error } = await supabase
+    .from('business_knowledge')
+    .delete()
+    .eq('id', id)
+    .eq('member_id', memberId)
+  if (error) throw new Error(`Failed to delete knowledge: ${error.message}`)
+}
+
+export async function createConversation(memberId: string): Promise<string> {
+  const { data, error } = await supabase
+    .from('chat_conversations')
+    .insert({ member_id: memberId })
+    .select('id')
+    .single()
+  if (error || !data) throw new Error(`Failed to create conversation: ${error?.message}`)
+  return (data as { id: string }).id
+}
+
+export async function appendMessages(
+  conversationId: string,
+  memberId: string,
+  messages: { role: string; content: string }[]
+): Promise<void> {
+  if (messages.length === 0) return
+  const rows = messages.map((m) => ({
+    conversation_id: conversationId,
+    member_id: memberId,
+    role: m.role,
+    content: m.content,
+  }))
+  const { error } = await supabase.from('chat_messages').insert(rows)
+  if (error) throw new Error(`Failed to append messages: ${error.message}`)
+}
+
+export interface ChatLead {
+  id: string
+  member_id: string
+  conversation_id: string | null
+  name: string | null
+  contact: string | null
+  message: string | null
+  created_at: string
+}
+
+export async function createLead(lead: {
+  memberId: string
+  conversationId?: string | null
+  name?: string | null
+  contact?: string | null
+  message?: string | null
+}): Promise<void> {
+  const { error } = await supabase.from('chat_leads').insert({
+    member_id: lead.memberId,
+    conversation_id: lead.conversationId ?? null,
+    name: lead.name ?? null,
+    contact: lead.contact ?? null,
+    message: lead.message ?? null,
+  })
+  if (error) throw new Error(`Failed to create lead: ${error.message}`)
+}
+
+export async function getLeadsByMember(memberId: string): Promise<ChatLead[]> {
+  const { data, error } = await supabase
+    .from('chat_leads')
+    .select('*')
+    .eq('member_id', memberId)
+    .order('created_at', { ascending: false })
+  if (error || !data) return []
+  return data as ChatLead[]
+}
+
+export interface ConversationSummary {
+  id: string
+  member_id: string
+  created_at: string
+}
+
+export async function getConversationsByMember(memberId: string, limit = 50): Promise<ConversationSummary[]> {
+  const { data, error } = await supabase
+    .from('chat_conversations')
+    .select('*')
+    .eq('member_id', memberId)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+  if (error || !data) return []
+  return data as ConversationSummary[]
+}
+
+export async function getMessagesByConversation(conversationId: string): Promise<{ role: string; content: string; created_at: string }[]> {
+  const { data, error } = await supabase
+    .from('chat_messages')
+    .select('role, content, created_at')
+    .eq('conversation_id', conversationId)
+    .order('created_at', { ascending: true })
+  if (error || !data) return []
+  return data as { role: string; content: string; created_at: string }[]
 }
 
 export interface VendorProfile {
