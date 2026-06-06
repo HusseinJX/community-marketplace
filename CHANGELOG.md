@@ -36,8 +36,14 @@ All notable changes to this project are documented here.
 ### Added — QR codes (basic) + marketplace scanner
 - Vendor portal `/vendor/qr`: client-side QR generator pointing at the vendor's profile (`…/members/{id}`), color presets, PNG + SVG download. Pure (`lib/qr.ts` via `qrcode`) — no AI, no network.
 - Marketplace: a QR-scan button beside the search bar (`components/QrScanButton.tsx`, `@zxing/browser`) opens the camera and routes a scanned profile code straight to that member page.
-- **Tiered + independent by design:** basic generation and the scanner share no code and import nothing AI-related, so they can't be broken by the (not-yet-built) AI tiers. AI-stylized QR / AI poster will be separate files behind `NEXT_PUBLIC_QR_AI` / `NEXT_PUBLIC_QR_POSTER` flags (unset = basic only). Note: camera scanning requires HTTPS or localhost.
+- **Tiered + independent by design:** basic generation and the scanner share no code and import nothing AI-related, so they can't be broken by the AI tiers. AI poster will be a separate file behind `NEXT_PUBLIC_QR_POSTER` (still unbuilt). Note: camera scanning requires HTTPS or localhost.
 - Vendor nav link + dashboard quick-access card.
+
+### Added — QR codes (AI-stylized, Tier 1, flag-gated)
+- `app/api/vendor/qr/stylize` (flag `NEXT_PUBLIC_QR_AI=1`, **off by default**): `gpt-image-1` generates a background, then the **real** QR is composited on a white card over it (`lib/qr-compose.ts` via sharp) and uploaded to Supabase. Because the real QR sits on top, the output always scans even with a busy background; if the AI call fails the UI falls back to the basic generator.
+- `components/qr/AiQr.tsx` — style presets + optional prompt + download; only mounted when the flag is on. Each generate is a billable `gpt-image-1` call (~$0.04).
+- `tests/qr.test.ts` — deterministic, **free** (no OpenAI): composites a QR over a noisy synthetic background and decodes it back (`jsqr`) to prove scannability + output dimensions.
+- Independent + revertible: AI files import sharp/gpt-image-1; `lib/qr.ts`/`BasicQr` import none of it, so unsetting the flag or deleting the AI files leaves basic + scanner intact.
 
 ### Added — Testing
 - Vitest live integration suite (`tests/`) exercising real OpenAI + Supabase: DB CRUD, assistant grounding, vision extraction, `gpt-image-1` generation, counter detection + crop, Storage upload. `npm test`.

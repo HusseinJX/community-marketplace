@@ -4,6 +4,10 @@ import { getVendorProfile } from '@/lib/vendor-connect'
 import { buildBusinessContext } from '@/lib/business-context'
 import { memberProfileUrl } from '@/lib/qr'
 import { BasicQr } from '@/components/qr/BasicQr'
+import { AiQr } from '@/components/qr/AiQr'
+
+// Tier 1 is opt-in. Unset/`0` = basic only — the safe, revertible default.
+const AI_QR_ENABLED = process.env.NEXT_PUBLIC_QR_AI === '1'
 
 export const metadata = {
   title: 'QR code',
@@ -49,6 +53,7 @@ export default async function VendorQrPage() {
         </p>
       </div>
       <BasicQr url={url} businessName={ctx.businessName} />
+      {AI_QR_ENABLED && <AiQr businessName={ctx.businessName} />}
     </div>
   )
 }
