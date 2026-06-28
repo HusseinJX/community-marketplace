@@ -1,5 +1,5 @@
 import { auth, currentUser } from '@clerk/nextjs/server'
-import { Package, ShoppingCart, CreditCard, Calendar, Plus, ArrowRight, Sparkles, LifeBuoy, QrCode } from "lucide-react";
+import { Package, ShoppingCart, CreditCard, Calendar, Plus, ArrowRight, Sparkles, LifeBuoy, QrCode, Radio } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { getVendorProfile, getVendorConnectAccount, getOrdersByMember } from "@/lib/vendor-connect";
@@ -12,6 +12,7 @@ const iconMap = {
   "AI Assistant": Sparkles,
   Resources: LifeBuoy,
   "QR code": QrCode,
+  "Go Live": Radio,
 } as const;
 
 const DEMO_PRODUCTS = [
@@ -116,6 +117,7 @@ export default async function VendorDashboard() {
     { label: "AI Assistant", value: "On", href: "/vendor/assistant" },
     { label: "Resources", value: "New", href: "/vendor/resources" },
     { label: "QR code", value: "Get", href: "/vendor/qr" },
+    { label: "Go Live", value: "📺", href: "/vendor/live" },
   ] as const;
 
   return (

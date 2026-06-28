@@ -64,14 +64,9 @@ export default function MissionPage() {
             >
               Support the work
             </Link>
-            <a
-              href="https://spaceagevision.com"
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-2.5 text-sm font-medium text-white ring-1 ring-white/30 backdrop-blur transition hover:bg-white/20"
-            >
-              Space Age Vision
-            </a>
+            <span className="inline-flex cursor-not-allowed items-center gap-2 rounded-full bg-white/10 px-5 py-2.5 text-sm font-medium text-white/40 ring-1 ring-white/20">
+              Travel
+            </span>
           </div>
         </div>
       </section>

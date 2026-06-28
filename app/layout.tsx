@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Mail } from "lucide-react";
@@ -33,6 +33,15 @@ export const metadata: Metadata = {
   },
 };
 
+// viewport-fit=cover lets the page extend under the notch; the sticky header
+// then pads itself by the safe-area inset so its content sits below the status
+// bar in the native (Capacitor) app. No-op (0px insets) on web/desktop.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
@@ -42,7 +51,10 @@ export default function RootLayout({
         <body className="flex min-h-full flex-col bg-stone-50 text-stone-900">
           <PostHogProvider>
           <StoreProvider>
-            <header className="sticky top-0 z-30 border-b border-stone-200 bg-stone-50/80 backdrop-blur">
+            <header
+              className="sticky top-0 z-30 border-b border-stone-200 bg-stone-50/80 backdrop-blur"
+              style={{ paddingTop: "env(safe-area-inset-top)" }}
+            >
               <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 md:px-8">
                 <Link href="/" className="text-lg font-semibold tracking-tight text-stone-900">
                   WhatsLocal AI

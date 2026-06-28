@@ -20,8 +20,9 @@ A Next.js 16 (App Router) community marketplace that lets users browse local mem
   - `app/vendor/sign-in/page.tsx` — embedded Clerk `<SignIn />` component
   - `app/vendor/setup/` — profile linking: `MemberSearch.tsx` → `VerifyOwnership.tsx`
   - `app/vendor/orders/` — real order list with status badges, auto-refresh every 30s, Mark Ready / Confirm Delivered, Uber tracking CTA
-  - `app/vendor/integrations/` — connect Shopify/Square via Composio Magic Link; manual sync trigger
+  - `app/vendor/integrations/` — connect Shopify/Square via Composio Magic Link; manual "Sync Now"; auto-syncs on OAuth return (`?connected=`)
 - `app/api/vendor/` — vendor API routes (all Clerk-authed via `auth()`)
+  - `composio/` — **native** Composio commerce (no longer a proxy): POST `connect` (OAuth magic link) / `sync` (dispatches Trigger.dev `sync-vendor-catalog`, or inline sync if `TRIGGER_SECRET_KEY` unset)
   - `orders/` — GET (list vendor's orders) + PATCH (update status)
   - `integrations/` — GET vendor_settings (Composio connection state)
   - `profile/` — POST link clerk_user_id → member_id
@@ -29,7 +30,7 @@ A Next.js 16 (App Router) community marketplace that lets users browse local mem
 - `app/api/claim/` — POST proxy: Clerk auth → connector `/verify` → connector `/claim-profile` (CONNECTOR_ADMIN_TOKEN stays server-side)
 - `app/api/checkout/` — `create-payment-intent` (stores price + fee breakdown in PI metadata) and `confirm-payment` (persists order to Supabase, idempotent)
 - `app/api/stripe-connect/` — `create-account`, `account-status/[memberId]`, `create-account-link`
-- `app/api/stripe-webhook/` — handles `account.updated`, `payment_intent.succeeded` (durability path), `charge.refunded`; fires Shopify order push-back for Composio vendors
+- `app/api/stripe-webhook/` — handles `account.updated`, `payment_intent.succeeded` (durability path), `charge.refunded`; fires native `pushOrderToStore` (Composio) order push-back for connected vendors
 - `app/api/uber/` — `quote/`, `save-delivery/`, `dispatch/`, `webhook/` (Uber Direct delivery lifecycle)
 - `app/api/chat/[memberId]/` — POST, **streaming** per-business customer-service assistant (OpenAI). Tool loop: `capture_lead`, `check_order_status`. Returns `X-Conversation-Id` header; persists transcripts.
 - `app/api/vendor/assistant/` — Clerk-authed GET (settings + knowledge + leads) / POST (`config` | `add_knowledge` | `delete_knowledge`)
@@ -37,6 +38,12 @@ A Next.js 16 (App Router) community marketplace that lets users browse local mem
 - `app/vendor/resources/` — small-business **resources hub**: searchable/filterable catalog cards, a "Recommended for you" rail (rule-based, driven by `buildBusinessContext`), and a grounded chat guide (`components/resources/*`). Catalog is a static file (`lib/resources.ts`); no DB.
 - `app/api/vendor/resources/chat/` — Clerk-authed **streaming** resource guide (OpenAI). Single tool `suggest_resources(ids[])` → emitted inline as ` RESOURCES:[...] ` markers the client parses into cards.
 - `app/vendor/qr/` — **QR code** generator. Tier 0 (no AI): `lib/qr.ts` (pure `qrcode`) + `components/qr/BasicQr.tsx`, client-side PNG/SVG, encodes `…/members/{id}`. Tier 1 (AI-stylized, **flag `NEXT_PUBLIC_QR_AI=1`, off by default**): `app/api/vendor/qr/stylize/` (gpt-image-1 background → real QR composited via `lib/qr-compose.ts`/sharp → Supabase upload) + `components/qr/AiQr.tsx` (only mounted when flag on). Tier 2 (AI poster) still NOT built. Tiers share no code and the AI tiers import sharp/gpt-image-1 that `lib/qr.ts`/`BasicQr` never touch — so basic is always standalone, blockable, revertible. Tier 1 **verified live** (real gpt-image-1 → composite → decoded back to the URL); to turn on in any env set `NEXT_PUBLIC_QR_AI=1` (+ `OPENAI_API_KEY`).
+- `app/live/` — **"Live Now"** discovery: venues broadcast what they're showing right now (the game, World Cup, etc.) with a real time window that auto-expires. `app/live/page.tsx` (server, metadata) → `components/live/LiveFeed.tsx` (client: happening-now feed, event filter chips, featured lists grouped by event, Feed/Map toggle, 60s auto-refresh). `components/live/BroadcastCard.tsx` + `SaveButton.tsx` (Clerk-gated heart → `chat`-style optimistic save) + `LiveMap.tsx`/`LiveMapInner.tsx` (red pulsing leaflet pins) + `LiveNowRail.tsx` (compact home-page strip, self-hides when nothing live). Picklist of events in `lib/live-events.ts` (curated `LIVE_EVENTS` + pure helpers `isLive`/`timeLeftLabel`/`groupByEvent`/`eventLabel`). DB layer `lib/broadcasts.ts`. Vendor side: `app/vendor/live/` ("Go Live" composer — pick event, matchup, duration; live list with +1h/End now). APIs: `app/api/broadcasts/` (GET public live feed, `?event=`) + `app/api/broadcasts/[memberId]/` (vendor CRUD via `resolveActor`, denormalizes member name/lat-lng at POST) + `app/api/broadcasts/save/` (Clerk save/unsave). Migration `20260608120000` (`broadcasts` + `broadcast_saves`, anon grants).
+  - **Connector ingest (text → broadcast)**: `app/api/broadcasts/ingest/` — server-to-server endpoint for the Community Connector Agent, authed by the shared `CONNECTOR_ADMIN_TOKEN` bearer (no Clerk). Connector forwards `{ memberId, text }` (a venue's SMS/scraped post); `lib/parse-broadcast.ts` AI-parses the text (OpenAI json_schema → event_slug/whats_on/team/duration/starts_at) and creates the broadcast. Structured fields in the body override the parse. `source` column marks origin (`manual` | `connector` | `sms` | `scrape`; migration `20260608150000`). The connector-side caller lives in the separate `community-connector-agent` repo.
+  - **Scheduling ahead**: the composer has a **Now / Schedule** toggle — a future `starts_at` (datetime-local) makes a *scheduled* broadcast; `getLiveBroadcasts` only surfaces it once `starts_at <= now`. Vendor manager buckets into Live now / Scheduled / Past (Start-now + delete on scheduled). No new column (uses `starts_at`).
+  - **Vibe media + live-event page**: broadcasts carry `image_urls[]` (vendor uploads via `/api/upload`) + `livestream_url` (migration `20260608140000`). Each broadcast has its own page `app/live/[id]/` → `components/live/BroadcastDetail.tsx` (live/scheduled/ended badge, embedded livestream via `lib/embed.ts` YouTube/Twitch→iframe, vibe photo gallery, map, save, "more showing {event}" deep-link to `/live?event=`). `BroadcastCard` is now clickable (cover photo + title → `/live/[id]`); single-broadcast API `app/api/broadcasts/view/[id]/`. Demo broadcasts carry sample photos + a YouTube embed.
+  - **Team allegiance**: broadcasts carry an optional `supports_team` (the venue's pick — "Mexico", "Lakers"). Composer has a "Rooting for?" field; `/live` shows a team-allegiance chip row (scoped to the selected event) so shoppers find the bar backing *their* team; `BroadcastCard` shows a 🏳️ badge. Migration `20260608130000`.
+  - **Featured lists (superadmin-curated home rails)**: `featured_lists` table (`title`, `subtitle`, `event_slug`, optional `supports_team`, `member_ids[]` pinned venues, `sort_order`, `active`). Managed at `app/vendor/featured/` (**isAdmin-gated**, link in vendor nav shown only to admins) via `FeaturedManager.tsx`. `lib/featured.ts` = CRUD; `app/api/featured/` = public **enriched** GET (each active list → live broadcasts for its event/team + resolved pinned venues, empty rails dropped) and admin POST/PATCH/DELETE (`?admin=1` returns raw incl. inactive). Rendered on home by `components/live/FeaturedLists.tsx` (above `LiveNowRail`) as **horizontal snap-scroll rows**, each header + "See all" linking to its own page `app/featured/[id]/` → `components/live/FeaturedDetail.tsx` (hero + Feed/Map toggle + full grid). Cards: `BroadcastCard` (live) + shared `components/live/VenueCard.tsx` (pinned-but-not-live "Shows {event}" evergreen). When the live APIs return empty, all live surfaces fall back to demo content in `lib/demo-live.ts` (+ sports-bar venues seeded in `lib/demo-members.ts`) so home/`/live`/`/featured` look alive pre-`db push`; real data auto-replaces it.
 - `components/QrScanButton.tsx` — marketplace QR scanner (independent; `@zxing/browser`) beside the home search bar; routes a scanned `/members/{id}` code in-app. **Camera needs HTTPS or localhost.**
 - `components/AskAssistant.tsx` — floating "Ask <Business>" streaming chat widget; auto-rendered on `vendor`/`artist`/`organizer` profiles
 - `lib/openai.ts` — server-side OpenAI singleton + model constants (`CHAT_MODEL`/`VISION_MODEL`/`IMAGE_MODEL`)
@@ -79,13 +86,17 @@ A Next.js 16 (App Router) community marketplace that lets users browse local mem
 
 **Payments (Stripe Connect):** Vendors get Express accounts. Buyers checkout per-vendor. 5% platform fee via `application_fee_amount` + `transfer_data.destination`. Every payment creates a durable `orders` row in Supabase (via `confirm-payment` + `payment_intent.succeeded` webhook durability path).
 
-**Catalog sync (Composio):** Vendors connect Shopify or Square via OAuth Magic Link in `/vendor/integrations`. Products sync into Supabase `products` table with `source` + `external_id`. Daily 3am Trigger.dev job in connector-agent keeps catalogs fresh. Completed orders push back to Shopify as draft orders for inventory accuracy.
+**Catalog sync (Composio) — native to this app:** Vendors connect Shopify or Square via OAuth Magic Link in `/vendor/integrations`. The Composio logic now lives **here**, not in the connector-agent: `lib/composio.ts` (`@composio/core` client + `runTool`/`TOOL_SLUGS`/auth-config helpers) and `lib/composio-commerce.ts` (`connectStore` / `syncVendorCatalog` / `pushOrderToStore` / `getConnectedMemberIds`, against Supabase via service-role→anon fallback). `/api/vendor/composio` calls these directly. Products sync into Supabase `products` with `source` (shopify|square) + `external_id`, upserted on `member_id,external_id`. **Trigger.dev** (its own project for this repo — `trigger.config.ts` + `trigger/composio.ts`) exposes `syncVendorCatalog` three ways: a **daily 3am cron** (`sync-all-catalogs` `schedules.task` → sweeps every connected vendor), an **on-demand task** (`sync-vendor-catalog`) fired by the "Sync Now" button, and **on-connect** (auto-sync when the vendor returns from OAuth). Until `TRIGGER_SECRET_KEY` is set, "Sync Now" falls back to an inline in-request sync. Completed orders are pushed back into the vendor's store via `pushOrderToStore` from the Stripe webhook (created as a paid order, not a draft). **Commerce no-ops until `COMPOSIO_API_KEY` (+ the two auth-config ids) is set.**
 
 **Delivery (Uber Direct):** After payment, buyer sees `DeliveryRequestModal` — enters address, gets fee quote, confirms. Quote ID + address saved on order. When vendor clicks "Ready — Dispatch Uber" in dashboard, `POST /api/uber/dispatch` fires. Uber webhooks update order status and SMS buyer via connector-agent's `sms-send` function.
 
 **Order status lifecycle:** `paid → ready → dispatched → delivered | refunded`
 
 ## Pending / TODO
+- **Composio + Trigger.dev setup before commerce sync works** (code is built; it no-ops until configured):
+  1. Set `COMPOSIO_API_KEY` + `COMPOSIO_SHOPIFY_AUTH_CONFIG_ID` + `COMPOSIO_SQUARE_AUTH_CONFIG_ID` in `.env.local` (placeholders added). Until then connect/sync/push are no-ops.
+  2. **Trigger.dev** (interactive — run yourself): `npx trigger.dev login` → `npx trigger.dev init` (creates this repo's own project; writes the ref). Put `TRIGGER_PROJECT_REF` + `TRIGGER_SECRET_KEY` in `.env.local`. Dev worker: `npm run trigger:dev`. Deploy: `npm run trigger:deploy`. Without `TRIGGER_SECRET_KEY`, "Sync Now" still works via an inline sync; only the daily cron needs the deployed worker.
+  3. Connector-agent cleanup (separate session): delete the old `composio-*.js` + `lib/composio.js`/`lib/supabase.js`, remove `COMPOSIO_*`/`SUPABASE_*` env there.
 - **AI features setup before they work** (only `OPENAI_API_KEY` + a DB push needed; bucket is a migration now):
   1. Set `OPENAI_API_KEY` in `.env.local` (placeholder already added). Optional: `ADMIN_CLERK_USER_IDS`, `SUPABASE_SERVICE_ROLE_KEY`.
   2. Apply migrations: `supabase link --project-ref xbbnvkvlrucrzobhopgh` then `supabase db push`. New migrations: `20260605120000` (assistant tables), `20260605140000` (vendor_events), `20260605150000` (public `marketplace-media` storage bucket + policies).
@@ -116,6 +127,9 @@ A Next.js 16 (App Router) community marketplace that lets users browse local mem
 | `chat_conversations` / `chat_messages` | AI assistant transcripts (analytics + owner inbox + future RAG) |
 | `chat_leads` | contacts the assistant captured via `capture_lead` |
 | `vendor_events` | self-serve / AI-captured events (poster image, `active` draft flag, `source`) |
+| `broadcasts` | "Live Now" — venue announces what it's showing now (`event_slug`, `whats_on`, `supports_team`, `image_urls[]`, `livestream_url`, `starts_at`/`ends_at` window, denormalized lat/lng+name); future `starts_at` = scheduled; auto-expires |
+| `broadcast_saves` | shopper "save / interested" reactions on a broadcast (`clerk_user_id` + `broadcast_id`) |
+| `featured_lists` | superadmin-curated home rails ("Where to watch the NBA Finals near you") — `event_slug` (+ optional `supports_team`), pinned `member_ids[]`, `sort_order`, `active`; auto-filled from live broadcasts |
 
 ## Key Conventions
 - Data comes from Community Connector Agent API (`NEXT_PUBLIC_API_BASE` / `CONNECTOR_URL`)
@@ -144,7 +158,7 @@ npm test   # vitest run
 - `NEXT_PUBLIC_SITE_URL` — canonical site origin (`https://whatslocal.ai`). Used by `metadataBase`, canonical tags, sitemap, robots, JSON-LD. **⚠️ The domain does not yet point at this app** (currently serving a different app); DNS will be repointed soon. Until then, sitemap/canonical URLs reference an origin that isn't live yet.
 - `NEXT_PUBLIC_API_BASE` — Community Connector Agent base URL (e.g. `http://localhost:8888`)
 - `CONNECTOR_URL` — server-side connector agent URL (same value, not public)
-- `CONNECTOR_ADMIN_TOKEN` — bearer token matching `ADMIN_TOKEN` in connector-agent (for `/verify`, `/claim-profile`, `/composio-*`, `/sms-send`)
+- `CONNECTOR_ADMIN_TOKEN` — bearer token matching `ADMIN_TOKEN` in connector-agent (for `/verify`, `/claim-profile`, `/sms-send`)
 
 **Clerk:**
 - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` / `CLERK_SECRET_KEY` — shared with zahabenergy project
@@ -158,8 +172,14 @@ npm test   # vitest run
 **Uber Direct:**
 - `UBER_DIRECT_CUSTOMER_ID` / `UBER_DIRECT_SERVER_TOKEN` / `UBER_DIRECT_WEBHOOK_SECRET`
 
-**Marketplace ↔ Connector:**
-- `MARKETPLACE_URL` — set in connector-agent env; used by Composio callback redirect
+**Composio (catalog sync + order push — native to this app):**
+- `COMPOSIO_API_KEY` — **required** for catalog sync / connect / order push-back. Commerce no-ops until set.
+- `COMPOSIO_SHOPIFY_AUTH_CONFIG_ID` / `COMPOSIO_SQUARE_AUTH_CONFIG_ID` — Composio auth-config ids (one per platform, created in the Composio dashboard)
+- `MARKETPLACE_URL` — base origin for the OAuth callback redirect (falls back to `NEXT_PUBLIC_SITE_URL`)
+
+**Trigger.dev (catalog sync jobs):**
+- `TRIGGER_PROJECT_REF` — this repo's Trigger.dev project ref (from `npx trigger.dev init`); read by `trigger.config.ts`
+- `TRIGGER_SECRET_KEY` — server key used by `/api/vendor/composio` to dispatch the on-demand sync task. If unset, "Sync Now" runs an inline sync instead.
 
 **AI (OpenAI):**
 - `OPENAI_API_KEY` — **required** for the per-business assistant (and Phase 2 vision/image gen). Not yet in `.env.local`.
@@ -182,6 +202,7 @@ npm test   # vitest run
 - **Domain `whatslocal.ai` not yet pointed here** — lives on a different app; will be repointed. Deferred: per-member OG images (`@vercel/og`).
 - **AI layer added (OpenAI):** Phase 1 = per-business CS chat assistant (context-stuffed RAG, streaming, `capture_lead`/`check_order_status` tools). Phase 2 = image→catalog capture (menu/flyer/counter via vision + `gpt-image-1`, approval queue, superadmin on-behalf-of). Both shipped + covered by live integration tests. **Phase 3 = voice receptionist (OpenAI Realtime + Twilio + a new reservations subsystem) is NOT built yet.**
 - **Single AI provider = OpenAI** for chat, vision, and image generation (`gpt-4o-mini` / `gpt-4o` / `gpt-image-1`), kept in this Next.js app rather than the connector-agent.
+- **Composio brought native into this app** (was a proxy to the connector-agent). Connect/sync/order-push now run here against Supabase via `@composio/core`; catalog sync runs on its **own Trigger.dev project** (`trigger.config.ts` + `trigger/composio.ts`) as a daily cron + on-demand task, with a graceful inline-sync fallback when `TRIGGER_SECRET_KEY` is unset. **Follow-up (separate connector-agent session): delete `composio-connect.js`/`composio-sync.js`/`composio-push-order.js`/`lib/composio.js` (+ `lib/supabase.js` if unused), remove `COMPOSIO_*`/`SUPABASE_*` env + the catalog-freshness TODO there.**
 - **Catalog drafts reuse `products.active`** (false = draft pending approval) rather than a new status column. Vendor write paths use the **anon key**, so all vendor tables needed explicit grants (fixed in migrations `…160000`/`…170000` after the original migrations granted only `products.SELECT`).
 - **Vision routes send images to OpenAI inline (base64)**, not as Supabase storage URLs — OpenAI's downloader is slow/flaky fetching those (caught by integration tests).
 - **Resources hub (v1, intentionally simple):** static SF catalog in `lib/resources.ts` (editing data = editing the file), deterministic **rule-based** recommendations (`recommendResources`, unit-tested, no API cost), grounded chat for exploration. **No migration** (stateless). Unverified resources render a "Find this program →" search link rather than a fabricated URL — never ship a made-up link. Improve-later (already shaped for, no rewrite needed): LLM "why this fits you" blurbs, save/dismiss (needs a table **with anon/authenticated/service_role grants**), more cities (`city` field), richer match signals (`tags`/`recommendFor`).

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe-server'
-import { updateVendorConnectStatus, createOrder, getOrderByPaymentIntent, updateOrderStatus, getVendorSettings } from '@/lib/vendor-connect'
+import { updateVendorConnectStatus, createOrder, getOrderByPaymentIntent, updateOrderStatus } from '@/lib/vendor-connect'
+import { pushOrderToStore } from '@/lib/composio-commerce'
 import Stripe from 'stripe'
 
 function generateOrderNumber() {
@@ -63,25 +64,19 @@ export async function POST(request: Request) {
           console.log(`Order created via webhook for payment_intent ${pi.id}`)
         }
 
-        // push order back to Shopify via connector agent (fire-and-forget)
+        // Push the completed order back into the vendor's connected store
+        // (Shopify/Square) natively via Composio. Gated inside pushOrderToStore
+        // on the vendor having a connected platform. Fire-and-forget — failures
+        // are logged, never surfaced to the buyer.
         const memberId = meta.memberId
         if (memberId) {
-            const vendorSettings = await getVendorSettings(memberId)
-            if (vendorSettings?.composio_connection_id && vendorSettings?.composio_platform === 'shopify') {
-              const connectorUrl = process.env.CONNECTOR_URL
-              if (connectorUrl) {
-                const orderToSync = existing ?? await getOrderByPaymentIntent(pi.id)
-                fetch(`${connectorUrl}/.netlify/functions/composio-push-order`, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${process.env.ADMIN_TOKEN}`,
-                  },
-                  body: JSON.stringify({ memberId, order: orderToSync }),
-                }).catch(e => console.error('Shopify order push failed:', e))
-              }
-            }
+          const orderToSync = existing ?? (await getOrderByPaymentIntent(pi.id))
+          if (orderToSync) {
+            pushOrderToStore(memberId, orderToSync).catch(e =>
+              console.error('Composio order push failed:', e)
+            )
           }
+        }
         break
       }
 

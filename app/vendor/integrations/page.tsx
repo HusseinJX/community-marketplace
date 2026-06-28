@@ -15,6 +15,10 @@ export default function VendorIntegrationsPage() {
   const [connecting, setConnecting] = useState<string | null>(null)
   const [syncing, setSyncing] = useState(false)
   const [syncResult, setSyncResult] = useState<string | null>(null)
+  // Shopify connect needs the vendor's store subdomain up front; reveal an
+  // inline field when they pick Shopify.
+  const [shopifyOpen, setShopifyOpen] = useState(false)
+  const [shopDomain, setShopDomain] = useState('')
 
   useEffect(() => {
     fetch('/api/vendor/integrations')
@@ -23,13 +27,22 @@ export default function VendorIntegrationsPage() {
       .finally(() => setLoading(false))
   }, [])
 
-  async function connectPlatform(platform: 'shopify' | 'square') {
+  // On-connect: when Composio redirects back with ?connected=<platform>, kick
+  // off an initial catalog sync and clean the URL so a refresh doesn't re-fire.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (!params.get('connected')) return
+    window.history.replaceState({}, '', '/vendor/integrations')
+    syncNow()
+  }, [])
+
+  async function connectPlatform(platform: 'shopify' | 'square', subdomain?: string) {
     setConnecting(platform)
     try {
       const res = await fetch('/api/vendor/composio', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'connect', platform }),
+        body: JSON.stringify({ action: 'connect', platform, subdomain }),
       })
       const data = await res.json()
       if (data.url) window.location.href = data.url
@@ -50,7 +63,13 @@ export default function VendorIntegrationsPage() {
         body: JSON.stringify({ action: 'sync' }),
       })
       const data = await res.json()
-      setSyncResult(data.error ? `Error: ${data.error}` : `Synced ${data.synced ?? 0} products`)
+      if (data.error) {
+        setSyncResult(`Error: ${data.error}`)
+      } else if (data.triggered) {
+        setSyncResult('Sync started — products will refresh shortly')
+      } else {
+        setSyncResult(`Synced ${data.synced ?? 0} products`)
+      }
     } catch {
       setSyncResult('Sync failed — try again')
     }
@@ -108,21 +127,52 @@ export default function VendorIntegrationsPage() {
             )}
           </div>
         ) : (
-          <div className="flex gap-3">
-            <button
-              onClick={() => connectPlatform('shopify')}
-              disabled={!!connecting}
-              className="rounded-lg border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-700 hover:border-indigo-400 hover:text-indigo-700 disabled:opacity-50 transition"
-            >
-              {connecting === 'shopify' ? 'Connecting…' : 'Connect Shopify'}
-            </button>
-            <button
-              onClick={() => connectPlatform('square')}
-              disabled={!!connecting}
-              className="rounded-lg border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-700 hover:border-indigo-400 hover:text-indigo-700 disabled:opacity-50 transition"
-            >
-              {connecting === 'square' ? 'Connecting…' : 'Connect Square'}
-            </button>
+          <div className="space-y-3">
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShopifyOpen(v => !v)}
+                disabled={!!connecting}
+                className="rounded-lg border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-700 hover:border-indigo-400 hover:text-indigo-700 disabled:opacity-50 transition"
+              >
+                {connecting === 'shopify' ? 'Connecting…' : 'Connect Shopify'}
+              </button>
+              <button
+                onClick={() => connectPlatform('square')}
+                disabled={!!connecting}
+                className="rounded-lg border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-700 hover:border-indigo-400 hover:text-indigo-700 disabled:opacity-50 transition"
+              >
+                {connecting === 'square' ? 'Connecting…' : 'Connect Square'}
+              </button>
+            </div>
+
+            {shopifyOpen && (
+              <form
+                onSubmit={e => {
+                  e.preventDefault()
+                  if (shopDomain.trim()) connectPlatform('shopify', shopDomain.trim())
+                }}
+                className="flex flex-wrap items-center gap-2 rounded-lg border border-stone-200 bg-stone-50 p-3"
+              >
+                <label className="text-sm text-stone-600">Your Shopify store:</label>
+                <div className="flex items-center rounded-md border border-stone-300 bg-white px-2 text-sm">
+                  <input
+                    autoFocus
+                    value={shopDomain}
+                    onChange={e => setShopDomain(e.target.value)}
+                    placeholder="your-store"
+                    className="w-40 py-1.5 outline-none"
+                  />
+                  <span className="text-stone-400">.myshopify.com</span>
+                </div>
+                <button
+                  type="submit"
+                  disabled={!shopDomain.trim() || !!connecting}
+                  className="rounded-lg bg-indigo-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 transition"
+                >
+                  {connecting === 'shopify' ? 'Connecting…' : 'Authorize'}
+                </button>
+              </form>
+            )}
           </div>
         )}
 

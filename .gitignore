@@ -46,3 +46,10 @@ next-env.d.ts
 
 # Supabase CLI cache
 supabase/.temp/
+
+.trigger
+
+# Agent / tooling artifacts
+.omc/
+session-context/
+deno.lock

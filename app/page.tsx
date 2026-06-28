@@ -10,6 +10,9 @@ import { FilterBar, type FilterType } from "@/components/FilterBar";
 import { MapView } from "@/components/MapView";
 import { SearchBar, type SearchMode } from "@/components/SearchBar";
 import { QrScanButton } from "@/components/QrScanButton";
+import { LiveNowRail } from "@/components/live/LiveNowRail";
+import { FeaturedLists } from "@/components/live/FeaturedLists";
+import { WorldCupRail } from "@/components/WorldCupRail";
 import { DEMO_MEMBERS } from "@/lib/demo-members";
 import { MEMBER_HERO_IMAGES } from "@/lib/member-images";
 import { usableImages, isPlaceholder } from "@/lib/image-utils";
@@ -319,6 +322,15 @@ export default function BrowsePage() {
           </div>
         </div>
       )}
+
+      {/* World Cup 2026 — host city cultural guides */}
+      <WorldCupRail />
+
+      {/* Admin-curated "where to watch" rails — hidden when empty */}
+      <FeaturedLists />
+
+      {/* Live now near you — hidden when nothing is live */}
+      <LiveNowRail />
 
       {/* Smart search bar + QR scanner */}
       <section className="mb-3 flex items-start gap-2">
