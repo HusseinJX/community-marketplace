@@ -12,12 +12,6 @@ const TYPES: { key: FilterType; label: string }[] = [
   { key: "organizer", label: "Community" },
 ];
 
-const TYPE_LABEL_PLURAL: Record<string, string> = {
-  vendor: "Vendors",
-  artist: "Artists",
-  organizer: "Community",
-};
-
 export type FilterBarProps = {
   type: FilterType;
   city: string;
@@ -76,7 +70,7 @@ export function FilterBar({
                 : "bg-white text-stone-700 border border-stone-200 hover:bg-stone-50"
             }`}
           >
-            {`All ${TYPE_LABEL_PLURAL[type] ?? ""}`.trim()}
+            All
           </button>
           {categories.map(c => {
             const active = category === c;

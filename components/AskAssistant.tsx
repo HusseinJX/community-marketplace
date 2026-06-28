@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { MessageCircle, Send, X, Sparkles } from "lucide-react";
+import { Send, X, Sparkles } from "lucide-react";
+
+// Opened by the profile's "Inquire" button via this event (no floating launcher).
+export const OPEN_ASSISTANT_EVENT = "open-assistant";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -27,6 +30,12 @@ export function AskAssistant({
   useEffect(() => {
     if (open) setTimeout(() => inputRef.current?.focus(), 50);
   }, [open]);
+
+  useEffect(() => {
+    const handler = () => setOpen(true);
+    window.addEventListener(OPEN_ASSISTANT_EVENT, handler);
+    return () => window.removeEventListener(OPEN_ASSISTANT_EVENT, handler);
+  }, []);
 
   async function send(e: React.FormEvent) {
     e.preventDefault();
@@ -81,19 +90,7 @@ export function AskAssistant({
 
   return (
     <>
-      {/* Launcher */}
-      {!open && (
-        <button
-          onClick={() => setOpen(true)}
-          className="fixed bottom-5 right-5 z-50 flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-3 text-sm font-medium text-white shadow-lg transition hover:bg-indigo-700"
-          aria-label={`Ask ${memberName}`}
-        >
-          <MessageCircle className="h-5 w-5" />
-          <span className="hidden sm:inline">Ask {memberName}</span>
-        </button>
-      )}
-
-      {/* Panel */}
+      {/* Panel — launched from the profile's "Inquire" button */}
       {open && (
         <div className="fixed bottom-5 right-5 z-50 flex h-[min(34rem,80vh)] w-[min(24rem,calc(100vw-2.5rem))] flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-2xl">
           <div className="flex items-center justify-between bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-3 text-white">

@@ -4,11 +4,10 @@ import { useEffect, useState } from "react";
 import { UserPlus, Bell, HandHeart, MessageSquare, Check, MapPin } from "lucide-react";
 
 export function ActionBar({
-  memberName,
   memberId,
   isVendor,
 }: {
-  memberName: string;
+  memberName?: string;
   memberId: string;
   isVendor: boolean;
 }) {
@@ -81,13 +80,13 @@ export function ActionBar({
         Support
       </button>
 
-      <a
-        href={`mailto:hello@whatslocal.ai?subject=${encodeURIComponent("Inquiry for " + memberName)}`}
+      <button
+        onClick={() => window.dispatchEvent(new CustomEvent("open-assistant"))}
         className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-indigo-300 hover:text-indigo-700"
       >
         <MessageSquare className="h-4 w-4" />
         Inquire
-      </a>
+      </button>
     </div>
   );
 }
