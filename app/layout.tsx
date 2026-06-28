@@ -2,7 +2,8 @@ import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Mail } from "lucide-react";
-import { AuthNav } from "@/components/auth-nav";
+import { TopNav } from "@/components/TopNav";
+import { BottomNav } from "@/components/BottomNav";
 import { StoreProvider } from "@/lib/store";
 import { PostHogProvider } from "@/lib/posthog-provider";
 import { SITE_NAME, SITE_URL } from "@/lib/seo";
@@ -39,6 +40,10 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  // Lock scale so iOS doesn't auto-zoom on input focus (and leave it zoomed)
+  // — gives the native app a stable, app-like feel.
+  maximumScale: 1,
+  userScalable: false,
   viewportFit: "cover",
 };
 
@@ -48,18 +53,15 @@ export default function RootLayout({
   return (
     <ClerkProvider>
       <html lang="en" className="h-full antialiased">
-        <body className="flex min-h-full flex-col bg-stone-50 text-stone-900">
+        <body className="flex min-h-full flex-col overflow-x-hidden bg-stone-50 text-stone-900">
           <PostHogProvider>
           <StoreProvider>
             <header
               className="sticky top-0 z-30 border-b border-stone-200 bg-stone-50/80 backdrop-blur"
               style={{ paddingTop: "env(safe-area-inset-top)" }}
             >
-              <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 md:px-8">
-                <Link href="/" className="text-lg font-semibold tracking-tight text-stone-900">
-                  WhatsLocal AI
-                </Link>
-                <AuthNav />
+              <div className="mx-auto max-w-7xl">
+                <TopNav />
               </div>
             </header>
 
@@ -116,6 +118,10 @@ export default function RootLayout({
                 </div>
               </div>
             </footer>
+
+            {/* Spacer so content clears the fixed bottom nav */}
+            <div style={{ height: "calc(3.25rem + env(safe-area-inset-bottom))" }} aria-hidden />
+            <BottomNav />
           </StoreProvider>
           </PostHogProvider>
         </body>

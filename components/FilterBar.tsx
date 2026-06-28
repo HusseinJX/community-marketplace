@@ -44,7 +44,7 @@ export function FilterBar({
     type !== "all" && category ? getSubcategories(type, category) : [];
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex min-w-0 flex-1 flex-col gap-3">
       <div className="flex flex-wrap gap-2">
         {TYPES.map(t => {
           const active = type === t.key;
@@ -66,7 +66,7 @@ export function FilterBar({
       </div>
 
       {type !== "all" && categories.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex gap-1.5 overflow-x-auto pb-1">
           <button
             type="button"
             onClick={() => onCategoryChange("")}
@@ -85,7 +85,7 @@ export function FilterBar({
                 key={c}
                 type="button"
                 onClick={() => onCategoryChange(c)}
-                className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium transition ${
                   active
                     ? "bg-stone-800 text-white"
                     : "bg-white text-stone-700 border border-stone-200 hover:bg-stone-50"
@@ -99,11 +99,11 @@ export function FilterBar({
       )}
 
       {type !== "all" && category && subcategories.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex gap-1.5 overflow-x-auto pb-1">
           <button
             type="button"
             onClick={() => onSubcategoryChange("")}
-            className={`rounded-full px-2.5 py-0.5 text-xs transition ${
+            className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium transition ${
               subcategory === ""
                 ? "bg-stone-700 text-white"
                 : "bg-stone-100 text-stone-700 hover:bg-stone-200"
@@ -118,7 +118,7 @@ export function FilterBar({
                 key={s}
                 type="button"
                 onClick={() => onSubcategoryChange(s)}
-                className={`rounded-full px-2.5 py-0.5 text-xs transition ${
+                className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium transition ${
                   active
                     ? "bg-stone-700 text-white"
                     : "bg-stone-100 text-stone-700 hover:bg-stone-200"

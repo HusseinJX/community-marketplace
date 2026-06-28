@@ -2,6 +2,36 @@
 
 All notable changes to this project are documented here.
 
+## [Unreleased] — commerce, live, social shell (branch `feat/collab-rooms`)
+
+### Added — Native Composio commerce + Trigger.dev
+- Brought Composio in-app (was a connector-agent proxy): `lib/composio.ts` (`@composio/core` client + `runTool`/`TOOL_SLUGS`/auth-config helpers) + `lib/composio-commerce.ts` (`connectStore` / `syncVendorCatalog` / `pushOrderToStore` / `getConnectedMemberIds`).
+- `/api/vendor/composio` native connect + sync; Stripe webhook fires native `pushOrderToStore` order push-back.
+- Shopify OAuth needs the vendor's **store subdomain** (`{shop}.myshopify.com`) — collected in the connect UI, passed via `AuthScheme.OAuth2({ subdomain })`.
+- **Trigger.dev** project for this repo (`trigger.config.ts` + `trigger/composio.ts`): daily 3am `sync-all-catalogs` cron + on-demand `sync-vendor-catalog`; `/api/vendor/composio` falls back to inline sync when `TRIGGER_SECRET_KEY` is unset.
+- Shopify (own app, custom OAuth) + Square (Composio managed) auth configs wired; verified against the live Composio API. See `features/composio-go-live-checklist.md`.
+
+### Added — Live Now / World Cup discovery
+- "Live Now" broadcasts (venues post what they're showing) + featured rails + World Cup host-city guides, with demo fallbacks (`app/live`, `app/featured`, `app/world-cup`, `components/live/*`, `lib/broadcasts.ts`/`demo-live.ts`/`featured.ts`/`live-events.ts`). Migrations `20260608120000`–`…150000`.
+
+### Added — Instagram-style app shell
+- `components/TopNav.tsx` — left `+` (→ `/share`), center **WhatsLocal ▾** dropdown (Home / Feed / Events), right cart. Replaces the old `auth-nav` header.
+- `components/BottomNav.tsx` — Home / Reels (`/live`) / Messages (`/messages` stub) / Search (`/explore`) / Profile (`/shopper`).
+- `app/explore` — IG Explore-style full-bleed square-tile grid of local businesses + name search.
+- Safe-area handling (`viewport-fit=cover`, notch padding, locked scale to stop iOS input-zoom); `overflow-x-hidden` + `min-w-0` filter rows fixed mobile horizontal overflow; filter pills → horizontal scroll, uniform size.
+
+### Added — Share composer + posts
+- `app/share` + `components/share/ShareComposer.tsx` — Twitter/IG-style composer: text, image/video upload, tag a **business or event** (search **or QR scan**, auto-detects `/members` vs `/events`·`/live`), livestream link.
+- `app/api/posts` (GET feed / POST create), `app/api/share/upload` (any signed-in user, demo-friendly), `lib/posts.ts`, migration `20260628120000_add_posts`. Demo mode soft-succeeds when the table isn't pushed yet.
+
+### Added — Demo mode (testable admin/shopper without auth)
+- `NEXT_PUBLIC_DEMO_MODE=1` opens the portal without Clerk for previewing each member type's admin UI. `lib/demo-admin.ts` + `components/DemoTypeSwitcher.tsx`; `middleware.ts` + `app/vendor/layout.tsx` skip auth in demo; `/demo` admin type picker.
+- Home hero buttons: **Shopper admin** (`/shopper`) + **Admin demo** (`/vendor`). `app/shopper` shopper dashboard with sign-in/account control above "Your space".
+- Vendor dashboard slimmed: compact Products/Orders/Events metric grid + Products/Events manage buttons.
+
+### Roadmap specs (`features/`)
+- `business-model.md`, `native-app.md` (Capacitor iOS — scaffolded in sibling `whatslocal-ios`), `storefront-theming.md`, `product-3d.md`, `virtual-tryon.md`, `event-photo-wall.md`, `community-directory.md`, `composio-go-live-checklist.md`.
+
 ## [Unreleased] — AI layer (branch `feat/ai-customer-service-assistant`)
 
 ### Added — Phase 1: Per-business customer-service assistant

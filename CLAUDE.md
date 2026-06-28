@@ -6,11 +6,15 @@
 A Next.js 16 (App Router) community marketplace that lets users browse local members, makers, and events. All auth is Clerk — shoppers use optional modal sign-in; vendors use a dedicated protected portal at `/vendor/*`.
 
 ## Architecture
-- `app/layout.tsx` — root layout with `ClerkProvider` + `StoreProvider`, sticky nav with `AuthNav`, shared header/footer
-- `app/page.tsx` — member browse/map page (main landing)
+- **App shell = Instagram-style nav** (`app/layout.tsx` + `ClerkProvider`/`StoreProvider`): `components/TopNav.tsx` (left `+`→`/share`, center **WhatsLocal ▾** dropdown = Home/Feed/Events, right cart) + `components/BottomNav.tsx` (Home / Reels→`/live` / Messages→`/messages` / Search→`/explore` / Profile→`/shopper`). Replaced the old `components/auth-nav.tsx` (now unused). Safe-area aware (`viewport-fit=cover`, notch padding, scale locked to stop iOS input-zoom).
+- `app/page.tsx` — member browse/map page (main landing); hero has **Shopper admin** (`/shopper`) + **Admin demo** (`/vendor`) buttons
+- `app/explore/` — IG Explore-style full-bleed square-tile grid of local members + name search (client; `listMembers` + demo fallback)
+- `app/share/` + `components/share/ShareComposer.tsx` — Twitter/IG-style post composer: text, image/video upload (`/api/share/upload`), tag a business or event (search **or QR scan** — auto-detects `/members` vs `/events`·`/live`), livestream link → `POST /api/posts`
+- `app/shopper/` — shopper "admin"/account dashboard (Saved/Cart/Orders + community-orgs teaser); sign-in/account control (Clerk) above the header
+- `app/messages/` — stub ("coming soon") for the Messages tab
 - `app/members/[id]/` — member profile pages (server components); shows amber "Claim this business" banner when `member.status === 'unclaimed'`
 - `app/claim/[memberId]/` — self-serve claim flow (multi-step client component): sign in → pick verification method → verify → success → redirect to `/vendor/setup`
-- `app/events/` — events listing
+- `app/events/` — **Community Feed** (events + vendor posts, tabbed); `?view=events` renders an events-only page (Feed vs Events dropdown items)
 - `app/favorites/` — saved products page
 - `app/cart/` — cart page
 - `app/checkout/` — checkout page (Stripe Payment Element, grouped by vendor); shows `DeliveryRequestModal` after each payment
@@ -72,7 +76,12 @@ A Next.js 16 (App Router) community marketplace that lets users browse local mem
 - `lib/seo.ts` — SEO helpers: `SITE_URL`/`SITE_NAME`, `isIndexable()`, `memberDescription()`, `socialUrls()`, `resolveHeroImages()`, `lastActiveMs()`
 - `lib/landing.ts` — landing-page data: `slugify()`, `fetchAllMembers()` (cursor loop, capped 1000), `CATEGORIES` (from taxonomy), `citiesFrom()` (derived, drops single-listing cities)
 - `components/JsonLd.tsx` — `MemberJsonLd` (LocalBusiness/Organization) + `CollectionJsonLd` (CollectionPage/ItemList)
-- `middleware.ts` — single `clerkMiddleware` with `createRouteMatcher`; protects `/vendor/*` except `/vendor/sign-in`
+- `app/api/posts/` — social "share" posts: GET (public feed) / POST (create; any signed-in user, demo allows anon). `lib/posts.ts` + migration `20260628120000_add_posts`. In demo mode POST soft-succeeds if the table isn't pushed yet.
+- `app/api/share/upload/` — media upload for the share composer (any signed-in user / demo), keyed by Clerk id (vs `/api/upload` which is vendor-scoped)
+- `middleware.ts` — single `clerkMiddleware`; protects `/vendor/*` except `/vendor/sign-in` — **skipped entirely when `NEXT_PUBLIC_DEMO_MODE=1`** (see Demo Mode)
+
+## Demo Mode
+**`NEXT_PUBLIC_DEMO_MODE=1`** opens the vendor portal *without Clerk auth* so each member type's admin UI is testable/refinable quickly. `lib/demo-admin.ts` (`isDemoMode()`, `DEMO_TYPES`, `writeDemoCookies`) + `components/DemoTypeSwitcher.tsx`. `middleware.ts` skips protection and `app/vendor/layout.tsx` skips the auth redirect when on, rendering a demo banner + in-portal type switcher + "Exit demo". `/demo` is an admin type picker (Vendor/Artist/Community + category). **Turn off (set `0`/remove) before any real public launch** to restore full auth protection. Currently **on** on the Netlify deploy (it's a demo/testing env).
 
 ## Auth Architecture
 **All auth is Clerk.** WorkOS has been fully removed.
@@ -130,6 +139,7 @@ A Next.js 16 (App Router) community marketplace that lets users browse local mem
 | `broadcasts` | "Live Now" — venue announces what it's showing now (`event_slug`, `whats_on`, `supports_team`, `image_urls[]`, `livestream_url`, `starts_at`/`ends_at` window, denormalized lat/lng+name); future `starts_at` = scheduled; auto-expires |
 | `broadcast_saves` | shopper "save / interested" reactions on a broadcast (`clerk_user_id` + `broadcast_id`) |
 | `featured_lists` | superadmin-curated home rails ("Where to watch the NBA Finals near you") — `event_slug` (+ optional `supports_team`), pinned `member_ids[]`, `sort_order`, `active`; auto-filled from live broadcasts |
+| `posts` | social "share" posts — `body`, `image_urls[]`/`video_urls[]`, optional `tagged_member_id`/`tagged_event_id`, `livestream_url`, `author_id` (migration `20260628120000`) |
 
 ## Key Conventions
 - Data comes from Community Connector Agent API (`NEXT_PUBLIC_API_BASE` / `CONNECTOR_URL`)
@@ -187,6 +197,7 @@ npm test   # vitest run
 - `SUPABASE_SERVICE_ROLE_KEY` — preferred for Supabase Storage writes; falls back to anon key
 - `SUPABASE_MEDIA_BUCKET` — storage bucket name (default `marketplace-media`)
 - `ADMIN_CLERK_USER_IDS` — comma-separated Clerk user IDs allowed to manage any business's catalog/events on their behalf
+- `NEXT_PUBLIC_DEMO_MODE` — `1` opens the vendor portal without auth for demo/testing (see Demo Mode). **Set to `0`/remove before real public launch.** Currently on in the Netlify deploy.
 
 **Observability:**
 - `NEXT_PUBLIC_POSTHOG_KEY` / `NEXT_PUBLIC_POSTHOG_HOST` — same PostHog project as connector-agent so visitor + onboarding events stitch into one funnel
@@ -206,3 +217,7 @@ npm test   # vitest run
 - **Catalog drafts reuse `products.active`** (false = draft pending approval) rather than a new status column. Vendor write paths use the **anon key**, so all vendor tables needed explicit grants (fixed in migrations `…160000`/`…170000` after the original migrations granted only `products.SELECT`).
 - **Vision routes send images to OpenAI inline (base64)**, not as Supabase storage URLs — OpenAI's downloader is slow/flaky fetching those (caught by integration tests).
 - **Resources hub (v1, intentionally simple):** static SF catalog in `lib/resources.ts` (editing data = editing the file), deterministic **rule-based** recommendations (`recommendResources`, unit-tested, no API cost), grounded chat for exploration. **No migration** (stateless). Unverified resources render a "Find this program →" search link rather than a fabricated URL — never ship a made-up link. Improve-later (already shaped for, no rewrite needed): LLM "why this fits you" blurbs, save/dismiss (needs a table **with anon/authenticated/service_role grants**), more cities (`city` field), richer match signals (`tags`/`recommendFor`).
+- **Instagram-style app shell** (`TopNav`/`BottomNav`) replaced the old `auth-nav` header — mobile-first for the Capacitor iOS app (see `features/native-app.md`; shell scaffolded in sibling repo `~/Desktop/dev/whatslocal-ios`).
+- **Demo mode** (`NEXT_PUBLIC_DEMO_MODE`) lets the portal be previewed without auth for fast per-type UI iteration — gated by env, **must be off for real launch**.
+- **Deploys go out via Netlify CLI** (`netlify deploy --build --prod`) from local, not git-triggered — so the live site can be ahead of committed/pushed code. Env synced to Netlify via `netlify env:import .env.local` (+ overrides). The Netlify site (`comfy-zuccutto-73b27f`) is this repo's; an earlier deploy was a stale "The Collective" build.
+- **`features/`** holds the forward roadmap specs (business model/economics, native app, storefront theming, product 3D/AR, virtual try-on, event photo wall, community directory, Composio go-live checklist) — written but not yet built.

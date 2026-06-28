@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { LayoutGrid, Map as MapIcon, ShoppingBag, Plane, Heart, Apple, DollarSign, CreditCard, X } from "lucide-react";
+import { LayoutGrid, Map as MapIcon, Heart, Apple, DollarSign, CreditCard, X, Store, LayoutDashboard } from "lucide-react";
 import { listMembers, searchMembers } from "@/lib/api";
 import type { Member, SearchResultMember, SearchIntent } from "@/lib/types";
 import { MemberCard, MemberCardSkeleton } from "@/components/MemberCard";
@@ -11,8 +11,6 @@ import { MapView } from "@/components/MapView";
 import { SearchBar, type SearchMode } from "@/components/SearchBar";
 import { QrScanButton } from "@/components/QrScanButton";
 import { LiveNowRail } from "@/components/live/LiveNowRail";
-import { FeaturedLists } from "@/components/live/FeaturedLists";
-import { WorldCupRail } from "@/components/WorldCupRail";
 import { DEMO_MEMBERS } from "@/lib/demo-members";
 import { MEMBER_HERO_IMAGES } from "@/lib/member-images";
 import { usableImages, isPlaceholder } from "@/lib/image-utils";
@@ -241,32 +239,17 @@ export default function BrowsePage() {
             </p>
             <div className="mt-7 flex flex-wrap items-center justify-center gap-2">
               <Link
-                href="/shop"
+                href="/shopper"
                 className="inline-flex items-center gap-2 rounded-full bg-white/90 px-5 py-2.5 text-sm font-medium text-stone-800 ring-1 ring-stone-200 shadow-sm backdrop-blur transition-all hover:ring-stone-300 hover:shadow-md hover:-translate-y-0.5"
               >
-                <ShoppingBag className="h-4 w-4" /> Merch
+                <Store className="h-4 w-4" /> Shopper admin
               </Link>
               <Link
-                href="/travel"
-                className="inline-flex items-center gap-2 rounded-full bg-white/90 px-5 py-2.5 text-sm font-medium text-stone-800 ring-1 ring-stone-200 shadow-sm backdrop-blur transition-all hover:ring-stone-300 hover:shadow-md hover:-translate-y-0.5"
+                href="/vendor"
+                className="inline-flex items-center gap-2 rounded-full bg-stone-900 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-all hover:bg-stone-800 hover:shadow-md hover:-translate-y-0.5"
               >
-                <Plane className="h-4 w-4" /> Travel
+                <LayoutDashboard className="h-4 w-4" /> Admin demo
               </Link>
-              <div className="inline-flex shrink-0 items-center gap-2 rounded-full bg-gradient-to-r from-pink-500 to-purple-600 py-2 pl-5 pr-1.5 text-sm font-medium text-white shadow-lg shadow-purple-500/25 ring-1 ring-purple-400/40 transition-all hover:from-pink-400 hover:to-purple-500 hover:shadow-xl hover:-translate-y-0.5">
-                <button
-                  type="button"
-                  onClick={() => setDonateOpen(true)}
-                  className="inline-flex items-center gap-2"
-                >
-                  <Heart className="h-4 w-4" /> Support
-                </button>
-                <Link
-                  href="/mission"
-                  className="ml-1 inline-flex items-center rounded-full bg-white/95 px-3 py-1 text-xs font-semibold text-purple-700 transition hover:bg-white"
-                >
-                  the Mission
-                </Link>
-              </div>
             </div>
           </div>
         </div>
@@ -322,12 +305,6 @@ export default function BrowsePage() {
           </div>
         </div>
       )}
-
-      {/* World Cup 2026 — host city cultural guides */}
-      <WorldCupRail />
-
-      {/* Admin-curated "where to watch" rails — hidden when empty */}
-      <FeaturedLists />
 
       {/* Live now near you — hidden when nothing is live */}
       <LiveNowRail />

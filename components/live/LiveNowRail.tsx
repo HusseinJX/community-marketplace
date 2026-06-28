@@ -14,13 +14,17 @@ export function LiveNowRail() {
 
   useEffect(() => {
     let cancelled = false;
+    // Render demo content immediately on mount so the rail doesn't pop in
+    // seconds later (the /api/broadcasts fetch is a cold serverless + Supabase
+    // round-trip). Real data replaces it as soon as the fetch resolves.
+    setItems(getDemoBroadcasts());
     fetch("/api/broadcasts")
       .then((r) => (r.ok ? r.json() : { broadcasts: [] }))
       .then((d) => {
-        if (!cancelled) setItems(d.broadcasts?.length ? d.broadcasts : getDemoBroadcasts());
+        if (!cancelled && d.broadcasts?.length) setItems(d.broadcasts);
       })
       .catch(() => {
-        if (!cancelled) setItems(getDemoBroadcasts());
+        /* keep demo content already shown */
       });
     return () => {
       cancelled = true;
@@ -37,7 +41,7 @@ export function LiveNowRail() {
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-500 opacity-75" />
             <span className="relative inline-flex h-2 w-2 rounded-full bg-rose-600" />
           </span>
-          Live now
+          Live now near you
         </h2>
         <Link
           href="/live"
