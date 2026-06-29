@@ -345,6 +345,15 @@ export default async function EventDetailPage({
               </section>
             )}
 
+            {/* Post a memory — closes the show-up → post loop (feeds discovery) */}
+            <Link
+              href={`/share?event=${event.id}&eventTitle=${encodeURIComponent(title)}`}
+              className="flex items-center justify-between rounded-2xl border border-dashed border-indigo-200 bg-indigo-50/50 p-4 transition hover:border-indigo-300 hover:bg-indigo-50"
+            >
+              <span className="text-sm font-medium text-stone-800">📸 Were you there? Post a memory</span>
+              <span className="text-sm font-medium text-indigo-700">Share →</span>
+            </Link>
+
             {/* Community memories — everyone's photos tagged to this event */}
             <MemoriesGrid eventId={event.id} title="Memories" subtitle="From everyone who came" />
           </div>

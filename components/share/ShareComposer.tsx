@@ -43,6 +43,16 @@ export function ShareComposer() {
     return () => { cancelled = true; };
   }, []);
 
+  // Pre-tag from the URL (e.g. "Post a memory" from an event page:
+  // /share?event=<id>&eventTitle=<name>).
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    const ev = p.get("event");
+    if (ev) setTaggedEvent({ id: ev, title: p.get("eventTitle") || "this event" });
+    const biz = p.get("business");
+    if (biz) setTaggedBiz({ id: biz, name: p.get("businessName") || "this business" });
+  }, []);
+
   const bizResults = useMemo(() => {
     const q = bizQuery.trim().toLowerCase();
     if (!q) return [];

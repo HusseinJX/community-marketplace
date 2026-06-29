@@ -452,6 +452,8 @@ function Attendees({ event }: { event: VendorEvent }) {
   const [attendees, setAttendees] = useState<Attendee[]>([]);
   const [count, setCount] = useState(0);
   const [capacity, setCapacity] = useState<number | null>(null);
+  const [reminding, setReminding] = useState(false);
+  const [remindMsg, setRemindMsg] = useState("");
 
   useEffect(() => {
     fetch(`/api/vendor/events/${event.id}/attendees`)
@@ -464,14 +466,44 @@ function Attendees({ event }: { event: VendorEvent }) {
       .catch(() => {});
   }, [event.id]);
 
+  const phoneCount = attendees.filter((a) => (a.attendee_contact || "").replace(/\D/g, "").length >= 10).length;
+
+  async function remind() {
+    setReminding(true);
+    setRemindMsg("");
+    try {
+      const res = await fetch(`/api/vendor/events/${event.id}/attendees/remind`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      });
+      const d = await res.json().catch(() => ({}));
+      setRemindMsg(res.ok ? `Texted ${d.sent} of ${d.withPhone} with a phone.` : d.error || "Failed");
+    } catch {
+      setRemindMsg("Failed");
+    } finally {
+      setReminding(false);
+    }
+  }
+
   return (
     <div>
-      <div className="mb-4 flex items-center gap-2">
+      <div className="mb-4 flex flex-wrap items-center gap-2">
         <Users className="h-5 w-5 text-indigo-500" />
         <p className="text-sm text-stone-700">
           <span className="font-semibold text-stone-900">{count}</span> going
           {capacity != null && <span className="text-stone-400"> · cap {capacity}</span>}
         </p>
+        {phoneCount > 0 && (
+          <button
+            onClick={remind}
+            disabled={reminding}
+            className="ml-auto inline-flex items-center gap-1.5 rounded-lg bg-stone-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-stone-800 disabled:opacity-50"
+          >
+            <Megaphone className="h-3.5 w-3.5" /> {reminding ? "Texting…" : `Text reminder (${phoneCount})`}
+          </button>
+        )}
+        {remindMsg && <span className="text-xs text-stone-500">{remindMsg}</span>}
       </div>
       {attendees.length === 0 ? (
         <p className="text-sm text-stone-400">No RSVPs yet. Share the event link to fill it up.</p>
