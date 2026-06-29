@@ -29,13 +29,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const host = actor.memberId
 
   let hostName: string | null = room.member_a === host ? room.member_a_name : room.member_b_name
-  if (!hostName) {
-    try {
-      const v = await getMember(host)
-      hostName = (v.member.profile?.businessName as string) || (v.member.profile?.name as string) || 'An organizer'
-    } catch {
-      hostName = 'An organizer'
-    }
+  let hostCity: string | null = null
+  let hostHood: string | null = null
+  try {
+    const v = await getMember(host)
+    hostName = hostName || (v.member.profile?.businessName as string) || (v.member.profile?.name as string) || 'An organizer'
+    hostCity = (v.member.profile?.city as string) || null
+    hostHood = (v.member.profile?.neighborhood as string) || null
+  } catch {
+    hostName = hostName || 'An organizer'
   }
 
   let collaborators: { id: string; name: string | null }[]
@@ -55,6 +57,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     event_date: body.event_date ? String(body.event_date) : null,
     event_time: body.event_time ? String(body.event_time) : null,
     location: body.location ? String(body.location) : null,
+    city: hostCity,
+    neighborhood: hostHood,
     active: true,
     source: 'collab',
   })

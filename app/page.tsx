@@ -14,6 +14,8 @@ import { SearchBar, type SearchMode } from "@/components/SearchBar";
 import { QrScanButton } from "@/components/QrScanButton";
 import { LiveNowRail } from "@/components/live/LiveNowRail";
 import { HappeningThisWeek } from "@/components/feed/HappeningThisWeek";
+import { LocationPicker, type PlaceOption } from "@/components/LocationPicker";
+import { useLocation, placeIsSet, placeLabel } from "@/lib/location";
 import { FilterSidebar } from "@/components/FilterSidebar";
 import { matchesFacets } from "@/lib/business-facets";
 import { DEMO_MEMBERS } from "@/lib/demo-members";
@@ -63,6 +65,13 @@ export default function BrowsePage() {
   const [loading, setLoading] = useState(!cached);
   const [error, setError] = useState<string | null>(null);
   const [donateOpen, setDonateOpen] = useState(false);
+
+  // The place lens (city + neighborhood) is the app's primary scope. It drives
+  // the directory's city filter; neighborhood narrows client-side below.
+  const { place, setPlace } = useLocation();
+  useEffect(() => {
+    setCity(place.city);
+  }, [place.city]);
 
   // Infinite-scroll pagination state
   const [hasMore, setHasMore] = useState(true);
@@ -227,12 +236,37 @@ export default function BrowsePage() {
       all = all.filter((m) => matchesFacets(m.profile, { size: facetSize, ownership: facetOwnership }));
     }
 
+    // Neighborhood lens — narrow to the selected neighborhood. Members with no
+    // neighborhood set still show so sparse data doesn't empty the grid.
+    if (place.neighborhood) {
+      const pn = place.neighborhood.trim().toLowerCase();
+      all = all.filter((m) => {
+        const n = (m.profile?.neighborhood || "").trim().toLowerCase();
+        return !n || n === pn;
+      });
+    }
+
     // Stable partition: members with images first, then without. Keeps the
     // existing rank within each group (no reshuffling beyond that).
     const withImg: Member[] = [], withoutImg: Member[] = [];
     for (const m of all) (memberHasImage(m) ? withImg : withoutImg).push(m);
     return [...withImg, ...withoutImg];
-  }, [members, type, searchMode, searchQuery, facetSize, facetOwnership]);
+  }, [members, type, searchMode, searchQuery, facetSize, facetOwnership, place.neighborhood]);
+
+  // Places (city → neighborhoods) for the location picker, derived from members.
+  const places: PlaceOption[] = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    for (const m of members) {
+      const c = (m.profile?.city || "").trim();
+      if (!c) continue;
+      if (!map.has(c)) map.set(c, new Set());
+      const n = (m.profile?.neighborhood || "").trim();
+      if (n) map.get(c)!.add(n);
+    }
+    return [...map.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([city, hoods]) => ({ city, neighborhoods: [...hoods].sort() }));
+  }, [members]);
 
   return (
     <div className="mx-auto max-w-7xl px-4 pb-20 md:px-8">
@@ -323,6 +357,14 @@ export default function BrowsePage() {
         </div>
       )}
 
+      {/* Place lens — the app's primary geographic scope */}
+      <section className="mb-3 flex flex-wrap items-center gap-2">
+        <LocationPicker places={places} />
+        <span className="text-sm text-stone-500">
+          {placeIsSet(place) ? `Showing what's near ${placeLabel(place)}` : "Pick your area to scope events & businesses"}
+        </span>
+      </section>
+
       {/* Smart search bar + QR scanner */}
       <section className="mb-3 flex items-start gap-2">
         <div className="min-w-0 flex-1">
@@ -375,7 +417,7 @@ export default function BrowsePage() {
               category={category}
               subcategory={subcategory}
               onTypeChange={(t) => { setType(t); setCategory(""); setSubcategory(""); }}
-              onCityChange={setCity}
+              onCityChange={(c) => { setCity(c); setPlace({ city: c, neighborhood: "" }); }}
               onCategoryChange={(c) => { setCategory(c); setSubcategory(""); }}
               onSubcategoryChange={setSubcategory}
             />

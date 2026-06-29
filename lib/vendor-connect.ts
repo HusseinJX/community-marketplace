@@ -141,6 +141,8 @@ export interface VendorEvent {
   event_date: string | null
   event_time: string | null
   location: string | null
+  city: string | null
+  neighborhood: string | null
   poster_image_url: string | null
   capacity: number | null
   source: string
@@ -154,6 +156,8 @@ export interface NewVendorEvent {
   event_date?: string | null
   event_time?: string | null
   location?: string | null
+  city?: string | null
+  neighborhood?: string | null
   poster_image_url?: string | null
   capacity?: number | null
   active?: boolean
@@ -201,6 +205,8 @@ export async function createVendorEvent(
       event_date: e.event_date ?? null,
       event_time: e.event_time ?? null,
       location: e.location ?? null,
+      city: e.city ?? null,
+      neighborhood: e.neighborhood ?? null,
       poster_image_url: e.poster_image_url ?? null,
       capacity: e.capacity ?? null,
       active: e.active ?? true,

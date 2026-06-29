@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Search, Users, MessageSquare, Send, Check, X, CalendarPlus } from "lucide-react";
+import { Search, Users, MessageSquare, Send, Check, X, CalendarPlus, MapPin } from "lucide-react";
 import { listMembers } from "@/lib/api";
 import { DEMO_MEMBERS } from "@/lib/demo-members";
 import type { Member, MemberType } from "@/lib/types";
@@ -124,6 +124,7 @@ function Discover({
   const [members, setMembers] = useState<Member[]>([]);
   const [type, setType] = useState<MemberType | "all">("all");
   const [query, setQuery] = useState("");
+  const [nearOnly, setNearOnly] = useState(false);
   const [sent, setSent] = useState<Set<string>>(new Set());
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [groupTitle, setGroupTitle] = useState("");
@@ -177,18 +178,16 @@ function Discover({
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
+    const sameCity = (m: Member) => !!myCity && (m.profile?.city || "").toLowerCase() === myCity.toLowerCase();
     return members
       .filter((m) => m.id !== memberId)
       .filter((m) => type === "all" || m.profile?.memberType === type)
       .filter((m) => !q || (m.profile?.name || "").toLowerCase().includes(q))
+      .filter((m) => !nearOnly || sameCity(m))
       // surface same-city collaborators first
-      .sort((a, b) => {
-        const ac = a.profile?.city === myCity ? 0 : 1;
-        const bc = b.profile?.city === myCity ? 0 : 1;
-        return ac - bc;
-      })
+      .sort((a, b) => (sameCity(a) ? 0 : 1) - (sameCity(b) ? 0 : 1))
       .slice(0, 30);
-  }, [members, type, query, memberId, myCity]);
+  }, [members, type, query, memberId, myCity, nearOnly]);
 
   async function invite(m: Member) {
     setSent((s) => new Set(s).add(m.id));
@@ -215,7 +214,7 @@ function Discover({
           className="w-full rounded-lg border border-stone-200 py-2 pl-9 pr-3 text-sm"
         />
       </div>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {TYPE_FILTERS.map((t) => (
           <button
             key={t.key}
@@ -227,6 +226,17 @@ function Discover({
             {t.label}
           </button>
         ))}
+        {myCity && (
+          <button
+            onClick={() => setNearOnly((v) => !v)}
+            className={`ml-auto inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-medium ${
+              nearOnly ? "bg-indigo-600 text-white" : "border border-stone-200 bg-white text-stone-600 hover:border-stone-300"
+            }`}
+            title={`Show only collaborators in ${myCity}`}
+          >
+            <MapPin className="h-3.5 w-3.5" /> Near me
+          </button>
+        )}
       </div>
 
       {/* Group builder — select several, name it, start one shared room */}

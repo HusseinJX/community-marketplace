@@ -3,12 +3,15 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Calendar, MapPin, ArrowRight, CalendarPlus, Sparkles } from "lucide-react";
+import { useLocation, matchesPlace, placeIsSet, placeLabel } from "@/lib/location";
 
 interface FeedEvent {
   eventId: string;
   title: string;
   date: string;
   location: string;
+  city: string;
+  neighborhood: string;
   description: string;
   image: string | null;
   memberId: string;
@@ -28,20 +31,10 @@ function gradientFor(s: string) {
   return gradients[h % gradients.length];
 }
 
-// Derive coarse "areas" from event locations so a shopper can scope to where
-// they are. Lightweight precursor to real neighborhood scoping (Move 2).
-function areaOf(loc: string): string | null {
-  const t = loc.trim();
-  if (!t) return null;
-  // last comma-separated chunk tends to be the city/area
-  const parts = t.split(",").map((s) => s.trim()).filter(Boolean);
-  return (parts[parts.length - 1] || t).slice(0, 24);
-}
-
 export function HappeningThisWeek() {
+  const { place } = useLocation();
   const [events, setEvents] = useState<FeedEvent[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const [area, setArea] = useState<string>("all");
 
   useEffect(() => {
     fetch("/api/events/feed")
@@ -51,19 +44,17 @@ export function HappeningThisWeek() {
       .finally(() => setLoaded(true));
   }, []);
 
-  const areas = useMemo(() => {
-    const set = new Map<string, number>();
-    for (const e of events) {
-      const a = areaOf(e.location);
-      if (a) set.set(a, (set.get(a) ?? 0) + 1);
-    }
-    return [...set.entries()].sort((a, b) => b[1] - a[1]).map(([a]) => a).slice(0, 6);
-  }, [events]);
-
+  // Scope to the selected place. Events with no known place still show (so
+  // sparse/legacy data isn't hidden); placed events scope properly.
   const shown = useMemo(
-    () => (area === "all" ? events : events.filter((e) => areaOf(e.location) === area)).slice(0, 12),
-    [events, area]
+    () =>
+      events
+        .filter((e) => (!e.city && !e.neighborhood) || matchesPlace(place, e))
+        .slice(0, 12),
+    [events, place]
   );
+
+  const scoped = placeIsSet(place);
 
   // Until the feed has data, don't take up space.
   if (loaded && events.length === 0) {
@@ -89,7 +80,9 @@ export function HappeningThisWeek() {
     <section className="mb-8">
       <div className="mb-3 flex items-end justify-between gap-3">
         <div>
-          <h2 className="text-xl font-semibold tracking-tight text-stone-900">Happening this week</h2>
+          <h2 className="text-xl font-semibold tracking-tight text-stone-900">
+            Happening this week{scoped ? ` in ${placeLabel(place)}` : ""}
+          </h2>
           <p className="text-sm text-stone-500">Local events near you — RSVP and show up.</p>
         </div>
         <Link href="/events?view=events" className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-indigo-700 hover:underline">
@@ -97,15 +90,12 @@ export function HappeningThisWeek() {
         </Link>
       </div>
 
-      {areas.length > 1 && (
-        <div className="mb-3 -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
-          <AreaPill label="All areas" active={area === "all"} onClick={() => setArea("all")} />
-          {areas.map((a) => (
-            <AreaPill key={a} label={a} active={area === a} onClick={() => setArea(a)} />
-          ))}
+      {scoped && shown.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-stone-300 bg-white/60 p-5 text-sm text-stone-500">
+          Nothing in {placeLabel(place)} this week yet.{" "}
+          <Link href="/vendor/organize" className="font-medium text-indigo-700 hover:underline">Host the first one</Link>, or switch your area above.
         </div>
-      )}
-
+      ) : (
       <div className="-mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-2">
         {shown.map((e) => (
           <Link
@@ -136,19 +126,7 @@ export function HappeningThisWeek() {
           </Link>
         ))}
       </div>
+      )}
     </section>
-  );
-}
-
-function AreaPill({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium transition ${
-        active ? "bg-stone-900 text-white" : "border border-stone-200 bg-white text-stone-600 hover:border-stone-300"
-      }`}
-    >
-      {label}
-    </button>
   );
 }

@@ -9,6 +9,8 @@ export interface FeedEvent {
   title: string
   date: string
   location: string
+  city: string
+  neighborhood: string
   description: string
   image: string | null
   memberId: string
@@ -30,6 +32,8 @@ export async function GET() {
         title: e.title,
         date: [e.event_date, e.event_time].filter(Boolean).join(' · '),
         location: e.location ?? '',
+        city: e.city ?? '',
+        neighborhood: e.neighborhood ?? '',
         description: e.description ?? '',
         image: e.poster_image_url ?? null,
         memberId: e.member_id,
@@ -50,6 +54,8 @@ export async function GET() {
         title: e.title ?? 'Event',
         date: [e.date, e.time].filter(Boolean).join(' · '),
         location: e.location ?? '',
+        city: '',
+        neighborhood: '',
         description: e.reworded ?? e.description ?? '',
         image: null,
         memberId: e.memberId ?? '',
