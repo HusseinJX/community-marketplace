@@ -1,9 +1,10 @@
 import { auth, currentUser } from '@clerk/nextjs/server'
-import { Package, ShoppingCart, Calendar, ArrowRight } from "lucide-react";
+import { Package, ShoppingCart, Calendar, ArrowRight, Heart, Star, MessageCircle, Shield } from "lucide-react";
 import Link from "next/link";
 import { getVendorProfile, getVendorConnectAccount, getOrdersByMember } from "@/lib/vendor-connect";
 import { stripe } from "@/lib/stripe-server";
 import { isDemoMode } from "@/lib/demo-admin";
+import { isAdmin } from "@/lib/admin";
 
 export default async function VendorDashboard() {
   const { userId } = await auth()
@@ -31,11 +32,26 @@ export default async function VendorDashboard() {
     orderCount = orders.length;
   }
 
+  const admin = isAdmin(userId);
+
   const cards = [
     { label: "Products", value: "3", href: "/vendor/products", icon: Package },
     { label: "Orders", value: orderCount > 0 ? String(orderCount) : "—", href: "/vendor/orders", icon: ShoppingCart },
     { label: "Events", value: "—", href: "/vendor/events", icon: Calendar },
   ] as const;
+
+  // Tools that aren't in the slim top nav (Home/Live/Collabs/Resources/QR).
+  // (Network lives under Collabs; Organize lives under My Events; Onboard hidden.)
+  const tools = [
+    { label: "Your agent", href: "/vendor/assistant", icon: MessageCircle, desc: "Train your customer-service AI (notes + PDFs)" },
+    { label: "Giving", href: "/vendor/giving", icon: Heart, desc: "Log community contributions" },
+    ...(admin
+      ? [
+          { label: "Super-admin", href: "/vendor/admin", icon: Shield, desc: "Create profiles, onboard by transcript, add events/products for any business" },
+          { label: "Featured", href: "/vendor/featured", icon: Star, desc: "Curate home rails (admin)" },
+        ]
+      : []),
+  ];
 
   return (
     <div className="space-y-8">
@@ -124,6 +140,28 @@ export default async function VendorDashboard() {
           </span>
           <ArrowRight className="h-4 w-4 text-stone-400" />
         </Link>
+      </div>
+
+      {/* Tools (kept off the slim top nav) */}
+      <div>
+        <p className="section-label mb-3">Tools</p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {tools.map((t) => {
+            const Icon = t.icon;
+            return (
+              <Link key={t.href} href={t.href} className="card-soft card-hover flex items-center justify-between p-5">
+                <span className="flex items-center gap-3">
+                  <Icon className="h-5 w-5 text-indigo-500" />
+                  <span>
+                    <span className="block text-sm font-semibold text-stone-900">{t.label}</span>
+                    <span className="block text-xs text-stone-500">{t.desc}</span>
+                  </span>
+                </span>
+                <ArrowRight className="h-4 w-4 text-stone-400" />
+              </Link>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

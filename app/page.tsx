@@ -1,16 +1,21 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { LayoutGrid, Map as MapIcon, Heart, Apple, DollarSign, CreditCard, X, Store, LayoutDashboard } from "lucide-react";
+import { LayoutGrid, Map as MapIcon, Heart, Apple, DollarSign, CreditCard, X, CalendarDays, Store } from "lucide-react";
 import { listMembers, searchMembers } from "@/lib/api";
 import type { Member, SearchResultMember, SearchIntent } from "@/lib/types";
 import { MemberCard, MemberCardSkeleton } from "@/components/MemberCard";
+import { MerchCard } from "@/components/feed/MerchCard";
+import { EventsCard } from "@/components/feed/EventsCard";
 import { FilterBar, type FilterType } from "@/components/FilterBar";
 import { MapView } from "@/components/MapView";
 import { SearchBar, type SearchMode } from "@/components/SearchBar";
 import { QrScanButton } from "@/components/QrScanButton";
 import { LiveNowRail } from "@/components/live/LiveNowRail";
+import { HappeningThisWeek } from "@/components/feed/HappeningThisWeek";
+import { FilterSidebar } from "@/components/FilterSidebar";
+import { matchesFacets } from "@/lib/business-facets";
 import { DEMO_MEMBERS } from "@/lib/demo-members";
 import { MEMBER_HERO_IMAGES } from "@/lib/member-images";
 import { usableImages, isPlaceholder } from "@/lib/image-utils";
@@ -45,6 +50,13 @@ export default function BrowsePage() {
   const [category, setCategory] = useState("");
   const [subcategory, setSubcategory] = useState("");
   const [view, setView] = useState<ViewMode>("grid");
+  // Business-facet filters (size + ownership), surfaced via the search-bar button.
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [facetSize, setFacetSize] = useState("");
+  const [facetOwnership, setFacetOwnership] = useState<string[]>([]);
+  const toggleFacetOwnership = (k: string) =>
+    setFacetOwnership((o) => (o.includes(k) ? o.filter((x) => x !== k) : [...o, k]));
+  const facetCount = (facetSize ? 1 : 0) + facetOwnership.length;
   const cacheKey = JSON.stringify({ type, city, category, subcategory });
   const cached = memberCache.get(cacheKey);
   const [members, setMembers] = useState<Member[]>(cached ?? []);
@@ -210,17 +222,22 @@ export default function BrowsePage() {
       });
     }
 
+    // Business-facet filters (size + ownership) — client-side over loaded members.
+    if (facetSize || facetOwnership.length) {
+      all = all.filter((m) => matchesFacets(m.profile, { size: facetSize, ownership: facetOwnership }));
+    }
+
     // Stable partition: members with images first, then without. Keeps the
     // existing rank within each group (no reshuffling beyond that).
     const withImg: Member[] = [], withoutImg: Member[] = [];
     for (const m of all) (memberHasImage(m) ? withImg : withoutImg).push(m);
     return [...withImg, ...withoutImg];
-  }, [members, type, searchMode, searchQuery]);
+  }, [members, type, searchMode, searchQuery, facetSize, facetOwnership]);
 
   return (
     <div className="mx-auto max-w-7xl px-4 pb-20 md:px-8">
       {/* Gradient hero */}
-      <section className="relative -mx-4 mb-10 overflow-hidden rounded-b-[2.5rem] md:-mx-8 md:mt-6 md:rounded-[2.5rem]">
+      <section className="relative -mx-4 mb-6 overflow-hidden rounded-b-[2.5rem] md:-mx-8 md:mt-6 md:rounded-[2.5rem]">
         <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 via-sky-50 to-violet-50" />
         <div className="absolute -left-24 -top-24 h-72 w-72 rounded-full bg-teal-300/40 blur-3xl" />
         <div className="absolute right-[-6rem] top-10 h-80 w-80 rounded-full bg-sky-300/40 blur-3xl" />
@@ -229,26 +246,26 @@ export default function BrowsePage() {
         <div className="relative py-16 md:py-24">
           <div className="mx-auto max-w-3xl px-6 text-center">
             <h1 className="text-5xl font-semibold leading-[1.05] tracking-tight text-stone-900 md:text-7xl">
-              Discover Your{" "}
+              What&apos;s{" "}
               <span className="bg-gradient-to-r from-teal-600 via-sky-600 to-violet-600 bg-clip-text text-transparent">
-                Community
+                Local
               </span>
             </h1>
             <p className="mx-auto mt-5 max-w-xl text-base text-stone-600 md:text-lg">
-              Browse the makers, community, vendors, and neighbors building local life around you.
+              Local events, makers, and businesses near you — discover what&apos;s happening this week, or bring people together for your own.
             </p>
             <div className="mt-7 flex flex-wrap items-center justify-center gap-2">
               <Link
-                href="/shopper"
-                className="inline-flex items-center gap-2 rounded-full bg-white/90 px-5 py-2.5 text-sm font-medium text-stone-800 ring-1 ring-stone-200 shadow-sm backdrop-blur transition-all hover:ring-stone-300 hover:shadow-md hover:-translate-y-0.5"
+                href="/events?view=events"
+                className="inline-flex items-center gap-2 rounded-full bg-stone-900 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-all hover:bg-stone-800 hover:shadow-md hover:-translate-y-0.5"
               >
-                <Store className="h-4 w-4" /> Shopper admin
+                <CalendarDays className="h-4 w-4" /> See what&apos;s happening
               </Link>
               <Link
                 href="/vendor"
-                className="inline-flex items-center gap-2 rounded-full bg-stone-900 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-all hover:bg-stone-800 hover:shadow-md hover:-translate-y-0.5"
+                className="inline-flex items-center gap-2 rounded-full bg-white/90 px-5 py-2.5 text-sm font-medium text-stone-800 ring-1 ring-stone-200 shadow-sm backdrop-blur transition-all hover:ring-stone-300 hover:shadow-md hover:-translate-y-0.5"
               >
-                <LayoutDashboard className="h-4 w-4" /> Admin demo
+                <Store className="h-4 w-4" /> List your business
               </Link>
             </div>
           </div>
@@ -306,9 +323,6 @@ export default function BrowsePage() {
         </div>
       )}
 
-      {/* Live now near you — hidden when nothing is live */}
-      <LiveNowRail />
-
       {/* Smart search bar + QR scanner */}
       <section className="mb-3 flex items-start gap-2">
         <div className="min-w-0 flex-1">
@@ -319,13 +333,39 @@ export default function BrowsePage() {
             onSubmit={runSearch}
             onChange={setSearchQuery}
             onClear={clearSearch}
+            onOpenFilters={() => setFiltersOpen(true)}
+            activeFilters={facetCount}
             loading={searchLoading}
           />
         </div>
         <QrScanButton />
       </section>
 
+      {/* Live now near you — hidden when nothing is live */}
+      <LiveNowRail />
+
+      {/* Happening this week — local events front-and-center (the core loop).
+          Hidden while searching so search results own the view. */}
+      {!searchQuery && <HappeningThisWeek />}
+
+      <FilterSidebar
+        open={filtersOpen}
+        onClose={() => setFiltersOpen(false)}
+        size={facetSize}
+        ownership={facetOwnership}
+        onSizeChange={setFacetSize}
+        onToggleOwnership={toggleFacetOwnership}
+        onClear={() => { setFacetSize(""); setFacetOwnership([]); }}
+      />
+
       {/* Filters + view toggle — hidden while AI search is active */}
+      {!aiSearchActive && !searchQuery && (
+        <div className="mb-3 mt-2">
+          <h2 className="text-xl font-semibold tracking-tight text-stone-900">Local directory</h2>
+          <p className="text-sm text-stone-500">Browse makers, vendors, artists, and community orgs near you.</p>
+        </div>
+      )}
+
       {!aiSearchActive && (
         <section className="space-y-3">
           <div className="flex items-start justify-between gap-3">
@@ -431,8 +471,14 @@ export default function BrowsePage() {
             {view === "grid" && visible.length > 0 && (
               <>
                 <div className="grid auto-rows-fr grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                  {visible.map((m) => (
-                    <MemberCard key={m.id} member={m} />
+                  {visible.map((m, i) => (
+                    <Fragment key={m.id}>
+                      <MemberCard member={m} />
+                      {/* Official WhatsLocal merch — featured after the 3rd card */}
+                      {i === 2 && <MerchCard />}
+                      {/* Atlas — official WhatsLocal events — featured after the 6th card */}
+                      {i === 5 && <EventsCard />}
+                    </Fragment>
                   ))}
                 </div>
 

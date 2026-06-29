@@ -4,6 +4,90 @@ All notable changes to this project are documented here.
 
 ## [Unreleased] — commerce, live, social shell (branch `feat/collab-rooms`)
 
+### Added — Super-admin hub, AI-image premium quota, event organizers — 2026-06-28
+- **`/vendor/admin`** super-admin hub (`AdminPanel.tsx`, isAdmin-gated): Create profile · Add by transcript · Act on behalf (member search → deep-links to manage any business's events/products). Surfaces the previously-hidden onboard flow; no more hand-typed `?memberId=` UUIDs.
+- **AI product-image generation is now premium** (`lib/ai-credits.ts` + `ai_image_credits` table, migration `20260628200000`): 3 free lifetime per member, 3-per-scan cap (extras returned as raw-crop drafts), 10/day for premium; admins bypass. Over-limit → 402/429 + upgrade banner. Placeholder `/vendor/billing`.
+- **Event-organizer sub-type** (`organizerFocus` in `lib/org-focus.ts`) distinct from community-service orgs; **multi-role lineups** (`lib/lineup-roles.ts`: vendor/performer/food/sponsor/partner/volunteer) in `/vendor/organize`; the **public event page** now renders the lineup grouped by role + "Public event" badge.
+- **Real events in the community feed**: `GET /api/events/feed` + `getPublicEvents()` merge live `vendor_events`/connector events ahead of the demo feed (was demo-only).
+- **Deployed** the connector `marketplace-create-member` + `marketplace-onboard` functions to prod; verified the admin-token chain; set `CONNECTOR_ADMIN_TOKEN`/`CONNECTOR_URL` locally.
+
+### Added — One-brain in-app assistant (connector chat + embeddings-from-app) — 2026-06-28
+- **Messages tab** leads with a pinned **WhatsLocal Assistant** conversation (`/messages/assistant`, `components/messages/AssistantChat.tsx`) — the same brain people text over SMS, in-app. `app/api/assistant/chat` proxies the connector's new **streaming** `chat-stream` endpoint (stable per-device `sessionId`), with a **local concierge fallback** (searches the live directory) when the connector is unavailable/erroring — so the tab never breaks.
+- **Connector-agent (separate repo, deployed):** extracted the per-turn brain into `lib/runChatTurn.js` (chat.js delegates to it — one orchestration for web + app); added `chat-stream.js` (v1 streaming via `@netlify/functions` `stream()` + heartbeats, so it survives the ~30s edge cutoff; v2 functions don't get all env scopes on that site); made every OpenAI client in the import chain lazy; `patch-member.js` now **re-embeds** after a patch, so profile edits made in the app update Pinecone vectors. **Known blocker:** the connector's Firestore is over quota (`8 RESOURCE_EXHAUSTED`), degrading the brain, SMS, and `marketplace-search` until the Firebase quota is restored (Spark daily reset / Blaze). See `TASKS.md`.
+- **Resilience:** `lib/api.ts getJson` now has a **4.5s timeout** (`AbortSignal.timeout`) so slow/erroring connector calls fail fast and pages fall back to demo/cached data instead of hanging ~8s.
+
+### Added — Community resource explorer for residents (`/resources`) — 2026-06-28
+- A separate, resident-facing resource hub (food, housing, health, legal aid, financial help, family, jobs, immigration, seniors, community orgs) — same look as the vendor hub but its own content + a **public AI guide**. `lib/community-resources.ts`, `app/resources/page.tsx`, `app/api/resources/chat` (grounded on the community catalog). `ResourceChat` parameterized (`endpoint`/`catalog`/`subtitle`/`starters`); shared `CATEGORY_META` extended with community categories. Shopper "Your space" consolidated to one "Explore local resources" entry → `/resources`.
+
+### Added — Petitions & causes (`/petitions`) — 2026-06-28
+- A home for local petitions so people find + sign them on their own time. Browsable feed with category chips + live progress bars; optimistic localStorage signing (demo content for now, no DB). `lib/demo-petitions.ts`, `app/petitions/page.tsx`, `components/petitions/PetitionsClient.tsx` (+ `PetitionsRail`, not currently surfaced). Reachable from the shopper space.
+
+### Added — SF city hub with endorsed spots + newcomer articles (`/sf`) — 2026-06-28
+- `/sf` hero + a toggle: **Endorsed** (default) — real SF/Bay spots loved/backed by real celebrities, with their Wikipedia/Wikimedia photos and an initials fallback (`SF_ENDORSEMENTS` in `lib/sf-stories.ts`, `components/sf/SfExplorer.tsx`) — and **Featured stories**, now full **articles** at `/sf/[id]` (`getSfStory`, `generateStaticParams`) written for newcomers (Karl the fog/microclimates, a city of villages, getting around, the Mission burrito/murals, North Beach & the Beats, Chinatown, Ferry Building, Castro).
+
+### Added — Where to watch the World Cup (`/watch-world-cup`) — 2026-06-28
+- A curated highlight of SF's best World Cup **watch parties** (evergreen — not live matches): Thrive City, Chase Center, Spark Social, China Basin Park, The Crossing at East Cut, Yerba Buena Lane. `lib/wc-watch-parties.ts`, `app/watch-world-cup/page.tsx`. Hero **"Watch World Cup"** button links here (was `/live?event=world-cup`). The live feed's `?event=` deep-link still works and now shows an event-aware "Where to watch the {event} in SF" header with **lean** cards (no event/team chips or per-card tags) via a `locked` flag.
+
+### Added — Live "Go Live" what's-on shortcut — 2026-06-28
+- The vendor **Go Live** composer shows a tappable strip of games happening now / soon (`lib/live-fixtures.ts`, relative-time like demo-live) — tap one to pre-fill the matchup + event (live → "now" mode, upcoming → "schedule" with kickoff time).
+
+### Added — Featured promo cards in feed + directory — 2026-06-28
+- **XEN0 × WhatsLocal merch** card (`components/feed/MerchCard.tsx`) and **Atlas** events card (`EventsCard.tsx`) injected after the 3rd / 6th card in the Community Feed and the home directory grid (vertical layout, hero image, placeholder links to swap).
+
+### Added — Feedbase feedback widget — 2026-06-28
+- `components/FeedbackWidget.tsx`: loads the Feedbase `widget.js` app-wide + identifies the Clerk user; a subtle **Send feedback** link in the footer opens the modal (the widget's own floating pill is hidden via `#fb-btn` CSS).
+
+### Changed — Native app feel, footer, nav, filter sidebar, hero — 2026-06-28
+- **Long-press callout fix:** global CSS disables the iOS WKWebView callout (Open/Copy/Share) + tap-highlight on links/buttons/images; text content stays selectable.
+- **Footer** moved to `components/SiteFooter.tsx` (client) — **hidden on `/messages`** so the conversation view has no footer and its input bar pins above the bottom nav. Footer links trimmed (removed Feed/Shop/Categories; **Admin demo** → `/vendor`; **Send feedback**).
+- **Hero buttons:** removed the old Shopper/Admin buttons; added **Watch World Cup** + **SF**.
+- **Filter sidebar** (`components/FilterSidebar.tsx`) slides from the **left**, full-height, starting below the navbar (was a floating card / right side).
+- **Home order:** the search bar moved **above** "Live now near you".
+
+### Fixed — Collabs card horizontal overflow + events label — 2026-06-28
+- `/vendor/network` cards extended past the viewport: the flex/grid **card itself** lacked `min-w-0`, so it grew to its content's min-content (~434px on a 390px screen). Added `min-w-0` to the cards (+ `block truncate` on the name Link, `break-words` on chat bubbles). Verified with the browser tool: `scrollWidth === clientWidth`.
+- Events "Create event" button → **"Create"**.
+
+### Changed — Vendor portal UX + demo access + shipped to prod — 2026-06-28
+- **Slim one-row top nav** (`components/vendor/VendorNav.tsx`): Home · Live · **Collabs** (→ `/vendor/network`, find & invite) · Resources · QR. Pill style with **active/selected** highlight + hover/press feedback; fits the viewport (no horizontal scroll). Other tools moved to a dashboard **Tools** grid: **Your agent** (renamed from Assistant) · Giving (+ Featured for admins). **Organize** lives under My Events (button in the events header); **Onboard** hidden; **Network** is the Collabs tab.
+- **"Go back" bar** (`components/vendor/VendorBackBar.tsx`) below the navbar on deeper pages (hidden on the 5 nav-tab destinations) → returns to the previous screen.
+- **Demo shows everything**: gated vendor pages now resolve a representative demo member in demo mode (`lib/demo-server.ts` `demoMemberId()` by demo-type cookie) instead of the "link your profile" gate. Demo *writes* still no-op (`resolveActor` has no demo path).
+- **Floating resources guide**: the `/vendor/resources` chat is now a sticky bottom-right circle button that expands a chat panel (`components/resources/ResourceChat.tsx`); catalog is full-width.
+- **Shopper "Explore local resources"** opens the resources hub; demo banner removed.
+- **Shipped:** deployed to Netlify prod (the iOS shell loads the hosted site, so web changes go live via `netlify deploy --build --prod`, not `cap sync`). **DB migrated:** `supabase db push` applied all 12 pending migrations after restoring the auto-paused xeno project.
+
+### Added — Assistant knowledge via PDF drop-in + slim vendor nav — 2026-06-28
+- Vendors configure their customer-service AI's knowledge by **typed notes or dropping PDFs** (`/vendor/assistant`): new `app/api/vendor/assistant/upload` extracts PDF text with `unpdf` → `business_knowledge` (`source: 'pdf'`), fed into `buildBusinessContext`. Persona/prompt + FAQs editing already existed.
+- Vendor top nav slimmed to one row: **Home · Live · Collabs · Resources · QR**; Organize/Onboard/Network/Giving/Assistant/Featured moved to a dashboard **Tools** grid. Demo "viewing as" banner removed. Shopper "Explore local resources" now opens the resources hub.
+
+### Added — Community memories (tagged-media walls) — 2026-06-28
+- Posts tagged to a business/event/broadcast aggregate into an IG-style media wall + lightbox (`components/posts/MemoriesGrid.tsx`), on `/members/[id]`, `/events/[id]`, `/live/[id]`. `getPostsByMemberId`/`getPostsByEventId`; `GET /api/posts?member=|event=`; migration `20260628130000` (event index). Self-hides when empty.
+
+### Added — Community giving + "Gives back" credit — 2026-06-28
+- Vendor logs an open-ended gift (funds/goods/time/other) to a community org → org confirms via a self-serve inbox → public "Gives back" badge on the vendor profile. `/vendor/giving`, `lib/contributions.ts`, `community_contributions` (migration `20260628140000`), `components/giving/GivesBackBadges.tsx`.
+
+### Added — Org typing + business facets + home filter sidebar — 2026-06-28
+- Community orgs carry `serves` (small-businesses / individuals); `lib/org-focus.ts`, "Who they serve" chips.
+- Businesses carry `businessSize` + `ownershipTags[]` (`lib/business-facets.ts`); captured at onboarding, editable on the profile (`components/business/BusinessFacets.tsx` → `PATCH /api/members/[id]/facets` → connector `patch-member`).
+- Filterable via a slide-in `components/FilterSidebar.tsx` opened from a filter button in `SearchBar` on the home screen (+ on `/explore`). Client-side `matchesFacets`.
+
+### Added — Collaborator network (invites + rooms) — 2026-06-28
+- `/vendor/network`: search the local network → send a collab invite → accept → self-contained 1:1 room + polling chat. `lib/collab-network.ts`, `collab_invites`/`collab_rooms`/`collab_messages` (migration `20260628150000`). No connector-agent dependency.
+
+### Added — Organizer toolkit (Luma-style) — 2026-06-28
+- `/vendor/organize`: pick an event → **Lineup** (search vendors, multi-select, bulk-invite; event-scoped `collab_invites`) + **Messages** (group thread + **SMS/email blast** to the accepted lineup) + **Attendees**. `lib/event-comms.ts`, `lib/sms.ts` (connector proxy), `lib/email.ts` (Resend REST, no SDK). `event_messages` (migration `20260628160000`).
+- **Free RSVP / attendees**: `vendor_events.capacity` + `event_attendees` (migration `20260628170000`), `lib/attendees.ts`, `components/events/RsvpButton.tsx`. `/events/[id]` now resolves organizer (`vendor_events`) events for a public RSVP page; member-profile event cards link there.
+
+### Added — Pre-tagged venue onboarding + member creation — 2026-06-28
+- Per-event **join QR** (in `/vendor/organize`) → conversational onboarding. Find-existing-listing path at `/events/[eventId]/join` (self-join → pending lineup; not-listed → `event_join_requests`, migration `20260628180000`).
+- **Members can now be created** (not just claimed): connector functions `marketplace-create-member` + `marketplace-onboard` (the latter runs the connector's own profiling brain over a transcript → full profile + Pinecone vectors). `lib/api.ts` `createMember`/`onboardFromMessages`/`patchMember`.
+- **Manual interview** tool `/vendor/onboard`: paste a conversation → AI extracts a reviewable profile (`lib/onboard.ts`, `/api/onboard/extract`) → create + optional event lineup + **grouping tags** (`member_tags`, migration `20260628190000`, "farmers market" etc.) with bulk-add-to-lineup.
+- **QR self-onboarding** `/onboard?event=`: in-app booth chat (`/api/onboard/chat`) → `/api/onboard/finalize` (connector profiling + infers size/ownership facets + tags the lineup).
+
+### Added — LinkedIn-style code sheet + native iOS NFC — 2026-06-28
+- Home search-bar scanner rebuilt as a tabbed **Connect** sheet (`components/QrScanButton.tsx`): **NFC tag** (default) + **Scan** (camera). NFC priority: native iOS Core NFC → Web NFC (Android) → unsupported (`lib/native-nfc.ts`).
+- Native plugin in `whatslocal-ios/local-plugins/capacitor-nfc/` (Swift `NfcPlugin`, `NFCNDEFReaderSession` → `Capacitor.Plugins.Nfc.scan()`); synced into SPM + `packageClassList`; Info.plist + `App.entitlements` added. Gated on Apple Developer Program enrollment + a physical device.
+
 ### Added — Native Composio commerce + Trigger.dev
 - Brought Composio in-app (was a connector-agent proxy): `lib/composio.ts` (`@composio/core` client + `runTool`/`TOOL_SLUGS`/auth-config helpers) + `lib/composio-commerce.ts` (`connectStore` / `syncVendorCatalog` / `pushOrderToStore` / `getConnectedMemberIds`).
 - `/api/vendor/composio` native connect + sync; Stripe webhook fires native `pushOrderToStore` order push-back.

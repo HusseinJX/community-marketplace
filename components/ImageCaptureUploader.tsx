@@ -35,6 +35,8 @@ export function ImageCaptureUploader({
 }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [upgrade, setUpgrade] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [productDrafts, setProductDrafts] = useState<ProductDraft[]>([]);
   const [eventDrafts, setEventDrafts] = useState<EventDraft[]>([]);
   const pendingAction = useRef<"menu" | "counter" | "flyer">("menu");
@@ -50,6 +52,8 @@ export function ImageCaptureUploader({
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
+    setUpgrade(null);
+    setNotice(null);
 
     try {
       setBusy("Uploading photo…");
@@ -69,8 +73,19 @@ export function ImageCaptureUploader({
           body: JSON.stringify({ imageUrl: url, memberId }),
         });
         const data = await res.json();
+        if (res.status === 402 || res.status === 429) {
+          setUpgrade(data.error || "Upgrade your subscription to keep generating AI images.");
+          return;
+        }
         if (!res.ok) throw new Error(data.error || "Detection failed");
         setProductDrafts(data.products ?? []);
+        if (data.quota && !data.quota.premium && typeof data.quota.remainingFree === "number") {
+          setNotice(
+            data.quota.remainingFree > 0
+              ? `${data.quota.remainingFree} free AI image${data.quota.remainingFree === 1 ? "" : "s"} left.`
+              : "That was your last free AI image — upgrade to keep generating."
+          );
+        }
       } else {
         setBusy(mode === "events" ? "Reading flyer…" : "Reading menu…");
         const res = await fetch("/api/ai/extract", {
@@ -164,6 +179,16 @@ export function ImageCaptureUploader({
         </div>
       )}
       {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+      {notice && <p className="mt-3 text-xs text-stone-500">{notice}</p>}
+      {upgrade && (
+        <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
+          <p className="text-sm font-medium text-amber-900">Premium feature</p>
+          <p className="mt-0.5 text-xs text-amber-700">{upgrade}</p>
+          <a href="/vendor/billing" className="mt-2 inline-block rounded-lg bg-amber-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-800">
+            Upgrade
+          </a>
+        </div>
+      )}
 
       {/* Product draft review */}
       {productDrafts.length > 0 && (

@@ -142,6 +142,7 @@ export interface VendorEvent {
   event_time: string | null
   location: string | null
   poster_image_url: string | null
+  capacity: number | null
   source: string
   active: boolean
   created_at: string
@@ -154,6 +155,7 @@ export interface NewVendorEvent {
   event_time?: string | null
   location?: string | null
   poster_image_url?: string | null
+  capacity?: number | null
   active?: boolean
   source?: string
 }
@@ -164,6 +166,24 @@ export async function getVendorEventsByMember(memberId: string, includeDrafts = 
   const { data, error } = await q.order('created_at', { ascending: false })
   if (error || !data) return []
   return data as VendorEvent[]
+}
+
+// All live (active) events across every member — for the public community feed.
+export async function getPublicEvents(limit = 50): Promise<VendorEvent[]> {
+  const { data, error } = await supabase
+    .from('vendor_events')
+    .select('*')
+    .eq('active', true)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+  if (error || !data) return []
+  return data as VendorEvent[]
+}
+
+export async function getVendorEventById(id: string): Promise<VendorEvent | null> {
+  const { data, error } = await supabase.from('vendor_events').select('*').eq('id', id).maybeSingle()
+  if (error || !data) return null
+  return data as VendorEvent
 }
 
 export async function createVendorEvent(
@@ -182,6 +202,7 @@ export async function createVendorEvent(
       event_time: e.event_time ?? null,
       location: e.location ?? null,
       poster_image_url: e.poster_image_url ?? null,
+      capacity: e.capacity ?? null,
       active: e.active ?? true,
       source: e.source ?? 'manual',
     })

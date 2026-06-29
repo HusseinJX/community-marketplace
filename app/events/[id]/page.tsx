@@ -11,7 +11,13 @@ import {
 } from "lucide-react";
 import { listEvents, getMember } from "@/lib/api";
 import type { EventSuggestion, Member } from "@/lib/types";
+import { getVendorEventById } from "@/lib/vendor-connect";
+import { getAcceptedLineup } from "@/lib/collab-network";
+import { groupByRole } from "@/lib/lineup-roles";
+import { isEventOrganizer } from "@/lib/org-focus";
 import { EventActionBar } from "./EventActionBar";
+import { MemoriesGrid } from "@/components/posts/MemoriesGrid";
+import { RsvpButton } from "@/components/events/RsvpButton";
 
 // ─── Gradient helpers ────────────────────────────────────────────────────────
 
@@ -85,9 +91,30 @@ export default async function EventDetailPage({
   const { id } = await params;
 
   let event: EventSuggestion | undefined = DEMO_EVENTS[id];
+  let isOrganizerEvent = false;
   if (!event) {
     const { events } = await listEvents();
     event = events.find((e) => e.id === id);
+  }
+  // Fall back to a self-serve organizer event (vendor_events). These get free
+  // RSVP; connector/demo events keep the synthetic attendance display.
+  if (!event) {
+    const ve = await getVendorEventById(id);
+    if (ve) {
+      isOrganizerEvent = true;
+      event = {
+        id: ve.id,
+        memberId: ve.member_id,
+        memberName: ve.member_name ?? undefined,
+        title: ve.title,
+        description: ve.description ?? undefined,
+        date: ve.event_date ?? undefined,
+        time: ve.event_time ?? undefined,
+        location: ve.location ?? undefined,
+        source: { platform: "In-person" },
+        status: "approved",
+      };
+    }
   }
 
   if (!event) {
@@ -132,6 +159,11 @@ export default async function EventDetailPage({
   ]
     .filter(Boolean)
     .join(", ");
+
+  // Confirmed lineup (vendors, performers, sponsors, …) for organizer/festival
+  // events. Empty for connector/demo events — the section self-hides.
+  const lineupGroups = groupByRole(await getAcceptedLineup(event.id));
+  const isFestival = isEventOrganizer(profile);
 
   const title = event.title || "Untitled event";
   const description =
@@ -179,6 +211,11 @@ export default async function EventDetailPage({
             <span className="rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
               Open to all
             </span>
+            {isFestival && (
+              <span className="rounded-full border border-violet-300 bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700">
+                Public event
+              </span>
+            )}
           </div>
 
           <h1 className="text-3xl sm:text-4xl font-bold text-stone-900 mb-4 leading-tight">
@@ -280,6 +317,36 @@ export default async function EventDetailPage({
                 </div>
               </div>
             </section>
+
+            {/* Lineup — confirmed vendors, performers, sponsors, etc. */}
+            {lineupGroups.length > 0 && (
+              <section>
+                <p className="section-label mb-4">Lineup</p>
+                <div className="space-y-5">
+                  {lineupGroups.map((g) => (
+                    <div key={g.role.key}>
+                      <p className="mb-2 text-xs font-medium uppercase tracking-wide text-stone-400">
+                        {g.role.emoji} {g.role.plural} ({g.items.length})
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {g.items.map((it) => (
+                          <Link
+                            key={it.id}
+                            href={`/members/${it.to_id}`}
+                            className="rounded-full border border-stone-200 bg-white px-3 py-1.5 text-sm text-stone-700 hover:border-indigo-300 hover:text-indigo-700"
+                          >
+                            {it.to_name || "Member"}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Community memories — everyone's photos tagged to this event */}
+            <MemoriesGrid eventId={event.id} title="Memories" subtitle="From everyone who came" />
           </div>
 
           {/* Aside */}
@@ -323,23 +390,26 @@ export default async function EventDetailPage({
             {/* Attendance */}
             <div className="card-soft p-5">
               <p className="section-label mb-4">Attendance</p>
-              <div className="flex -space-x-2 mb-3">
-                {Array.from({ length: Math.min(5, attendance) }).map((_, i) => {
-                  const g = gradients[(i * 7 + 3) % gradients.length];
-                  return (
-                    <div
-                      key={i}
-                      className={`size-8 rounded-full bg-gradient-to-br ${g} border-2 border-white`}
-                    />
-                  );
-                })}
-              </div>
-              <p className="text-sm text-stone-700">
-                <span className="font-semibold text-stone-900">
-                  {attendance}
-                </span>{" "}
-                people going
-              </p>
+              {isOrganizerEvent ? (
+                <RsvpButton eventId={event.id} />
+              ) : (
+                <>
+                  <div className="flex -space-x-2 mb-3">
+                    {Array.from({ length: Math.min(5, attendance) }).map((_, i) => {
+                      const g = gradients[(i * 7 + 3) % gradients.length];
+                      return (
+                        <div
+                          key={i}
+                          className={`size-8 rounded-full bg-gradient-to-br ${g} border-2 border-white`}
+                        />
+                      );
+                    })}
+                  </div>
+                  <p className="text-sm text-stone-700">
+                    <span className="font-semibold text-stone-900">{attendance}</span> people going
+                  </p>
+                </>
+              )}
             </div>
           </div>
         </div>

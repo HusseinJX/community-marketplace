@@ -74,6 +74,15 @@ export interface MemberProfile {
   cause?: string;
   needsMost?: string[];
   connectWith?: string[];
+  // who a community org primarily serves — drives vendor- vs shopper-facing
+  // filtering. Values from ORG_SERVES in lib/org-focus.ts.
+  serves?: string[];
+  // organizer sub-type: "public-events" (festivals/large gatherings) vs
+  // "community-service" (mutual aid/nonprofits). See ORG_FOCUS in lib/org-focus.ts.
+  organizerFocus?: string;
+  // business facets (lib/business-facets.ts): size + ownership/type tags
+  businessSize?: string;
+  ownershipTags?: string[];
   [key: string]: unknown;
 }
 

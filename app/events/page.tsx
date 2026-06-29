@@ -1,10 +1,12 @@
 "use client";
 
-import { Suspense, useMemo, useState } from "react";
+import { Fragment, Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { DEMO_FEED, type FeedItem } from "@/lib/demo-feed";
+import { DEMO_FEED, type FeedItem, type EventFeedItem } from "@/lib/demo-feed";
 import { EventFeedCard } from "@/components/feed/EventFeedCard";
 import { VendorPostCard } from "@/components/feed/VendorPostCard";
+import { MerchCard } from "@/components/feed/MerchCard";
+import { EventsCard } from "@/components/feed/EventsCard";
 
 type Filter = "all" | "event" | "post";
 
@@ -19,14 +21,41 @@ function FeedInner() {
   const eventsOnly = useSearchParams().get("view") === "events";
   const [filter, setFilter] = useState<Filter>(eventsOnly ? "event" : "all");
   const [visible, setVisible] = useState(5);
+  const [realEvents, setRealEvents] = useState<EventFeedItem[]>([]);
+
+  // Real events created in-app (organizer/festival/vendor) sort ahead of the
+  // demo feed. Falls back silently to demo-only when the API is unavailable.
+  useEffect(() => {
+    fetch("/api/events/feed")
+      .then((r) => (r.ok ? r.json() : { events: [] }))
+      .then((d: { events?: Array<Record<string, string | null>> }) => {
+        const items: EventFeedItem[] = (d.events ?? []).map((e, i) => ({
+          id: `real-${e.eventId}`,
+          kind: "event",
+          eventId: String(e.eventId),
+          title: String(e.title ?? "Event"),
+          date: String(e.date ?? ""),
+          location: String(e.location ?? ""),
+          description: String(e.description ?? ""),
+          images: e.image ? [String(e.image)] : undefined,
+          author: { id: String(e.memberId ?? ""), name: String(e.memberName ?? "Organizer"), type: "organizer" },
+          postedAt: "Just now",
+          postedAtOrder: -1000 + i, // ahead of demo feed (positive orders)
+        }));
+        setRealEvents(items);
+      })
+      .catch(() => {});
+  }, []);
 
   const effectiveFilter: Filter = eventsOnly ? "event" : filter;
 
   const filtered: FeedItem[] = useMemo(() => {
-    const sorted = [...DEMO_FEED].sort((a, b) => a.postedAtOrder - b.postedAtOrder);
+    const realIds = new Set(realEvents.map((e) => e.eventId));
+    const demo = DEMO_FEED.filter((i) => i.kind !== "event" || !realIds.has(i.eventId));
+    const sorted = [...realEvents, ...demo].sort((a, b) => a.postedAtOrder - b.postedAtOrder);
     if (effectiveFilter === "all") return sorted;
     return sorted.filter((i) => i.kind === effectiveFilter);
-  }, [effectiveFilter]);
+  }, [effectiveFilter, realEvents]);
 
   const shown = filtered.slice(0, visible);
   const hasMore = visible < filtered.length;
@@ -69,13 +98,19 @@ function FeedInner() {
       )}
 
       <div className="space-y-4">
-        {shown.map((item) =>
-          item.kind === "event" ? (
-            <EventFeedCard key={item.id} item={item} />
-          ) : (
-            <VendorPostCard key={item.id} item={item} />
-          ),
-        )}
+        {shown.map((item, i) => (
+          <Fragment key={item.id}>
+            {item.kind === "event" ? (
+              <EventFeedCard item={item} />
+            ) : (
+              <VendorPostCard item={item} />
+            )}
+            {/* Official WhatsLocal merch — featured after the 3rd card */}
+            {i === 2 && <MerchCard />}
+            {/* Atlas — official WhatsLocal events — featured after the 6th card */}
+            {i === 5 && <EventsCard />}
+          </Fragment>
+        ))}
       </div>
 
       {hasMore && (

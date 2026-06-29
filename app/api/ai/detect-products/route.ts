@@ -4,6 +4,7 @@ import { toFile } from 'openai'
 import { getOpenAI, VISION_MODEL, IMAGE_MODEL } from '@/lib/openai'
 import { resolveActor } from '@/lib/admin'
 import { uploadImage } from '@/lib/storage'
+import { checkImageQuota, recordImageGenerations, FREE_IMAGE_LIMIT } from '@/lib/ai-credits'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
@@ -46,6 +47,22 @@ export async function POST(req: Request) {
 
   const actor = await resolveActor(body.memberId)
   if (!actor) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+
+  // AI image generation is a premium feature: free members get a small lifetime
+  // allowance; premium members are rate-limited. Bail before any billable work
+  // when the member is out of allowance so the UI can prompt an upgrade.
+  const quota = await checkImageQuota(actor.memberId, actor.isAdmin)
+  if (quota.allowed <= 0) {
+    return quota.blocked === 'rate_limited'
+      ? NextResponse.json({ error: 'Daily AI image limit reached — try again tomorrow.', rateLimited: true }, { status: 429 })
+      : NextResponse.json(
+          {
+            error: `You've used your ${FREE_IMAGE_LIMIT} free AI product images. Upgrade your subscription to keep generating.`,
+            upgradeRequired: true,
+          },
+          { status: 402 }
+        )
+  }
 
   const openai = getOpenAI()
 
@@ -94,8 +111,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Could not parse detection' }, { status: 502 })
   }
 
-  // 3. Crop + refine each detected product (best-effort per item)
+  // 3. Crop + refine each detected product (best-effort per item). AI image
+  // generation is capped at `quota.allowed` items; the rest still come back as
+  // drafts using the raw crop (no generation, no charge).
   const results = []
+  let generatedCount = 0
   for (let i = 0; i < detected.length; i++) {
     const d = detected[i]
     try {
@@ -107,20 +127,23 @@ export async function POST(req: Request) {
 
       let imageBuf = crop
       let generated = false
-      try {
-        const gen = await openai.images.edit({
-          model: IMAGE_MODEL,
-          image: await toFile(crop, 'crop.png', { type: 'image/png' }),
-          prompt: `Clean professional product catalog photo of "${d.name}", centered on a plain white background, soft studio lighting, no text or props.`,
-          size: '1024x1024',
-        })
-        const b64 = gen.data?.[0]?.b64_json
-        if (b64) {
-          imageBuf = Buffer.from(b64, 'base64')
-          generated = true
+      if (generatedCount < quota.allowed) {
+        try {
+          const gen = await openai.images.edit({
+            model: IMAGE_MODEL,
+            image: await toFile(crop, 'crop.png', { type: 'image/png' }),
+            prompt: `Clean professional product catalog photo of "${d.name}", centered on a plain white background, soft studio lighting, no text or props.`,
+            size: '1024x1024',
+          })
+          const b64 = gen.data?.[0]?.b64_json
+          if (b64) {
+            imageBuf = Buffer.from(b64, 'base64')
+            generated = true
+            generatedCount++
+          }
+        } catch (e) {
+          console.error('Image generation failed, using raw crop:', e)
         }
-      } catch (e) {
-        console.error('Image generation failed, using raw crop:', e)
       }
 
       const { publicUrl } = await uploadImage(imageBuf, {
@@ -142,5 +165,16 @@ export async function POST(req: Request) {
     }
   }
 
-  return NextResponse.json({ products: results })
+  // Count generations against the member's allowance (admins don't consume it).
+  if (!actor.isAdmin && generatedCount > 0) {
+    await recordImageGenerations(actor.memberId, generatedCount)
+  }
+
+  const remainingFreeAfter = Number.isFinite(quota.remainingFree)
+    ? Math.max(0, quota.remainingFree - generatedCount)
+    : null
+  return NextResponse.json({
+    products: results,
+    quota: { premium: quota.premium, generated: generatedCount, remainingFree: remainingFreeAfter },
+  })
 }
