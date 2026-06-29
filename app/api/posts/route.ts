@@ -1,13 +1,29 @@
 import { NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
-import { createPost, getPosts } from '@/lib/posts'
+import { createPost, getPosts, getPostsByMemberId, getPostsByEventId, getReactionsForPosts } from '@/lib/posts'
 import { isDemoMode } from '@/lib/demo-admin'
 
-// GET — public feed of share posts.
-export async function GET() {
+// GET — public feed of share posts. `?member=` / `?event=` scope to one entity's
+// "memories" (everyone's media tagged to that business or event). Each post is
+// enriched with its ❤️ count + whether the viewer reacted.
+export async function GET(request: Request) {
   try {
-    const posts = await getPosts()
-    return NextResponse.json({ posts })
+    const { searchParams } = new URL(request.url)
+    const member = searchParams.get('member')
+    const event = searchParams.get('event')
+    const posts = member
+      ? await getPostsByMemberId(member)
+      : event
+        ? await getPostsByEventId(event)
+        : await getPosts()
+    const { userId } = await auth()
+    const reactions = await getReactionsForPosts(posts.map((p) => p.id), userId)
+    const enriched = posts.map((p) => ({
+      ...p,
+      reactions: reactions[p.id]?.count ?? 0,
+      reacted: reactions[p.id]?.reacted ?? false,
+    }))
+    return NextResponse.json({ posts: enriched })
   } catch {
     return NextResponse.json({ posts: [] })
   }

@@ -13,6 +13,7 @@ import { listEvents, getMember } from "@/lib/api";
 import type { EventSuggestion, Member } from "@/lib/types";
 import { getVendorEventById } from "@/lib/vendor-connect";
 import { getAcceptedLineup } from "@/lib/collab-network";
+import { getPostsByEventId } from "@/lib/posts";
 import { groupByRole } from "@/lib/lineup-roles";
 import { isEventOrganizer } from "@/lib/org-focus";
 import { EventActionBar } from "./EventActionBar";
@@ -92,6 +93,7 @@ export default async function EventDetailPage({
 
   let event: EventSuggestion | undefined = DEMO_EVENTS[id];
   let isOrganizerEvent = false;
+  let posterUrl: string | null = null;
   if (!event) {
     const { events } = await listEvents();
     event = events.find((e) => e.id === id);
@@ -102,6 +104,7 @@ export default async function EventDetailPage({
     const ve = await getVendorEventById(id);
     if (ve) {
       isOrganizerEvent = true;
+      posterUrl = ve.poster_image_url;
       event = {
         id: ve.id,
         memberId: ve.member_id,
@@ -165,6 +168,15 @@ export default async function EventDetailPage({
   const lineupGroups = groupByRole(await getAcceptedLineup(event.id));
   const isFestival = isEventOrganizer(profile);
 
+  // Image-first hero: the event poster, else a real photo from the memories
+  // wall, else a gradient. Sell the experience, Airbnb-style.
+  const memories = await getPostsByEventId(event.id).catch(() => []);
+  const heroImage =
+    posterUrl ||
+    (profile.imageUrl as string | undefined) ||
+    memories.flatMap((p) => p.image_urls)[0] ||
+    null;
+
   const title = event.title || "Untitled event";
   const description =
     event.reworded || event.description || event.originalExcerpt || "";
@@ -197,10 +209,16 @@ export default async function EventDetailPage({
           {backLabel}
         </Link>
 
-        {/* Hero banner */}
-        <div
-          className={`aspect-[16/7] w-full rounded-2xl bg-gradient-to-br ${grad} mb-8`}
-        />
+        {/* Hero — image-first, gradient fallback */}
+        {heroImage ? (
+          <div className="relative mb-8 aspect-[16/9] w-full overflow-hidden rounded-2xl bg-stone-100">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={heroImage} alt={title} className="h-full w-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+          </div>
+        ) : (
+          <div className={`aspect-[16/7] w-full rounded-2xl bg-gradient-to-br ${grad} mb-8`} />
+        )}
 
         {/* Header */}
         <div className="mb-8">
