@@ -23,6 +23,19 @@ export type ResourceCategory =
   | 'market-research'
   | 'library'
   | 'support-orgs'
+  // Community (resident-facing) categories — used by the shopper resource
+  // explorer (lib/community-resources.ts), not the small-business catalog.
+  | 'food'
+  | 'housing'
+  | 'health'
+  | 'mental-health'
+  | 'legal-aid'
+  | 'financial-help'
+  | 'family'
+  | 'jobs'
+  | 'immigration'
+  | 'seniors'
+  | 'community'
 
 export const CATEGORY_META: Record<ResourceCategory, { label: string; blurb: string }> = {
   legal: { label: 'Legal help', blurb: 'Contracts, leases, disputes, formation' },
@@ -36,6 +49,18 @@ export const CATEGORY_META: Record<ResourceCategory, { label: string; blurb: str
   'market-research': { label: 'Market research', blurb: 'Data, business plans, market insight' },
   library: { label: 'Library resources', blurb: 'Free databases, events, reference help' },
   'support-orgs': { label: 'Support organizations', blurb: 'Hands-on help from local orgs' },
+  // Community (resident-facing)
+  food: { label: 'Food assistance', blurb: 'Groceries, meals, CalFresh' },
+  housing: { label: 'Housing & rent', blurb: 'Rental help, shelters, tenant rights' },
+  health: { label: 'Health & clinics', blurb: 'Free & low-cost care, insurance' },
+  'mental-health': { label: 'Mental health', blurb: 'Counseling and crisis support' },
+  'legal-aid': { label: 'Legal aid', blurb: 'Free legal help for residents' },
+  'financial-help': { label: 'Financial help', blurb: 'Utility, cash & benefits assistance' },
+  family: { label: 'Family & childcare', blurb: 'Childcare, family resource centers' },
+  jobs: { label: 'Jobs & training', blurb: 'Job centers, ESL, adult education' },
+  immigration: { label: 'Immigration', blurb: 'Citizenship and immigrant services' },
+  seniors: { label: 'Seniors & disability', blurb: 'Services for older adults & disabilities' },
+  community: { label: 'Community orgs', blurb: 'Mutual aid and neighborhood groups' },
 }
 
 export type ResourceCost = 'free' | 'low-cost' | 'varies'

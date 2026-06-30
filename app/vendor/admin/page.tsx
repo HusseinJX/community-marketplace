@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { auth } from "@clerk/nextjs/server";
 import { getVendorProfile } from "@/lib/vendor-connect";
 import { isAdmin } from "@/lib/admin";
@@ -26,5 +27,9 @@ export default async function VendorAdminPage() {
   // created from the transcript flow. Empty string is fine if unlinked.
   const profile = userId ? await getVendorProfile(userId) : null;
 
-  return <AdminPanel ownerMemberId={profile?.member_id ?? ""} />;
+  return (
+    <Suspense>
+      <AdminPanel ownerMemberId={profile?.member_id ?? ""} />
+    </Suspense>
+  );
 }

@@ -67,15 +67,13 @@ export default async function ResourcesPage() {
         </section>
       )}
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-        <section className="lg:col-span-2">
-          <p className="section-label mb-4">All resources</p>
-          <ResourceGrid resources={RESOURCES} />
-        </section>
-        <aside className="lg:col-span-1">
-          <ResourceChat businessName={businessName} />
-        </aside>
-      </div>
+      <section>
+        <p className="section-label mb-4">All resources</p>
+        <ResourceGrid resources={RESOURCES} />
+      </section>
+
+      {/* Floating guide — sticky circle button bottom-right that expands the chat. */}
+      <ResourceChat businessName={businessName} />
     </div>
   )
 }

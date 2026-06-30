@@ -8,11 +8,11 @@ import { useStore } from "@/lib/store";
 const MENU = [
   { href: "/", label: "Home" },
   { href: "/events", label: "Feed" },
-  { href: "/events?view=events", label: "Events" },
 ];
 
 // Instagram-style top bar: left "+" (post/share), center "WhatsLocal" dropdown
-// (Home / Feed / Events), right cart + profile (sign-in / account).
+// (Home / Feed), right cart + profile (sign-in / account). Events live on the
+// Live tab (bottom nav → /live), so they're not duplicated here.
 export function TopNav() {
   const { cart } = useStore();
   const [open, setOpen] = useState(false);

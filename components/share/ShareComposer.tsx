@@ -7,6 +7,16 @@ import type { IScannerControls } from "@zxing/browser";
 import { listMembers, listEvents } from "@/lib/api";
 import type { Member, EventSuggestion } from "@/lib/types";
 import { DEMO_MEMBERS } from "@/lib/demo-members";
+import { LIVE_EVENTS, eventEmoji } from "@/lib/live-events";
+import { getLiveAndUpcoming, startsInLabel, type Fixture } from "@/lib/live-fixtures";
+
+const VENDOR_MODE_KEY = "wl_vendor_mode";
+const LIVE_DURATIONS = [
+  { label: "2h", minutes: 120 },
+  { label: "3h", minutes: 180 },
+  { label: "4h", minutes: 240 },
+  { label: "6h", minutes: 360 },
+];
 
 interface Media {
   url: string;
@@ -31,6 +41,43 @@ export function ShareComposer() {
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Vendor-only "Go Live" — gated behind a dev toggle (persisted) so it can be
+  // tested without full vendor auth for now.
+  const [vendorMode, setVendorMode] = useState(false);
+  const [goLive, setGoLive] = useState(false);
+  const [eventSlug, setEventSlug] = useState("nba");
+  const [whatsOn, setWhatsOn] = useState("");
+  const [supportsTeam, setSupportsTeam] = useState("");
+  const [liveMinutes, setLiveMinutes] = useState(180);
+  const [pickedFixture, setPickedFixture] = useState<string | null>(null);
+  const [nowTs, setNowTs] = useState(0);
+
+  useEffect(() => {
+    setVendorMode(localStorage.getItem(VENDOR_MODE_KEY) === "1");
+    setNowTs(Date.now());
+    const t = setInterval(() => setNowTs(Date.now()), 60_000);
+    return () => clearInterval(t);
+  }, []);
+
+  function toggleVendorMode() {
+    setVendorMode((v) => {
+      const next = !v;
+      localStorage.setItem(VENDOR_MODE_KEY, next ? "1" : "0");
+      if (!next) setGoLive(false);
+      return next;
+    });
+  }
+
+  const { live: liveFixtures, upcoming: upcomingFixtures } = getLiveAndUpcoming(nowTs || Date.now());
+
+  function pickFixture(f: Fixture) {
+    setPickedFixture(f.id);
+    setEventSlug(f.event_slug);
+    setWhatsOn(f.matchup);
+    if (f.teams?.[0]) setSupportsTeam(f.teams[0]);
+    setGoLive(true);
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -100,7 +147,49 @@ export function ShareComposer() {
     setScannerOpen(false);
   }
 
+  async function goLiveSubmit() {
+    if (!taggedBiz) {
+      setError("Tag your venue to go live for it.");
+      return;
+    }
+    setPosting(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/broadcasts/${taggedBiz.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          memberName: taggedBiz.name,
+          event_slug: eventSlug,
+          whats_on: whatsOn.trim() || null,
+          note: body.trim() || null,
+          supports_team: supportsTeam.trim() || null,
+          livestream_url: livestreamUrl.trim() || null,
+          image_urls: media.filter((m) => m.kind === "image").map((m) => m.url),
+          duration_minutes: liveMinutes,
+        }),
+      });
+      if (res.ok) {
+        setBody("");
+        setMedia([]);
+        setLivestreamUrl("");
+        setWhatsOn("");
+        setSupportsTeam("");
+        setPickedFixture(null);
+        setGoLive(false);
+        setPosted(true);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error ?? "Failed to go live");
+      }
+    } catch {
+      setError("Failed to go live");
+    }
+    setPosting(false);
+  }
+
   async function submit() {
+    if (goLive) return goLiveSubmit();
     setPosting(true);
     setError(null);
     try {
@@ -135,11 +224,28 @@ export function ShareComposer() {
     setPosting(false);
   }
 
-  const canPost = body.trim() || media.length > 0 || livestreamUrl.trim();
+  const canPost = goLive
+    ? !!taggedBiz && !!eventSlug
+    : body.trim() || media.length > 0 || livestreamUrl.trim();
 
   return (
     <div className="mx-auto max-w-lg space-y-4 px-4 py-6">
-      <h1 className="text-xl font-semibold text-stone-900">Share</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold text-stone-900">Share</h1>
+        {/* Vendor dev toggle */}
+        <button
+          type="button"
+          onClick={toggleVendorMode}
+          className={
+            "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition " +
+            (vendorMode
+              ? "border-rose-300 bg-rose-50 text-rose-700"
+              : "border-stone-200 bg-white text-stone-500 hover:bg-stone-50")
+          }
+        >
+          <Store className="h-3.5 w-3.5" /> Vendor mode {vendorMode ? "on" : "off"}
+        </button>
+      </div>
 
       {posted && (
         <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
@@ -150,11 +256,122 @@ export function ShareComposer() {
         </div>
       )}
 
+      {/* Go Live — vendor only */}
+      {vendorMode && (
+        <div className="space-y-3 rounded-2xl border border-rose-200 bg-rose-50/50 p-4">
+          <button
+            type="button"
+            onClick={() => setGoLive((v) => !v)}
+            className="flex w-full items-center justify-between"
+          >
+            <span className="flex items-center gap-2 text-sm font-semibold text-rose-700">
+              <Radio className="h-4 w-4" /> Go live
+            </span>
+            <span
+              className={
+                "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition " +
+                (goLive ? "bg-rose-500" : "bg-stone-300")
+              }
+            >
+              <span
+                className={
+                  "inline-block h-5 w-5 transform rounded-full bg-white shadow transition " +
+                  (goLive ? "translate-x-5" : "translate-x-0.5")
+                }
+              />
+            </span>
+          </button>
+
+          {goLive && (
+            <div className="space-y-3">
+              {/* Suggested live/upcoming fixtures */}
+              {(liveFixtures.length > 0 || upcomingFixtures.length > 0) && (
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium text-stone-500">
+                    What&apos;s on near you — tap to pre-fill
+                  </label>
+                  <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+                    {liveFixtures.map((f) => (
+                      <FixtureChip key={f.id} f={f} live picked={pickedFixture === f.id} onPick={() => pickFixture(f)} />
+                    ))}
+                    {upcomingFixtures.map((f) => (
+                      <FixtureChip
+                        key={f.id}
+                        f={f}
+                        live={false}
+                        picked={pickedFixture === f.id}
+                        onPick={() => pickFixture(f)}
+                        when={startsInLabel(f.starts_at, nowTs || Date.now())}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="mb-1 block text-xs font-medium text-stone-500">What&apos;s on</label>
+                <select
+                  value={eventSlug}
+                  onChange={(e) => setEventSlug(e.target.value)}
+                  className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm"
+                >
+                  {LIVE_EVENTS.map((ev) => (
+                    <option key={ev.slug} value={ev.slug}>
+                      {ev.emoji} {ev.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <input
+                value={whatsOn}
+                onChange={(e) => setWhatsOn(e.target.value)}
+                placeholder="The matchup — e.g. Lakers vs Celtics"
+                className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm"
+              />
+              <input
+                value={supportsTeam}
+                onChange={(e) => setSupportsTeam(e.target.value)}
+                placeholder="Rooting for? (optional) — e.g. Mexico, Lakers"
+                className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm"
+              />
+
+              <div>
+                <label className="mb-1 block text-xs font-medium text-stone-500">Live for</label>
+                <div className="flex gap-2">
+                  {LIVE_DURATIONS.map((d) => (
+                    <button
+                      key={d.minutes}
+                      type="button"
+                      onClick={() => setLiveMinutes(d.minutes)}
+                      className={
+                        "rounded-full px-4 py-1.5 text-sm font-medium transition " +
+                        (liveMinutes === d.minutes
+                          ? "bg-rose-600 text-white"
+                          : "border border-stone-200 bg-white text-stone-700 hover:border-stone-300")
+                      }
+                    >
+                      {d.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <p className="text-xs text-stone-500">
+                {taggedBiz
+                  ? `Going live as ${taggedBiz.name}.`
+                  : "Tag your venue below to go live for it."}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
       <textarea
         value={body}
         onChange={(e) => setBody(e.target.value)}
         rows={4}
-        placeholder="What's happening locally?"
+        placeholder={goLive ? "Add a vibe note (optional)…" : "What's happening locally?"}
         className="w-full resize-none rounded-2xl border border-stone-200 bg-white p-4 text-base text-stone-900 placeholder-stone-400 focus:border-stone-400 focus:outline-none"
       />
 
@@ -258,11 +475,46 @@ export function ShareComposer() {
         onClick={submit}
         className="w-full rounded-full bg-stone-900 py-3 text-sm font-semibold text-white transition hover:bg-stone-800 disabled:opacity-40"
       >
-        {posting ? "Sharing…" : "Share"}
+        {posting ? (goLive ? "Going live…" : "Sharing…") : goLive ? "Go live" : "Share"}
       </button>
 
       {scannerOpen && <ScannerModal onScan={onScan} onClose={() => setScannerOpen(false)} />}
     </div>
+  );
+}
+
+function FixtureChip({
+  f, live, picked, onPick, when,
+}: {
+  f: Fixture;
+  live: boolean;
+  picked: boolean;
+  onPick: () => void;
+  when?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onPick}
+      className={
+        "flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2 text-left transition " +
+        (picked ? "border-rose-500 bg-rose-50 ring-1 ring-rose-400" : "border-stone-200 bg-white hover:border-rose-300")
+      }
+    >
+      <span className="text-lg leading-none">{eventEmoji(f.event_slug)}</span>
+      <span className="min-w-0">
+        <span className="block whitespace-nowrap text-sm font-medium text-stone-900">{f.matchup}</span>
+        <span className="block text-[11px] font-medium">
+          {live ? (
+            <span className="inline-flex items-center gap-1 text-rose-600">
+              <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-rose-500" /> Live now
+            </span>
+          ) : (
+            <span className="text-stone-500">{when}</span>
+          )}
+        </span>
+      </span>
+    </button>
   );
 }
 

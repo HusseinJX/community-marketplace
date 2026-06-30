@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, X } from "lucide-react";
+import { Search, X, SlidersHorizontal } from "lucide-react";
 import { useState, type FormEvent } from "react";
 
 export type SearchMode = "normal" | "ai";
@@ -11,6 +11,8 @@ export function SearchBar({
   onSubmit,
   onChange,
   onClear,
+  onOpenFilters,
+  activeFilters = 0,
 }: {
   value: string;
   mode: SearchMode;
@@ -19,6 +21,8 @@ export function SearchBar({
   onSubmit: (q: string) => void;
   onChange?: (q: string) => void;
   onClear: () => void;
+  onOpenFilters?: () => void;
+  activeFilters?: number;
   loading?: boolean;
 }) {
   const [draft, setDraft] = useState(value);
@@ -40,7 +44,7 @@ export function SearchBar({
             if (mode === "normal") onChange?.(e.target.value);
           }}
           placeholder="Search names, categories, descriptions…"
-          className="w-full rounded-full border border-stone-200 bg-white py-3 pl-12 pr-12 text-sm shadow-sm transition focus:border-stone-400 focus:outline-none focus:ring-2 focus:ring-stone-300 md:text-base"
+          className="w-full rounded-full border border-stone-200 bg-white py-3 pl-12 pr-20 text-sm shadow-sm transition focus:border-stone-400 focus:outline-none focus:ring-2 focus:ring-stone-300 md:text-base"
         />
         <div className="absolute right-2 flex items-center gap-1.5">
           {value && (
@@ -51,6 +55,21 @@ export function SearchBar({
               aria-label="Clear search"
             >
               <X className="h-4 w-4" />
+            </button>
+          )}
+          {onOpenFilters && (
+            <button
+              type="button"
+              onClick={onOpenFilters}
+              className="relative inline-flex items-center justify-center rounded-full p-1.5 text-stone-500 transition hover:bg-stone-100 hover:text-stone-900"
+              aria-label="Open filters"
+            >
+              <SlidersHorizontal className="h-5 w-5" />
+              {activeFilters > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-stone-900 px-1 text-[10px] font-semibold text-white">
+                  {activeFilters}
+                </span>
+              )}
             </button>
           )}
         </div>

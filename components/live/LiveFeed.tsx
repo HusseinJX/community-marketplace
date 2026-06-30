@@ -16,6 +16,9 @@ export function LiveFeed() {
   const [view, setView] = useState<ViewMode>("feed");
   const [event, setEvent] = useState<string>("all");
   const [team, setTeam] = useState<string>("all");
+  // Deep-linked to one event (e.g. /live?event=world-cup = "where to watch the
+  // World Cup"): lock to that event and drop the filter chips — just the cards.
+  const [locked, setLocked] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -37,7 +40,10 @@ export function LiveFeed() {
     load();
     // Honor a ?event=<slug> deep link (e.g. from a live-event page).
     const q = new URLSearchParams(window.location.search).get("event");
-    if (q) setEvent(q);
+    if (q) {
+      setEvent(q);
+      setLocked(true);
+    }
     // Keep the feed fresh — broadcasts start and expire on their own.
     const t = setInterval(load, 60_000);
     return () => clearInterval(t);
@@ -73,14 +79,17 @@ export function LiveFeed() {
         <div className="relative px-6 py-12 md:py-16">
           <div className="mx-auto max-w-2xl text-center">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-600 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
-              <Radio className="h-3.5 w-3.5" /> Happening now
+              <Radio className="h-3.5 w-3.5" /> {event === "all" ? "Happening now" : "Where to watch"}
             </span>
             <h1 className="mt-4 text-4xl font-semibold tracking-tight text-stone-900 md:text-5xl">
-              What&apos;s on right now
+              {event === "all"
+                ? "What's on right now"
+                : `Where to watch the ${eventLabel(event)} in SF`}
             </h1>
             <p className="mx-auto mt-3 max-w-lg text-base text-stone-600">
-              Find where the game is showing — the vibe, the crowd, the big screen. Live from local
-              venues near you.
+              {event === "all"
+                ? "Find where the game is showing — the vibe, the crowd, the big screen. Live from local venues near you."
+                : "The best watch parties in San Francisco — bars and venues showing every match, with the vibe and the crowd."}
             </p>
           </div>
         </div>
@@ -89,14 +98,19 @@ export function LiveFeed() {
       {/* Controls */}
       <div className="mb-5 flex items-center justify-between gap-3">
         <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
-          <Chip active={event === "all"} onClick={() => { setEvent("all"); setTeam("all"); }}>
-            All ({items.length})
-          </Chip>
-          {groups.map((g) => (
-            <Chip key={g.slug} active={event === g.slug} onClick={() => { setEvent(g.slug); setTeam("all"); }}>
-              {eventEmoji(g.slug)} {eventLabel(g.slug, g.items[0]?.event_label)} ({g.items.length})
-            </Chip>
-          ))}
+          {/* Event filter chips — hidden on a deep-linked single-event view. */}
+          {!locked && (
+            <>
+              <Chip active={event === "all"} onClick={() => { setEvent("all"); setTeam("all"); }}>
+                All ({items.length})
+              </Chip>
+              {groups.map((g) => (
+                <Chip key={g.slug} active={event === g.slug} onClick={() => { setEvent(g.slug); setTeam("all"); }}>
+                  {eventEmoji(g.slug)} {eventLabel(g.slug, g.items[0]?.event_label)} ({g.items.length})
+                </Chip>
+              ))}
+            </>
+          )}
         </div>
         <div className="hidden shrink-0 items-center gap-2 sm:flex">
           <button
@@ -118,7 +132,7 @@ export function LiveFeed() {
       </div>
 
       {/* Team-allegiance filter — "find the bar rooting for your team" */}
-      {teamOptions.length > 0 && (
+      {!locked && teamOptions.length > 0 && (
         <div className="mb-5 -mx-4 flex items-center gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
           <span className="shrink-0 text-xs font-medium text-stone-400">Rooting for:</span>
           <Chip active={team === "all"} onClick={() => setTeam("all")}>
@@ -154,7 +168,7 @@ export function LiveFeed() {
           <p className="mt-1 text-sm text-stone-500">Try a different team or event.</p>
         </div>
       ) : event !== "all" ? (
-        <Grid items={filtered} />
+        <Grid items={filtered} lean={locked} />
       ) : (
         // "All" view → featured lists grouped by event.
         <div className="space-y-10">
@@ -177,11 +191,11 @@ export function LiveFeed() {
   );
 }
 
-function Grid({ items }: { items: LiveBroadcast[] }) {
+function Grid({ items, lean = false }: { items: LiveBroadcast[]; lean?: boolean }) {
   return (
     <div className="grid auto-rows-fr grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {items.map((b) => (
-        <BroadcastCard key={b.id} b={b} />
+        <BroadcastCard key={b.id} b={b} lean={lean} />
       ))}
     </div>
   );

@@ -56,6 +56,7 @@ export const DEMO_MEMBERS: Member[] = [
       cause: "Neighbors caring for neighbors. Weekly grocery drops, rental support, rapid-response funds.",
       approvedBlurb:
         "Volunteer-run neighborhood coordinating weekly grocery drops, rental support, and rapid-response funds across South LA.",
+      serves: ["individuals"],
       needsMost: ["Volunteer drivers", "Pantry donations", "Bilingual organizers"],
       connectWith: ["Local churches", "Restaurants", "Schools"],
       shareTypes: ["Groceries", "Rent assistance", "Rides"],
@@ -76,6 +77,7 @@ export const DEMO_MEMBERS: Member[] = [
       cause: "Family-run plant shop and propagation studio. We grow, you grow.",
       approvedBlurb:
         "Family-run plant shop and propagation studio. We grow, you grow.",
+      serves: ["small-businesses", "individuals"],
       needsMost: ["Pot donations", "Composting partners"],
       connectWith: ["Schools", "Community gardens"],
       shareTypes: ["Cuttings", "Workshops", "Pots"],

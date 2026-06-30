@@ -1,10 +1,10 @@
 import { auth, currentUser } from '@clerk/nextjs/server'
-import { Package, ShoppingCart, Calendar, ArrowRight, Heart, Star, MessageCircle, Shield } from "lucide-react";
+import { ArrowRight, Heart, MessageCircle, QrCode } from "lucide-react";
 import Link from "next/link";
 import { getVendorProfile, getVendorConnectAccount, getOrdersByMember } from "@/lib/vendor-connect";
 import { stripe } from "@/lib/stripe-server";
 import { isDemoMode } from "@/lib/demo-admin";
-import { isAdmin } from "@/lib/admin";
+import { CommerceCards } from "@/components/vendor/CommerceCards";
 
 export default async function VendorDashboard() {
   const { userId } = await auth()
@@ -32,25 +32,14 @@ export default async function VendorDashboard() {
     orderCount = orders.length;
   }
 
-  const admin = isAdmin(userId);
-
-  const cards = [
-    { label: "Products", value: "3", href: "/vendor/products", icon: Package },
-    { label: "Orders", value: orderCount > 0 ? String(orderCount) : "—", href: "/vendor/orders", icon: ShoppingCart },
-    { label: "Events", value: "—", href: "/vendor/events", icon: Calendar },
-  ] as const;
-
   // Tools that aren't in the slim top nav (Home/Live/Collabs/Resources/QR).
   // (Network lives under Collabs; Organize lives under My Events; Onboard hidden.)
+  // Super-admin + Featured are intentionally NOT listed — the super-admin dash is
+  // reachable only via its direct URL (/vendor/admin).
   const tools = [
+    { label: "QR code", href: "/vendor/qr", icon: QrCode, desc: "Generate a QR that links to your profile" },
     { label: "Your agent", href: "/vendor/assistant", icon: MessageCircle, desc: "Train your customer-service AI (notes + PDFs)" },
     { label: "Giving", href: "/vendor/giving", icon: Heart, desc: "Log community contributions" },
-    ...(admin
-      ? [
-          { label: "Super-admin", href: "/vendor/admin", icon: Shield, desc: "Create profiles, onboard by transcript, add events/products for any business" },
-          { label: "Featured", href: "/vendor/featured", icon: Star, desc: "Curate home rails (admin)" },
-        ]
-      : []),
   ];
 
   return (
@@ -97,50 +86,7 @@ export default async function VendorDashboard() {
         </div>
       )}
 
-      {/* Quick access — compact metric grid */}
-      <div>
-        <p className="section-label mb-3">Quick access</p>
-        <div className="grid grid-cols-3 gap-2">
-          {cards.map((card) => {
-            const Icon = card.icon;
-            return (
-              <Link
-                key={card.label}
-                href={card.href}
-                className="card-soft card-hover flex flex-col items-center gap-1 p-3 text-center"
-              >
-                <Icon className="h-5 w-5 text-indigo-500" />
-                <span className="text-[11px] font-medium leading-tight text-stone-500">{card.label}</span>
-                <span className="text-base font-semibold text-stone-900">{card.value}</span>
-              </Link>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Manage entry buttons */}
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Link
-          href="/vendor/products"
-          className="card-soft card-hover flex items-center justify-between p-5"
-        >
-          <span className="flex items-center gap-3">
-            <Package className="h-5 w-5 text-indigo-500" />
-            <span className="text-sm font-semibold text-stone-900">My Products</span>
-          </span>
-          <ArrowRight className="h-4 w-4 text-stone-400" />
-        </Link>
-        <Link
-          href="/vendor/events"
-          className="card-soft card-hover flex items-center justify-between p-5"
-        >
-          <span className="flex items-center gap-3">
-            <Calendar className="h-5 w-5 text-indigo-500" />
-            <span className="text-sm font-semibold text-stone-900">My Events</span>
-          </span>
-          <ArrowRight className="h-4 w-4 text-stone-400" />
-        </Link>
-      </div>
+      <CommerceCards orderCount={orderCount} />
 
       {/* Tools (kept off the slim top nav) */}
       <div>
@@ -148,12 +94,20 @@ export default async function VendorDashboard() {
         <div className="grid gap-3 sm:grid-cols-2">
           {tools.map((t) => {
             const Icon = t.icon;
+            const badge = "badge" in t ? (t.badge as string | undefined) : undefined;
             return (
               <Link key={t.href} href={t.href} className="card-soft card-hover flex items-center justify-between p-5">
                 <span className="flex items-center gap-3">
                   <Icon className="h-5 w-5 text-indigo-500" />
                   <span>
-                    <span className="block text-sm font-semibold text-stone-900">{t.label}</span>
+                    <span className="flex items-center gap-2 text-sm font-semibold text-stone-900">
+                      {t.label}
+                      {badge && (
+                        <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-medium text-violet-700">
+                          {badge}
+                        </span>
+                      )}
+                    </span>
                     <span className="block text-xs text-stone-500">{t.desc}</span>
                   </span>
                 </span>

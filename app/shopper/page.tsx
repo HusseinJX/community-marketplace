@@ -1,6 +1,8 @@
+"use client";
+
 import Link from "next/link";
 import { Show, SignInButton, UserButton } from "@clerk/nextjs";
-import { Heart, ShoppingBag, Receipt, Users, ArrowRight } from "lucide-react";
+import { Heart, ShoppingBag, Receipt, Users, ArrowRight, PenLine } from "lucide-react";
 
 // Demo shopper admin — the shopper's personal space (parallel to the vendor
 // portal). Public/no-auth for demo so it's quickly testable and refinable.
@@ -64,11 +66,11 @@ export default function ShopperAdmin() {
         </div>
       </div>
 
-      {/* Community orgs for you — personalized directory (see features/community-directory.md) */}
-      <div>
-        <p className="section-label mb-3">Community orgs for you</p>
+      {/* Local resources — single entry into the community resource explorer */}
+      <div className="space-y-3">
+        <p className="section-label mb-1">Community resources for you</p>
         <Link
-          href="/?type=organizer"
+          href="/resources"
           className="card-soft card-hover flex items-center justify-between p-5"
         >
           <span className="flex items-center gap-3">
@@ -76,7 +78,23 @@ export default function ShopperAdmin() {
             <span>
               <span className="block text-sm font-semibold text-stone-900">Explore local resources</span>
               <span className="block text-xs text-stone-500">
-                Personalized recommendations coming soon — browse community orgs near you.
+                Food, housing, health, legal aid, and community orgs near you — plus a guide that
+                helps you find the right one.
+              </span>
+            </span>
+          </span>
+          <ArrowRight className="h-4 w-4 text-stone-400" />
+        </Link>
+        <Link
+          href="/petitions"
+          className="card-soft card-hover flex items-center justify-between p-5"
+        >
+          <span className="flex items-center gap-3">
+            <PenLine className="h-5 w-5 text-teal-500" />
+            <span>
+              <span className="block text-sm font-semibold text-stone-900">Petitions &amp; causes</span>
+              <span className="block text-xs text-stone-500">
+                Sign the local causes neighbors are organizing around.
               </span>
             </span>
           </span>

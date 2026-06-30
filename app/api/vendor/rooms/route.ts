@@ -1,13 +1,15 @@
 import { NextResponse } from 'next/server'
 import { resolveActor } from '@/lib/admin'
 import { getMember } from '@/lib/api'
-import { getRoomsFor, createGroupRoom, createInvite } from '@/lib/collab-network'
+import { getRoomsFor, createGroupRoom, getOrCreateOccasionGroupRoom, createInvite } from '@/lib/collab-network'
+import { demoRooms } from '@/lib/demo-collab'
 
 // GET — the acting member's collab rooms.
 export async function GET(req: Request) {
   const requested = new URL(req.url).searchParams.get('memberId')
   const actor = await resolveActor(requested)
   if (!actor) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (actor.isDemo) return NextResponse.json({ rooms: demoRooms(actor.memberId) })
   return NextResponse.json({ rooms: await getRoomsFor(actor.memberId) })
 }
 
@@ -22,6 +24,11 @@ export async function POST(req: Request) {
 
   const title = String(body.title ?? '').trim()
   if (!title) return NextResponse.json({ error: 'Name your collaboration' }, { status: 400 })
+  // Demo: don't write; report a plausible invited count for the success toast.
+  if (actor.isDemo) {
+    const n = Array.isArray(body.invitees) ? body.invitees.filter((v: { id?: string }) => v?.id).length : 0
+    return NextResponse.json({ roomId: 'demo-room-new', invited: n, demo: true })
+  }
 
   const invitees: { id: string; name?: string }[] = Array.isArray(body.invitees)
     ? body.invitees.filter((v: { id?: string }) => v?.id && v.id !== actor.memberId)
@@ -35,7 +42,18 @@ export async function POST(req: Request) {
     /* non-fatal */
   }
 
-  const room = await createGroupRoom({ owner_id: actor.memberId, owner_name: ownerName, title })
+  // Within a named collaboration, group invites all land in its single room.
+  const occasionId = body.occasionId ? String(body.occasionId) : null
+  const occasionLabel = body.occasionLabel ? String(body.occasionLabel) : null
+  const room = occasionId
+    ? await getOrCreateOccasionGroupRoom({
+        owner_id: actor.memberId,
+        owner_name: ownerName,
+        occasion_id: occasionId,
+        occasion_label: occasionLabel,
+        title,
+      })
+    : await createGroupRoom({ owner_id: actor.memberId, owner_name: ownerName, title })
 
   await Promise.all(
     invitees.map((v) =>
@@ -44,8 +62,11 @@ export async function POST(req: Request) {
         from_name: ownerName,
         to_id: v.id,
         to_name: v.name ?? null,
-        message: `Collaborate on "${title}"`,
+        message: body.message ? String(body.message).trim() : `Collaborate on "${title}"`,
         room_id: room.id,
+        role: body.role ? String(body.role) : null,
+        occasion_id: occasionId,
+        occasion_label: occasionLabel,
       }).catch(() => null)
     )
   )

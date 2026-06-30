@@ -1,21 +1,21 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { QrCode, X, ExternalLink, CameraOff } from 'lucide-react'
+import { QrCode, X, ExternalLink, CameraOff, Nfc, ScanLine, Radio } from 'lucide-react'
 import type { IScannerControls } from '@zxing/browser'
+import { nativeNfcAvailable, scanNativeNfc } from '@/lib/native-nfc'
 
-// Independent client feature — depends on no QR-generation code. Opens the
-// camera, scans a QR, and routes to the member profile it encodes. A scanned
-// code that isn't a marketplace profile is shown with an explicit open link.
+// LinkedIn-style code sheet: two tabs — "NFC tag" (default) and "Scan" — that
+// both route a marketplace profile URL in-app. Independent of any QR-generation
+// code. Camera needs HTTPS/localhost; Web NFC needs Chrome on Android over HTTPS.
 type Decoded =
   | { kind: 'profile'; path: string }
   | { kind: 'external'; url: string }
   | { kind: 'text'; value: string }
 
-// A profile scan navigates immediately, so it's never held in state — only
-// these two kinds are ever displayed.
 type ShownResult = Exclude<Decoded, { kind: 'profile' }>
+type Tab = 'nfc' | 'scan'
 
 function classify(raw: string): Decoded {
   try {
@@ -37,49 +37,222 @@ export function QrScanButton() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        aria-label="Scan a QR code"
-        title="Scan a QR code"
+        aria-label="Scan a code"
+        title="Scan a code"
         className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-stone-200 bg-white text-stone-600 shadow-sm transition hover:border-stone-300 hover:text-stone-900"
       >
         <QrCode className="h-5 w-5" />
       </button>
-      {open && <ScannerModal onClose={() => setOpen(false)} />}
+      {open && <CodeSheet onClose={() => setOpen(false)} />}
     </>
   )
 }
 
-function ScannerModal({ onClose }: { onClose: () => void }) {
+function CodeSheet({ onClose }: { onClose: () => void }) {
   const router = useRouter()
+  const [tab, setTab] = useState<Tab>('nfc')
+  const [result, setResult] = useState<ShownResult | null>(null)
+
+  // Shared: a profile navigates immediately; anything else is shown.
+  const handleDecoded = useCallback(
+    (raw: string) => {
+      const d = classify(raw)
+      if (d.kind === 'profile') {
+        router.push(d.path)
+        onClose()
+      } else {
+        setResult(d)
+      }
+    },
+    [router, onClose]
+  )
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
+      <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        {/* Header + tabs */}
+        <div className="border-b border-stone-100">
+          <div className="flex items-center justify-between px-4 pt-3">
+            <span className="text-sm font-semibold text-stone-900">Connect</span>
+            <button onClick={onClose} aria-label="Close" className="rounded-full p-1 text-stone-400 hover:bg-stone-100">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="mt-2 flex px-2">
+            <TabBtn active={tab === 'nfc'} onClick={() => { setTab('nfc'); setResult(null) }} icon={<Nfc className="h-4 w-4" />}>
+              NFC tag
+            </TabBtn>
+            <TabBtn active={tab === 'scan'} onClick={() => { setTab('scan'); setResult(null) }} icon={<ScanLine className="h-4 w-4" />}>
+              Scan
+            </TabBtn>
+          </div>
+        </div>
+
+        {result ? (
+          <ResultPanel result={result} onAgain={() => setResult(null)} />
+        ) : tab === 'nfc' ? (
+          <NfcPanel onDecoded={handleDecoded} />
+        ) : (
+          <ScanPanel onDecoded={handleDecoded} />
+        )}
+      </div>
+    </div>
+  )
+}
+
+function TabBtn({ active, onClick, icon, children }: { active: boolean; onClick: () => void; icon: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`-mb-px flex flex-1 items-center justify-center gap-1.5 border-b-2 px-3 py-2.5 text-sm font-medium transition ${
+        active ? 'border-stone-900 text-stone-900' : 'border-transparent text-stone-400 hover:text-stone-700'
+      }`}
+    >
+      {icon}
+      {children}
+    </button>
+  )
+}
+
+// ── NFC tab (Web NFC / NDEFReader) ──────────────────────────────────────────
+interface NdefRecord {
+  recordType: string
+  encoding?: string
+  data?: BufferSource
+}
+interface NdefReadingEvent {
+  message: { records: NdefRecord[] }
+}
+type NdefReader = {
+  scan: (opts?: { signal?: AbortSignal }) => Promise<void>
+  addEventListener: (type: 'reading' | 'readingerror', cb: (e: NdefReadingEvent) => void) => void
+}
+
+function NfcPanel({ onDecoded }: { onDecoded: (raw: string) => void }) {
+  const [status, setStatus] = useState<'idle' | 'unsupported' | 'scanning' | 'error'>('idle')
+  const [error, setError] = useState<string | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
+
+  // Abort any in-flight NFC scan on unmount. Support is detected when the user
+  // taps Start (keeps setState out of the effect body).
+  useEffect(() => () => abortRef.current?.abort(), [])
+
+  async function start() {
+    // Native iOS shell (Core NFC) takes priority — Web NFC doesn't exist on iOS.
+    if (nativeNfcAvailable()) {
+      setStatus('scanning')
+      setError(null)
+      try {
+        const value = await scanNativeNfc()
+        onDecoded(value)
+      } catch (e) {
+        const msg = (e as { message?: string })?.message || ''
+        // A user cancel returns to idle quietly; real errors surface.
+        setStatus('idle')
+        if (msg && !/cancel/i.test(msg)) setError("Couldn't read that tag — try again.")
+      }
+      return
+    }
+
+    const Ctor = (window as unknown as { NDEFReader?: new () => NdefReader }).NDEFReader
+    if (!Ctor) {
+      setStatus('unsupported')
+      return
+    }
+    try {
+      const reader = new Ctor()
+      const ac = new AbortController()
+      abortRef.current = ac
+      await reader.scan({ signal: ac.signal })
+      setStatus('scanning')
+      setError(null)
+      reader.addEventListener('reading', (e: NdefReadingEvent) => {
+        for (const rec of e.message.records) {
+          if ((rec.recordType === 'url' || rec.recordType === 'text') && rec.data) {
+            try {
+              const text = new TextDecoder(rec.encoding || 'utf-8').decode(rec.data)
+              if (text) {
+                ac.abort()
+                onDecoded(text)
+                return
+              }
+            } catch {
+              /* try next record */
+            }
+          }
+        }
+      })
+      reader.addEventListener('readingerror', () => setError("Couldn't read that tag — try again."))
+    } catch (e) {
+      const name = (e as { name?: string })?.name
+      setStatus('error')
+      setError(
+        name === 'NotAllowedError'
+          ? 'NFC permission was blocked. Allow it and try again.'
+          : "Couldn't start NFC. Make sure NFC is on."
+      )
+    }
+  }
+
+  if (status === 'unsupported') {
+    return (
+      <div className="flex flex-col items-center gap-3 px-6 py-10 text-center">
+        <Nfc className="h-10 w-10 text-stone-300" />
+        <p className="text-sm font-medium text-stone-800">NFC isn&apos;t available here</p>
+        <p className="text-xs text-stone-500">
+          Web NFC needs Chrome on Android over HTTPS. Use the <b>Scan</b> tab to read a QR code instead.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-4 px-6 py-10 text-center">
+      <div className={`relative flex h-28 w-28 items-center justify-center rounded-full ${status === 'scanning' ? 'bg-emerald-50' : 'bg-stone-100'}`}>
+        {status === 'scanning' && <span className="absolute inset-0 animate-ping rounded-full bg-emerald-200/60" />}
+        <Nfc className={`relative h-12 w-12 ${status === 'scanning' ? 'text-emerald-600' : 'text-stone-400'}`} />
+      </div>
+      {status === 'scanning' ? (
+        <>
+          <p className="text-sm font-medium text-stone-800">Ready — hold a tag to your phone</p>
+          <p className="text-xs text-stone-500">Tap an NFC tag to open that profile.</p>
+        </>
+      ) : (
+        <>
+          <p className="text-sm font-medium text-stone-800">Tap to share & read with NFC</p>
+          <button
+            onClick={start}
+            className="inline-flex items-center gap-1.5 rounded-full bg-stone-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-stone-800"
+          >
+            <Radio className="h-4 w-4" /> Start NFC
+          </button>
+          <p className="text-xs text-stone-400">Tap Start, then hold a tag to your phone.</p>
+        </>
+      )}
+      {error && <p className="text-xs text-rose-600">{error}</p>}
+    </div>
+  )
+}
+
+// ── Scan tab (camera QR via zxing) ──────────────────────────────────────────
+function ScanPanel({ onDecoded }: { onDecoded: (raw: string) => void }) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const controlsRef = useRef<IScannerControls | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [result, setResult] = useState<ShownResult | null>(null)
 
   useEffect(() => {
     let cancelled = false
-
     async function start() {
       try {
         const { BrowserQRCodeReader } = await import('@zxing/browser')
         const reader = new BrowserQRCodeReader()
         if (!videoRef.current) return
-        // Prefer the rear camera on phones.
-        const controls = await reader.decodeFromVideoDevice(
-          undefined,
-          videoRef.current,
-          (res) => {
-            if (res && !cancelled) {
-              const decoded = classify(res.getText())
-              if (decoded.kind === 'profile') {
-                controlsRef.current?.stop()
-                router.push(decoded.path)
-                onClose()
-              } else {
-                setResult(decoded)
-              }
-            }
+        const controls = await reader.decodeFromVideoDevice(undefined, videoRef.current, (res) => {
+          if (res && !cancelled) {
+            controlsRef.current?.stop()
+            onDecoded(res.getText())
           }
-        )
+        })
         if (cancelled) controls.stop()
         else controlsRef.current = controls
       } catch (e) {
@@ -93,74 +266,55 @@ function ScannerModal({ onClose }: { onClose: () => void }) {
         )
       }
     }
-
     start()
     return () => {
       cancelled = true
       controlsRef.current?.stop()
     }
-  }, [router, onClose])
+  }, [onDecoded])
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
-      <div
-        className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between border-b border-stone-100 px-4 py-3">
-          <div className="flex items-center gap-2 text-sm font-semibold text-stone-900">
-            <QrCode className="h-4 w-4" /> Scan a QR code
+    <>
+      <div className="relative aspect-square bg-stone-900">
+        <video ref={videoRef} className="h-full w-full object-cover" playsInline muted />
+        {!error && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <div className="h-44 w-44 rounded-2xl border-2 border-white/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.35)]" />
           </div>
-          <button onClick={onClose} aria-label="Close" className="rounded-full p-1 text-stone-400 hover:bg-stone-100">
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
-        <div className="relative aspect-square bg-stone-900">
-          <video ref={videoRef} className="h-full w-full object-cover" playsInline muted />
-          {!error && !result && (
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-              <div className="h-44 w-44 rounded-2xl border-2 border-white/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.35)]" />
-            </div>
-          )}
-          {error && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center text-sm text-stone-200">
-              <CameraOff className="h-8 w-8 text-stone-400" />
-              {error}
-            </div>
-          )}
-        </div>
-
-        {result ? (
-          <div className="space-y-3 p-4">
-            <p className="text-sm text-stone-600">
-              {result.kind === 'external' ? 'Scanned a link:' : 'Scanned:'}
-            </p>
-            <p className="break-all rounded-lg bg-stone-50 px-3 py-2 text-xs text-stone-700">
-              {result.kind === 'external' ? result.url : result.value}
-            </p>
-            <div className="flex gap-2">
-              {result.kind === 'external' && (
-                <a
-                  href={result.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-                >
-                  Open link <ExternalLink className="h-3.5 w-3.5" />
-                </a>
-              )}
-              <button
-                onClick={() => setResult(null)}
-                className="rounded-lg px-4 py-2 text-sm font-medium text-stone-600 hover:bg-stone-100"
-              >
-                Scan again
-              </button>
-            </div>
-          </div>
-        ) : (
-          !error && <p className="px-4 py-3 text-center text-xs text-stone-400">Point your camera at a QR code.</p>
         )}
+        {error && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center text-sm text-stone-200">
+            <CameraOff className="h-8 w-8 text-stone-400" />
+            {error}
+          </div>
+        )}
+      </div>
+      {!error && <p className="px-4 py-3 text-center text-xs text-stone-400">Point your camera at a QR code.</p>}
+    </>
+  )
+}
+
+function ResultPanel({ result, onAgain }: { result: ShownResult; onAgain: () => void }) {
+  return (
+    <div className="space-y-3 p-4">
+      <p className="text-sm text-stone-600">{result.kind === 'external' ? 'Found a link:' : 'Found:'}</p>
+      <p className="break-all rounded-lg bg-stone-50 px-3 py-2 text-xs text-stone-700">
+        {result.kind === 'external' ? result.url : result.value}
+      </p>
+      <div className="flex gap-2">
+        {result.kind === 'external' && (
+          <a
+            href={result.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+          >
+            Open link <ExternalLink className="h-3.5 w-3.5" />
+          </a>
+        )}
+        <button onClick={onAgain} className="rounded-lg px-4 py-2 text-sm font-medium text-stone-600 hover:bg-stone-100">
+          Try again
+        </button>
       </div>
     </div>
   )

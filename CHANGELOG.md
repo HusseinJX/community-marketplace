@@ -4,6 +4,17 @@ All notable changes to this project are documented here.
 
 ## [Unreleased] — commerce, live, social shell (branch `feat/collab-rooms`)
 
+### Changed / Fixed — UI polish + RSC fixes — 2026-06-30
+- **Live page = the events surface**: added `components/live/CommunityEventsLive.tsx` below the venue "what's on right now" feed — real community events (`/api/events/feed`) split into **Events happening now** (today) + **Upcoming**, each with place filter tags, plus a **Feed / Map** view toggle (`EventsMap`/`EventsMapInner`, Leaflet pins placed by city/neighborhood centroid since `vendor_events` carry no lat/lng). Demo fallback floats event dates relative to now. `FeedEvent` gained an `eventDate` field for tz-safe now/upcoming bucketing.
+- **TopNav dropdown** trimmed to **Home / Feed** — the **Events** item was removed (events now live on the Live tab).
+- **Vendor dashboard commerce toggle**: extracted Products/Orders/Events + manage buttons into `components/vendor/CommerceCards.tsx` with a persisted **Commerce** on/off switch (default on). Replaces the always-locked-in-demo gating — Products/Orders are disabled only when the toggle is off.
+- **Super-admin consolidation**: removed **Super-admin** + **Featured** from the dashboard Tools grid. `/vendor/admin` is now the single entry point (direct URL, `isAdmin`-gated); **Featured lists** is a 4th tab inside `AdminPanel` (`?tab=featured`). Act-on-behalf search now **normalizes** the connector member shape (`profile.name`/`memberType`/`city` → flat) so results/manage views show text, and persists the active **tab + picked member in the URL** so "Go back" / browser-back returns to the managed member instead of resetting to the Create tab. Wrapped in `<Suspense>` for `useSearchParams`.
+- **Share composer "Go Live"**: a vendor-mode toggle (persisted) reveals a Go Live block — suggested live/upcoming fixtures, event picklist, matchup, "rooting for", duration — posting to `/api/broadcasts/:memberId` for the tagged venue.
+- **Explore** category/facet filters are now a single horizontal scroll row.
+- **Footer** gained a **Community events** link → `/vendor/organize`; **Organize events** removed from the Tools grid; Collabs (`NetworkManager`) membership defaults to **Basic**.
+- **`HappeningThisWeek`** no longer renders the "Nothing scheduled yet" card — it self-hides when the feed is empty.
+- **Fixed Clerk "multiple children" crash (RSC boundary)**: `SignInButton`/`SignOutButton` with a custom child throw when rendered from a Server Component. Made `app/shopper/page.tsx` a client component and moved the vendor sign-out into `components/vendor/VendorSignOut.tsx` (client). All six other Clerk-button usages were already `"use client"`.
+
 ### Added — Super-admin hub, AI-image premium quota, event organizers — 2026-06-28
 - **`/vendor/admin`** super-admin hub (`AdminPanel.tsx`, isAdmin-gated): Create profile · Add by transcript · Act on behalf (member search → deep-links to manage any business's events/products). Surfaces the previously-hidden onboard flow; no more hand-typed `?memberId=` UUIDs.
 - **AI product-image generation is now premium** (`lib/ai-credits.ts` + `ai_image_credits` table, migration `20260628200000`): 3 free lifetime per member, 3-per-scan cap (extras returned as raw-crop drafts), 10/day for premium; admins bypass. Over-limit → 402/429 + upgrade banner. Placeholder `/vendor/billing`.

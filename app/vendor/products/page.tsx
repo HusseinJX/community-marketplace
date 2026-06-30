@@ -2,6 +2,8 @@ import Link from 'next/link'
 import { auth } from '@clerk/nextjs/server'
 import { getVendorProfile } from '@/lib/vendor-connect'
 import { isAdmin } from '@/lib/admin'
+import { isDemoMode } from '@/lib/demo-admin'
+import { demoMemberId } from '@/lib/demo-server'
 import { getMember } from '@/lib/api'
 import { ProductsManager } from './ProductsManager'
 
@@ -15,7 +17,8 @@ export default async function VendorProductsPage({
   const profile = userId ? await getVendorProfile(userId) : null
   const admin = isAdmin(userId)
 
-  const memberId = admin && requested ? requested : profile?.member_id
+  let memberId = admin && requested ? requested : profile?.member_id
+  if (!memberId && !userId && isDemoMode()) memberId = await demoMemberId()
 
   if (!memberId) {
     return (

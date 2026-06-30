@@ -8,6 +8,8 @@ export interface FeedEvent {
   eventId: string
   title: string
   date: string
+  /** Raw event date (YYYY-MM-DD or parseable string) for now/upcoming sorting. */
+  eventDate: string
   location: string
   city: string
   neighborhood: string
@@ -31,6 +33,7 @@ export async function GET() {
         eventId: e.id,
         title: e.title,
         date: [e.event_date, e.event_time].filter(Boolean).join(' · '),
+        eventDate: e.event_date ?? '',
         location: e.location ?? '',
         city: e.city ?? '',
         neighborhood: e.neighborhood ?? '',
@@ -53,6 +56,7 @@ export async function GET() {
         eventId: e.id,
         title: e.title ?? 'Event',
         date: [e.date, e.time].filter(Boolean).join(' · '),
+        eventDate: e.date ?? '',
         location: e.location ?? '',
         city: '',
         neighborhood: '',

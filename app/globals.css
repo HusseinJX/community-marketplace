@@ -145,3 +145,32 @@
 .animate-typing { animation: typing-bounce 1.2s infinite ease-in-out; }
 .animate-float { animation: float-soft 4s ease-in-out infinite; }
 .animate-fill { animation: shimmer-fill 1.2s ease-out 0.4s both; }
+
+/* Feedbase widget: hide its injected floating launcher pill — we open the
+   modal from the footer "Send feedback" link instead. The modal/overlay
+   (#fb-overlay) stays visible. */
+#fb-btn { display: none !important; }
+
+/* Native app feel (Capacitor iOS WKWebView): kill the long-press callout menu
+   (Open Link / Copy / Share) and the gray tap-highlight flash on interactive
+   elements + images. Text content (paragraphs, articles) stays selectable;
+   inputs stay editable. */
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+a,
+button,
+[role="button"],
+img,
+label,
+summary {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+input,
+textarea,
+[contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+}

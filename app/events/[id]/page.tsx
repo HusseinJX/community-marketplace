@@ -13,6 +13,9 @@ import { listEvents, getMember } from "@/lib/api";
 import type { EventSuggestion, Member } from "@/lib/types";
 import { getVendorEventById } from "@/lib/vendor-connect";
 import { getAcceptedLineup } from "@/lib/collab-network";
+import { isDemoMode } from "@/lib/demo-admin";
+import { demoMemberId } from "@/lib/demo-server";
+import { demoEvents, demoLineup, isDemoEventId } from "@/lib/demo-organize";
 import { getPostsByEventId } from "@/lib/posts";
 import { groupByRole } from "@/lib/lineup-roles";
 import { isEventOrganizer } from "@/lib/org-focus";
@@ -119,6 +122,25 @@ export default async function EventDetailPage({
       };
     }
   }
+  // Demo events (so the in-portal "Event page" preview renders without a real DB row).
+  if (!event && isDemoMode() && isDemoEventId(id)) {
+    const de = demoEvents(await demoMemberId()).find((e) => e.id === id);
+    if (de) {
+      isOrganizerEvent = true;
+      event = {
+        id: de.id,
+        memberId: de.member_id,
+        memberName: de.member_name ?? undefined,
+        title: de.title,
+        description: de.description ?? undefined,
+        date: de.event_date ?? undefined,
+        time: de.event_time ?? undefined,
+        location: de.location ?? undefined,
+        source: { platform: "In-person" },
+        status: "approved",
+      };
+    }
+  }
 
   if (!event) {
     return (
@@ -165,7 +187,11 @@ export default async function EventDetailPage({
 
   // Confirmed lineup (vendors, performers, sponsors, …) for organizer/festival
   // events. Empty for connector/demo events — the section self-hides.
-  const lineupGroups = groupByRole(await getAcceptedLineup(event.id));
+  const acceptedLineup =
+    isDemoMode() && isDemoEventId(event.id)
+      ? demoLineup(event.id, event.memberId).filter((i) => i.status === "accepted")
+      : await getAcceptedLineup(event.id);
+  const lineupGroups = groupByRole(acceptedLineup);
   const isFestival = isEventOrganizer(profile);
 
   // Image-first hero: the event poster, else a real photo from the memories

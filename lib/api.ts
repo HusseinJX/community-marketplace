@@ -3,6 +3,8 @@ import type {
   MemberResponse,
   EventsResponse,
   MemberType,
+  MemberProfile,
+  Member,
   SearchResponse,
 } from "./types";
 
@@ -20,9 +22,17 @@ function fnUrl(name: string, params?: Record<string, string | undefined>) {
   return url.toString();
 }
 
+// Fail fast: if the connector is slow or erroring (e.g. its Firestore is over
+// quota and takes ~8s to 500), abort after a few seconds so callers fall back
+// to cached/demo data quickly instead of blocking every navigation.
+const CONNECTOR_TIMEOUT_MS = 4500;
+
 async function getJson<T>(url: string): Promise<T> {
-  // Long server-side cache window; pages can revalidate via on-demand.
-  const res = await fetch(url, { next: { revalidate: 300 } });
+  // Long server-side cache window; pages can revalidate on-demand.
+  const res = await fetch(url, {
+    next: { revalidate: 300 },
+    signal: AbortSignal.timeout(CONNECTOR_TIMEOUT_MS),
+  });
   if (!res.ok) {
     throw new Error(`Request failed: ${res.status} ${res.statusText}`);
   }
@@ -54,6 +64,57 @@ export async function listMembers(params: ListMembersParams = {}): Promise<Membe
 
 export async function getMember(id: string): Promise<MemberResponse> {
   return getJson<MemberResponse>(fnUrl("marketplace-member", { id }));
+}
+
+// Create a brand-new member in the connector (Firestore + embeddings). Server-only
+// — uses the admin token. Used by the onboarding flows (manual interview + QR chat).
+export async function createMember(
+  profile: Partial<MemberProfile> & { name: string },
+  opts?: { source?: string }
+): Promise<Member> {
+  const token = process.env.CONNECTOR_ADMIN_TOKEN || process.env.ADMIN_TOKEN;
+  const res = await fetch(fnUrl("marketplace-create-member"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ profileUpdate: profile, source: opts?.source ?? "marketplace" }),
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`create-member failed: ${res.status}`);
+  const d = await res.json();
+  return d.member as Member;
+}
+
+// Patch fields on an existing member's profile (connector patch-member). Server-only.
+export async function patchMember(id: string, fields: Partial<MemberProfile>): Promise<void> {
+  const token = process.env.CONNECTOR_ADMIN_TOKEN || process.env.ADMIN_TOKEN;
+  const res = await fetch(fnUrl("patch-member"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ id, fields }),
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`patch-member failed: ${res.status}`);
+}
+
+// Onboard a new member by running the connector's own profiling brain over a full
+// conversation transcript (same engine as SMS/web onboarding). Server-only.
+export async function onboardFromMessages(
+  messages: { role: "user" | "assistant"; content: string }[],
+  opts?: { source?: string }
+): Promise<Member> {
+  const token = process.env.CONNECTOR_ADMIN_TOKEN || process.env.ADMIN_TOKEN;
+  const res = await fetch(fnUrl("marketplace-onboard"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ messages, source: opts?.source ?? "qr_onboard" }),
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const e = await res.json().catch(() => ({}));
+    throw new Error(e.error || `onboard failed: ${res.status}`);
+  }
+  const d = await res.json();
+  return d.member as Member;
 }
 
 // Smart natural-language search.

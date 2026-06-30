@@ -6,7 +6,9 @@ import { eventEmoji, eventLabel, timeLeftLabel } from "@/lib/live-events";
 import { SaveButton } from "./SaveButton";
 import type { LiveBroadcast } from "./types";
 
-export function BroadcastCard({ b }: { b: LiveBroadcast }) {
+// `lean` (single-event "where to watch" view) drops the redundant event-label
+// tag and the rooting-for badge — just the venue cards.
+export function BroadcastCard({ b, lean = false }: { b: LiveBroadcast; lean?: boolean }) {
   const place = [b.neighborhood, b.city].filter(Boolean).join(", ");
   const cover = b.image_urls?.[0];
   return (
@@ -35,9 +37,11 @@ export function BroadcastCard({ b }: { b: LiveBroadcast }) {
           </div>
         )}
         <div className="px-4 pt-3">
-          <span className="truncate text-xs font-medium text-stone-500">
-            {eventLabel(b.event_slug, b.event_label)}
-          </span>
+          {!lean && (
+            <span className="truncate text-xs font-medium text-stone-500">
+              {eventLabel(b.event_slug, b.event_label)}
+            </span>
+          )}
           <p className="truncate text-base font-semibold text-stone-900 hover:text-rose-700">
             {b.whats_on || eventLabel(b.event_slug, b.event_label)}
           </p>
@@ -49,7 +53,7 @@ export function BroadcastCard({ b }: { b: LiveBroadcast }) {
           {b.member_name || "View venue"}
         </Link>
 
-        {b.supports_team && (
+        {!lean && b.supports_team && (
           <span className="inline-flex w-fit items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
             🏳️ Rooting for {b.supports_team}
           </span>

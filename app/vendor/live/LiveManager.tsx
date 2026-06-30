@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Radio, Trash2, Clock, ExternalLink, ImagePlus, X, Calendar, Play } from "lucide-react";
 import { LIVE_EVENTS, eventEmoji, eventLabel, timeLeftLabel } from "@/lib/live-events";
+import { getLiveAndUpcoming, startsInLabel, type Fixture } from "@/lib/live-fixtures";
 
 interface BroadcastRow {
   id: string;
@@ -51,6 +52,7 @@ export function LiveManager({
   const [images, setImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [posting, setPosting] = useState(false);
+  const [pickedFixture, setPickedFixture] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/broadcasts/${memberId}?include_expired=1`);
@@ -90,6 +92,26 @@ export function LiveManager({
     setLivestreamUrl("");
     setImages([]);
     setStartAt("");
+    setPickedFixture(null);
+  }
+
+  // Tap a real game to pre-fill the composer. Live games go to "now" mode;
+  // upcoming ones flip to "schedule" with the kickoff time pre-set.
+  function pickFixture(f: Fixture, live: boolean) {
+    setPickedFixture(f.id);
+    setEventSlug(f.event_slug);
+    setWhatsOn(f.matchup);
+    if (live) {
+      setMode("now");
+    } else {
+      setMode("schedule");
+      // datetime-local wants a local "YYYY-MM-DDTHH:mm" string
+      const d = new Date(f.starts_at);
+      const local = new Date(d.getTime() - d.getTimezoneOffset() * 60_000)
+        .toISOString()
+        .slice(0, 16);
+      setStartAt(local);
+    }
   }
 
   async function submit() {
@@ -141,6 +163,8 @@ export function LiveManager({
     r.active && Date.parse(r.starts_at) <= nowTs && Date.parse(r.ends_at) > nowTs;
   const isScheduledRow = (r: BroadcastRow) => r.active && Date.parse(r.starts_at) > nowTs;
 
+  const { live: liveFixtures, upcoming: upcomingFixtures } = getLiveAndUpcoming(nowTs || Date.now());
+
   const liveRows = rows.filter(isLiveRow);
   const scheduledRows = rows
     .filter(isScheduledRow)
@@ -177,6 +201,36 @@ export function LiveManager({
             <Calendar className="h-3.5 w-3.5" /> Schedule
           </ModeBtn>
         </div>
+
+        {/* What's on near you — tap a real game to pre-fill */}
+        {(liveFixtures.length > 0 || upcomingFixtures.length > 0) && (
+          <div>
+            <label className="mb-2 block text-xs font-medium text-stone-500">
+              What&apos;s on — tap to go live with it
+            </label>
+            <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+              {liveFixtures.map((f) => (
+                <FixtureChip
+                  key={f.id}
+                  f={f}
+                  live
+                  picked={pickedFixture === f.id}
+                  onPick={() => pickFixture(f, true)}
+                />
+              ))}
+              {upcomingFixtures.map((f) => (
+                <FixtureChip
+                  key={f.id}
+                  f={f}
+                  live={false}
+                  picked={pickedFixture === f.id}
+                  onPick={() => pickFixture(f, false)}
+                  when={startsInLabel(f.starts_at, nowTs || Date.now())}
+                />
+              ))}
+            </div>
+          </div>
+        )}
 
         <div>
           <label className="mb-1 block text-xs font-medium text-stone-500">What&apos;s on</label>
@@ -394,6 +448,47 @@ function RowCard({
       </div>
       {children}
     </div>
+  );
+}
+
+function FixtureChip({
+  f,
+  live,
+  picked,
+  onPick,
+  when,
+}: {
+  f: Fixture;
+  live: boolean;
+  picked: boolean;
+  onPick: () => void;
+  when?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onPick}
+      className={
+        "flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2 text-left transition " +
+        (picked
+          ? "border-rose-500 bg-rose-50 ring-1 ring-rose-400"
+          : "border-stone-200 bg-white hover:border-rose-300")
+      }
+    >
+      <span className="text-lg leading-none">{eventEmoji(f.event_slug)}</span>
+      <span className="min-w-0">
+        <span className="block whitespace-nowrap text-sm font-medium text-stone-900">{f.matchup}</span>
+        <span className="block text-[11px] font-medium">
+          {live ? (
+            <span className="inline-flex items-center gap-1 text-rose-600">
+              <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-rose-500" /> Live now
+            </span>
+          ) : (
+            <span className="text-stone-500">{when}</span>
+          )}
+        </span>
+      </span>
+    </button>
   );
 }
 

@@ -2,19 +2,20 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { CalendarPlus, Megaphone, Search, Send, Users, QrCode, Copy, Check } from "lucide-react";
+import { CalendarPlus, Search, QrCode, Copy, Check } from "lucide-react";
 import { listMembers } from "@/lib/api";
 import { qrPngDataUrl } from "@/lib/qr";
 import { DEMO_MEMBERS } from "@/lib/demo-members";
 import type { Member, MemberType } from "@/lib/types";
 import type { VendorEvent } from "@/lib/vendor-connect";
 import type { CollabInvite } from "@/lib/collab-network";
-import type { EventMessage } from "@/lib/event-comms";
-import type { Attendee } from "@/lib/attendees";
 import type { JoinRequest } from "@/lib/event-join";
 import { LINEUP_ROLES, roleDef } from "@/lib/lineup-roles";
+import { EventThread } from "@/components/organize/EventThread";
+import { EventAttendees } from "@/components/organize/EventAttendees";
+import { EventPreview } from "@/components/organize/EventPreview";
 
-type Tab = "lineup" | "messages" | "attendees";
+type Tab = "lineup" | "messages" | "attendees" | "preview";
 
 export function OrganizeManager({
   memberId,
@@ -105,6 +106,7 @@ export function OrganizeManager({
                   ["lineup", "Lineup"],
                   ["messages", "Messages"],
                   ["attendees", "Attendees"],
+                  ["preview", "Event page"],
                 ] as [Tab, string][]).map(([k, label]) => (
                   <button
                     key={k}
@@ -122,15 +124,17 @@ export function OrganizeManager({
               {tab === "lineup" ? (
                 <Lineup key={`l-${selected.id}`} event={selected} memberId={memberId} isAdmin={isAdmin} />
               ) : tab === "messages" ? (
-                <Messages
+                <EventThread
                   key={`m-${selected.id}`}
                   event={selected}
                   memberId={memberId}
                   isAdmin={isAdmin}
                   emailReady={emailReady}
                 />
+              ) : tab === "preview" ? (
+                <EventPreview key={`p-${selected.id}`} event={selected} isAdmin={isAdmin} memberId={memberId} />
               ) : (
-                <Attendees key={`a-${selected.id}`} event={selected} />
+                <EventAttendees key={`a-${selected.id}`} event={selected} emailReady={emailReady} />
               )}
             </div>
           ) : null}
@@ -448,191 +452,3 @@ function StatusDot({ status }: { status: string }) {
   return <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${map[status]}`}>{status}</span>;
 }
 
-function Attendees({ event }: { event: VendorEvent }) {
-  const [attendees, setAttendees] = useState<Attendee[]>([]);
-  const [count, setCount] = useState(0);
-  const [capacity, setCapacity] = useState<number | null>(null);
-  const [reminding, setReminding] = useState(false);
-  const [remindMsg, setRemindMsg] = useState("");
-
-  useEffect(() => {
-    fetch(`/api/vendor/events/${event.id}/attendees`)
-      .then((r) => (r.ok ? r.json() : { attendees: [] }))
-      .then((d) => {
-        setAttendees(Array.isArray(d.attendees) ? d.attendees : []);
-        setCount(d.count ?? 0);
-        setCapacity(d.capacity ?? null);
-      })
-      .catch(() => {});
-  }, [event.id]);
-
-  const phoneCount = attendees.filter((a) => (a.attendee_contact || "").replace(/\D/g, "").length >= 10).length;
-
-  async function remind() {
-    setReminding(true);
-    setRemindMsg("");
-    try {
-      const res = await fetch(`/api/vendor/events/${event.id}/attendees/remind`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: "{}",
-      });
-      const d = await res.json().catch(() => ({}));
-      setRemindMsg(res.ok ? `Texted ${d.sent} of ${d.withPhone} with a phone.` : d.error || "Failed");
-    } catch {
-      setRemindMsg("Failed");
-    } finally {
-      setReminding(false);
-    }
-  }
-
-  return (
-    <div>
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <Users className="h-5 w-5 text-indigo-500" />
-        <p className="text-sm text-stone-700">
-          <span className="font-semibold text-stone-900">{count}</span> going
-          {capacity != null && <span className="text-stone-400"> · cap {capacity}</span>}
-        </p>
-        {phoneCount > 0 && (
-          <button
-            onClick={remind}
-            disabled={reminding}
-            className="ml-auto inline-flex items-center gap-1.5 rounded-lg bg-stone-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-stone-800 disabled:opacity-50"
-          >
-            <Megaphone className="h-3.5 w-3.5" /> {reminding ? "Texting…" : `Text reminder (${phoneCount})`}
-          </button>
-        )}
-        {remindMsg && <span className="text-xs text-stone-500">{remindMsg}</span>}
-      </div>
-      {attendees.length === 0 ? (
-        <p className="text-sm text-stone-400">No RSVPs yet. Share the event link to fill it up.</p>
-      ) : (
-        <ul className="divide-y divide-stone-100 rounded-lg border border-stone-100">
-          {attendees.map((a) => (
-            <li key={a.id} className="flex items-center justify-between px-3 py-2 text-sm">
-              <span className="text-stone-800">{a.attendee_name || "Guest"}</span>
-              <span className="text-xs text-stone-400">
-                {a.party_size > 1 ? `+${a.party_size - 1} guest${a.party_size > 2 ? "s" : ""}` : "1"}
-                {a.attendee_contact ? ` · ${a.attendee_contact}` : ""}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
-function Messages({
-  event,
-  memberId,
-  isAdmin,
-  emailReady,
-}: {
-  event: VendorEvent;
-  memberId: string;
-  isAdmin: boolean;
-  emailReady: boolean;
-}) {
-  const [messages, setMessages] = useState<EventMessage[]>([]);
-  const [text, setText] = useState("");
-  const [sms, setSms] = useState(false);
-  const [email, setEmail] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const qp = isAdmin ? `?memberId=${memberId}` : "";
-
-  const load = () => {
-    fetch(`/api/vendor/events/${event.id}/messages${qp}`)
-      .then((r) => (r.ok ? r.json() : { messages: [] }))
-      .then((d) => setMessages(Array.isArray(d.messages) ? d.messages : []))
-      .catch(() => {});
-  };
-  useEffect(() => {
-    load();
-    const t = setInterval(load, 8000);
-    return () => clearInterval(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [event.id]);
-
-  async function send() {
-    const t = text.trim();
-    if (!t) return;
-    setBusy(true);
-    const channels = ["chat", ...(sms ? ["sms"] : []), ...(email ? ["email"] : [])];
-    setText("");
-    try {
-      await fetch(`/api/vendor/events/${event.id}/messages`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: t, channels, memberId: isAdmin ? memberId : undefined }),
-      });
-      load();
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="space-y-2">
-        {messages.length === 0 && (
-          <p className="text-sm text-stone-400">No messages yet. Send an update to your lineup.</p>
-        )}
-        {messages.map((m) =>
-          m.channel === "chat" ? (
-            <div key={m.id} className="rounded-lg bg-stone-50 px-3 py-2 text-sm">
-              <span className="font-medium text-stone-800">{m.sender_name || "Member"}</span>{" "}
-              <span className="text-stone-700">{m.text}</span>
-            </div>
-          ) : (
-            <div key={m.id} className="flex items-center gap-2 px-1 text-xs text-stone-400">
-              <Megaphone className="h-3.5 w-3.5" />
-              {m.channel.toUpperCase()} blast to {m.recipients ?? 0} · &ldquo;{m.text.slice(0, 40)}
-              {m.text.length > 40 ? "…" : ""}&rdquo;
-            </div>
-          )
-        )}
-      </div>
-
-      <div className="card-soft p-3">
-        <textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Message your lineup…"
-          rows={2}
-          className="w-full resize-none rounded-lg border border-stone-200 p-2 text-sm"
-        />
-        <div className="mt-2 flex items-center justify-between">
-          <div className="flex items-center gap-3 text-xs">
-            <span className="text-stone-400">Also send via:</span>
-            <label className="flex items-center gap-1 text-stone-600">
-              <input type="checkbox" checked={sms} onChange={(e) => setSms(e.target.checked)} className="accent-indigo-600" />
-              SMS
-            </label>
-            <label
-              className={`flex items-center gap-1 ${emailReady ? "text-stone-600" : "text-stone-300"}`}
-              title={emailReady ? "" : "Set RESEND_API_KEY + RESEND_FROM to enable email"}
-            >
-              <input
-                type="checkbox"
-                checked={email}
-                disabled={!emailReady}
-                onChange={(e) => setEmail(e.target.checked)}
-                className="accent-indigo-600"
-              />
-              Email
-            </label>
-          </div>
-          <button
-            onClick={send}
-            disabled={busy || !text.trim()}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-          >
-            <Send className="h-4 w-4" /> Send
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}

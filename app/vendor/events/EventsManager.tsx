@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import Link from 'next/link'
 import { Plus, Trash2, Check } from 'lucide-react'
 import { ImageCaptureUploader } from '@/components/ImageCaptureUploader'
 
@@ -28,7 +29,7 @@ export function EventsManager({
   const [events, setEvents] = useState<VEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
-  const [form, setForm] = useState({ title: '', event_date: '', event_time: '', location: '', description: '' })
+  const [form, setForm] = useState({ title: '', event_date: '', event_time: '', location: '', description: '', capacity: '' })
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/events/${memberId}?include_drafts=1`)
@@ -65,13 +66,10 @@ export function EventsManager({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ memberName, ...form, active: true, source: 'manual' }),
     })
-    setForm({ title: '', event_date: '', event_time: '', location: '', description: '' })
+    setForm({ title: '', event_date: '', event_time: '', location: '', description: '', capacity: '' })
     setShowAdd(false)
     load()
   }
-
-  const drafts = events.filter((e) => !e.active)
-  const live = events.filter((e) => e.active)
 
   return (
     <div className="space-y-8">
@@ -84,7 +82,7 @@ export function EventsManager({
           </p>
         </div>
         <button onClick={() => setShowAdd((s) => !s)} className="inline-flex items-center gap-1.5 rounded-xl bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800">
-          <Plus className="h-4 w-4" /> Create event
+          <Plus className="h-4 w-4" /> Create
         </button>
       </div>
 
@@ -96,6 +94,7 @@ export function EventsManager({
             <input value={form.event_time} onChange={(e) => setForm({ ...form, event_time: e.target.value })} placeholder="Time" className="w-1/2 rounded-lg border border-stone-200 px-3 py-2 text-sm" />
           </div>
           <input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder="Location" className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm" />
+          <input type="number" min="1" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} placeholder="Capacity (optional — blank = unlimited RSVPs)" className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm" />
           <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Description" rows={2} className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm" />
           <button onClick={addManual} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">Save</button>
         </div>
@@ -106,54 +105,59 @@ export function EventsManager({
       {loading ? (
         <p className="text-sm text-stone-500">Loading…</p>
       ) : (
-        <>
-          {drafts.length > 0 && (
-            <section>
-              <p className="section-label mb-3">Pending approval ({drafts.length})</p>
-              <div className="space-y-2">
-                {drafts.map((e) => (
-                  <EventRow key={e.id} e={e} onApprove={() => approve(e.id)} onDelete={() => remove(e.id)} />
-                ))}
-              </div>
-            </section>
+        <section>
+          <div className="mb-3 flex items-center justify-between">
+            <p className="section-label">Your events ({events.length})</p>
+            <button
+              onClick={() => setShowAdd((s) => !s)}
+              className="inline-flex items-center gap-1 rounded-lg bg-stone-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-stone-800"
+            >
+              <Plus className="h-3.5 w-3.5" /> Create
+            </button>
+          </div>
+          {events.length === 0 ? (
+            <p className="text-sm text-stone-400">No events yet. Tap Create to add one.</p>
+          ) : (
+            <div className="space-y-2">
+              {events.map((e) => (
+                <EventRow
+                  key={e.id}
+                  e={e}
+                  onPublish={!e.active ? () => approve(e.id) : undefined}
+                  onDelete={() => remove(e.id)}
+                />
+              ))}
+            </div>
           )}
-          <section>
-            <p className="section-label mb-3">Live ({live.length})</p>
-            {live.length === 0 ? (
-              <p className="text-sm text-stone-400">No live events yet.</p>
-            ) : (
-              <div className="space-y-2">
-                {live.map((e) => (
-                  <EventRow key={e.id} e={e} onDelete={() => remove(e.id)} />
-                ))}
-              </div>
-            )}
-          </section>
-        </>
+        </section>
       )}
     </div>
   )
 }
 
-function EventRow({ e, onApprove, onDelete }: { e: VEvent; onApprove?: () => void; onDelete: () => void }) {
+function EventRow({ e, onPublish, onDelete }: { e: VEvent; onPublish?: () => void; onDelete: () => void }) {
   return (
     <div className="flex items-center gap-3 rounded-xl border border-stone-200 bg-white p-3">
-      {e.poster_image_url ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={e.poster_image_url} alt={e.title} className="h-16 w-12 rounded-lg object-cover" />
-      ) : (
-        <div className="h-16 w-12 rounded-lg bg-stone-100" />
-      )}
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-stone-900">{e.title}</p>
-        <p className="truncate text-xs text-stone-500">
-          {[e.event_date, e.event_time, e.location].filter(Boolean).join(' · ')}
-        </p>
-      </div>
+      {/* Clicking the event opens its manager (Attendees + Updates). */}
+      <Link href={`/vendor/events/${e.id}`} className="flex min-w-0 flex-1 items-center gap-3">
+        {e.poster_image_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={e.poster_image_url} alt={e.title} className="h-16 w-12 rounded-lg object-cover" />
+        ) : (
+          <div className="h-16 w-12 rounded-lg bg-stone-100" />
+        )}
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-stone-900 hover:text-indigo-700">{e.title}</p>
+          <p className="truncate text-xs text-stone-500">
+            {[e.event_date, e.event_time, e.location].filter(Boolean).join(' · ')}
+          </p>
+        </div>
+      </Link>
+      {!e.active && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700">Draft</span>}
       {e.source.startsWith('ai_') && <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs text-indigo-700">AI</span>}
-      {onApprove && (
-        <button onClick={onApprove} className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700">
-          <Check className="h-3.5 w-3.5" /> Approve
+      {onPublish && (
+        <button onClick={onPublish} className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700">
+          <Check className="h-3.5 w-3.5" /> Publish
         </button>
       )}
       <button onClick={onDelete} className="text-stone-400 hover:text-red-600" aria-label="Delete">

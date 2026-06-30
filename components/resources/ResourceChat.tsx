@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Send, Sparkles } from 'lucide-react'
+import { Send, Sparkles, X } from 'lucide-react'
 import { getResource } from '@/lib/resources'
+import { getCommunityResource } from '@/lib/community-resources'
 import { ResourceCard } from './ResourceCard'
 
 type Msg = { role: 'user' | 'assistant'; content: string }
@@ -24,13 +25,33 @@ function parse(raw: string): { text: string; ids: string[] } {
   return { text: raw.replace(re, ' ').trim(), ids: Array.from(new Set(ids)) }
 }
 
-const STARTERS = [
+const DEFAULT_STARTERS = [
   'What resources fit my business?',
   'How can I lower my energy bills?',
   'Help me get certified green',
 ]
 
-export function ResourceChat({ businessName }: { businessName: string }) {
+// Floating guide: a sticky circle button bottom-right that expands the chat.
+// Defaults to the small-business hub; pass `endpoint`/`resolve`/`subtitle`/
+// `starters` to reuse it for the resident-facing community explorer.
+export function ResourceChat({
+  businessName,
+  endpoint = '/api/vendor/resources/chat',
+  subtitle,
+  starters = DEFAULT_STARTERS,
+  catalog = 'business',
+  title = 'Resource guide',
+}: {
+  businessName: string
+  endpoint?: string
+  subtitle?: string
+  starters?: string[]
+  /** Which catalog inline cards resolve against. */
+  catalog?: 'business' | 'community'
+  title?: string
+}) {
+  const resolve = catalog === 'community' ? getCommunityResource : getResource
+  const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<Msg[]>([])
   const [draft, setDraft] = useState('')
   const [busy, setBusy] = useState(false)
@@ -41,6 +62,10 @@ export function ResourceChat({ businessName }: { businessName: string }) {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
   }, [messages])
 
+  useEffect(() => {
+    if (open) setTimeout(() => inputRef.current?.focus(), 50)
+  }, [open])
+
   async function send(input: string) {
     const text = input.trim()
     if (!text || busy) return
@@ -50,7 +75,7 @@ export function ResourceChat({ businessName }: { businessName: string }) {
     setBusy(true)
 
     try {
-      const res = await fetch('/api/vendor/resources/chat', {
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: next }),
@@ -87,90 +112,107 @@ export function ResourceChat({ businessName }: { businessName: string }) {
   }
 
   return (
-    <div className="card-soft flex h-[min(40rem,75vh)] flex-col overflow-hidden">
-      <div className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-3 text-white">
-        <Sparkles className="h-4 w-4" />
-        <div className="text-sm font-semibold leading-tight">
-          Resource guide
-          <div className="text-[11px] font-normal text-indigo-100">Ask what fits {businessName}</div>
-        </div>
-      </div>
-
-      <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
-        {messages.length === 0 && (
-          <div className="space-y-3">
-            <p className="text-sm text-stone-500">
-              Tell me about a need — energy, legal, permits, accessibility, funding — and I&apos;ll point
-              you to resources that fit.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {STARTERS.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => send(s)}
-                  className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-stone-600 ring-1 ring-stone-200 hover:ring-indigo-300"
-                >
-                  {s}
-                </button>
-              ))}
+    // Sits above the app's bottom nav; safe-area aware for iOS.
+    <div className="fixed right-4 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-40 flex flex-col items-end gap-3 md:bottom-6">
+      {open && (
+        <div className="flex h-[min(32rem,70vh)] w-[22rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-stone-200">
+          <div className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-3 text-white">
+            <Sparkles className="h-4 w-4" />
+            <div className="flex-1 text-sm font-semibold leading-tight">
+              {title}
+              <div className="text-[11px] font-normal text-indigo-100">
+                {subtitle ?? `Ask what fits ${businessName}`}
+              </div>
             </div>
+            <button onClick={() => setOpen(false)} aria-label="Close" className="rounded-full p-1 text-white/80 hover:bg-white/20 hover:text-white">
+              <X className="h-4 w-4" />
+            </button>
           </div>
-        )}
 
-        {messages.map((m, i) => {
-          if (m.role === 'user') {
-            return (
-              <div key={i} className="flex justify-end">
-                <div className="max-w-[85%] whitespace-pre-wrap rounded-2xl bg-indigo-600 px-3.5 py-2 text-sm text-white">
-                  {m.content}
-                </div>
-              </div>
-            )
-          }
-          const { text, ids } = parse(m.content)
-          const cards = ids.map(getResource).filter(Boolean)
-          return (
-            <div key={i} className="space-y-3">
-              <div className="flex justify-start">
-                <div className="max-w-[85%] whitespace-pre-wrap rounded-2xl bg-stone-100 px-3.5 py-2 text-sm text-stone-800">
-                  {text || (busy ? '…' : '')}
-                </div>
-              </div>
-              {cards.length > 0 && (
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  {cards.map((r) => (
-                    <ResourceCard key={r!.id} resource={r!} compact />
+          <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
+            {messages.length === 0 && (
+              <div className="space-y-3">
+                <p className="text-sm text-stone-500">
+                  Tell me what you need help with and I&apos;ll point you to resources that fit.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {starters.map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => send(s)}
+                      className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-stone-600 ring-1 ring-stone-200 hover:ring-indigo-300"
+                    >
+                      {s}
+                    </button>
                   ))}
                 </div>
-              )}
-            </div>
-          )
-        })}
-      </div>
+              </div>
+            )}
 
-      <form
-        onSubmit={(e) => {
-          e.preventDefault()
-          send(draft)
-        }}
-        className="flex items-center gap-2 border-t border-stone-100 px-3 py-3"
+            {messages.map((m, i) => {
+              if (m.role === 'user') {
+                return (
+                  <div key={i} className="flex justify-end">
+                    <div className="max-w-[85%] whitespace-pre-wrap rounded-2xl bg-indigo-600 px-3.5 py-2 text-sm text-white">
+                      {m.content}
+                    </div>
+                  </div>
+                )
+              }
+              const { text, ids } = parse(m.content)
+              const cards = ids.map(resolve).filter(Boolean)
+              return (
+                <div key={i} className="space-y-3">
+                  <div className="flex justify-start">
+                    <div className="max-w-[85%] whitespace-pre-wrap rounded-2xl bg-stone-100 px-3.5 py-2 text-sm text-stone-800">
+                      {text || (busy ? '…' : '')}
+                    </div>
+                  </div>
+                  {cards.length > 0 && (
+                    <div className="grid grid-cols-1 gap-3">
+                      {cards.map((r) => (
+                        <ResourceCard key={r!.id} resource={r!} compact />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              send(draft)
+            }}
+            className="flex items-center gap-2 border-t border-stone-100 px-3 py-3"
+          >
+            <input
+              ref={inputRef}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              placeholder="Ask about resources…"
+              className="flex-1 rounded-full border border-stone-200 bg-stone-50 px-4 py-2 text-sm text-stone-800 placeholder:text-stone-400 focus:border-indigo-300 focus:bg-white focus:outline-none"
+            />
+            <button
+              type="submit"
+              disabled={!draft.trim() || busy}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-indigo-600 text-white transition hover:bg-indigo-700 disabled:bg-stone-200 disabled:text-stone-400"
+              aria-label="Send"
+            >
+              <Send className="h-4 w-4" />
+            </button>
+          </form>
+        </div>
+      )}
+
+      <button
+        onClick={() => setOpen((o) => !o)}
+        aria-label={open ? 'Close resource guide' : 'Open resource guide'}
+        className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-lg ring-1 ring-black/5 transition hover:shadow-xl hover:brightness-110"
       >
-        <input
-          ref={inputRef}
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder="Ask about resources…"
-          className="flex-1 rounded-full border border-stone-200 bg-stone-50 px-4 py-2 text-sm text-stone-800 placeholder:text-stone-400 focus:border-indigo-300 focus:bg-white focus:outline-none"
-        />
-        <button
-          type="submit"
-          disabled={!draft.trim() || busy}
-          className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-indigo-600 text-white transition hover:bg-indigo-700 disabled:bg-stone-200 disabled:text-stone-400"
-          aria-label="Send"
-        >
-          <Send className="h-4 w-4" />
-        </button>
-      </form>
+        {open ? <X className="h-6 w-6" /> : <Sparkles className="h-6 w-6" />}
+      </button>
     </div>
   )
 }

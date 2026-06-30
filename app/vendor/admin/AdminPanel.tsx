@@ -1,17 +1,34 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { Shield, UserPlus, FileText, Search, Check, Package, Calendar, ExternalLink } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Shield, UserPlus, FileText, Search, Check, Package, Calendar, ExternalLink, Star } from "lucide-react";
 import { OnboardManager } from "../onboard/OnboardManager";
+import { FeaturedManager } from "../featured/FeaturedManager";
 import { ORG_FOCUS } from "@/lib/org-focus";
 
 const TYPES = ["vendor", "artist", "organizer", "shopper", "influencer"] as const;
 
-type Tab = "create" | "transcript" | "behalf";
+type Tab = "create" | "transcript" | "behalf" | "featured";
+const TABS: Tab[] = ["create", "transcript", "behalf", "featured"];
 
 export function AdminPanel({ ownerMemberId }: { ownerMemberId: string }) {
-  const [tab, setTab] = useState<Tab>("create");
+  const router = useRouter();
+  const params = useSearchParams();
+  const tabParam = params.get("tab");
+  const tab: Tab = TABS.includes(tabParam as Tab) ? (tabParam as Tab) : "create";
+
+  // Persist the active tab in the URL so navigating into a member's
+  // products/events and back (or the "Go back" bar) restores this view.
+  const setTab = (t: Tab) => {
+    const sp = new URLSearchParams(params.toString());
+    sp.set("tab", t);
+    if (t !== "behalf") {
+      ["memberId", "mName", "mCity", "mType", "q"].forEach((k) => sp.delete(k));
+    }
+    router.replace(`/vendor/admin?${sp.toString()}`);
+  };
 
   return (
     <div className="space-y-6">
@@ -28,11 +45,13 @@ export function AdminPanel({ ownerMemberId }: { ownerMemberId: string }) {
         <TabButton active={tab === "create"} onClick={() => setTab("create")} icon={UserPlus} label="Create profile" />
         <TabButton active={tab === "transcript"} onClick={() => setTab("transcript")} icon={FileText} label="Add by transcript" />
         <TabButton active={tab === "behalf"} onClick={() => setTab("behalf")} icon={Search} label="Act on behalf" />
+        <TabButton active={tab === "featured"} onClick={() => setTab("featured")} icon={Star} label="Featured lists" />
       </div>
 
       {tab === "create" && <CreateProfile ownerMemberId={ownerMemberId} />}
       {tab === "transcript" && <OnboardManager memberId={ownerMemberId} isAdmin />}
       {tab === "behalf" && <ActOnBehalf />}
+      {tab === "featured" && <FeaturedManager />}
     </div>
   );
 }
@@ -194,38 +213,103 @@ interface FoundMember {
   type?: string;
 }
 
+// Connector member shape — name/city/type live under `profile`.
+interface RawMember {
+  id: string;
+  profile?: { name?: string; memberType?: string; city?: string };
+  name?: string;
+  city?: string;
+  type?: string;
+}
+function normalize(m: RawMember): FoundMember {
+  return {
+    id: m.id,
+    name: m.profile?.name || m.name || "Unnamed member",
+    city: m.profile?.city || m.city,
+    type: m.profile?.memberType || m.type,
+  };
+}
+
 function ActOnBehalf() {
-  const [query, setQuery] = useState("");
+  const router = useRouter();
+  const params = useSearchParams();
+  const [query, setQuery] = useState(params.get("q") ?? "");
   const [results, setResults] = useState<FoundMember[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
-  const [picked, setPicked] = useState<FoundMember | null>(null);
 
-  async function search() {
-    if (!query.trim()) return;
+  // Picked member is held in the URL so it survives navigating into their
+  // products/events and back (browser back or the "Go back" bar).
+  const picked: FoundMember | null = params.get("memberId")
+    ? {
+        id: params.get("memberId")!,
+        name: params.get("mName") || "Member",
+        city: params.get("mCity") || undefined,
+        type: params.get("mType") || undefined,
+      }
+    : null;
+
+  const runSearch = useCallback(async (q: string) => {
+    if (!q.trim()) return;
     setLoading(true);
     setSearched(true);
     try {
       const base = process.env.NEXT_PUBLIC_API_BASE || "https://community-connector-agent.netlify.app";
       const url = new URL("/.netlify/functions/marketplace-members", base);
-      url.searchParams.set("search", query.trim());
+      url.searchParams.set("search", q.trim());
       const res = await fetch(url.toString());
       const data = res.ok ? await res.json() : { members: [] };
-      setResults(Array.isArray(data.members) ? data.members : []);
+      setResults(Array.isArray(data.members) ? data.members.map(normalize) : []);
     } catch {
       setResults([]);
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  // Re-run the search when landing back on the search view with a ?q (e.g. after
+  // "Back to search" or browser-back from a managed member).
+  useEffect(() => {
+    const q = params.get("q");
+    if (q && !params.get("memberId")) runSearch(q);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function search() {
+    const sp = new URLSearchParams(params.toString());
+    sp.set("tab", "behalf");
+    if (query.trim()) sp.set("q", query.trim()); else sp.delete("q");
+    ["memberId", "mName", "mCity", "mType"].forEach((k) => sp.delete(k));
+    router.replace(`/vendor/admin?${sp.toString()}`);
+    runSearch(query);
+  }
+
+  function pick(m: FoundMember) {
+    const sp = new URLSearchParams(params.toString());
+    sp.set("tab", "behalf");
+    if (query.trim()) sp.set("q", query.trim());
+    sp.set("memberId", m.id);
+    sp.set("mName", m.name);
+    if (m.city) sp.set("mCity", m.city); else sp.delete("mCity");
+    if (m.type) sp.set("mType", m.type); else sp.delete("mType");
+    router.push(`/vendor/admin?${sp.toString()}`);
+  }
+
+  function backToSearch() {
+    const sp = new URLSearchParams(params.toString());
+    ["memberId", "mName", "mCity", "mType"].forEach((k) => sp.delete(k));
+    router.push(`/vendor/admin?${sp.toString()}`);
   }
 
   if (picked) {
     return (
       <div className="space-y-4">
-        <button onClick={() => setPicked(null)} className="text-sm text-stone-500 hover:text-stone-800">← Back to search</button>
+        <button onClick={backToSearch} className="text-sm text-stone-500 hover:text-stone-800">← Back to search</button>
         <div className="card-soft p-5">
           <p className="text-sm font-semibold text-stone-900">{picked.name}</p>
-          {picked.city && <p className="text-xs text-stone-500">{picked.city}</p>}
+          {(picked.type || picked.city) && (
+            <p className="text-xs text-stone-500">{[picked.type, picked.city].filter(Boolean).join(" · ")}</p>
+          )}
           <p className="mt-3 mb-2 text-xs text-stone-500">Add content on their behalf — both screens include AI capture (snap a menu, flyer, or schedule):</p>
           <div className="flex flex-wrap gap-2">
             <ActionLink href={`/vendor/products?memberId=${picked.id}`} icon={Package} label="Products" />
@@ -258,9 +342,11 @@ function ActOnBehalf() {
             <li key={m.id} className="flex items-center justify-between px-5 py-3">
               <div>
                 <p className="text-sm font-medium text-stone-900">{m.name}</p>
-                <p className="text-xs text-stone-500">{[m.type, m.city].filter(Boolean).join(" · ")}</p>
+                {(m.type || m.city) && (
+                  <p className="text-xs text-stone-500">{[m.type, m.city].filter(Boolean).join(" · ")}</p>
+                )}
               </div>
-              <button onClick={() => setPicked(m)} className="rounded-lg bg-stone-900 px-4 py-2 text-xs font-medium text-white hover:bg-stone-700">
+              <button onClick={() => pick(m)} className="rounded-lg bg-stone-900 px-4 py-2 text-xs font-medium text-white hover:bg-stone-700">
                 Manage
               </button>
             </li>

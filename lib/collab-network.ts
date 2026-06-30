@@ -26,6 +26,10 @@ export interface CollabInvite {
   scope_type: 'collab' | 'event'
   scope_id: string | null
   role: string | null
+  // "Outing" grouping: several individual invites for the same occasion share an
+  // occasion_id + label so the Sent tab rolls them up (and can promote to a group).
+  occasion_id: string | null
+  occasion_label: string | null
   created_at: string
 }
 
@@ -38,6 +42,9 @@ export interface CollabRoom {
   is_group?: boolean
   title?: string | null
   owner_id?: string | null
+  occasion_id?: string | null
+  occasion_label?: string | null
+  event_id?: string | null
   created_at: string
 }
 
@@ -69,6 +76,8 @@ export async function createInvite(i: {
   scope_id?: string | null
   role?: string | null
   room_id?: string | null // target group room (group invite) — set at creation
+  occasion_id?: string | null
+  occasion_label?: string | null
 }): Promise<CollabInvite> {
   const scopeType = i.scope_type ?? 'collab'
   const scopeId = i.scope_id ?? null
@@ -97,6 +106,8 @@ export async function createInvite(i: {
       scope_id: scopeId,
       role: i.role ?? null,
       room_id: roomId,
+      occasion_id: i.occasion_id ?? null,
+      occasion_label: i.occasion_label ?? null,
       status: 'pending',
     })
     .select()
@@ -110,6 +121,8 @@ export async function createGroupRoom(o: {
   owner_id: string
   owner_name: string | null
   title: string
+  occasion_id?: string | null
+  occasion_label?: string | null
 }): Promise<CollabRoom> {
   const { data, error } = await db()
     .from('collab_rooms')
@@ -121,6 +134,8 @@ export async function createGroupRoom(o: {
       is_group: true,
       title: o.title,
       owner_id: o.owner_id,
+      occasion_id: o.occasion_id ?? null,
+      occasion_label: o.occasion_label ?? null,
     })
     .select()
     .single()
@@ -129,6 +144,128 @@ export async function createGroupRoom(o: {
   // Owner is a member, and counts as "in" from the start.
   await addRoomMember(room.id, o.owner_id, o.owner_name, true)
   return room
+}
+
+// A collaboration's single group room — one per (owner, occasion). Created on
+// first group invite within that collaboration, reused thereafter.
+export async function getOrCreateOccasionGroupRoom(o: {
+  owner_id: string
+  owner_name: string | null
+  occasion_id: string
+  occasion_label: string | null
+  title: string
+}): Promise<CollabRoom> {
+  const { data: existing } = await db()
+    .from('collab_rooms')
+    .select('*')
+    .eq('owner_id', o.owner_id)
+    .eq('occasion_id', o.occasion_id)
+    .eq('is_group', true)
+    .maybeSingle()
+  if (existing) return existing as CollabRoom
+  return createGroupRoom({
+    owner_id: o.owner_id,
+    owner_name: o.owner_name,
+    title: o.title || o.occasion_label || 'Collaboration',
+    occasion_id: o.occasion_id,
+    occasion_label: o.occasion_label,
+  })
+}
+
+export interface CollaborationMember {
+  invite_id: string
+  to_id: string
+  to_name: string | null
+  status: InviteStatus
+  role: string | null
+}
+
+// One collaboration = one occasion = ONE chat room. It's a 1:1 when a single
+// collaborator accepted, and auto-becomes a group once 2+ have accepted.
+export interface CollaborationSummary {
+  occasion_id: string
+  label: string
+  roomId: string | null
+  eventId: string | null
+  owned: boolean // true = we created it (can invite/manage); false = we were invited
+  acceptedCount: number // collaborators (not the owner) who accepted
+  members: CollaborationMember[] // invitees (only populated for owned collaborations)
+}
+
+export async function getCollaborationsFor(memberId: string): Promise<CollaborationSummary[]> {
+  const [invRes, ownedRoomRes, membershipRes] = await Promise.all([
+    db().from('collab_invites').select('*').eq('from_id', memberId).not('occasion_id', 'is', null),
+    db().from('collab_rooms').select('*').eq('owner_id', memberId).not('occasion_id', 'is', null),
+    db().from('collab_room_members').select('room_id').eq('member_id', memberId),
+  ])
+  const invites = (invRes.data as CollabInvite[]) ?? []
+  const ownedRooms = (ownedRoomRes.data as CollabRoom[]) ?? []
+
+  const byOcc = new Map<string, CollaborationSummary>()
+
+  // ── Owned collaborations (we created them) ──
+  const roomByOcc = new Map<string, CollabRoom>()
+  for (const r of ownedRooms) if (r.occasion_id) roomByOcc.set(r.occasion_id, r)
+  const ensureOwned = (occ: string, label: string) => {
+    if (!byOcc.has(occ)) {
+      const room = roomByOcc.get(occ) || null
+      byOcc.set(occ, { occasion_id: occ, label, roomId: room?.id ?? null, eventId: room?.event_id ?? null, owned: true, acceptedCount: 0, members: [] })
+    }
+    return byOcc.get(occ)!
+  }
+  for (const [occ, room] of roomByOcc) ensureOwned(occ, room.occasion_label || room.title || 'Collaboration')
+  for (const inv of invites) {
+    if (!inv.occasion_id) continue
+    const c = ensureOwned(inv.occasion_id, inv.occasion_label || 'Collaboration')
+    c.members.push({ invite_id: inv.id, to_id: inv.to_id, to_name: inv.to_name, status: inv.status, role: inv.role })
+    if (inv.status === 'accepted') c.acceptedCount += 1
+  }
+
+  // ── Joined collaborations (we were invited into someone else's) ──
+  const myRoomIds = ((membershipRes.data as { room_id: string }[]) ?? []).map((m) => m.room_id)
+  const ownedIds = new Set(ownedRooms.map((r) => r.id))
+  const joinedIds = myRoomIds.filter((id) => !ownedIds.has(id))
+  if (joinedIds.length > 0) {
+    const { data: joinedRooms } = await db().from('collab_rooms').select('*').in('id', joinedIds)
+    for (const room of (joinedRooms as CollabRoom[]) ?? []) {
+      if (!room.occasion_id || byOcc.has(room.occasion_id)) continue
+      const count = (await getRoomMembers(room.id)).length
+      byOcc.set(room.occasion_id, {
+        occasion_id: room.occasion_id,
+        label: room.occasion_label || room.title || 'Collaboration',
+        roomId: room.id,
+        eventId: room.event_id ?? null,
+        owned: false,
+        acceptedCount: Math.max(0, count - 1), // for 1:1 vs group display
+        members: [],
+      })
+    }
+  }
+
+  return [...byOcc.values()]
+}
+
+// Promote an "outing" (a set of individual invites sharing occasion_id) into a
+// single group room. Everyone who ACCEPTED their invite is added already-agreed
+// (they said yes), so the owner can create the event once >2 are in.
+export async function promoteOccasionToGroup(o: {
+  owner_id: string
+  owner_name: string | null
+  occasion_id: string
+  title: string
+}): Promise<{ room: CollabRoom; added: number }> {
+  const { data } = await db()
+    .from('collab_invites')
+    .select('*')
+    .eq('from_id', o.owner_id)
+    .eq('occasion_id', o.occasion_id)
+    .eq('status', 'accepted')
+  const accepted = (data as CollabInvite[]) ?? []
+  const room = await createGroupRoom({ owner_id: o.owner_id, owner_name: o.owner_name, title: o.title })
+  await Promise.all(
+    accepted.map((inv) => addRoomMember(room.id, inv.to_id, inv.to_name, true).catch(() => null))
+  )
+  return { room, added: accepted.length }
 }
 
 export async function addRoomMember(
@@ -149,6 +286,20 @@ export async function getRoomMembers(roomId: string): Promise<RoomMember[]> {
     .eq('room_id', roomId)
     .order('created_at', { ascending: true })
   return (data as RoomMember[]) ?? []
+}
+
+// Members for any room — group rooms already have rows; 1:1 rooms are seeded
+// lazily from member_a/member_b so they support the same "I'm in" agreement.
+export async function ensureRoomMembers(roomId: string): Promise<RoomMember[]> {
+  const existing = await getRoomMembers(roomId)
+  if (existing.length > 0) return existing
+  const room = await getRoom(roomId)
+  if (!room) return []
+  await addRoomMember(roomId, room.member_a, room.member_a_name ?? null, false)
+  if (room.member_b && room.member_b !== room.member_a) {
+    await addRoomMember(roomId, room.member_b, room.member_b_name ?? null, false)
+  }
+  return getRoomMembers(roomId)
 }
 
 export async function setMemberAgreed(roomId: string, memberId: string, agreed: boolean): Promise<void> {

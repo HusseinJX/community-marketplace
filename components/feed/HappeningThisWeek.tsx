@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Calendar, MapPin, ArrowRight, CalendarPlus, Sparkles } from "lucide-react";
+import { Calendar, MapPin, ArrowRight } from "lucide-react";
 import { useLocation, matchesPlace, placeIsSet, placeLabel } from "@/lib/location";
 
 interface FeedEvent {
@@ -57,23 +57,6 @@ export function HappeningThisWeek() {
   const scoped = placeIsSet(place);
 
   // Until the feed has data, don't take up space.
-  if (loaded && events.length === 0) {
-    return (
-      <section className="mb-6 rounded-2xl border border-dashed border-indigo-200 bg-indigo-50/50 p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="flex items-center gap-1.5 text-sm font-semibold text-stone-900">
-              <Sparkles className="h-4 w-4 text-indigo-500" /> Nothing scheduled yet
-            </p>
-            <p className="mt-0.5 text-sm text-stone-500">Be the first to host something local — markets, popups, shows.</p>
-          </div>
-          <Link href="/vendor/organize" className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
-            <CalendarPlus className="h-4 w-4" /> Host an event
-          </Link>
-        </div>
-      </section>
-    );
-  }
   if (!loaded || events.length === 0) return null;
 
   return (

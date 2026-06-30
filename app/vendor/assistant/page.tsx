@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { Sparkles, Trash2, Plus, Inbox, Save } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Sparkles, Trash2, Plus, Inbox, Save, FileUp } from 'lucide-react'
 
 interface Knowledge {
   id: string
@@ -24,6 +24,10 @@ export default function VendorAssistantPage() {
   const [newKnowledge, setNewKnowledge] = useState('')
   const [savingConfig, setSavingConfig] = useState(false)
   const [savedAt, setSavedAt] = useState<number | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [uploadMsg, setUploadMsg] = useState('')
+  const [dragOver, setDragOver] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
 
   async function load() {
     const d = await fetch('/api/vendor/assistant').then((r) => r.json())
@@ -63,6 +67,30 @@ export default function VendorAssistantPage() {
     load()
   }
 
+  async function uploadPdf(file: File) {
+    if (!file) return
+    if (file.type && file.type !== 'application/pdf') {
+      setUploadMsg('Only PDF files')
+      return
+    }
+    setUploading(true)
+    setUploadMsg('')
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('filename', file.name)
+      const res = await fetch('/api/vendor/assistant/upload', { method: 'POST', body: fd })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error || 'Upload failed')
+      setUploadMsg(`Added “${file.name}”${d.truncated ? ' (trimmed to fit)' : ''}`)
+      load()
+    } catch (e) {
+      setUploadMsg(e instanceof Error ? e.message : 'Upload failed')
+    } finally {
+      setUploading(false)
+    }
+  }
+
   async function removeKnowledge(id: string) {
     await fetch('/api/vendor/assistant', {
       method: 'POST',
@@ -79,10 +107,10 @@ export default function VendorAssistantPage() {
       <div>
         <div className="flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-indigo-500" />
-          <h1 className="text-2xl font-semibold text-stone-900">AI Assistant</h1>
+          <h1 className="text-2xl font-semibold text-stone-900">Your agent</h1>
         </div>
         <p className="mt-1 text-sm text-stone-500">
-          Your storefront has an AI assistant that answers customer questions using your products,
+          Your storefront has an AI agent that answers customer questions using your products,
           hours, events, and the notes you add below.
         </p>
       </div>
@@ -161,6 +189,40 @@ export default function VendorAssistantPage() {
           >
             <Plus className="h-4 w-4" /> Add
           </button>
+        </div>
+
+        {/* Drop a PDF — menu, policy doc, brochure — and we'll read it in. */}
+        <div
+          onClick={() => fileRef.current?.click()}
+          onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={(e) => {
+            e.preventDefault()
+            setDragOver(false)
+            const f = e.dataTransfer.files?.[0]
+            if (f) uploadPdf(f)
+          }}
+          className={`mt-3 flex cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed px-4 py-6 text-center transition ${
+            dragOver ? 'border-indigo-400 bg-indigo-50' : 'border-stone-200 bg-stone-50 hover:border-stone-300'
+          }`}
+        >
+          <FileUp className="h-5 w-5 text-stone-400" />
+          <p className="text-sm font-medium text-stone-700">
+            {uploading ? 'Reading PDF…' : 'Drop a PDF here, or click to upload'}
+          </p>
+          <p className="text-xs text-stone-400">Menu, policies, brochure, price list — we extract the text.</p>
+          {uploadMsg && <p className="mt-1 text-xs text-indigo-600">{uploadMsg}</p>}
+          <input
+            ref={fileRef}
+            type="file"
+            accept="application/pdf"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0]
+              if (f) uploadPdf(f)
+              e.target.value = ''
+            }}
+          />
         </div>
       </section>
 

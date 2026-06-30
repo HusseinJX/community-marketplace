@@ -7,6 +7,7 @@ import {
 } from '@/lib/vendor-connect'
 import { resolveActor } from '@/lib/admin'
 import { getMember } from '@/lib/api'
+import { demoEvents } from '@/lib/demo-organize'
 
 // GET — public list (active only). With ?include_drafts=1, requires owner/admin.
 export async function GET(
@@ -21,6 +22,7 @@ export async function GET(
     if (!actor || actor.memberId !== memberId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
+    if (actor.isDemo) return NextResponse.json(demoEvents(memberId))
     return NextResponse.json(await getVendorEventsByMember(memberId, true))
   }
   return NextResponse.json(await getVendorEventsByMember(memberId, false))

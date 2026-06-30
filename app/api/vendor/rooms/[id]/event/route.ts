@@ -13,15 +13,26 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const body = await req.json().catch(() => ({}))
 
   const actor = await resolveActor(body.memberId)
-  if (!actor || !(await isRoomMember(id, actor.memberId))) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-  }
+  if (!actor) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
   const title = String(body.title ?? '').trim()
   if (!title) return NextResponse.json({ error: 'An event title is required' }, { status: 400 })
 
+  // Demo: don't create a real event; return a placeholder id for the UI.
+  if (actor.isDemo) return NextResponse.json({ eventId: 'demo-event', added: 0, demo: true })
+
+  if (!(await isRoomMember(id, actor.memberId))) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+  }
+
   const room = await getRoom(id)
   if (!room) return NextResponse.json({ error: 'Room not found' }, { status: 404 })
+
+  // Only the arranger (1:1 inviter / group owner) can create the event.
+  const arrangerId = room.is_group ? room.owner_id || room.member_a : room.member_a
+  if (actor.memberId !== arrangerId) {
+    return NextResponse.json({ error: 'Only the arranger can create the event' }, { status: 403 })
+  }
 
   // The host = the caller. Collaborators added to the lineup:
   //  - group room → everyone who's "in" (agreed), minus the host

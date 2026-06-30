@@ -9,6 +9,7 @@ import type { Member } from "@/lib/types";
 import { DEMO_MEMBERS } from "@/lib/demo-members";
 import { MEMBER_HERO_IMAGES } from "@/lib/member-images";
 import { usableImages, isPlaceholder } from "@/lib/image-utils";
+import { BUSINESS_SIZES, OWNERSHIP_TAGS, matchesFacets } from "@/lib/business-facets";
 
 function firstImage(m: Member): string | null {
   const curated = MEMBER_HERO_IMAGES[m.id];
@@ -27,6 +28,9 @@ export default function ExplorePage() {
   // Seed with demo members so the grid paints instantly; real data replaces it.
   const [members, setMembers] = useState<Member[]>(() => DEMO_MEMBERS);
   const [q, setQ] = useState("");
+  const [size, setSize] = useState("");
+  const [own, setOwn] = useState<string[]>([]);
+  const toggleOwn = (k: string) => setOwn((o) => (o.includes(k) ? o.filter((x) => x !== k) : [...o, k]));
 
   useEffect(() => {
     let cancelled = false;
@@ -47,8 +51,9 @@ export default function ExplorePage() {
       .filter((t) => t.img)
       .filter((t) =>
         term ? (t.m.profile?.name ?? "").toLowerCase().includes(term) : true
-      );
-  }, [members, q]);
+      )
+      .filter((t) => matchesFacets(t.m.profile, { size, ownership: own }));
+  }, [members, q, size, own]);
 
   return (
     <div className="pb-6">
@@ -62,6 +67,31 @@ export default function ExplorePage() {
             placeholder="Search local"
             className="w-full rounded-xl border border-stone-200 bg-stone-100 py-2 pl-9 pr-3 text-base text-stone-900 placeholder-stone-400 focus:border-stone-300 focus:bg-white focus:outline-none"
           />
+        </div>
+        {/* Facet filters: business size + ownership/type — single horizontal scroll row */}
+        <div className="-mx-3 mt-2 flex items-center gap-1.5 overflow-x-auto px-3 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <select
+            value={size}
+            onChange={(e) => setSize(e.target.value)}
+            className="shrink-0 rounded-full border border-stone-200 bg-white px-3 py-1 text-xs text-stone-600"
+          >
+            <option value="">Any size</option>
+            {BUSINESS_SIZES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+          </select>
+          {OWNERSHIP_TAGS.map((o) => (
+            <button
+              key={o.key}
+              onClick={() => toggleOwn(o.key)}
+              className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium ${own.includes(o.key) ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-600 hover:bg-stone-200"}`}
+            >
+              {o.label}
+            </button>
+          ))}
+          {(size || own.length > 0) && (
+            <button onClick={() => { setSize(""); setOwn([]); }} className="shrink-0 whitespace-nowrap text-xs text-stone-400 underline hover:text-stone-600">
+              Clear
+            </button>
+          )}
         </div>
       </div>
 

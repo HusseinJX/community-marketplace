@@ -23,6 +23,12 @@ import { MEMBER_HERO_IMAGES } from "@/lib/member-images";
 import { usableImages, isPlaceholder } from "@/lib/image-utils";
 import { ENDORSEMENTS } from "@/lib/endorsements";
 import { EndorsementRows } from "@/components/EndorsementRows";
+import { MemoriesGrid } from "@/components/posts/MemoriesGrid";
+import { readServes, focusLabel } from "@/lib/org-focus";
+import { GivesBackBadges } from "@/components/giving/GivesBackBadges";
+import { BusinessFacets } from "@/components/business/BusinessFacets";
+import { resolveActor } from "@/lib/admin";
+import { readOwnership } from "@/lib/business-facets";
 
 const DEMO_EVENTS = [
   {
@@ -220,6 +226,10 @@ export default async function MemberProfilePage({
   const memberType = (p.memberType as string | undefined)?.toLowerCase() ?? "";
   const gradient = TYPE_GRADIENTS[memberType] ?? "from-stone-200 to-stone-300";
 
+  // Owner/admin can edit the business facets (size + ownership) inline.
+  const facetActor = await resolveActor(id).catch(() => null);
+  const canEditFacets = !!facetActor && facetActor.memberId === id;
+
   const interests = (p.interests ?? []) as string[];
   const goals = (p.goals ?? []) as string[];
   const services = (p.services ?? []) as string[];
@@ -375,6 +385,21 @@ export default async function MemberProfilePage({
             </Section>
           )}
 
+          {memberType === "organizer" && readServes(p).length > 0 && (
+            <Section title="Who they serve">
+              <div className="flex flex-wrap gap-2">
+                {readServes(p).map((s) => (
+                  <span
+                    key={s}
+                    className="rounded-full bg-teal-50 px-3 py-1 text-sm font-medium text-teal-700"
+                  >
+                    {focusLabel(s)}
+                  </span>
+                ))}
+              </div>
+            </Section>
+          )}
+
           {needsMost.length > 0 && (
             <Section title="What they need most">
               <Tags items={needsMost} />
@@ -417,7 +442,7 @@ export default async function MemberProfilePage({
               {vendorEvents.length > 0 && (
                 <div className="mb-3 grid gap-3 sm:grid-cols-2">
                   {vendorEvents.map((ev) => (
-                    <div key={ev.id} className="card-soft group flex items-stretch gap-3 p-3">
+                    <Link key={ev.id} href={`/events/${ev.id}`} className="card-soft group flex items-stretch gap-3 p-3 transition hover:shadow-md">
                       {ev.poster_image_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={ev.poster_image_url} alt={ev.title} className="w-20 shrink-0 self-stretch rounded-lg object-cover" />
@@ -431,7 +456,7 @@ export default async function MemberProfilePage({
                         </div>
                         {ev.location && <div className="truncate text-sm text-stone-500">{ev.location}</div>}
                       </div>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               )}
@@ -463,6 +488,17 @@ export default async function MemberProfilePage({
               )}
             </Section>
           )}
+
+          <BusinessFacets
+            memberId={id}
+            initialSize={p.businessSize as string | undefined}
+            initialOwnership={readOwnership(p)}
+            canEdit={canEditFacets}
+          />
+
+          <GivesBackBadges memberId={id} memberName={name} />
+
+          <MemoriesGrid memberId={id} title={`Tagged at ${name}`} />
 
           <ShopSection
             memberId={id}

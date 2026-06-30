@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { LiveFeed } from "@/components/live/LiveFeed";
+import { CommunityEventsLive } from "@/components/live/CommunityEventsLive";
 
 export const metadata: Metadata = {
   title: "Live Now — What's on right now",
@@ -12,5 +13,10 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default function LivePage() {
-  return <LiveFeed />;
+  return (
+    <>
+      <LiveFeed />
+      <CommunityEventsLive />
+    </>
+  );
 }

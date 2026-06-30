@@ -8,6 +8,7 @@ import { streamEmbed } from "@/lib/embed";
 import { SaveButton } from "./SaveButton";
 import { LiveMap } from "./LiveMap";
 import { getDemoBroadcasts } from "@/lib/demo-live";
+import { MemoriesGrid } from "@/components/posts/MemoriesGrid";
 import type { LiveBroadcast } from "./types";
 
 export function BroadcastDetail({ id }: { id: string }) {
@@ -143,6 +144,11 @@ export function BroadcastDetail({ id }: { id: string }) {
           </div>
         </div>
       )}
+
+      {/* Community memories — fans' photos tagged to this broadcast */}
+      <div className="mt-6">
+        <MemoriesGrid eventId={b.id} title="From the crowd" subtitle="Tagged here" />
+      </div>
 
       {/* Map */}
       {typeof b.latitude === "number" && typeof b.longitude === "number" && (
