@@ -2,20 +2,22 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Store, Radio, Send, Search, User } from "lucide-react";
+import { Compass, User } from "lucide-react";
 
-// Instagram-style bottom tab bar. Some destinations map to the nearest existing
-// surface until dedicated features land (Messages→stub, Search→browse).
+// Deliberately just two shopper tabs: one "Local" page (live now + events +
+// directory) and Profile (account, tickets, orders, cart). Everything a shopper
+// does is on the Local page; buying/booking are flows off cards.
 const ITEMS = [
-  { href: "/", label: "Live", icon: Radio },
-  { href: "/browse", label: "Browse", icon: Store },
-  { href: "/messages", label: "Messages", icon: Send },
-  { href: "/explore", label: "Search", icon: Search },
+  { href: "/", label: "Local", icon: Compass },
   { href: "/shopper", label: "Profile", icon: User },
 ];
 
 export function BottomNav() {
   const pathname = usePathname();
+
+  // The shopper bottom nav (Local/Profile) has no place in the vendor portal —
+  // the vendor pages (incl. the admin demo) have their own layout/nav.
+  if (pathname.startsWith("/vendor")) return null;
 
   return (
     <nav
@@ -25,7 +27,8 @@ export function BottomNav() {
       <div className="mx-auto flex max-w-2xl items-center justify-around px-2">
         {ITEMS.map((it) => {
           const Icon = it.icon;
-          const active = it.href === "/" ? pathname === "/" : pathname.startsWith(it.href);
+          // Profile owns /shopper/*; "Local" owns everything else.
+          const active = it.href === "/shopper" ? pathname.startsWith("/shopper") : !pathname.startsWith("/shopper");
           return (
             <Link
               key={it.href}

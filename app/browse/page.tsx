@@ -104,6 +104,14 @@ export default function BrowsePage() {
     setSearchResults(null);
     setSearchIntent(null);
   };
+
+  // Honor a ?q= deep link (e.g. the home-page search bar routes here). Normal
+  // mode filters client-side on searchQuery, so seeding it is enough.
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get("q");
+    if (q) setSearchQuery(q);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const handleModeChange = (m: SearchMode) => {
     setSearchMode(m);
     // Clear remote AI results when switching back to normal; clear normal text

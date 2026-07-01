@@ -1,7 +1,7 @@
 "use client";
 
 import { Search, X, SlidersHorizontal } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
 export type SearchMode = "normal" | "ai";
 
@@ -26,6 +26,8 @@ export function SearchBar({
   loading?: boolean;
 }) {
   const [draft, setDraft] = useState(value);
+  // Reflect an externally-seeded value (e.g. a ?q= deep link) in the input.
+  useEffect(() => { setDraft(value); }, [value]);
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     const q = draft.trim();
