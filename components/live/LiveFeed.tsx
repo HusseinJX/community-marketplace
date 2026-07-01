@@ -10,7 +10,7 @@ import type { LiveBroadcast } from "./types";
 
 type ViewMode = "feed" | "map";
 
-export function LiveFeed() {
+export function LiveFeed({ afterHero, afterFeed }: { afterHero?: React.ReactNode; afterFeed?: React.ReactNode } = {}) {
   const [items, setItems] = useState<LiveBroadcast[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<ViewMode>("feed");
@@ -67,33 +67,43 @@ export function LiveFeed() {
         : eventFiltered.filter((b) => (b.supports_team || "").toLowerCase() === team.toLowerCase()),
     [eventFiltered, team]
   );
-  const featuredGroups = useMemo(() => groupByEvent(filtered), [filtered]);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 pb-20 md:px-8">
-      {/* Hero */}
-      <section className="relative -mx-4 mb-8 overflow-hidden rounded-b-[2rem] md:-mx-8 md:mt-6 md:rounded-[2rem]">
-        <div className="absolute inset-0 bg-gradient-to-br from-rose-50 via-orange-50 to-amber-50" />
-        <div className="absolute -left-20 -top-20 h-64 w-64 rounded-full bg-rose-300/40 blur-3xl" />
-        <div className="absolute right-[-5rem] top-6 h-72 w-72 rounded-full bg-orange-300/40 blur-3xl" />
-        <div className="relative px-6 py-12 md:py-16">
-          <div className="mx-auto max-w-2xl text-center">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-600 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
-              <Radio className="h-3.5 w-3.5" /> {event === "all" ? "Happening now" : "Where to watch"}
-            </span>
-            <h1 className="mt-4 text-4xl font-semibold tracking-tight text-stone-900 md:text-5xl">
-              {event === "all"
-                ? "What's on right now"
-                : `Where to watch the ${eventLabel(event)} in SF`}
-            </h1>
-            <p className="mx-auto mt-3 max-w-lg text-base text-stone-600">
-              {event === "all"
-                ? "Find where the game is showing — the vibe, the crowd, the big screen. Live from local venues near you."
-                : "The best watch parties in San Francisco — bars and venues showing every match, with the vibe and the crowd."}
-            </p>
+    <>
+      {/* Compact page hero — frames the whole Live tab (live venues + events). */}
+      <div className="mx-auto max-w-6xl px-4 md:px-8">
+        <section className="relative -mx-4 mb-6 overflow-hidden rounded-b-[1.75rem] md:-mx-8 md:mt-6 md:rounded-[1.75rem]">
+          <div className="absolute inset-0 bg-gradient-to-br from-rose-50 via-orange-50 to-amber-50" />
+          <div className="absolute -left-16 -top-16 h-44 w-44 rounded-full bg-rose-300/40 blur-3xl" />
+          <div className="absolute right-[-4rem] top-2 h-48 w-48 rounded-full bg-orange-300/40 blur-3xl" />
+          <div className="relative px-6 py-7 md:py-9">
+            <div className="mx-auto max-w-2xl text-center">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-600 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-white">
+                <Radio className="h-3 w-3" /> {event === "all" ? "Happening now" : "Where to watch"}
+              </span>
+              <h1 className="mt-3 text-2xl font-semibold tracking-tight text-stone-900 md:text-3xl">
+                {event === "all"
+                  ? "Live & local"
+                  : `Where to watch the ${eventLabel(event)} in SF`}
+              </h1>
+              <p className="mx-auto mt-2 max-w-lg text-sm text-stone-600">
+                {event === "all"
+                  ? "Games showing now near you, plus local events happening today and coming up."
+                  : "The best watch parties in San Francisco — bars and venues showing every match, with the vibe and the crowd."}
+              </p>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      </div>
+
+      {/* Events happening now / upcoming render here (passed by the page). */}
+      {afterHero}
+
+      <div className="mx-auto max-w-6xl border-t border-stone-100 px-4 pb-8 pt-8 md:px-8">
+      {/* Live now — venue broadcasts. */}
+      {!locked && (
+        <h2 className="mb-3 text-xl font-semibold tracking-tight text-stone-900">Live now</h2>
+      )}
 
       {/* Controls */}
       <div className="mb-5 flex items-center justify-between gap-3">
@@ -167,27 +177,14 @@ export function LiveFeed() {
           <p className="text-base font-medium text-stone-800">No venues match that filter.</p>
           <p className="mt-1 text-sm text-stone-500">Try a different team or event.</p>
         </div>
-      ) : event !== "all" ? (
-        <Grid items={filtered} lean={locked} />
       ) : (
-        // "All" view → featured lists grouped by event.
-        <div className="space-y-10">
-          {featuredGroups.map((g) => (
-            <section key={g.slug}>
-              <div className="mb-3 flex items-center gap-2">
-                <h2 className="text-lg font-semibold text-stone-900">
-                  {eventEmoji(g.slug)} {eventLabel(g.slug, g.items[0]?.event_label)}
-                </h2>
-                <span className="rounded-full bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-500">
-                  {g.items.length} {g.items.length === 1 ? "venue" : "venues"}
-                </span>
-              </div>
-              <Grid items={g.items} />
-            </section>
-          ))}
-        </div>
+        // One consolidated grid of live venues (filter via the event/team chips).
+        <Grid items={filtered} lean={locked} />
       )}
-    </div>
+      </div>
+
+      {afterFeed}
+    </>
   );
 }
 

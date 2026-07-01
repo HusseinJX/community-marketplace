@@ -206,7 +206,7 @@ export default async function MemberProfilePage({
   if (fetchError || !member) {
     return (
       <div className="mx-auto max-w-4xl px-6 py-16">
-        <Link href="/" className="inline-flex items-center gap-1 text-sm text-indigo-700 hover:underline">
+        <Link href="/browse" className="inline-flex items-center gap-1 text-sm text-indigo-700 hover:underline">
           ← Back to browse
         </Link>
         <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
@@ -269,7 +269,7 @@ export default async function MemberProfilePage({
   return (
     <div className="mx-auto max-w-7xl px-4 pb-24 pt-8 md:px-8">
       {isIndexable(member) && <MemberJsonLd member={member} />}
-      <Link href="/" className="inline-flex items-center gap-1 text-sm text-indigo-700 hover:underline">
+      <Link href="/browse" className="inline-flex items-center gap-1 text-sm text-indigo-700 hover:underline">
         ← Back to browse
       </Link>
 

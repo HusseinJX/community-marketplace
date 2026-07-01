@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Clapperboard, Send, Search, User } from "lucide-react";
+import { Store, Radio, Send, Search, User } from "lucide-react";
 
 // Instagram-style bottom tab bar. Some destinations map to the nearest existing
-// surface until dedicated features land (Reels→Live, Messages→stub, Search→browse).
+// surface until dedicated features land (Messages→stub, Search→browse).
 const ITEMS = [
-  { href: "/", label: "Home", icon: Home },
-  { href: "/live", label: "Reels", icon: Clapperboard },
+  { href: "/", label: "Live", icon: Radio },
+  { href: "/browse", label: "Browse", icon: Store },
   { href: "/messages", label: "Messages", icon: Send },
   { href: "/explore", label: "Search", icon: Search },
   { href: "/shopper", label: "Profile", icon: User },

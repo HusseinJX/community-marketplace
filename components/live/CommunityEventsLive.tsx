@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { CalendarDays, CalendarClock, MapPin, LayoutGrid, Map as MapIcon } from "lucide-react";
@@ -42,15 +42,13 @@ function buildDemoEvents(now: number): FeedEvent[] {
   });
 }
 
-// Normal community events shown below the venue "what's on right now" feed,
-// split into Happening today and Upcoming, each with place filter tags.
-export function CommunityEventsLive() {
+// Community events split into Happening now and Upcoming, each with place tags.
+// `only` renders just one section (so the Live-now feed can sit between them on
+// the index); unset renders both with a Feed/Map toggle.
+export function CommunityEventsLive({ only }: { only?: "now" | "upcoming" } = {}) {
   const [events, setEvents] = useState<FeedEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [nowTs, setNowTs] = useState(0);
-  const [nowPlace, setNowPlace] = useState("all");
-  const [upPlace, setUpPlace] = useState("all");
-  const [view, setView] = useState<"feed" | "map">("feed");
 
   useEffect(() => {
     const ref = Date.now();
@@ -88,49 +86,86 @@ export function CommunityEventsLive() {
     return { now: nowArr, upcoming: upArr };
   }, [events, nowTs]);
 
-  const placeOf = (e: FeedEvent) => (e.city || e.neighborhood || "").trim();
-  const placesOf = (arr: FeedEvent[]) =>
-    Array.from(new Set(arr.map(placeOf).filter(Boolean))).sort();
-
-  const nowPlaces = useMemo(() => placesOf(now), [now]);
-  const upPlaces = useMemo(() => placesOf(upcoming), [upcoming]);
-
-  const nowFiltered = nowPlace === "all" ? now : now.filter((e) => placeOf(e) === nowPlace);
-  const upFiltered = upPlace === "all" ? upcoming : upcoming.filter((e) => placeOf(e) === upPlace);
-
-  const mapEvents: MapEvent[] = useMemo(
-    () => [
-      ...now.map((e) => ({ ...e, live: true })),
-      ...upcoming.map((e) => ({ ...e, live: false })),
-    ],
-    [now, upcoming]
-  );
-
   if (loading) return null;
+
+  const nowProps = {
+    title: "Events happening now",
+    icon: <CalendarDays className="h-5 w-5 text-emerald-500" />,
+    countClass: "bg-emerald-100 text-emerald-600",
+    items: now,
+    live: true,
+  };
+  const upProps = {
+    title: "Upcoming events",
+    icon: <CalendarClock className="h-5 w-5 text-sky-500" />,
+    countClass: "bg-sky-100 text-sky-600",
+    items: upcoming,
+    live: false,
+  };
+
+  // Split mode — one section in its own container, so Live now can sit between.
+  if (only === "now") {
+    return now.length === 0 ? null : (
+      <div className="mx-auto max-w-6xl px-4 pt-2 md:px-8">
+        <EventSection {...nowProps} />
+      </div>
+    );
+  }
+  if (only === "upcoming") {
+    return upcoming.length === 0 ? null : (
+      <div className="mx-auto max-w-6xl border-t border-stone-100 px-4 pb-20 pt-8 md:px-8">
+        <EventSection {...upProps} />
+      </div>
+    );
+  }
+
   if (now.length === 0 && upcoming.length === 0) return null;
 
+  // Standalone — both sections, each with its own Feed/Map toggle.
   return (
-    <div className="mx-auto max-w-6xl space-y-8 px-4 pb-20 md:px-8">
-      {/* Section header + Feed/Map toggle */}
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-xl font-semibold text-stone-900">Community events</h2>
-        <div className="flex rounded-full border border-stone-200 bg-white p-1">
-          <button
-            onClick={() => setView("feed")}
-            className={
-              "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition " +
-              (view === "feed" ? "bg-stone-900 text-white" : "text-stone-600 hover:text-stone-900")
-            }
-          >
+    <div className="mx-auto max-w-6xl space-y-10 px-4 pt-2 md:px-8">
+      <h2 className="text-xl font-semibold text-stone-900">Community events</h2>
+      {now.length > 0 && <EventSection {...nowProps} />}
+      {upcoming.length > 0 && <EventSection {...upProps} />}
+    </div>
+  );
+}
+
+// One event section (happening now OR upcoming) with its own Feed/Map toggle +
+// place filter tags, mapping just its own events.
+function EventSection({
+  title, icon, countClass, items, live,
+}: {
+  title: string;
+  icon: ReactNode;
+  countClass: string;
+  items: FeedEvent[];
+  live: boolean;
+}) {
+  const [view, setView] = useState<"feed" | "map">("feed");
+  const [place, setPlace] = useState("all");
+
+  const placeOf = (e: FeedEvent) => (e.city || e.neighborhood || "").trim();
+  const places = useMemo(
+    () => Array.from(new Set(items.map(placeOf).filter(Boolean))).sort(),
+    [items]
+  );
+  const filtered = place === "all" ? items : items.filter((e) => placeOf(e) === place);
+  const mapEvents: MapEvent[] = items.map((e) => ({ ...e, live }));
+
+  return (
+    <section>
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          {icon}
+          <h2 className="text-lg font-semibold text-stone-900">{title}</h2>
+          <span className={"rounded-full px-2 py-0.5 text-xs font-medium " + countClass}>{items.length}</span>
+        </div>
+        <div className="flex shrink-0 rounded-full border border-stone-200 bg-white p-1">
+          <button onClick={() => setView("feed")} className={toggleBtn(view === "feed")}>
             <LayoutGrid className="h-4 w-4" /> Feed
           </button>
-          <button
-            onClick={() => setView("map")}
-            className={
-              "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition " +
-              (view === "map" ? "bg-stone-900 text-white" : "text-stone-600 hover:text-stone-900")
-            }
-          >
+          <button onClick={() => setView("map")} className={toggleBtn(view === "map")}>
             <MapIcon className="h-4 w-4" /> Map
           </button>
         </div>
@@ -139,43 +174,21 @@ export function CommunityEventsLive() {
       {view === "map" ? (
         <EventsMap events={mapEvents} />
       ) : (
-        <div className="space-y-10">
-      {/* Happening today */}
-      {now.length > 0 && (
-        <section>
-          <div className="mb-3 flex items-center gap-2">
-            <CalendarDays className="h-5 w-5 text-emerald-500" />
-            <h2 className="text-lg font-semibold text-stone-900">Events happening now</h2>
-            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-600">
-              {now.length}
-            </span>
-          </div>
-          {nowPlaces.length > 0 && (
-            <PlaceTags places={nowPlaces} active={nowPlace} onPick={setNowPlace} allCount={now.length} />
+        <>
+          {places.length > 0 && (
+            <PlaceTags places={places} active={place} onPick={setPlace} allCount={items.length} />
           )}
-          <EventGrid items={nowFiltered} />
-        </section>
+          <EventGrid items={filtered} />
+        </>
       )}
+    </section>
+  );
+}
 
-      {/* Upcoming */}
-      {upcoming.length > 0 && (
-        <section>
-          <div className="mb-3 flex items-center gap-2">
-            <CalendarClock className="h-5 w-5 text-sky-500" />
-            <h2 className="text-lg font-semibold text-stone-900">Upcoming events</h2>
-            <span className="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-600">
-              {upcoming.length}
-            </span>
-          </div>
-          {upPlaces.length > 0 && (
-            <PlaceTags places={upPlaces} active={upPlace} onPick={setUpPlace} allCount={upcoming.length} />
-          )}
-          <EventGrid items={upFiltered} />
-        </section>
-      )}
-        </div>
-      )}
-    </div>
+function toggleBtn(active: boolean) {
+  return (
+    "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition " +
+    (active ? "bg-stone-900 text-white" : "text-stone-600 hover:text-stone-900")
   );
 }
 

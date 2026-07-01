@@ -9,7 +9,7 @@ export default function FavoritesPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 pb-24 pt-8 md:px-8">
-      <Link href="/" className="inline-flex items-center gap-1 text-sm text-indigo-700 hover:underline">
+      <Link href="/browse" className="inline-flex items-center gap-1 text-sm text-indigo-700 hover:underline">
         <ArrowLeft className="h-4 w-4" /> Back to browse
       </Link>
 

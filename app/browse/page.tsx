@@ -2,7 +2,7 @@
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { LayoutGrid, Map as MapIcon, Heart, Apple, DollarSign, CreditCard, X, CalendarDays, Store } from "lucide-react";
+import { LayoutGrid, Map as MapIcon, Heart, Apple, DollarSign, CreditCard, X, MapPin } from "lucide-react";
 import { listMembers, searchMembers } from "@/lib/api";
 import type { Member, SearchResultMember, SearchIntent } from "@/lib/types";
 import { MemberCard, MemberCardSkeleton } from "@/components/MemberCard";
@@ -12,12 +12,12 @@ import { FilterBar, type FilterType } from "@/components/FilterBar";
 import { MapView } from "@/components/MapView";
 import { SearchBar, type SearchMode } from "@/components/SearchBar";
 import { QrScanButton } from "@/components/QrScanButton";
-import { LiveNowRail } from "@/components/live/LiveNowRail";
 import { HappeningThisWeek } from "@/components/feed/HappeningThisWeek";
-import { LocationPicker, type PlaceOption } from "@/components/LocationPicker";
-import { useLocation, placeIsSet, placeLabel } from "@/lib/location";
+import { type PlaceOption } from "@/components/LocationPicker";
+import { useLocation } from "@/lib/location";
 import { FilterSidebar } from "@/components/FilterSidebar";
 import { matchesFacets } from "@/lib/business-facets";
+import { groupMembers } from "@/lib/browse-groups";
 import { DEMO_MEMBERS } from "@/lib/demo-members";
 import { MEMBER_HERO_IMAGES } from "@/lib/member-images";
 import { usableImages, isPlaceholder } from "@/lib/image-utils";
@@ -253,6 +253,12 @@ export default function BrowsePage() {
     return [...withImg, ...withoutImg];
   }, [members, type, searchMode, searchQuery, facetSize, facetOwnership, place.neighborhood]);
 
+  // Airbnb-style grouped rails when browsing the full directory (no search /
+  // type / category / facet narrowing). Otherwise a flat filtered grid.
+  const showGroups =
+    !aiSearchActive && !searchQuery && type === "all" && !category && !facetSize && facetOwnership.length === 0;
+  const groups = useMemo(() => (showGroups ? groupMembers(visible) : []), [showGroups, visible]);
+
   // Places (city → neighborhoods) for the location picker, derived from members.
   const places: PlaceOption[] = useMemo(() => {
     const map = new Map<string, Set<string>>();
@@ -270,38 +276,25 @@ export default function BrowsePage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 pb-20 md:px-8">
-      {/* Gradient hero */}
-      <section className="relative -mx-4 mb-6 overflow-hidden rounded-b-[2.5rem] md:-mx-8 md:mt-6 md:rounded-[2.5rem]">
+      {/* Compact hero — same proportions as the Live tab header. */}
+      <section className="relative -mx-4 mb-6 overflow-hidden rounded-b-[1.75rem] md:-mx-8 md:mt-6 md:rounded-[1.75rem]">
         <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 via-sky-50 to-violet-50" />
-        <div className="absolute -left-24 -top-24 h-72 w-72 rounded-full bg-teal-300/40 blur-3xl" />
-        <div className="absolute right-[-6rem] top-10 h-80 w-80 rounded-full bg-sky-300/40 blur-3xl" />
-        <div className="absolute bottom-[-6rem] left-1/3 h-72 w-72 rounded-full bg-violet-300/40 blur-3xl" />
-        <div className="absolute inset-0 opacity-[0.06] [background-image:radial-gradient(circle_at_1px_1px,#0f172a_1px,transparent_0)] [background-size:22px_22px]" />
-        <div className="relative py-16 md:py-24">
-          <div className="mx-auto max-w-3xl px-6 text-center">
-            <h1 className="text-5xl font-semibold leading-[1.05] tracking-tight text-stone-900 md:text-7xl">
-              What&apos;s{" "}
+        <div className="absolute -left-16 -top-16 h-44 w-44 rounded-full bg-teal-300/40 blur-3xl" />
+        <div className="absolute right-[-4rem] top-2 h-48 w-48 rounded-full bg-sky-300/40 blur-3xl" />
+        <div className="relative px-6 py-7 md:py-9">
+          <div className="mx-auto max-w-2xl text-center">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-stone-900 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-white">
+              <MapPin className="h-3 w-3" /> Near you
+            </span>
+            <h1 className="mt-3 text-2xl font-semibold tracking-tight text-stone-900 md:text-3xl">
+              Who&apos;s{" "}
               <span className="bg-gradient-to-r from-teal-600 via-sky-600 to-violet-600 bg-clip-text text-transparent">
                 Local
               </span>
             </h1>
-            <p className="mx-auto mt-5 max-w-xl text-base text-stone-600 md:text-lg">
-              Local events, makers, and businesses near you — discover what&apos;s happening this week, or bring people together for your own.
+            <p className="mx-auto mt-2 max-w-lg text-sm text-stone-600">
+              The makers, artists, businesses, and community near you.
             </p>
-            <div className="mt-7 flex flex-wrap items-center justify-center gap-2">
-              <Link
-                href="/events?view=events"
-                className="inline-flex items-center gap-2 rounded-full bg-stone-900 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-all hover:bg-stone-800 hover:shadow-md hover:-translate-y-0.5"
-              >
-                <CalendarDays className="h-4 w-4" /> See what&apos;s happening
-              </Link>
-              <Link
-                href="/vendor"
-                className="inline-flex items-center gap-2 rounded-full bg-white/90 px-5 py-2.5 text-sm font-medium text-stone-800 ring-1 ring-stone-200 shadow-sm backdrop-blur transition-all hover:ring-stone-300 hover:shadow-md hover:-translate-y-0.5"
-              >
-                <Store className="h-4 w-4" /> List your business
-              </Link>
-            </div>
           </div>
         </div>
       </section>
@@ -357,14 +350,6 @@ export default function BrowsePage() {
         </div>
       )}
 
-      {/* Place lens — the app's primary geographic scope */}
-      <section className="mb-3 flex flex-wrap items-center gap-2">
-        <LocationPicker places={places} />
-        <span className="text-sm text-stone-500">
-          {placeIsSet(place) ? `Showing what's near ${placeLabel(place)}` : "Pick your area to scope events & businesses"}
-        </span>
-      </section>
-
       {/* Smart search bar + QR scanner */}
       <section className="mb-3 flex items-start gap-2">
         <div className="min-w-0 flex-1">
@@ -383,33 +368,9 @@ export default function BrowsePage() {
         <QrScanButton />
       </section>
 
-      {/* Live now near you — hidden when nothing is live */}
-      <LiveNowRail />
-
-      {/* Happening this week — local events front-and-center (the core loop).
-          Hidden while searching so search results own the view. */}
-      {!searchQuery && <HappeningThisWeek />}
-
-      <FilterSidebar
-        open={filtersOpen}
-        onClose={() => setFiltersOpen(false)}
-        size={facetSize}
-        ownership={facetOwnership}
-        onSizeChange={setFacetSize}
-        onToggleOwnership={toggleFacetOwnership}
-        onClear={() => { setFacetSize(""); setFacetOwnership([]); }}
-      />
-
-      {/* Filters + view toggle — hidden while AI search is active */}
-      {!aiSearchActive && !searchQuery && (
-        <div className="mb-3 mt-2">
-          <h2 className="text-xl font-semibold tracking-tight text-stone-900">Local directory</h2>
-          <p className="text-sm text-stone-500">Browse makers, vendors, artists, and community orgs near you.</p>
-        </div>
-      )}
-
+      {/* Category bar — Airbnb-style icon tabs, directly under the search. */}
       {!aiSearchActive && (
-        <section className="space-y-3">
+        <section className="mb-4 mt-1">
           <div className="flex items-start justify-between gap-3">
             <FilterBar
               type={type}
@@ -432,6 +393,20 @@ export default function BrowsePage() {
           </div>
         </section>
       )}
+
+      {/* Happening this week — local events front-and-center (the core loop).
+          Hidden while searching so search results own the view. */}
+      {!searchQuery && <HappeningThisWeek />}
+
+      <FilterSidebar
+        open={filtersOpen}
+        onClose={() => setFiltersOpen(false)}
+        size={facetSize}
+        ownership={facetOwnership}
+        onSizeChange={setFacetSize}
+        onToggleOwnership={toggleFacetOwnership}
+        onClear={() => { setFacetSize(""); setFacetOwnership([]); }}
+      />
 
       {/* Intent summary while AI search is active */}
       {aiSearchActive && searchIntent && (
@@ -511,41 +486,76 @@ export default function BrowsePage() {
             )}
 
             {view === "grid" && visible.length > 0 && (
-              <>
-                <div className="grid auto-rows-fr grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                  {visible.map((m, i) => (
-                    <Fragment key={m.id}>
-                      <MemberCard member={m} />
-                      {/* Official WhatsLocal merch — featured after the 3rd card */}
-                      {i === 2 && <MerchCard />}
-                      {/* Atlas — official WhatsLocal events — featured after the 6th card */}
-                      {i === 5 && <EventsCard />}
-                    </Fragment>
-                  ))}
-                </div>
-
-                {/* Sentinel + bottom-of-list states */}
-                {hasMore && (
-                  <div ref={sentinelRef} className="mt-6 h-px w-full" aria-hidden />
-                )}
-                {loadingMore && (
-                  <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    {Array.from({ length: 4 }).map((_, i) => (
-                      <MemberCardSkeleton key={`more-${i}`} />
+              showGroups ? (
+                /* Airbnb-style category rails */
+                <>
+                  <div className="space-y-10">
+                    {groups.map(({ group, members: gm }) => (
+                      <GroupRail key={group.key} label={group.label} emoji={group.emoji} members={gm} />
                     ))}
                   </div>
-                )}
-                {!hasMore && !loadingMore && (
-                  <div className="mt-10 text-center text-xs text-stone-500">
-                    You've reached the end of the directory.
+                  {hasMore && <div ref={sentinelRef} className="mt-6 h-px w-full" aria-hidden />}
+                  {loadingMore && (
+                    <p className="mt-6 text-center text-xs text-stone-500">Loading more local…</p>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div className="grid auto-rows-fr grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    {visible.map((m, i) => (
+                      <Fragment key={m.id}>
+                        <MemberCard member={m} />
+                        {/* Official WhatsLocal merch — featured after the 3rd card */}
+                        {i === 2 && <MerchCard />}
+                        {/* Atlas — official WhatsLocal events — featured after the 6th card */}
+                        {i === 5 && <EventsCard />}
+                      </Fragment>
+                    ))}
                   </div>
-                )}
-              </>
+
+                  {/* Sentinel + bottom-of-list states */}
+                  {hasMore && (
+                    <div ref={sentinelRef} className="mt-6 h-px w-full" aria-hidden />
+                  )}
+                  {loadingMore && (
+                    <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                      {Array.from({ length: 4 }).map((_, i) => (
+                        <MemberCardSkeleton key={`more-${i}`} />
+                      ))}
+                    </div>
+                  )}
+                  {!hasMore && !loadingMore && (
+                    <div className="mt-10 text-center text-xs text-stone-500">
+                      You've reached the end of the directory.
+                    </div>
+                  )}
+                </>
+              )
             )}
           </>
         )}
       </section>
     </div>
+  );
+}
+
+// A horizontal-scrolling rail of members for one category group (Airbnb-style).
+function GroupRail({ label, emoji, members }: { label: string; emoji: string; members: Member[] }) {
+  return (
+    <section>
+      <h3 className="mb-3 flex items-center gap-2 text-lg font-semibold tracking-tight text-stone-900">
+        <span className="text-xl leading-none">{emoji}</span>
+        {label}
+        <span className="rounded-full bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-500">{members.length}</span>
+      </h3>
+      <div className="-mx-4 flex gap-4 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:-mx-8 md:px-8">
+        {members.map((m) => (
+          <div key={m.id} className="w-60 shrink-0 sm:w-64">
+            <MemberCard member={m} />
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 

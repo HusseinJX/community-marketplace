@@ -12,11 +12,11 @@ export function BroadcastCard({ b, lean = false }: { b: LiveBroadcast; lean?: bo
   const place = [b.neighborhood, b.city].filter(Boolean).join(", ");
   const cover = b.image_urls?.[0];
   return (
-    <div className="card-soft card-hover flex h-full flex-col overflow-hidden">
+    <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-rose-200 bg-gradient-to-br from-rose-50 to-orange-50 transition hover:border-rose-300 hover:shadow-md">
       {/* Clickable header → live-event page */}
       <Link href={`/live/${b.id}`} className="block">
         {cover ? (
-          <div className="relative h-36 w-full overflow-hidden">
+          <div className="relative aspect-[16/9] w-full overflow-hidden">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={cover} alt={b.whats_on || "live"} className="h-full w-full object-cover" />
             <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-rose-600 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
@@ -29,10 +29,10 @@ export function BroadcastCard({ b, lean = false }: { b: LiveBroadcast; lean?: bo
             )}
           </div>
         ) : (
-          <div className="flex items-center gap-2 px-4 pt-4">
-            <span className="text-2xl leading-none">{eventEmoji(b.event_slug)}</span>
-            <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-rose-700">
-              <LiveDot /> Live
+          <div className="relative flex aspect-[16/9] w-full items-center justify-center bg-gradient-to-br from-rose-100 to-orange-100">
+            <span className="text-4xl leading-none">{eventEmoji(b.event_slug)}</span>
+            <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-rose-600 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+              <LiveDot light /> Live
             </span>
           </div>
         )}
@@ -49,7 +49,7 @@ export function BroadcastCard({ b, lean = false }: { b: LiveBroadcast; lean?: bo
       </Link>
 
       <div className="flex flex-1 flex-col gap-2 px-4 pb-4 pt-2">
-        <Link href={`/members/${b.member_id}`} className="text-sm font-medium text-indigo-600 hover:text-indigo-800">
+        <Link href={`/members/${b.member_id}`} className="text-sm font-semibold text-rose-700 hover:text-rose-900">
           {b.member_name || "View venue"}
         </Link>
 

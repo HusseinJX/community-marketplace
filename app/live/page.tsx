@@ -1,22 +1,13 @@
-import type { Metadata } from "next";
-import { LiveFeed } from "@/components/live/LiveFeed";
-import { CommunityEventsLive } from "@/components/live/CommunityEventsLive";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = {
-  title: "Live Now — What's on right now",
-  description:
-    "Find where the game is showing near you — the World Cup, NBA, UFC and more. Live broadcasts from local venues with the vibe, the crowd, and the big screen.",
-  alternates: { canonical: "/live" },
-};
-
-// Always render fresh — the live feed is fetched client-side from /api/broadcasts.
-export const dynamic = "force-dynamic";
-
-export default function LivePage() {
-  return (
-    <>
-      <LiveFeed />
-      <CommunityEventsLive />
-    </>
-  );
+// The Live feed now lives at the index ("/"). Keep this route as a redirect so
+// existing /live and /live?event=… deep links (cards, emails, QR) still work.
+export default async function LiveRedirect({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const sp = await searchParams;
+  const event = typeof sp.event === "string" ? sp.event : undefined;
+  redirect(event ? `/?event=${encodeURIComponent(event)}` : "/");
 }

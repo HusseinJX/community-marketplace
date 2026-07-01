@@ -11,7 +11,7 @@ export default function CheckoutSuccessPage() {
         </p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <Link
-            href="/"
+            href="/browse"
             className="rounded-full bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors"
           >
             Browse more members

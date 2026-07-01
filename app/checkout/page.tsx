@@ -286,13 +286,13 @@ export default function CheckoutPage() {
   if (cart.length === 0 && Object.keys(paidVendors).length === 0) {
     return (
       <div className="mx-auto max-w-2xl px-6 py-10">
-        <Link href="/" className="text-sm font-medium text-indigo-700 hover:underline">
+        <Link href="/browse" className="text-sm font-medium text-indigo-700 hover:underline">
           &larr; Back to browse
         </Link>
         <div className="mt-12 flex flex-col items-center gap-4 text-center">
           <p className="text-base text-stone-500">Your cart is empty.</p>
           <Link
-            href="/"
+            href="/browse"
             className="mt-2 rounded-full bg-indigo-600 px-5 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors"
           >
             Browse members
@@ -331,7 +331,7 @@ export default function CheckoutPage() {
             ))}
           </div>
           <Link
-            href="/"
+            href="/browse"
             className="mt-5 inline-block rounded-full bg-indigo-600 px-5 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors"
           >
             Browse more

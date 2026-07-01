@@ -27,7 +27,7 @@ export function SiteFooter() {
           <div>
             <h4 className="text-sm font-semibold text-stone-900">Explore</h4>
             <ul className="mt-3 space-y-2 text-sm text-stone-600">
-              <li><Link href="/" className="hover:text-indigo-700">Atlas</Link></li>
+              <li><Link href="/browse" className="hover:text-indigo-700">Atlas</Link></li>
               <li><Link href="/vendor/organize" className="hover:text-indigo-700">Community events</Link></li>
               <li><Link href="/vendor" className="hover:text-indigo-700">Admin demo</Link></li>
               <li><Link href="/city" className="hover:text-indigo-700">Places</Link></li>

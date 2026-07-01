@@ -2,14 +2,15 @@
 
 import type { MemberType } from "@/lib/types";
 import { getCategories, getSubcategories } from "@/lib/taxonomy";
+import { LayoutGrid, Store, Palette, Users } from "lucide-react";
 
 export type FilterType = MemberType | "all";
 
-const TYPES: { key: FilterType; label: string }[] = [
-  { key: "all", label: "All" },
-  { key: "vendor", label: "Vendors" },
-  { key: "artist", label: "Artists" },
-  { key: "organizer", label: "Community" },
+const TYPES: { key: FilterType; label: string; icon: typeof Store }[] = [
+  { key: "all", label: "All", icon: LayoutGrid },
+  { key: "vendor", label: "Vendors", icon: Store },
+  { key: "artist", label: "Artists", icon: Palette },
+  { key: "organizer", label: "Community", icon: Users },
 ];
 
 export type FilterBarProps = {
@@ -39,20 +40,23 @@ export function FilterBar({
 
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-3">
-      <div className="flex flex-wrap gap-2">
+      {/* Airbnb-style segmented control — icon over label, underline on active. */}
+      <div className="-mx-1 flex items-center gap-7 overflow-x-auto border-b border-stone-200 px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {TYPES.map(t => {
           const active = type === t.key;
+          const Icon = t.icon;
           return (
             <button
               key={t.key}
               type="button"
               onClick={() => onTypeChange(t.key)}
-              className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
+              className={`flex shrink-0 flex-col items-center gap-1 border-b-2 pb-2.5 pt-1 text-xs font-semibold transition ${
                 active
-                  ? "bg-indigo-600 text-white shadow-sm"
-                  : "bg-white text-stone-700 ring-1 ring-stone-200 hover:bg-stone-50"
+                  ? "border-stone-900 text-stone-900"
+                  : "border-transparent text-stone-400 hover:text-stone-700"
               }`}
             >
+              <Icon className="h-5 w-5" strokeWidth={active ? 2.4 : 2} />
               {t.label}
             </button>
           );

@@ -11,8 +11,7 @@ const MENU = [
 ];
 
 // Instagram-style top bar: left "+" (post/share), center "WhatsLocal" dropdown
-// (Home / Feed), right cart + profile (sign-in / account). Events live on the
-// Live tab (bottom nav → /live), so they're not duplicated here.
+// (Home/index + Feed — Live & Browse live in the bottom nav), right cart + profile.
 export function TopNav() {
   const { cart } = useStore();
   const [open, setOpen] = useState(false);
