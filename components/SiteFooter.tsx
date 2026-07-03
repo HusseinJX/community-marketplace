@@ -61,7 +61,11 @@ export function SiteFooter() {
 
         <div className="mt-10 flex flex-col items-start justify-between gap-3 border-t border-stone-200 pt-6 text-xs text-stone-500 sm:flex-row sm:items-center">
           <p>© {new Date().getFullYear()} WhatsLocal AI. Made in LA.</p>
-          <p>Built with care for local communities.</p>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <Link href="/privacy" className="hover:text-indigo-700">Privacy</Link>
+            <Link href="/terms" className="hover:text-indigo-700">Terms</Link>
+            <Link href="/sms" className="hover:text-indigo-700">Text WhatsLocal</Link>
+          </div>
         </div>
       </div>
     </footer>

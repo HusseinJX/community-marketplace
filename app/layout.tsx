@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import { TopNav } from "@/components/TopNav";
 import { BottomNav } from "@/components/BottomNav";
+import { SmsBanner } from "@/components/SmsBanner";
 import { SiteFooter } from "@/components/SiteFooter";
 import { StoreProvider } from "@/lib/store";
 import { LocationProvider } from "@/lib/location";
@@ -58,6 +59,7 @@ export default function RootLayout({
           <PostHogProvider>
           <LocationProvider>
           <StoreProvider>
+            <SmsBanner />
             <header
               className="sticky top-0 z-30 border-b border-stone-200 bg-stone-50/80 backdrop-blur"
               style={{ paddingTop: "env(safe-area-inset-top)" }}
