@@ -6,6 +6,7 @@ import {
   CalendarHeart,
   HandHeart,
   BookOpen,
+  Waypoints,
 } from "lucide-react";
 
 export const metadata: Metadata = {
@@ -89,8 +90,35 @@ export default function AboutPage() {
         </Link>
       </div>
 
+      {/* Mission card — the "why" behind everything else. */}
+      <section className="mt-8 overflow-hidden rounded-2xl border border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50 p-6 shadow-sm sm:p-8">
+        <div className="flex items-start gap-4">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-purple-600 to-pink-600 text-white">
+            <Waypoints className="h-5 w-5" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-wide text-purple-500">
+              Why we exist
+            </p>
+            <h2 className="mt-0.5 text-lg font-semibold tracking-tight text-stone-900 sm:text-xl">
+              A network of local ecosystems, connected by a living tissue
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-stone-700 sm:text-[0.95rem]">
+              WhatsLocal is a network of local ecosystems — the people, makers, businesses, and
+              community organizations of a place — connected by a connective tissue that enriches
+              the community and encourages collaboration across it. First and foremost, we exist to
+              <span className="font-semibold text-stone-900"> support and strengthen the local ecosystem</span>.
+              Everything else is how that shows up for you.
+            </p>
+          </div>
+        </div>
+      </section>
+
       {/* Sections */}
-      <div className="mt-8 space-y-4">
+      <p className="mt-6 px-1 text-xs font-semibold uppercase tracking-wide text-stone-400">
+        For you, that shows up as
+      </p>
+      <div className="mt-3 space-y-4">
         {SECTIONS.map(({ icon: Icon, eyebrow, title, body, href, cta, accent }, i) => (
           <section
             key={eyebrow}
