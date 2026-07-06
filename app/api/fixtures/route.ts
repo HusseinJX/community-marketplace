@@ -105,7 +105,10 @@ export async function GET() {
   const results = await Promise.all(
     LEAGUES.map((l) => fetchLeague(l.sport, l.league, l.slug))
   );
-  const fixtures = results.flat();
+  // Only surface games kicking off within the next week — a venue goes live for
+  // what's on now/soon, not fixtures weeks out.
+  const horizon = Date.now() + 7 * 24 * 60 * 60 * 1000;
+  const fixtures = results.flat().filter((f) => Date.parse(f.starts_at) <= horizon);
 
   // If every upstream came back empty (all leagues off-season / all failed),
   // fall back to the curated slate so the composer's picker is never blank.
