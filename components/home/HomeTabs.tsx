@@ -53,8 +53,8 @@ export function HomeTabs() {
             Your neighborhood, all in one place.
           </h1>
           <p className="mt-1 max-w-2xl text-sm leading-snug text-white/85 sm:text-[0.95rem]">
-            Discover local stories, real-world events, and the businesses, makers &amp; community
-            orgs near you — and see who&apos;s giving back to the neighborhood.
+            Discover your local ecosystem, engage in it, and see who&apos;s giving back to the
+            neighborhood.
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <Link
