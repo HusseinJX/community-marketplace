@@ -58,11 +58,11 @@ export function HomeTabs() {
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <Link
-              href="/watch-world-cup"
+              href="/world-cup"
               className="inline-flex items-center gap-1.5 rounded-full bg-white px-3.5 py-1.5 text-xs font-semibold text-purple-700 transition hover:bg-white/90"
             >
               <Trophy className="h-3.5 w-3.5" />
-              Watch World Cup
+              World Cup 2026
             </Link>
             <Link
               href="/sf"

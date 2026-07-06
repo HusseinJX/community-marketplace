@@ -78,6 +78,16 @@ export default function WorldCupPage() {
               <span>·</span>
               <span>🇲🇽 3 Mexican cities</span>
             </div>
+            <div className="mt-8">
+              <Link
+                href="/watch-world-cup"
+                className="inline-flex items-center gap-2 rounded-full bg-[#d4a017] px-5 py-2.5 text-sm font-semibold text-stone-900 shadow-sm transition hover:bg-[#f0c040]"
+              >
+                <Trophy className="h-4 w-4" />
+                Where to watch in SF
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
           </div>
         </div>
       </section>
