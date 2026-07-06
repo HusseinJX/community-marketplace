@@ -52,6 +52,7 @@ export function ShareComposer() {
   const [supportsTeam, setSupportsTeam] = useState("");
   const [liveMinutes, setLiveMinutes] = useState(180);
   const [pickedFixture, setPickedFixture] = useState<string | null>(null);
+  const [tournFilter, setTournFilter] = useState<string | null>(null);
   const [nowTs, setNowTs] = useState(0);
   // Real games on now (ESPN via /api/fixtures); seeded with the fallback slate.
   const [fixtures, setFixtures] = useState<Fixture[]>(() => getFixtures());
@@ -109,6 +110,19 @@ export function ShareComposer() {
     }
     return Array.from(map.entries()).map(([slug, items]) => ({ slug, items }));
   }, [liveFixtures, upcomingFixtures]);
+
+  // Tournament order for the filter pills — World Cup first, then the rest as
+  // they appear in the slate.
+  const tournamentSlugs = useMemo(() => {
+    const slugs = fixtureGroups.map((g) => g.slug);
+    return slugs.sort((a, b) => (a === "world-cup" ? -1 : b === "world-cup" ? 1 : 0));
+  }, [fixtureGroups]);
+
+  // Default to World Cup when it's on, else show everything.
+  const activeTourn =
+    tournFilter ?? (tournamentSlugs.includes("world-cup") ? "world-cup" : "all");
+  const shownGroups =
+    activeTourn === "all" ? fixtureGroups : fixtureGroups.filter((g) => g.slug === activeTourn);
 
   const pickedGame = fixtures.find((f) => f.id === pickedFixture) ?? null;
 
@@ -327,17 +341,51 @@ export function ShareComposer() {
 
           {goLive && (
             <div className="space-y-3">
-              {/* Pick a real game, grouped by tournament. */}
+              {/* Pick a real game — filter by tournament (World Cup first). */}
               {fixtureGroups.length > 0 && (
                 <div className="space-y-3">
                   <label className="block text-xs font-medium text-stone-500">
                     What&apos;s on — pick a game
                   </label>
-                  {fixtureGroups.map((g) => (
+
+                  {/* Tournament filter pills */}
+                  <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+                    {tournamentSlugs.map((slug) => (
+                      <button
+                        key={slug}
+                        type="button"
+                        onClick={() => setTournFilter(slug)}
+                        className={
+                          "shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition " +
+                          (activeTourn === slug
+                            ? "bg-rose-600 text-white"
+                            : "border border-stone-200 bg-white text-stone-700 hover:border-stone-300")
+                        }
+                      >
+                        {eventEmoji(slug)} {eventLabel(slug)}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setTournFilter("all")}
+                      className={
+                        "shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition " +
+                        (activeTourn === "all"
+                          ? "bg-rose-600 text-white"
+                          : "border border-stone-200 bg-white text-stone-700 hover:border-stone-300")
+                      }
+                    >
+                      All
+                    </button>
+                  </div>
+
+                  {shownGroups.map((g) => (
                     <div key={g.slug}>
-                      <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-stone-400">
-                        {eventEmoji(g.slug)} {eventLabel(g.slug)}
-                      </p>
+                      {activeTourn === "all" && (
+                        <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-stone-400">
+                          {eventEmoji(g.slug)} {eventLabel(g.slug)}
+                        </p>
+                      )}
                       <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
                         {g.items.map(({ f, live }) => (
                           <FixtureChip
