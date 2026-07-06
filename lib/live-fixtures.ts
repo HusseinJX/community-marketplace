@@ -77,16 +77,28 @@ export function isFixtureLive(f: Fixture, now: number = Date.now()): boolean {
   return Date.parse(f.starts_at) <= now && now < Date.parse(f.ends_at);
 }
 
-/** "Live now" first, then upcoming (not-yet-started), dropping anything ended. */
+/** Split any fixture list into "live now" + upcoming, dropping ended ones. */
+export function partitionFixtures(
+  all: Fixture[],
+  now: number = Date.now()
+): { live: Fixture[]; upcoming: Fixture[] } {
+  const sorted = [...all].sort((a, b) => Date.parse(a.starts_at) - Date.parse(b.starts_at));
+  return {
+    live: sorted.filter((f) => isFixtureLive(f, now)),
+    upcoming: sorted.filter((f) => Date.parse(f.starts_at) > now),
+  };
+}
+
+/**
+ * "Live now" first, then upcoming, from the curated fallback slate. Used when
+ * the real fixtures API (see /api/fixtures) is unavailable so the strip still
+ * populates.
+ */
 export function getLiveAndUpcoming(now: number = Date.now()): {
   live: Fixture[];
   upcoming: Fixture[];
 } {
-  const all = getFixtures(now);
-  return {
-    live: all.filter((f) => isFixtureLive(f, now)),
-    upcoming: all.filter((f) => Date.parse(f.starts_at) > now),
-  };
+  return partitionFixtures(getFixtures(now), now);
 }
 
 /** Short "starts in" label, e.g. "in 25m" / "in 2h" / "Sat 7:00 PM". */

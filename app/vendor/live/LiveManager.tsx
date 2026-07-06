@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Radio, Trash2, Clock, ExternalLink, ImagePlus, X, Calendar, Play } from "lucide-react";
 import { LIVE_EVENTS, eventEmoji, eventLabel, timeLeftLabel } from "@/lib/live-events";
-import { getLiveAndUpcoming, startsInLabel, type Fixture } from "@/lib/live-fixtures";
+import { partitionFixtures, getFixtures, startsInLabel, type Fixture } from "@/lib/live-fixtures";
 
 interface BroadcastRow {
   id: string;
@@ -53,6 +53,11 @@ export function LiveManager({
   const [uploading, setUploading] = useState(false);
   const [posting, setPosting] = useState(false);
   const [pickedFixture, setPickedFixture] = useState<string | null>(null);
+  const [pickedTeams, setPickedTeams] = useState<string[]>([]);
+  const [showManual, setShowManual] = useState(false);
+  // Real games on right now, fetched from /api/fixtures (ESPN, no key). Seeded
+  // with the curated slate so the strip renders instantly, then replaced.
+  const [fixtures, setFixtures] = useState<Fixture[]>(() => getFixtures());
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/broadcasts/${memberId}?include_expired=1`);
@@ -66,6 +71,27 @@ export function LiveManager({
     const t = setInterval(() => setNowTs(Date.now()), 30_000);
     return () => clearInterval(t);
   }, [load]);
+
+  // Pull the real slate once on mount (and refresh every few minutes).
+  useEffect(() => {
+    let alive = true;
+    const pull = async () => {
+      try {
+        const res = await fetch("/api/fixtures");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (alive && Array.isArray(data.fixtures)) setFixtures(data.fixtures);
+      } catch {
+        /* keep the seeded slate */
+      }
+    };
+    pull();
+    const t = setInterval(pull, 5 * 60_000);
+    return () => {
+      alive = false;
+      clearInterval(t);
+    };
+  }, []);
 
   async function uploadFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
@@ -93,6 +119,8 @@ export function LiveManager({
     setImages([]);
     setStartAt("");
     setPickedFixture(null);
+    setPickedTeams([]);
+    setShowManual(false);
   }
 
   // Tap a real game to pre-fill the composer. Live games go to "now" mode;
@@ -101,6 +129,9 @@ export function LiveManager({
     setPickedFixture(f.id);
     setEventSlug(f.event_slug);
     setWhatsOn(f.matchup);
+    setPickedTeams(f.teams ?? []);
+    setSupportsTeam(""); // let them pick a side for this game
+    setShowManual(false);
     if (live) {
       setMode("now");
     } else {
@@ -114,9 +145,19 @@ export function LiveManager({
     }
   }
 
+  function clearPick() {
+    setPickedFixture(null);
+    setPickedTeams([]);
+    setWhatsOn("");
+    setStartAt("");
+    setSupportsTeam("");
+  }
+
+  const canPost = (!!pickedFixture || whatsOn.trim().length > 0) &&
+    (mode === "now" || !!startAt);
+
   async function submit() {
-    if (posting) return;
-    if (mode === "schedule" && !startAt) return;
+    if (posting || !canPost) return;
     setPosting(true);
     try {
       await fetch(`/api/broadcasts/${memberId}`, {
@@ -163,7 +204,10 @@ export function LiveManager({
     r.active && Date.parse(r.starts_at) <= nowTs && Date.parse(r.ends_at) > nowTs;
   const isScheduledRow = (r: BroadcastRow) => r.active && Date.parse(r.starts_at) > nowTs;
 
-  const { live: liveFixtures, upcoming: upcomingFixtures } = getLiveAndUpcoming(nowTs || Date.now());
+  const { live: liveFixtures, upcoming: upcomingFixtures } = partitionFixtures(
+    fixtures,
+    nowTs || Date.now()
+  );
 
   const liveRows = rows.filter(isLiveRow);
   const scheduledRows = rows
@@ -192,77 +236,183 @@ export function LiveManager({
 
       {/* Composer */}
       <div className="card-soft space-y-4 p-5">
-        {/* Now vs Schedule */}
-        <div className="flex rounded-full border border-stone-200 bg-stone-50 p-1 w-fit">
-          <ModeBtn active={mode === "now"} onClick={() => setMode("now")}>
-            <Radio className="h-3.5 w-3.5" /> Go live now
-          </ModeBtn>
-          <ModeBtn active={mode === "schedule"} onClick={() => setMode("schedule")}>
-            <Calendar className="h-3.5 w-3.5" /> Schedule
-          </ModeBtn>
+        {/* Pick a real game that's on right now (or coming up). This is the
+            primary path — tapping one fills the matchup, sport, and time. */}
+        <div>
+          <label className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-stone-800">
+            <Radio className="h-4 w-4 text-rose-500" /> What&apos;s on — pick a game
+          </label>
+          {liveFixtures.length === 0 && upcomingFixtures.length === 0 ? (
+            <p className="rounded-lg border border-dashed border-stone-200 bg-stone-50 px-3 py-3 text-xs text-stone-500">
+              No games on the slate right now. You can still go live —{" "}
+              <button
+                type="button"
+                onClick={() => setShowManual(true)}
+                className="font-medium text-rose-600 underline underline-offset-2"
+              >
+                enter it manually
+              </button>
+              .
+            </p>
+          ) : (
+            <div className="space-y-2.5">
+              {liveFixtures.length > 0 && (
+                <div>
+                  <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-rose-500">
+                    Live now
+                  </p>
+                  <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+                    {liveFixtures.map((f) => (
+                      <FixtureChip
+                        key={f.id}
+                        f={f}
+                        live
+                        picked={pickedFixture === f.id}
+                        onPick={() => pickFixture(f, true)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+              {upcomingFixtures.length > 0 && (
+                <div>
+                  <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-stone-400">
+                    Coming up
+                  </p>
+                  <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+                    {upcomingFixtures.map((f) => (
+                      <FixtureChip
+                        key={f.id}
+                        f={f}
+                        live={false}
+                        picked={pickedFixture === f.id}
+                        onPick={() => pickFixture(f, false)}
+                        when={startsInLabel(f.starts_at, nowTs || Date.now())}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* What's on near you — tap a real game to pre-fill */}
-        {(liveFixtures.length > 0 || upcomingFixtures.length > 0) && (
-          <div>
-            <label className="mb-2 block text-xs font-medium text-stone-500">
-              What&apos;s on — tap to go live with it
-            </label>
-            <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
-              {liveFixtures.map((f) => (
-                <FixtureChip
-                  key={f.id}
-                  f={f}
-                  live
-                  picked={pickedFixture === f.id}
-                  onPick={() => pickFixture(f, true)}
-                />
-              ))}
-              {upcomingFixtures.map((f) => (
-                <FixtureChip
-                  key={f.id}
-                  f={f}
-                  live={false}
-                  picked={pickedFixture === f.id}
-                  onPick={() => pickFixture(f, false)}
-                  when={startsInLabel(f.starts_at, nowTs || Date.now())}
-                />
-              ))}
+        {/* Selected game summary — shown once a fixture is picked. */}
+        {pickedFixture && (
+          <div className="flex items-center gap-3 rounded-xl border border-rose-200 bg-rose-50/70 p-3">
+            <span className="text-2xl">{eventEmoji(eventSlug)}</span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-stone-900">{whatsOn}</p>
+              <p className="text-xs text-stone-500">
+                {eventLabel(eventSlug)} ·{" "}
+                {mode === "now"
+                  ? "Live now"
+                  : startAt
+                  ? `Starts ${new Date(startAt).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })}`
+                  : "Scheduled"}
+              </p>
             </div>
+            <button
+              onClick={clearPick}
+              className="shrink-0 rounded-lg p-1.5 text-stone-400 hover:bg-white hover:text-stone-700"
+              aria-label="Clear selection"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
         )}
 
-        <div>
-          <label className="mb-1 block text-xs font-medium text-stone-500">What&apos;s on</label>
-          <select
-            value={eventSlug}
-            onChange={(e) => setEventSlug(e.target.value)}
-            className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm"
-          >
-            {LIVE_EVENTS.map((ev) => (
-              <option key={ev.slug} value={ev.slug}>
-                {ev.emoji} {ev.label}
-              </option>
-            ))}
-          </select>
-        </div>
+        {/* Manual fallback — hidden by default; the game picker replaces it. */}
+        {!pickedFixture && (
+          <div>
+            <button
+              type="button"
+              onClick={() => setShowManual((v) => !v)}
+              className="text-xs font-medium text-stone-500 underline underline-offset-2 hover:text-stone-800"
+            >
+              {showManual ? "Hide manual entry" : "Not listed? Enter manually"}
+            </button>
+            {showManual && (
+              <div className="mt-3 space-y-3 rounded-xl border border-stone-200 bg-stone-50/60 p-3">
+                <div className="flex rounded-full border border-stone-200 bg-white p-1 w-fit">
+                  <ModeBtn active={mode === "now"} onClick={() => setMode("now")}>
+                    <Radio className="h-3.5 w-3.5" /> Now
+                  </ModeBtn>
+                  <ModeBtn active={mode === "schedule"} onClick={() => setMode("schedule")}>
+                    <Calendar className="h-3.5 w-3.5" /> Schedule
+                  </ModeBtn>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-stone-500">Sport / event</label>
+                  <select
+                    value={eventSlug}
+                    onChange={(e) => setEventSlug(e.target.value)}
+                    className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm"
+                  >
+                    {LIVE_EVENTS.map((ev) => (
+                      <option key={ev.slug} value={ev.slug}>
+                        {ev.emoji} {ev.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <input
+                  value={whatsOn}
+                  onChange={(e) => setWhatsOn(e.target.value)}
+                  placeholder="The matchup — e.g. Lakers vs Celtics"
+                  className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm"
+                />
+                {mode === "schedule" && (
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-stone-500">Starts</label>
+                    <input
+                      type="datetime-local"
+                      value={startAt}
+                      onChange={(e) => setStartAt(e.target.value)}
+                      className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
-        <input
-          value={whatsOn}
-          onChange={(e) => setWhatsOn(e.target.value)}
-          placeholder="The matchup — e.g. Lakers vs Celtics"
-          className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm"
-        />
+        {/* Rooting for? — quick chips for the picked game's two teams. */}
+        {pickedTeams.length > 0 ? (
+          <div>
+            <label className="mb-1.5 block text-xs font-medium text-stone-500">Rooting for? (optional)</label>
+            <div className="flex flex-wrap gap-2">
+              {pickedTeams.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setSupportsTeam((cur) => (cur === t ? "" : t))}
+                  className={
+                    "rounded-full px-3.5 py-1.5 text-sm font-medium transition " +
+                    (supportsTeam === t
+                      ? "bg-rose-600 text-white"
+                      : "border border-stone-200 bg-white text-stone-700 hover:border-stone-300")
+                  }
+                >
+                  🏳️ {t}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <input
+            value={supportsTeam}
+            onChange={(e) => setSupportsTeam(e.target.value)}
+            placeholder="Rooting for? (optional) — e.g. Mexico, Lakers"
+            className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm"
+          />
+        )}
+
         <input
           value={note}
           onChange={(e) => setNote(e.target.value)}
           placeholder="Optional vibe — big screen, sound on, drink specials…"
-          className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm"
-        />
-        <input
-          value={supportsTeam}
-          onChange={(e) => setSupportsTeam(e.target.value)}
-          placeholder="Rooting for? (optional) — e.g. Mexico, Lakers"
           className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm"
         />
         <input
@@ -303,8 +453,9 @@ export function LiveManager({
           {uploading && <p className="mt-1 text-xs text-stone-400">Uploading…</p>}
         </div>
 
-        {/* Timing */}
-        {mode === "schedule" && (
+        {/* Timing — adjust a picked upcoming game's start (manual entry has its
+            own field). */}
+        {mode === "schedule" && pickedFixture && (
           <div>
             <label className="mb-1 block text-xs font-medium text-stone-500">Starts</label>
             <input
@@ -340,7 +491,7 @@ export function LiveManager({
 
         <button
           onClick={submit}
-          disabled={posting || (mode === "schedule" && !startAt)}
+          disabled={posting || !canPost}
           className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-60"
         >
           {mode === "schedule" ? <Calendar className="h-4 w-4" /> : <Radio className="h-4 w-4" />}
