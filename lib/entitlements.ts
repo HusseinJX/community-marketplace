@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { isDemoMode } from '@/lib/demo-admin'
 
 // The single source of truth for what each subscription plan unlocks. Plans:
 //   free       — unclaimed directory listing only (no editing, no tools)
@@ -128,6 +129,12 @@ interface SubRow {
 
 /** Resolve a member's live entitlements from their subscription row. */
 export async function getEntitlements(memberId: string): Promise<Entitlements> {
+  // Demo/testing deploy: everything is Pro so every feature is testable without
+  // a real subscription. NEXT_PUBLIC_DEMO_MODE must be off in production.
+  if (isDemoMode()) {
+    return { plan: 'pro', active: true, can: PLANS.pro.can, limits: PLANS.pro.limits }
+  }
+
   let plan: Plan = 'free'
   let active = false
   try {
