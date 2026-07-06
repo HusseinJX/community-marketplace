@@ -7,7 +7,7 @@ import type { IScannerControls } from "@zxing/browser";
 import { listMembers, listEvents } from "@/lib/api";
 import type { Member, EventSuggestion } from "@/lib/types";
 import { DEMO_MEMBERS } from "@/lib/demo-members";
-import { LIVE_EVENTS, eventEmoji } from "@/lib/live-events";
+import { eventEmoji, eventLabel } from "@/lib/live-events";
 import { partitionFixtures, getFixtures, startsInLabel, type Fixture } from "@/lib/live-fixtures";
 
 const VENDOR_MODE_KEY = "wl_vendor_mode";
@@ -95,11 +95,28 @@ export function ShareComposer() {
 
   const { live: liveFixtures, upcoming: upcomingFixtures } = partitionFixtures(fixtures, nowTs || Date.now());
 
+  // Group the whole slate by tournament (live first within each group).
+  const fixtureGroups = useMemo(() => {
+    const tagged = [
+      ...liveFixtures.map((f) => ({ f, live: true })),
+      ...upcomingFixtures.map((f) => ({ f, live: false })),
+    ];
+    const map = new Map<string, { f: Fixture; live: boolean }[]>();
+    for (const t of tagged) {
+      const arr = map.get(t.f.event_slug) ?? [];
+      arr.push(t);
+      map.set(t.f.event_slug, arr);
+    }
+    return Array.from(map.entries()).map(([slug, items]) => ({ slug, items }));
+  }, [liveFixtures, upcomingFixtures]);
+
+  const pickedGame = fixtures.find((f) => f.id === pickedFixture) ?? null;
+
   function pickFixture(f: Fixture) {
     setPickedFixture(f.id);
     setEventSlug(f.event_slug);
     setWhatsOn(f.matchup);
-    if (f.teams?.[0]) setSupportsTeam(f.teams[0]);
+    setSupportsTeam(""); // let them pick a side via chips
     setGoLive(true);
   }
 
@@ -310,57 +327,57 @@ export function ShareComposer() {
 
           {goLive && (
             <div className="space-y-3">
-              {/* Suggested live/upcoming fixtures */}
-              {(liveFixtures.length > 0 || upcomingFixtures.length > 0) && (
-                <div>
-                  <label className="mb-1.5 block text-xs font-medium text-stone-500">
-                    What&apos;s on near you — tap to pre-fill
+              {/* Pick a real game, grouped by tournament. */}
+              {fixtureGroups.length > 0 && (
+                <div className="space-y-3">
+                  <label className="block text-xs font-medium text-stone-500">
+                    What&apos;s on — pick a game
                   </label>
-                  <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
-                    {liveFixtures.map((f) => (
-                      <FixtureChip key={f.id} f={f} live picked={pickedFixture === f.id} onPick={() => pickFixture(f)} />
-                    ))}
-                    {upcomingFixtures.map((f) => (
-                      <FixtureChip
-                        key={f.id}
-                        f={f}
-                        live={false}
-                        picked={pickedFixture === f.id}
-                        onPick={() => pickFixture(f)}
-                        when={startsInLabel(f.starts_at, nowTs || Date.now())}
-                      />
+                  {fixtureGroups.map((g) => (
+                    <div key={g.slug}>
+                      <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-stone-400">
+                        {eventEmoji(g.slug)} {eventLabel(g.slug)}
+                      </p>
+                      <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+                        {g.items.map(({ f, live }) => (
+                          <FixtureChip
+                            key={f.id}
+                            f={f}
+                            live={live}
+                            picked={pickedFixture === f.id}
+                            onPick={() => pickFixture(f)}
+                            when={live ? undefined : startsInLabel(f.starts_at, nowTs || Date.now())}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Rooting for? — quick chips for the picked game's two teams. */}
+              {pickedGame?.teams && pickedGame.teams.length > 0 && (
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium text-stone-500">Rooting for? (optional)</label>
+                  <div className="flex flex-wrap gap-2">
+                    {pickedGame.teams.map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setSupportsTeam((cur) => (cur === t ? "" : t))}
+                        className={
+                          "rounded-full px-3.5 py-1.5 text-sm font-medium transition " +
+                          (supportsTeam === t
+                            ? "bg-rose-600 text-white"
+                            : "border border-stone-200 bg-white text-stone-700 hover:border-stone-300")
+                        }
+                      >
+                        🏳️ {t}
+                      </button>
                     ))}
                   </div>
                 </div>
               )}
-
-              <div>
-                <label className="mb-1 block text-xs font-medium text-stone-500">What&apos;s on</label>
-                <select
-                  value={eventSlug}
-                  onChange={(e) => setEventSlug(e.target.value)}
-                  className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm"
-                >
-                  {LIVE_EVENTS.map((ev) => (
-                    <option key={ev.slug} value={ev.slug}>
-                      {ev.emoji} {ev.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <input
-                value={whatsOn}
-                onChange={(e) => setWhatsOn(e.target.value)}
-                placeholder="The matchup — e.g. Lakers vs Celtics"
-                className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm"
-              />
-              <input
-                value={supportsTeam}
-                onChange={(e) => setSupportsTeam(e.target.value)}
-                placeholder="Rooting for? (optional) — e.g. Mexico, Lakers"
-                className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm"
-              />
 
               <div>
                 <label className="mb-1 block text-xs font-medium text-stone-500">Live for</label>
