@@ -89,5 +89,24 @@ At scale (1,000 active vendors, $36M GMV/yr): ~$0.5M/yr today vs **~$4.2M/yr** r
 5. **"Hands"/MCP layer** — powers automations (yours) + BYO-agent (theirs); future-proof.
 6. Guard the **Composio dormant-vendor cost**; budget for **chargebacks**; keep feeding the **SEO/directory demand moat**.
 
+## Network membership tier (~$10/mo) — the density wedge
+A low **$10/mo** "be part of the network" subscription bundles: **collaboration matching**
+(get invited to / assemble local events — see `collaboration-matching.md`), **visibility**
+(SEO-indexed directory presence), **posting** (share/social), and the **AI customer-service
+agent**. Why it works:
+- **Underpriced on value.** The AI agent alone rivals $30–100/mo chatbots; directory
+  visibility is what Yelp charges hundreds for; one collaboration (a market booth, a
+  block-party) can pay for years of $10. Four things each worth ~$10, one that can 20x it.
+- **$10 clears SMB subscription-skepticism** → low-friction first yes → the density you need
+  district by district. Treat it as the **floor / land-grab tier**, not the ceiling — Pro
+  tiers (featured placement, richer AI image gen, commerce, lineup priority) live above it.
+- **Always-on utilities carry the slow months.** The agent + visibility justify $10 *every*
+  month; collaboration is the episodic upside that drives love/retention → low churn.
+- **Paying is a quality filter.** A member with skin in the game onboards richer and follows
+  through harder — exactly the motivated behavior the matching loop needs. Free would flood
+  the graph with dead profiles that poison matches.
+- **GTM removes the real barrier.** For local SMBs the blocker is *trust*, not price — a
+  BID/community-organizer vouching (Lower Polk, Yerba Buena) erases it.
+
 ## Related specs
-`native-app.md` · `storefront-theming.md` · `product-3d.md` · `virtual-tryon.md` · `event-photo-wall.md` · `composio-go-live-checklist.md`
+`collaboration-matching.md` · `native-app.md` · `storefront-theming.md` · `product-3d.md` · `virtual-tryon.md` · `event-photo-wall.md` · `composio-go-live-checklist.md`
