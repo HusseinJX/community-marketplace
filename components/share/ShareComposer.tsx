@@ -510,16 +510,19 @@ export function ShareComposer() {
         />
       </label>
 
-      {/* Location tag */}
-      <label className="flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3">
-        <MapPin className="h-4 w-4 shrink-0 text-emerald-500" />
-        <input
-          value={location}
-          onChange={(e) => setLocation(e.target.value)}
-          placeholder="Add location (e.g. Mission District, SF)"
-          className="w-full bg-transparent py-2.5 text-base text-stone-900 placeholder-stone-400 focus:outline-none"
-        />
-      </label>
+      {/* Location tag — users only. A vendor's broadcast location is their
+          tagged venue, not a typed one. */}
+      {!vendorMode && (
+        <label className="flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3">
+          <MapPin className="h-4 w-4 shrink-0 text-emerald-500" />
+          <input
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            placeholder="Add location (e.g. Mission District, SF)"
+            className="w-full bg-transparent py-2.5 text-base text-stone-900 placeholder-stone-400 focus:outline-none"
+          />
+        </label>
+      )}
 
       {/* Tag a business */}
       <TagField
