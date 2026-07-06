@@ -28,7 +28,24 @@ export type VendorPostFeedItem = FeedItemBase & {
   product?: { id: string; name: string; price: number; memberId: string; memberName: string };
 };
 
-export type FeedItem = EventFeedItem | VendorPostFeedItem;
+// A real community "share" post (from the share composer / posts table). Unlike
+// VendorPostFeedItem, its author is a Clerk user (not a member), so it carries
+// its own tagged-entity links instead of linking the author to /members.
+export type SharePostFeedItem = FeedItemBase & {
+  kind: "share";
+  postId: string;
+  body: string;
+  images?: string[];
+  videos?: string[];
+  taggedMember?: { id: string; name: string } | null;
+  taggedEvent?: { id: string; title: string } | null;
+  location?: string | null;
+  livestreamUrl?: string | null;
+  reactions?: number;
+  reacted?: boolean;
+};
+
+export type FeedItem = EventFeedItem | VendorPostFeedItem | SharePostFeedItem;
 
 const zahab: FeedAuthor = {
   id: "89516919-256f-4a95-96df-fc9d285f664a",
