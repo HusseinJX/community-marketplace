@@ -4,7 +4,6 @@ import { getVendorProfile } from "@/lib/vendor-connect";
 import { isAdmin } from "@/lib/admin";
 import { isDemoMode } from "@/lib/demo-admin";
 import { demoMemberId } from "@/lib/demo-server";
-import { getMember } from "@/lib/api";
 import { NetworkManager } from "./NetworkManager";
 
 export default async function VendorNetworkPage({
@@ -36,13 +35,5 @@ export default async function VendorNetworkPage({
     );
   }
 
-  let myCity = "";
-  try {
-    const m = await getMember(memberId);
-    myCity = (m.member.profile?.city as string) || "";
-  } catch {
-    /* keep default */
-  }
-
-  return <NetworkManager memberId={memberId} myCity={myCity} isAdmin={admin} />;
+  return <NetworkManager memberId={memberId} isAdmin={admin} />;
 }

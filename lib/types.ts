@@ -145,3 +145,28 @@ export interface SearchResponse {
   intent: SearchIntent;
   results: SearchResultMember[];
 }
+
+// Normalized match candidate — one shape the UI can render regardless of which
+// connector matching endpoint produced it (semantic search, similar-members,
+// complementary, or convener lineup fill). See lib/api.ts match helpers.
+export interface MatchCandidate {
+  id: string;
+  name: string;
+  memberType?: string;
+  city?: string;
+  neighborhood?: string;
+  category?: string;
+  score?: number; // 0..1 relevance/similarity
+  reasons: string[]; // matchedOn / fit breadcrumbs shown as chips
+  offers?: string[];
+  role?: string; // which lineup role this candidate fills (lineup mode only)
+  profile?: MemberProfile; // present when the endpoint returns a full profile
+}
+
+// An AI-proposed event lineup (convener invent-event) — a draft event plus, for
+// each role it needs, a ranked list of members who could fill it.
+export interface LineupSuggestion {
+  title: string;
+  description: string;
+  roles: { role: string; type?: string; candidates: MatchCandidate[] }[];
+}

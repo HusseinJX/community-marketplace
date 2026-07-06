@@ -2,28 +2,19 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Search, Users, UserRound, Send, Check, X, CalendarPlus, MapPin, Plus } from "lucide-react";
-import { listMembers } from "@/lib/api";
-import { DEMO_MEMBERS } from "@/lib/demo-members";
-import type { Member, MemberType } from "@/lib/types";
+import { Users, UserRound, Send, Check, X, CalendarPlus, Plus } from "lucide-react";
+import { MatchFinder } from "@/components/match/MatchFinder";
+import type { MatchCandidate } from "@/lib/types";
 import type { CollabInvite, CollabRoom, CollabMessage, RoomMember, CollaborationSummary } from "@/lib/collab-network";
 import { LINEUP_ROLES, roleDef } from "@/lib/lineup-roles";
 
 type Tab = "discover" | "invites" | "rooms";
-const TYPE_FILTERS: { key: MemberType | "all"; label: string }[] = [
-  { key: "all", label: "All" },
-  { key: "vendor", label: "Vendors" },
-  { key: "artist", label: "Artists" },
-  { key: "organizer", label: "Community" },
-];
 
 export function NetworkManager({
   memberId,
-  myCity,
   isAdmin,
 }: {
   memberId: string;
-  myCity: string;
   isAdmin: boolean;
 }) {
   const [tab, setTab] = useState<Tab>("rooms");
@@ -156,7 +147,6 @@ export function NetworkManager({
       {modal && (
         <InviteModal
           memberId={memberId}
-          myCity={myCity}
           isAdmin={isAdmin}
           outgoing={outgoing}
           occasion={modal.occasion}
@@ -176,7 +166,6 @@ export function NetworkManager({
 // or new), with a role picker. Replaces the old Discover tab.
 function InviteModal({
   memberId,
-  myCity,
   isAdmin,
   outgoing,
   occasion,
@@ -184,23 +173,17 @@ function InviteModal({
   onInvited,
 }: {
   memberId: string;
-  myCity: string;
   isAdmin: boolean;
   outgoing: CollabInvite[];
   occasion: { id: string; label: string } | null;
   onClose: () => void;
   onInvited: () => void;
 }) {
-  const [members, setMembers] = useState<Member[]>([]);
-  const [type, setType] = useState<MemberType | "all">("all");
-  const [query, setQuery] = useState("");
-  const [nearOnly, setNearOnly] = useState(false);
   const [sent, setSent] = useState<Set<string>>(new Set());
-  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [picked, setPicked] = useState<Map<string, MatchCandidate>>(new Map());
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
-  const [composeFor, setComposeFor] = useState<string | null>(null);
-  const [composeText, setComposeText] = useState("");
+  const [note, setNote] = useState("");
   const [role, setRole] = useState("vendor");
   const [newName, setNewName] = useState("");
   const [newOccId] = useState(() =>
@@ -211,11 +194,11 @@ function InviteModal({
   const activeOcc: { id: string; label: string } | null =
     occasion ?? (newName.trim() ? { id: newOccId, label: newName.trim() } : null);
 
-  const togglePick = (id: string) =>
+  const togglePick = (c: MatchCandidate) =>
     setPicked((s) => {
-      const n = new Set(s);
-      if (n.has(id)) n.delete(id);
-      else n.add(id);
+      const n = new Map(s);
+      if (n.has(c.id)) n.delete(c.id);
+      else n.set(c.id, c);
       return n;
     });
 
@@ -242,50 +225,27 @@ function InviteModal({
     if (!activeOcc || picked.size === 0) return;
     setBusy(true);
     setMsg("");
-    const targets = members.filter((m) => picked.has(m.id));
+    const targets = [...picked.values()];
     try {
-      await addInvitees(targets.map((m) => ({ id: m.id, name: m.profile?.name })));
+      await addInvitees(
+        targets.map((m) => ({ id: m.id, name: m.name })),
+        note,
+      );
       setSent((s) => {
         const n = new Set(s);
         targets.forEach((m) => n.add(m.id));
         return n;
       });
       setMsg(`Added ${targets.length} to "${activeOcc.label}".`);
-      setPicked(new Set());
+      setPicked(new Map());
+      setNote("");
       onInvited();
     } finally {
       setBusy(false);
     }
   }
 
-  async function invite(m: Member, message?: string) {
-    if (!activeOcc) return;
-    setSent((s) => new Set(s).add(m.id));
-    setComposeFor(null);
-    setComposeText("");
-    await addInvitees([{ id: m.id, name: m.profile?.name }], message);
-    onInvited();
-  }
-
-  useEffect(() => {
-    listMembers({ limit: 100 })
-      .then((r) => setMembers(r.members?.length ? r.members : DEMO_MEMBERS))
-      .catch(() => setMembers(DEMO_MEMBERS));
-  }, []);
-
   const invitedIds = useMemo(() => new Set(outgoing.map((o) => o.to_id)), [outgoing]);
-
-  const results = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const sameCity = (m: Member) => !!myCity && (m.profile?.city || "").toLowerCase() === myCity.toLowerCase();
-    return members
-      .filter((m) => m.id !== memberId)
-      .filter((m) => type === "all" || m.profile?.memberType === type)
-      .filter((m) => !q || (m.profile?.name || "").toLowerCase().includes(q))
-      .filter((m) => !nearOnly || sameCity(m))
-      .sort((a, b) => (sameCity(a) ? 0 : 1) - (sameCity(b) ? 0 : 1))
-      .slice(0, 30);
-  }, [members, type, query, memberId, myCity, nearOnly]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4" onClick={onClose}>
@@ -333,122 +293,52 @@ function InviteModal({
             </select>
           </div>
 
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-stone-400" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search by name…"
-              className="w-full rounded-lg border border-stone-200 py-2 pl-9 pr-3 text-sm"
-            />
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {TYPE_FILTERS.map((t) => (
-              <button
-                key={t.key}
-                onClick={() => setType(t.key)}
-                className={`rounded-full px-3 py-1 text-sm font-medium ${
-                  type === t.key ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-600 hover:bg-stone-200"
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
-            {myCity && (
-              <button
-                onClick={() => setNearOnly((v) => !v)}
-                className={`ml-auto inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-medium ${
-                  nearOnly ? "bg-indigo-600 text-white" : "border border-stone-200 bg-white text-stone-600 hover:border-stone-300"
-                }`}
-                title={`Show only collaborators in ${myCity}`}
-              >
-                <MapPin className="h-3.5 w-3.5" /> Near me
-              </button>
-            )}
-          </div>
+          {/* Semantic match finder — complementary "for you" + NL search,
+              replacing the old name-substring filter over a flat directory. */}
+          <MatchFinder
+            memberId={memberId}
+            isAdmin={isAdmin}
+            selected={new Set(picked.keys())}
+            onToggle={togglePick}
+            sentIds={new Set([...sent, ...invitedIds])}
+            excludeIds={new Set([memberId])}
+          />
 
-          {picked.size > 0 && (
-            <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 p-3">
-              <span className="text-sm font-medium text-indigo-800">{picked.size} selected · {roleDef(role).label}</span>
-              {!activeOcc ? (
-                <span className="text-sm text-indigo-700">Name the collaboration first.</span>
-              ) : (
-                <button
-                  onClick={addPicked}
-                  disabled={busy}
-                  title={`Add everyone to "${activeOcc.label}"`}
-                  className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-                >
-                  {busy ? "Adding…" : `Add to ${activeOcc.label}`}
-                </button>
-              )}
-              <button onClick={() => setPicked(new Set())} className="text-xs text-stone-500 hover:text-stone-700">
+          {msg && <p className="text-sm text-stone-500">{msg}</p>}
+        </div>
+
+        {/* Sticky action bar — appears once collaborators are selected */}
+        {picked.size > 0 && (
+          <div className="space-y-2 border-t border-stone-100 bg-white p-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm font-medium text-indigo-800">
+                {picked.size} selected · {roleDef(role).label}
+              </span>
+              <button onClick={() => setPicked(new Map())} className="text-xs text-stone-500 hover:text-stone-700">
                 Clear
               </button>
             </div>
-          )}
-          {msg && <p className="text-sm text-stone-500">{msg}</p>}
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            {results.map((m) => {
-              const already = sent.has(m.id) || invitedIds.has(m.id);
-              return (
-                <div key={m.id} className="card-soft min-w-0 p-3">
-                  <div className="flex min-w-0 items-center justify-between gap-3">
-                    <label className="flex min-w-0 cursor-pointer items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={picked.has(m.id)}
-                        onChange={() => togglePick(m.id)}
-                        className="shrink-0 accent-indigo-600"
-                      />
-                      <span className="min-w-0">
-                        <Link href={`/members/${m.id}`} className="block truncate font-medium text-stone-900 hover:text-indigo-700">
-                          {m.profile?.name || "Member"}
-                        </Link>
-                        <span className="block truncate text-xs text-stone-500">
-                          {[m.profile?.memberType, m.profile?.city].filter(Boolean).join(" · ")}
-                          {m.profile?.city && m.profile.city === myCity && <span className="ml-1 text-emerald-600">· nearby</span>}
-                        </span>
-                      </span>
-                    </label>
-                    <button
-                      onClick={() => {
-                        if (already || !activeOcc) return;
-                        setComposeText("");
-                        setComposeFor((cur) => (cur === m.id ? null : m.id));
-                      }}
-                      disabled={already || !activeOcc}
-                      title={!activeOcc ? "Name the collaboration first" : undefined}
-                      className="shrink-0 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:bg-stone-200 disabled:text-stone-500"
-                    >
-                      {already ? "Invited" : composeFor === m.id ? "Cancel" : "Invite"}
-                    </button>
-                  </div>
-                  {composeFor === m.id && !already && (
-                    <div className="mt-2 flex items-center gap-2">
-                      <input
-                        autoFocus
-                        value={composeText}
-                        onChange={(e) => setComposeText(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && invite(m, composeText)}
-                        placeholder="Add a message…"
-                        className="min-w-0 flex-1 rounded-lg border border-stone-200 px-3 py-1.5 text-sm"
-                      />
-                      <button
-                        onClick={() => invite(m, composeText)}
-                        className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700"
-                      >
-                        <Send className="h-3.5 w-3.5" /> Send
-                      </button>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-            {results.length === 0 && <p className="text-sm text-stone-400">No matches.</p>}
+            {!activeOcc ? (
+              <p className="text-sm text-indigo-700">Name the collaboration first.</p>
+            ) : (
+              <div className="flex items-center gap-2">
+                <input
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="Add a message (optional)…"
+                  className="min-w-0 flex-1 rounded-lg border border-stone-200 px-3 py-1.5 text-sm"
+                />
+                <button
+                  onClick={addPicked}
+                  disabled={busy}
+                  className="shrink-0 rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  {busy ? "Adding…" : `Add to ${activeOcc.label}`}
+                </button>
+              </div>
+            )}
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
