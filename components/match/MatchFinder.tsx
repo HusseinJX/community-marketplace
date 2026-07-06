@@ -22,6 +22,8 @@ export function MatchFinder({
   onToggle,
   sentIds,
   excludeIds,
+  showForYou = true,
+  defaultMode,
 }: {
   memberId: string;
   isAdmin: boolean;
@@ -34,8 +36,12 @@ export function MatchFinder({
   sentIds?: Set<string>;
   // Never show these (e.g. the acting member itself).
   excludeIds?: Set<string>;
+  // "For you" (complementary-to-self) only makes sense when the searcher is
+  // looking for their own partners — hide it for organizer lineup filling.
+  showForYou?: boolean;
+  defaultMode?: Mode;
 }) {
-  const [mode, setMode] = useState<Mode>("for-you");
+  const [mode, setMode] = useState<Mode>(defaultMode ?? (showForYou ? "for-you" : "search"));
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<MatchCandidate[]>([]);
   const [loading, setLoading] = useState(false);
@@ -98,15 +104,15 @@ export function MatchFinder({
   const visible = results.filter((c) => !excludeIds?.has(c.id));
 
   const tabs: { key: Mode; label: string }[] = [
-    { key: "for-you", label: "✨ For you" },
+    ...(showForYou ? [{ key: "for-you" as Mode, label: "✨ For you" }] : []),
     { key: "search", label: "🔎 Search" },
     ...(similarSeed ? [{ key: "similar" as Mode, label: `Similar to ${similarSeed.name}` }] : []),
   ];
 
   return (
     <div className="space-y-3">
-      {/* Mode tabs */}
-      <div className="flex flex-wrap gap-1.5">
+      {/* Mode tabs (hidden when there's only one) */}
+      <div className={`flex-wrap gap-1.5 ${tabs.length > 1 ? "flex" : "hidden"}`}>
         {tabs.map((t) => (
           <button
             key={t.key}

@@ -2,15 +2,15 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { CalendarPlus, Search, QrCode, Copy, Check } from "lucide-react";
-import { listMembers } from "@/lib/api";
+import { CalendarPlus, QrCode, Copy, Check } from "lucide-react";
 import { qrPngDataUrl } from "@/lib/qr";
-import { DEMO_MEMBERS } from "@/lib/demo-members";
-import type { Member, MemberType } from "@/lib/types";
+import type { MatchCandidate } from "@/lib/types";
 import type { VendorEvent } from "@/lib/vendor-connect";
 import type { CollabInvite } from "@/lib/collab-network";
 import type { JoinRequest } from "@/lib/event-join";
 import { LINEUP_ROLES, roleDef } from "@/lib/lineup-roles";
+import { MatchFinder } from "@/components/match/MatchFinder";
+import { AutoFillLineup } from "@/components/organize/AutoFillLineup";
 import { EventThread } from "@/components/organize/EventThread";
 import { EventAttendees } from "@/components/organize/EventAttendees";
 import { EventPreview } from "@/components/organize/EventPreview";
@@ -144,20 +144,10 @@ export function OrganizeManager({
   );
 }
 
-const TYPE_FILTERS: { key: MemberType | "all"; label: string }[] = [
-  { key: "all", label: "All" },
-  { key: "vendor", label: "Vendors" },
-  { key: "artist", label: "Artists" },
-  { key: "organizer", label: "Community" },
-];
-
 function Lineup({ event, memberId, isAdmin }: { event: VendorEvent; memberId: string; isAdmin: boolean }) {
-  const [members, setMembers] = useState<Member[]>([]);
   const [lineup, setLineup] = useState<CollabInvite[]>([]);
   const [requests, setRequests] = useState<JoinRequest[]>([]);
-  const [type, setType] = useState<MemberType | "all">("all");
-  const [query, setQuery] = useState("");
-  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [picked, setPicked] = useState<Map<string, MatchCandidate>>(new Map());
   const [role, setRole] = useState("vendor");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
@@ -191,27 +181,13 @@ function Lineup({ event, memberId, isAdmin }: { event: VendorEvent; memberId: st
     load();
   }
 
-  useEffect(() => {
-    listMembers({ limit: 100 })
-      .then((r) => setMembers(r.members?.length ? r.members : DEMO_MEMBERS))
-      .catch(() => setMembers(DEMO_MEMBERS));
-  }, []);
-
   const invitedIds = useMemo(() => new Set(lineup.map((l) => l.to_id)), [lineup]);
-  const results = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return members
-      .filter((m) => m.id !== memberId && !invitedIds.has(m.id))
-      .filter((m) => type === "all" || m.profile?.memberType === type)
-      .filter((m) => !q || (m.profile?.name || "").toLowerCase().includes(q))
-      .slice(0, 40);
-  }, [members, type, query, memberId, invitedIds]);
 
-  function toggle(id: string) {
+  function toggle(c: MatchCandidate) {
     setPicked((s) => {
-      const n = new Set(s);
-      if (n.has(id)) n.delete(id);
-      else n.add(id);
+      const n = new Map(s);
+      if (n.has(c.id)) n.delete(c.id);
+      else n.set(c.id, c);
       return n;
     });
   }
@@ -220,9 +196,7 @@ function Lineup({ event, memberId, isAdmin }: { event: VendorEvent; memberId: st
     if (picked.size === 0) return;
     setBusy(true);
     setMsg("");
-    const invitees = members
-      .filter((m) => picked.has(m.id))
-      .map((m) => ({ id: m.id, name: m.profile?.name, role }));
+    const invitees = [...picked.values()].map((c) => ({ id: c.id, name: c.name, role }));
     try {
       const res = await fetch(`/api/vendor/events/${event.id}/lineup`, {
         method: "POST",
@@ -232,7 +206,7 @@ function Lineup({ event, memberId, isAdmin }: { event: VendorEvent; memberId: st
       const d = await res.json();
       if (!res.ok) throw new Error(d.error || "Failed");
       setMsg(`Invited ${d.invited} ${roleDef(role).label.toLowerCase()}${d.invited === 1 ? "" : "s"}.`);
-      setPicked(new Set());
+      setPicked(new Map());
       load();
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Failed to invite");
@@ -278,48 +252,35 @@ function Lineup({ event, memberId, isAdmin }: { event: VendorEvent; memberId: st
     )}
 
     <div className="grid gap-5 lg:grid-cols-2">
-      {/* Find vendors */}
+      {/* Find vendors — semantic search + AI auto-fill */}
       <div>
-        <p className="section-label mb-3">Add to lineup</p>
-        <div className="relative mb-3">
-          <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-stone-400" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search vendors…"
-            className="w-full rounded-lg border border-stone-200 py-2 pl-9 pr-3 text-sm"
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <p className="section-label">Add to lineup</p>
+          <AutoFillLineup
+            eventId={event.id}
+            hint={[event.title, event.description, event.location].filter(Boolean).join(". ")}
+            memberId={memberId}
+            isAdmin={isAdmin}
+            invitedIds={invitedIds}
+            onInvited={load}
           />
         </div>
-        <div className="mb-3 flex flex-wrap gap-2">
-          {TYPE_FILTERS.map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setType(t.key)}
-              className={`rounded-full px-3 py-1 text-xs font-medium ${
-                type === t.key ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-600 hover:bg-stone-200"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
 
-        <div className="max-h-80 space-y-1 overflow-y-auto rounded-lg border border-stone-100 p-1">
-          {results.map((m) => (
-            <label
-              key={m.id}
-              className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-stone-50"
-            >
-              <input type="checkbox" checked={picked.has(m.id)} onChange={() => toggle(m.id)} className="accent-indigo-600" />
-              <span className="min-w-0 flex-1 truncate">{m.profile?.name || "Member"}</span>
-              <span className="shrink-0 text-xs text-stone-400">{m.profile?.memberType}</span>
-            </label>
-          ))}
-          {results.length === 0 && <p className="px-2 py-3 text-sm text-stone-400">No vendors found.</p>}
+        <div className="max-h-96 overflow-y-auto rounded-lg border border-stone-100 p-2">
+          <MatchFinder
+            memberId={memberId}
+            isAdmin={isAdmin}
+            showForYou={false}
+            placeholder="Try “taco truck”, “muralist”, “live band”…"
+            selected={new Set(picked.keys())}
+            onToggle={toggle}
+            sentIds={invitedIds}
+            excludeIds={new Set([memberId])}
+          />
         </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <label className="text-xs text-stone-500">as</label>
+          <label className="text-xs text-stone-500">Invite selected as</label>
           <select
             value={role}
             onChange={(e) => setRole(e.target.value)}
