@@ -11,13 +11,6 @@ import { eventEmoji, eventLabel } from "@/lib/live-events";
 import { partitionFixtures, getFixtures, startsInLabel, type Fixture } from "@/lib/live-fixtures";
 
 const VENDOR_MODE_KEY = "wl_vendor_mode";
-const LIVE_DURATIONS = [
-  { label: "2h", minutes: 120 },
-  { label: "3h", minutes: 180 },
-  { label: "4h", minutes: 240 },
-  { label: "6h", minutes: 360 },
-];
-
 interface Media {
   url: string;
   kind: "image" | "video";
@@ -50,7 +43,6 @@ export function ShareComposer() {
   const [eventSlug, setEventSlug] = useState("nba");
   const [whatsOn, setWhatsOn] = useState("");
   const [supportsTeam, setSupportsTeam] = useState("");
-  const [liveMinutes, setLiveMinutes] = useState(180);
   const [pickedFixture, setPickedFixture] = useState<string | null>(null);
   const [tournFilter, setTournFilter] = useState<string | null>(null);
   const [nowTs, setNowTs] = useState(0);
@@ -221,7 +213,11 @@ export function ShareComposer() {
           supports_team: supportsTeam.trim() || null,
           livestream_url: livestreamUrl.trim() || null,
           image_urls: media.filter((m) => m.kind === "image").map((m) => m.url),
-          duration_minutes: liveMinutes,
+          // Broadcast runs until the match ends (from the fixture); fall back to
+          // ~3h if somehow no game is picked.
+          duration_minutes: pickedGame
+            ? Math.max(30, Math.round((Date.parse(pickedGame.ends_at) - Date.now()) / 60000))
+            : 180,
         }),
       });
       if (res.ok) {
@@ -427,26 +423,20 @@ export function ShareComposer() {
                 </div>
               )}
 
-              <div>
-                <label className="mb-1 block text-xs font-medium text-stone-500">Live for</label>
-                <div className="flex gap-2">
-                  {LIVE_DURATIONS.map((d) => (
-                    <button
-                      key={d.minutes}
-                      type="button"
-                      onClick={() => setLiveMinutes(d.minutes)}
-                      className={
-                        "rounded-full px-4 py-1.5 text-sm font-medium transition " +
-                        (liveMinutes === d.minutes
-                          ? "bg-rose-600 text-white"
-                          : "border border-stone-200 bg-white text-stone-700 hover:border-stone-300")
-                      }
-                    >
-                      {d.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              {/* Ends automatically when the match ends. */}
+              {pickedGame && (
+                <p className="text-xs text-stone-500">
+                  Ends when the match ends
+                  {(() => {
+                    const mins = Math.round((Date.parse(pickedGame.ends_at) - (nowTs || Date.now())) / 60000);
+                    if (!Number.isFinite(mins) || mins <= 0) return "";
+                    const h = Math.floor(mins / 60);
+                    const m = mins % 60;
+                    return ` — about ${h ? `${h}h ` : ""}${m}m from now`;
+                  })()}
+                  .
+                </p>
+              )}
 
               <p className="text-xs text-stone-500">
                 {taggedBiz
