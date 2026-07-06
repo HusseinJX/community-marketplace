@@ -15,10 +15,10 @@ export const runtime = 'nodejs'
 // assistant (buildBusinessContext + buildSystemPrompt), with a spoken-style
 // addendum so it sounds like a receptionist, not a chatbot reading paragraphs.
 
-// Default to the mini realtime model — ~4× cheaper audio; set OPENAI_REALTIME_MODEL
-// to gpt-4o-realtime-preview for higher voice quality where cost allows.
+// Default to the mini realtime model — cheapest audio; set OPENAI_REALTIME_MODEL
+// to gpt-realtime for higher voice quality where cost allows.
 const REALTIME_MODEL =
-  process.env.OPENAI_REALTIME_MODEL || 'gpt-4o-mini-realtime-preview'
+  process.env.OPENAI_REALTIME_MODEL || 'gpt-realtime-mini'
 const REALTIME_VOICE = process.env.OPENAI_REALTIME_VOICE || 'alloy'
 
 const VOICE_STYLE = [
@@ -60,19 +60,24 @@ export async function POST(
   const instructions = buildSystemPrompt(ctx) + '\n' + VOICE_STYLE
 
   try {
-    const res = await fetch('https://api.openai.com/v1/realtime/sessions', {
+    // GA Realtime API: mint an ephemeral client secret with the session config
+    // baked in (model, instructions, voice). Returns { value: "ek_...", ... }.
+    const res = await fetch('https://api.openai.com/v1/realtime/client_secrets', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
         'Content-Type': 'application/json',
-        'OpenAI-Beta': 'realtime=v1',
       },
       body: JSON.stringify({
-        model: REALTIME_MODEL,
-        voice: REALTIME_VOICE,
-        modalities: ['audio', 'text'],
-        instructions,
-        input_audio_transcription: { model: 'whisper-1' },
+        session: {
+          type: 'realtime',
+          model: REALTIME_MODEL,
+          instructions,
+          audio: {
+            output: { voice: REALTIME_VOICE },
+            input: { transcription: { model: 'whisper-1' } },
+          },
+        },
       }),
     })
 
@@ -83,7 +88,7 @@ export async function POST(
     }
 
     const session = await res.json()
-    const clientSecret = session?.client_secret?.value
+    const clientSecret = session?.value
     if (!clientSecret) {
       return NextResponse.json({ error: 'session_failed' }, { status: 502 })
     }
