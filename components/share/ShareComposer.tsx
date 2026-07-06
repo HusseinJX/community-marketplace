@@ -8,7 +8,7 @@ import { listMembers, listEvents } from "@/lib/api";
 import type { Member, EventSuggestion } from "@/lib/types";
 import { DEMO_MEMBERS } from "@/lib/demo-members";
 import { LIVE_EVENTS, eventEmoji } from "@/lib/live-events";
-import { getLiveAndUpcoming, startsInLabel, type Fixture } from "@/lib/live-fixtures";
+import { partitionFixtures, getFixtures, startsInLabel, type Fixture } from "@/lib/live-fixtures";
 
 const VENDOR_MODE_KEY = "wl_vendor_mode";
 const LIVE_DURATIONS = [
@@ -53,12 +53,35 @@ export function ShareComposer() {
   const [liveMinutes, setLiveMinutes] = useState(180);
   const [pickedFixture, setPickedFixture] = useState<string | null>(null);
   const [nowTs, setNowTs] = useState(0);
+  // Real games on now (ESPN via /api/fixtures); seeded with the fallback slate.
+  const [fixtures, setFixtures] = useState<Fixture[]>(() => getFixtures());
 
   useEffect(() => {
     setVendorMode(localStorage.getItem(VENDOR_MODE_KEY) === "1");
     setNowTs(Date.now());
     const t = setInterval(() => setNowTs(Date.now()), 60_000);
     return () => clearInterval(t);
+  }, []);
+
+  // Pull the real slate on mount (refresh every few minutes).
+  useEffect(() => {
+    let alive = true;
+    const pull = async () => {
+      try {
+        const res = await fetch("/api/fixtures");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (alive && Array.isArray(data.fixtures)) setFixtures(data.fixtures);
+      } catch {
+        /* keep the seeded slate */
+      }
+    };
+    pull();
+    const t = setInterval(pull, 5 * 60_000);
+    return () => {
+      alive = false;
+      clearInterval(t);
+    };
   }, []);
 
   function toggleVendorMode() {
@@ -70,7 +93,7 @@ export function ShareComposer() {
     });
   }
 
-  const { live: liveFixtures, upcoming: upcomingFixtures } = getLiveAndUpcoming(nowTs || Date.now());
+  const { live: liveFixtures, upcoming: upcomingFixtures } = partitionFixtures(fixtures, nowTs || Date.now());
 
   function pickFixture(f: Fixture) {
     setPickedFixture(f.id);
