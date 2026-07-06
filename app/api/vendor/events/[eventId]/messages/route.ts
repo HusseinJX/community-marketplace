@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { resolveActor } from '@/lib/admin'
+import { gateCapability } from '@/lib/gate'
 import { getVendorEventById } from '@/lib/vendor-connect'
 import { getAcceptedLineup } from '@/lib/collab-network'
 import { getEventMessages, postEventMessage, getMemberContacts, type EventChannel } from '@/lib/event-comms'
@@ -61,9 +62,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ eventId
     channel: 'chat',
   })
 
-  // Blasts are host-only.
+  // Blasts are host-only AND a Pro automation. Plain chat above is always allowed
+  // for the lineup; only the SMS/email fan-out is gated.
   const blast: Record<string, number> = {}
-  if (isHost && (channels.includes('sms') || channels.includes('email'))) {
+  const wantsBlast = channels.includes('sms') || channels.includes('email')
+  if (isHost && wantsBlast) {
+    const gated = await gateCapability(actor.memberId, 'automations', { bypass: actor.isAdmin })
+    if (gated) return gated
     const lineup = await getAcceptedLineup(eventId)
     const contacts = await getMemberContacts(lineup.map((i) => i.to_id))
     const prefix = `[${event.title}] `

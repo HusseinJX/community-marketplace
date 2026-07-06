@@ -19,6 +19,7 @@ import { ActionBar } from "@/components/ActionBar";
 import { GroupChat } from "@/components/GroupChat";
 import { ImageCarousel } from "@/components/ImageCarousel";
 import { AskAssistant } from "@/components/AskAssistant";
+import { getEntitlements } from "@/lib/entitlements";
 import { MEMBER_HERO_IMAGES } from "@/lib/member-images";
 import { usableImages, isPlaceholder } from "@/lib/image-utils";
 import { ENDORSEMENTS } from "@/lib/endorsements";
@@ -646,10 +647,12 @@ export default async function MemberProfilePage({
         </div>
       )}
 
-      {/* Auto-provisioned customer-service assistant for every business */}
-      {["vendor", "artist", "organizer"].includes(memberType) && (
-        <AskAssistant memberId={id} memberName={(p.businessName as string) || name} />
-      )}
+      {/* Customer-service assistant — a Member+ capability (text agent), Pro adds
+          voice. Free/unclaimed listings don't show it. */}
+      {["vendor", "artist", "organizer"].includes(memberType) &&
+        (await getEntitlements(id)).can.textAssistant && (
+          <AskAssistant memberId={id} memberName={(p.businessName as string) || name} />
+        )}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getOpenAI, VISION_MODEL } from '@/lib/openai'
 import { resolveActor } from '@/lib/admin'
+import { gateCapability } from '@/lib/gate'
 
 export const runtime = 'nodejs'
 
@@ -59,6 +60,14 @@ export async function POST(req: Request) {
 
   const actor = await resolveActor(body.memberId)
   if (!actor) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+
+  // Menu capture → commerce (Pro); flyer/event capture → organize events (Pro).
+  const gated = await gateCapability(
+    actor.memberId,
+    mode === 'events' ? 'organizeEvents' : 'commerce',
+    { bypass: actor.isAdmin }
+  )
+  if (gated) return gated
 
   // Fetch the image server-side and send it inline (base64) rather than handing
   // OpenAI the storage URL — OpenAI's downloader can be slow/flaky fetching

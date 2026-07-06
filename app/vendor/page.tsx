@@ -1,9 +1,10 @@
 import { auth, currentUser } from '@clerk/nextjs/server'
-import { ArrowRight, Heart, MessageCircle, QrCode } from "lucide-react";
+import { ArrowRight, Heart, MessageCircle, QrCode, CreditCard } from "lucide-react";
 import Link from "next/link";
 import { getVendorProfile, getVendorConnectAccount, getOrdersByMember } from "@/lib/vendor-connect";
 import { stripe } from "@/lib/stripe-server";
 import { isDemoMode } from "@/lib/demo-admin";
+import { getEntitlements, PLAN_META } from "@/lib/entitlements";
 import { CommerceCards } from "@/components/vendor/CommerceCards";
 import { CollectivePromoModal } from "@/components/vendor/CollectivePromoModal";
 
@@ -37,10 +38,14 @@ export default async function VendorDashboard() {
   // (Network lives under Collabs; Organize lives under My Events; Onboard hidden.)
   // Super-admin + Featured are intentionally NOT listed — the super-admin dash is
   // reachable only via its direct URL (/vendor/admin).
+  const entitlements = profile ? await getEntitlements(profile.member_id) : null;
+  const planLabel = entitlements ? PLAN_META[entitlements.plan].label : PLAN_META.free.label;
+
   const tools = [
     { label: "QR code", href: "/vendor/qr", icon: QrCode, desc: "Generate a QR that links to your profile" },
     { label: "Your agent", href: "/vendor/assistant", icon: MessageCircle, desc: "Train your customer-service AI (notes + PDFs)" },
     { label: "Giving", href: "/vendor/giving", icon: Heart, desc: "Log community contributions" },
+    { label: "Plan & billing", href: "/vendor/billing", icon: CreditCard, desc: `Current plan: ${planLabel} — upgrade or manage` },
   ];
 
   return (

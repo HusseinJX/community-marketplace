@@ -3,6 +3,7 @@ import { resolveActor } from '@/lib/admin'
 import { getMember } from '@/lib/api'
 import { createInvite, getInvitesFor } from '@/lib/collab-network'
 import { demoInvites } from '@/lib/demo-collab'
+import { gateCapability } from '@/lib/gate'
 
 // GET — the acting member's invites (incoming + outgoing).
 export async function GET(req: Request) {
@@ -24,6 +25,9 @@ export async function POST(req: Request) {
   if (toId === actor.memberId) return NextResponse.json({ error: "Can't invite yourself" }, { status: 400 })
   // Demo: don't write; the client optimistically marks "Invited".
   if (actor.isDemo) return NextResponse.json({ invite: null, demo: true })
+  // Sending collaboration invites is a Pro capability (Members can only receive).
+  const gated = await gateCapability(actor.memberId, 'networkInitiate', { bypass: actor.isAdmin })
+  if (gated) return gated
 
   let fromName: string | null = null
   let toName: string | null = body.toName ? String(body.toName) : null

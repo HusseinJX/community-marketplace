@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Plus, Trash2, Check } from 'lucide-react'
 import { ImageCaptureUploader } from '@/components/ImageCaptureUploader'
+import { UpgradePrompt, upgradeFrom } from '@/components/billing/UpgradePrompt'
 
 interface Product {
   id: string
@@ -28,6 +29,7 @@ export function ProductsManager({
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
   const [form, setForm] = useState({ name: '', description: '', price: '' })
+  const [upgrade, setUpgrade] = useState<'member' | 'pro' | null>(null)
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/products/${memberId}?include_drafts=1`)
@@ -59,7 +61,7 @@ export function ProductsManager({
 
   async function addManual() {
     if (!form.name.trim()) return
-    await fetch(`/api/products/${memberId}`, {
+    const res = await fetch(`/api/products/${memberId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -71,6 +73,13 @@ export function ProductsManager({
         source: 'manual',
       }),
     })
+    // Commerce is a Pro capability — surface an upgrade prompt on 402.
+    const up = upgradeFrom(res.status, await res.json().catch(() => null))
+    if (up) {
+      setUpgrade(up.requires)
+      return
+    }
+    setUpgrade(null)
     setForm({ name: '', description: '', price: '' })
     setShowAdd(false)
     load()
@@ -93,6 +102,13 @@ export function ProductsManager({
           <Plus className="h-4 w-4" /> Add product
         </button>
       </div>
+
+      {upgrade && (
+        <UpgradePrompt
+          requires={upgrade}
+          message="Selling & catalog tools are on the Pro plan. Upgrade to add products, connect your shop, and use AI capture."
+        />
+      )}
 
       {showAdd && (
         <div className="card-soft space-y-3 p-5">

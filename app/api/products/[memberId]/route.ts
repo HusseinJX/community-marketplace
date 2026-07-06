@@ -7,6 +7,7 @@ import {
   deleteProduct,
 } from '@/lib/vendor-connect'
 import { resolveActor } from '@/lib/admin'
+import { gateCapability } from '@/lib/gate'
 
 // GET — public list (active only). With ?include_drafts=1, requires the owner
 // (or an admin) and returns drafts too for the approval queue.
@@ -37,6 +38,9 @@ export async function POST(
   if (!actor || actor.memberId !== memberId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   }
+  // Commerce (shop/menu/catalog) is a Pro capability.
+  const gated = await gateCapability(memberId, 'commerce', { bypass: actor.isAdmin })
+  if (gated) return gated
 
   const body = await req.json().catch(() => ({}))
   const items = Array.isArray(body.products) ? body.products : [body]
@@ -69,6 +73,8 @@ export async function PATCH(
   if (!actor || actor.memberId !== memberId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   }
+  const gated = await gateCapability(memberId, 'commerce', { bypass: actor.isAdmin })
+  if (gated) return gated
 
   const body = await req.json().catch(() => ({}))
   if (!body.id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })

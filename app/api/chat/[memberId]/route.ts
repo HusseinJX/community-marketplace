@@ -1,5 +1,6 @@
 import { getOpenAI, CHAT_MODEL } from '@/lib/openai'
 import { buildBusinessContext, buildSystemPrompt } from '@/lib/business-context'
+import { getEntitlements } from '@/lib/entitlements'
 import {
   createConversation,
   appendMessages,
@@ -95,6 +96,12 @@ export async function POST(req: Request, ctx: { params: Promise<{ memberId: stri
 
   if (history.length === 0 || history[history.length - 1].role !== 'user') {
     return new Response('Last message must be from the user', { status: 400 })
+  }
+
+  // The text agent is a Member+ capability — free/unclaimed listings don't have it.
+  const ent = await getEntitlements(memberId)
+  if (!ent.can.textAssistant) {
+    return new Response('Assistant not available for this business', { status: 402 })
   }
 
   const context = await buildBusinessContext(memberId)

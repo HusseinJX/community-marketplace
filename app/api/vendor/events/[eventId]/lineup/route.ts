@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { resolveActor } from '@/lib/admin'
+import { gateCapability } from '@/lib/gate'
 import { isDemoMode } from '@/lib/demo-admin'
 import { demoMemberId } from '@/lib/demo-server'
 import { demoEvents, demoLineup, isDemoEventId } from '@/lib/demo-organize'
@@ -40,6 +41,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ eventId
   if (!actor || actor.memberId !== event.member_id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   }
+  const gated = await gateCapability(event.member_id, 'organizeEvents', { bypass: actor.isAdmin })
+  if (gated) return gated
 
   const body = await req.json().catch(() => ({}))
   const invitees: { id: string; name?: string; role?: string }[] = Array.isArray(body.invitees)

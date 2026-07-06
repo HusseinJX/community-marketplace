@@ -4,6 +4,8 @@ import { getVendorProfile } from '@/lib/vendor-connect'
 import { connectStore, syncVendorCatalog } from '@/lib/composio-commerce'
 import { isSupportedPlatform } from '@/lib/composio'
 import { syncVendorCatalogTask } from '@/trigger/composio'
+import { gateCapability } from '@/lib/gate'
+import { isAdmin } from '@/lib/admin'
 
 // Native Composio commerce endpoint (no longer a proxy to the connector-agent).
 //
@@ -23,6 +25,10 @@ export async function POST(request: Request) {
 
   const { action, platform, subdomain } = await request.json()
   const memberId = profile.member_id
+
+  // Connecting/syncing a shop is a Pro capability.
+  const gated = await gateCapability(memberId, 'commerce', { bypass: isAdmin(userId) })
+  if (gated) return gated
 
   if (action === 'connect') {
     if (!isSupportedPlatform(platform)) {

@@ -3,6 +3,7 @@ import sharp from 'sharp'
 import { toFile } from 'openai'
 import { getOpenAI, VISION_MODEL, IMAGE_MODEL } from '@/lib/openai'
 import { resolveActor } from '@/lib/admin'
+import { gateCapability } from '@/lib/gate'
 import { uploadImage } from '@/lib/storage'
 import { checkImageQuota, recordImageGenerations, FREE_IMAGE_LIMIT } from '@/lib/ai-credits'
 
@@ -47,6 +48,10 @@ export async function POST(req: Request) {
 
   const actor = await resolveActor(body.memberId)
   if (!actor) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+
+  // Counter/shelf scanning → commerce (Pro).
+  const gated = await gateCapability(actor.memberId, 'commerce', { bypass: actor.isAdmin })
+  if (gated) return gated
 
   // AI image generation is a premium feature: free members get a small lifetime
   // allowance; premium members are rate-limited. Bail before any billable work

@@ -6,6 +6,7 @@ import {
   deleteVendorEvent,
 } from '@/lib/vendor-connect'
 import { resolveActor } from '@/lib/admin'
+import { gateCapability } from '@/lib/gate'
 import { getMember } from '@/lib/api'
 import { demoEvents } from '@/lib/demo-organize'
 
@@ -37,6 +38,9 @@ export async function POST(
   if (!actor || actor.memberId !== memberId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   }
+  // Creating/organizing events is a Pro capability.
+  const gated = await gateCapability(memberId, 'organizeEvents', { bypass: actor.isAdmin })
+  if (gated) return gated
 
   const body = await req.json().catch(() => ({}))
   const items = Array.isArray(body.events) ? body.events : [body]
@@ -84,6 +88,8 @@ export async function PATCH(
   if (!actor || actor.memberId !== memberId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   }
+  const gated = await gateCapability(memberId, 'organizeEvents', { bypass: actor.isAdmin })
+  if (gated) return gated
 
   const body = await req.json().catch(() => ({}))
   if (!body.id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
