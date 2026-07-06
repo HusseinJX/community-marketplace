@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { LayoutGrid, Map as MapIcon, Radio, RefreshCw } from "lucide-react";
 import { groupByEvent, eventEmoji, eventLabel } from "@/lib/live-events";
 import { BroadcastCard } from "./BroadcastCard";
+import { MatchCard, type MatchGroup } from "./MatchCard";
 import { LiveMap } from "./LiveMap";
 import { getDemoBroadcasts } from "@/lib/demo-live";
 import type { LiveBroadcast } from "./types";
@@ -67,6 +68,30 @@ export function LiveFeed({ afterHero, afterFeed }: { afterHero?: React.ReactNode
         : eventFiltered.filter((b) => (b.supports_team || "").toLowerCase() === team.toLowerCase()),
     [eventFiltered, team]
   );
+
+  // Group broadcasts by match (the game), not by venue — one card per game, each
+  // opening the list of places showing it.
+  const matchGroups = useMemo<MatchGroup[]>(() => {
+    const buckets = new Map<string, LiveBroadcast[]>();
+    for (const b of filtered) {
+      const key = (b.whats_on?.trim().toLowerCase() || `event:${b.event_slug}`);
+      const arr = buckets.get(key) ?? [];
+      arr.push(b);
+      buckets.set(key, arr);
+    }
+    return Array.from(buckets.entries()).map(([key, venues]) => {
+      const first = venues[0];
+      return {
+        key,
+        title: first.whats_on || eventLabel(first.event_slug, first.event_label),
+        event_slug: first.event_slug,
+        event_label: first.event_label,
+        cover: venues.find((v) => v.image_urls?.[0])?.image_urls[0],
+        teams: Array.from(new Set(venues.map((v) => v.supports_team).filter(Boolean) as string[])),
+        venues,
+      };
+    });
+  }, [filtered]);
 
   return (
     <>
@@ -190,8 +215,8 @@ export function LiveFeed({ afterHero, afterFeed }: { afterHero?: React.ReactNode
         // Focused single-event view: full grid or map.
         view === "map" ? <LiveMap broadcasts={filtered} /> : <Grid items={filtered} lean />
       ) : (
-        // Feed view: horizontal scroll rail of live venues.
-        <Rail items={filtered} />
+        // Feed view: horizontal scroll rail — one card per match (game).
+        <MatchRail groups={matchGroups} />
       )}
       </div>
 
@@ -211,12 +236,14 @@ function Grid({ items, lean = false }: { items: LiveBroadcast[]; lean?: boolean 
 }
 
 // Horizontal scroll of live-venue cards (the home feed view).
-function Rail({ items }: { items: LiveBroadcast[] }) {
+// Horizontal scroll — one card per match (game). Tapping a card reveals the
+// venues showing it.
+function MatchRail({ groups }: { groups: MatchGroup[] }) {
   return (
     <div className="-mx-4 flex gap-4 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:-mx-8 md:px-8">
-      {items.map((b) => (
-        <div key={b.id} className="w-72 shrink-0 sm:w-80">
-          <BroadcastCard b={b} />
+      {groups.map((g) => (
+        <div key={g.key} className="w-72 shrink-0 sm:w-80">
+          <MatchCard group={g} />
         </div>
       ))}
     </div>
