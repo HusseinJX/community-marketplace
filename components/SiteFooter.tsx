@@ -60,7 +60,7 @@ export function SiteFooter() {
         </div>
 
         <div className="mt-10 flex flex-col items-start justify-between gap-3 border-t border-stone-200 pt-6 text-xs text-stone-500 sm:flex-row sm:items-center">
-          <p>© {new Date().getFullYear()} WhatsLocal AI. Made in LA.</p>
+          <p>© {new Date().getFullYear()} WhatsLocal AI.</p>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             <Link href="/privacy" className="hover:text-indigo-700">Privacy</Link>
             <Link href="/terms" className="hover:text-indigo-700">Terms</Link>

@@ -108,8 +108,14 @@ export default function BrowsePage() {
   // Honor a ?q= deep link (e.g. the home-page search bar routes here). Normal
   // mode filters client-side on searchQuery, so seeding it is enough.
   useEffect(() => {
-    const q = new URLSearchParams(window.location.search).get("q");
+    const params = new URLSearchParams(window.location.search);
+    const q = params.get("q");
     if (q) setSearchQuery(q);
+    // Home search bar's filter sidebar deep-links here with size/ownership facets.
+    const size = params.get("size");
+    if (size) setFacetSize(size);
+    const own = params.get("ownership");
+    if (own) setFacetOwnership(own.split(",").filter(Boolean));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const handleModeChange = (m: SearchMode) => {

@@ -1,0 +1,18 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "6UWM5JUAC5.ai.whatslocal.app",
+        "paths": [
+          "/sso-callback",
+          "/sso-callback/*",
+          "/sign-in",
+          "/sign-in/*",
+          "/sign-up",
+          "/sign-up/*"
+        ]
+      }
+    ]
+  }
+}

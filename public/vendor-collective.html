@@ -1,0 +1,2894 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>/* ========================================================================
+   WhatsLocal — marketing site
+   Editorial / warm-cream / indigo accent
+   ======================================================================== */
+
+:root {
+  /* paper */
+  --cream:        #f1ead9;
+  --cream-2:      #e8e0cc;
+  --cream-3:      #ddd2b7;
+  --paper:        #f6f1e2;
+
+  /* ink */
+  --ink:          #1c1814;
+  --ink-2:        #3a342c;
+  --stone:        #8c8478;
+  --stone-2:      #b5ad9e;
+  --hairline:     #cdc4ae;
+
+  /* accents */
+  --indigo:       #2d3eb8;
+  --indigo-deep:  #1c2a90;
+  --ember:        #c4502b;
+  --sage:         #5a6b3a;
+
+  /* type */
+  --serif:  "Instrument Serif", "Times New Roman", serif;
+  --sans:   "Geist", -apple-system, system-ui, sans-serif;
+  --mono:   "Geist Mono", "JetBrains Mono", ui-monospace, monospace;
+
+  /* layout */
+  --gutter: clamp(24px, 4vw, 64px);
+  --max:    1280px;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+
+body {
+  background: var(--cream);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.55;
+  font-weight: 400;
+  letter-spacing: -0.005em;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  /* subtle paper grain */
+  background-image:
+    radial-gradient(ellipse 1200px 600px at 50% -100px, rgba(196,80,43,0.05), transparent 70%),
+    radial-gradient(ellipse 800px 600px at 100% 30%, rgba(45,62,184,0.04), transparent 70%);
+}
+
+/* paper grain overlay */
+body::before {
+  content: "";
+  position: fixed; inset: 0;
+  pointer-events: none;
+  opacity: 0.35;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.1 0 0 0 0 0.08 0 0 0 0 0.05 0 0 0 0.18 0'/></filter><rect width='200' height='200' filter='url(%23n)'/></svg>");
+  z-index: 1;
+}
+
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; cursor: pointer; }
+em { font-family: var(--serif); font-style: italic; font-weight: 400; }
+strong { font-weight: 600; }
+
+/* ───────────────────────────  TYPOGRAPHY  ───────────────────────────── */
+
+.section-head {
+  max-width: var(--max);
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+}
+.section-head--center { text-align: center; }
+.section-head--center .section-head__lede { margin-left: auto; margin-right: auto; }
+
+.section-head__kicker {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  margin-bottom: 28px;
+}
+.section-head--center .section-head__kicker { justify-content: center; }
+.kicker__num { color: var(--indigo); font-weight: 500; white-space: nowrap; }
+.kicker__label { white-space: nowrap; }
+.kicker__label::before {
+  content: "";
+  display: inline-block;
+  width: 28px;
+  height: 1px;
+  background: var(--hairline);
+  vertical-align: middle;
+  margin-right: 12px;
+}
+
+.section-head__title {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(38px, 5.4vw, 76px);
+  line-height: 1.02;
+  letter-spacing: -0.02em;
+  margin: 0 0 28px 0;
+  max-width: 18ch;
+  text-wrap: pretty;
+}
+.section-head--center .section-head__title { margin-left: auto; margin-right: auto; }
+.section-head__title em { font-style: italic; }
+
+.section-head__lede {
+  font-family: var(--sans);
+  font-size: clamp(16px, 1.3vw, 19px);
+  line-height: 1.55;
+  color: var(--ink-2);
+  max-width: 58ch;
+  margin: 0 0 0 0;
+}
+
+/* ───────────────────────────  TOP BAR  ──────────────────────────────── */
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--cream);
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid var(--hairline);
+}
+.topbar__inner {
+  max-width: var(--max);
+  margin: 0 auto;
+  padding: 18px var(--gutter);
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+
+.wordmark {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  letter-spacing: -0.01em;
+}
+.wordmark__the {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 17px;
+  color: var(--ink-2);
+}
+.wordmark__name {
+  font-family: var(--serif);
+  font-size: 22px;
+  letter-spacing: -0.02em;
+}
+.wordmark__dot {
+  display: inline-block;
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--indigo);
+  margin-left: 4px;
+  transform: translateY(-6px);
+}
+.wordmark--big .wordmark__the { font-size: 28px; }
+.wordmark--big .wordmark__name { font-size: 40px; }
+
+.topnav {
+  display: flex;
+  gap: 28px;
+  margin-left: 24px;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+.topnav a {
+  position: relative;
+  padding: 4px 0;
+  white-space: nowrap;
+  transition: color 0.15s;
+}
+.topnav a:hover { color: var(--indigo); }
+.topnav a::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 1px;
+  background: var(--indigo);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.2s;
+}
+.topnav a:hover::after { transform: scaleX(1); }
+
+.topbar__cta {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.link-quiet {
+  font-size: 14px;
+  color: var(--ink-2);
+}
+.link-quiet:hover { color: var(--indigo); }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  transition: all 0.15s;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn--ink {
+  background: var(--ink);
+  color: var(--cream);
+}
+.btn--ink:hover { background: var(--indigo); }
+.btn--indigo {
+  background: var(--indigo);
+  color: var(--cream);
+}
+.btn--indigo:hover { background: var(--indigo-deep); transform: translateY(-1px); }
+.btn--ghost {
+  background: transparent;
+  color: var(--ink);
+  border-color: var(--ink);
+}
+.btn--ghost:hover { background: var(--ink); color: var(--cream); }
+
+/* ─────────────────────────────  HERO  ───────────────────────────────── */
+
+.hero {
+  position: relative;
+  max-width: var(--max);
+  margin: 0 auto;
+  padding: clamp(48px, 8vw, 96px) var(--gutter) clamp(72px, 10vw, 140px);
+}
+.hero__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 340px);
+  grid-template-areas:
+    "eyebrow phone"
+    "title   phone"
+    "lede    phone"
+    "ctas    phone"
+    "meta    sidemark";
+  gap: clamp(28px, 4vw, 48px) clamp(40px, 6vw, 80px);
+  align-items: start;
+}
+
+.hero__eyebrow {
+  grid-area: eyebrow;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.hero__eyebrow-meta {
+  margin-left: auto;
+  color: var(--stone);
+}
+.dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--ink);
+}
+.dot--live {
+  background: var(--ember);
+  box-shadow: 0 0 0 0 rgba(196,80,43,0.6);
+  animation: pulse 2s ease-out infinite;
+}
+@keyframes pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(196,80,43,0.6); }
+  70%  { box-shadow: 0 0 0 10px rgba(196,80,43,0); }
+  100% { box-shadow: 0 0 0 0 rgba(196,80,43,0); }
+}
+
+.hero__title {
+  grid-area: title;
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(60px, 9vw, 144px);
+  line-height: 0.95;
+  letter-spacing: -0.035em;
+  margin: 0;
+  text-wrap: balance;
+}
+.hero__title em {
+  font-style: italic;
+  color: var(--indigo);
+}
+
+.hero__lede {
+  grid-area: lede;
+  font-size: clamp(18px, 1.5vw, 21px);
+  line-height: 1.5;
+  color: var(--ink-2);
+  max-width: 50ch;
+  margin: 0;
+}
+
+.hero__ctas {
+  grid-area: ctas;
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.hero__meta {
+  grid-area: meta;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 32px;
+  border-top: 1px solid var(--hairline);
+  padding-top: 28px;
+  margin-top: 16px;
+}
+.meta-cell__k {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 32px;
+  line-height: 1;
+  color: var(--indigo);
+  letter-spacing: -0.02em;
+  margin-bottom: 8px;
+}
+.meta-cell__v {
+  font-size: 13px;
+  color: var(--ink-2);
+  line-height: 1.4;
+  max-width: 22ch;
+}
+
+.hero__sidemark {
+  grid-area: sidemark;
+  border-top: 1px solid var(--hairline);
+  padding-top: 28px;
+  margin-top: 16px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--stone);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  line-height: 1.5;
+}
+.hero__sidemark .sidemark__num {
+  font-family: var(--serif);
+  font-style: italic;
+  text-transform: none;
+  font-size: 18px;
+  color: var(--indigo);
+  letter-spacing: 0;
+}
+
+/* ─────────────────────────────  PHONE  ──────────────────────────────── */
+
+.hero__phone {
+  grid-area: phone;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  transform: rotate(2.2deg);
+  z-index: 2;
+}
+
+.phone {
+  width: 100%;
+  max-width: 320px;
+  aspect-ratio: 320 / 660;
+  background: #0e0c0a;
+  border-radius: 44px;
+  padding: 10px;
+  position: relative;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.05) inset,
+    0 30px 60px -20px rgba(28,24,20,0.4),
+    0 8px 24px -8px rgba(28,24,20,0.25);
+  display: flex;
+  flex-direction: column;
+}
+.phone::before {
+  /* outer rim */
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: 40px;
+  border: 1px solid rgba(255,255,255,0.06);
+  pointer-events: none;
+}
+.phone__notch {
+  position: absolute;
+  top: 18px; left: 50%;
+  transform: translateX(-50%);
+  width: 90px;
+  height: 26px;
+  background: #0e0c0a;
+  border-radius: 999px;
+  z-index: 3;
+}
+.phone__status {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 24px 8px;
+  font-family: var(--sans);
+  font-weight: 500;
+  font-size: 14px;
+  color: var(--cream);
+  background: var(--cream);
+  color: var(--ink);
+  border-radius: 36px 36px 0 0;
+  height: 44px;
+}
+.phone__status-right {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.phone__sms-header {
+  background: var(--cream);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 14px 14px;
+  border-bottom: 0.5px solid var(--hairline);
+}
+.phone__sms-name {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+}
+.phone__sms-sub {
+  font-size: 10px;
+  color: var(--stone);
+  font-weight: 400;
+  margin-top: 1px;
+}
+.phone__sms-info { color: var(--stone); }
+
+.phone__thread {
+  flex: 1;
+  background: var(--cream);
+  padding: 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow: hidden;
+  position: relative;
+}
+.phone__thread::after {
+  /* fade top so older messages disappear */
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 30px;
+  background: linear-gradient(var(--cream), transparent);
+  pointer-events: none;
+}
+
+.sms {
+  max-width: 78%;
+  padding: 8px 13px;
+  border-radius: 18px;
+  font-size: 13.5px;
+  line-height: 1.35;
+  letter-spacing: -0.005em;
+  animation: smsIn 0.32s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  position: relative;
+}
+.sms--in {
+  align-self: flex-start;
+  background: #e9e2ce;
+  color: var(--ink);
+  border-bottom-left-radius: 5px;
+}
+.sms--out {
+  align-self: flex-end;
+  background: var(--indigo);
+  color: var(--cream);
+  border-bottom-right-radius: 5px;
+}
+.sms--typing {
+  background: #e9e2ce;
+  padding: 10px 14px;
+  align-self: flex-start;
+  border-bottom-left-radius: 5px;
+}
+.sms--typing .dot-t {
+  display: inline-block;
+  width: 5px; height: 5px;
+  margin: 0 1px;
+  border-radius: 50%;
+  background: var(--stone);
+  animation: typing 1.2s infinite;
+}
+.sms--typing .dot-t:nth-child(2) { animation-delay: 0.15s; }
+.sms--typing .dot-t:nth-child(3) { animation-delay: 0.3s; }
+@keyframes typing {
+  0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-2px); }
+}
+@keyframes smsIn {
+  from { opacity: 0; transform: translateY(6px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.sms__day {
+  text-align: center;
+  font-size: 10px;
+  color: var(--stone);
+  margin: 6px 0;
+  font-family: var(--mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.phone__composer {
+  background: var(--cream);
+  padding: 8px 12px 12px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.phone__composer-field {
+  flex: 1;
+  background: transparent;
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-size: 13px;
+  color: var(--stone);
+}
+.phone__composer-send {
+  width: 26px; height: 26px;
+  background: var(--stone-2);
+  color: var(--cream);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+}
+.phone__home {
+  height: 18px;
+  background: var(--cream);
+  border-radius: 0 0 36px 36px;
+  position: relative;
+}
+.phone__home::after {
+  content: "";
+  position: absolute;
+  bottom: 6px; left: 50%;
+  transform: translateX(-50%);
+  width: 110px; height: 4px;
+  border-radius: 2px;
+  background: var(--ink);
+  opacity: 0.4;
+}
+
+.hero__phone-cap {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 15px;
+  color: var(--ink-2);
+  max-width: 280px;
+  text-align: center;
+  line-height: 1.45;
+  transform: rotate(-2.2deg);
+}
+.cap-arrow {
+  display: inline-block;
+  margin-right: 6px;
+  color: var(--ember);
+  font-style: normal;
+}
+
+/* ───────────────────────────  MARQUEE  ──────────────────────────────── */
+
+.marquee {
+  background: var(--ink);
+  color: var(--cream);
+  overflow: hidden;
+  border-top: 1px solid var(--ink);
+  border-bottom: 1px solid var(--ink);
+  position: relative;
+  z-index: 2;
+}
+.marquee__track {
+  display: flex;
+  align-items: center;
+  gap: 36px;
+  padding: 22px 0;
+  font-family: var(--serif);
+  font-size: 28px;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  animation: marquee 38s linear infinite;
+}
+.marquee__track span { display: inline-block; }
+.marquee__track em { color: var(--ember); }
+.marquee__dot {
+  font-size: 8px;
+  color: var(--stone);
+  transform: translateY(-4px);
+}
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+/* ───────────────────────────  HOW IT WORKS  ─────────────────────────── */
+
+.how {
+  padding: clamp(80px, 12vw, 160px) 0 clamp(40px, 8vw, 80px);
+}
+.how .section-head {
+  margin-bottom: clamp(48px, 8vw, 96px);
+}
+
+.steps {
+  max-width: var(--max);
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+  list-style: none;
+}
+.step {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr);
+  gap: clamp(24px, 4vw, 48px);
+  padding: clamp(40px, 6vw, 64px) 0;
+  border-top: 1px solid var(--hairline);
+}
+.step:last-child { border-bottom: 1px solid var(--hairline); }
+
+.step__num {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: clamp(80px, 9vw, 140px);
+  line-height: 0.85;
+  color: var(--indigo);
+  letter-spacing: -0.04em;
+}
+.step__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: clamp(28px, 4vw, 56px);
+  align-items: start;
+}
+.step__title {
+  font-family: var(--serif);
+  font-size: clamp(28px, 3vw, 42px);
+  line-height: 1.05;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  margin: 8px 0 16px;
+  grid-column: 1 / 2;
+}
+.step__copy {
+  grid-column: 1 / 2;
+  font-size: 16px;
+  color: var(--ink-2);
+  line-height: 1.55;
+  max-width: 50ch;
+  margin: 0;
+}
+.step__detail {
+  grid-column: 2 / 3;
+  grid-row: 1 / 3;
+  background: var(--paper);
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.step__detail--card {
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+.bubble {
+  max-width: 80%;
+  padding: 9px 14px;
+  border-radius: 16px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.bubble--in {
+  align-self: flex-start;
+  background: var(--cream-2);
+  color: var(--ink);
+  border-bottom-left-radius: 4px;
+}
+.bubble--out {
+  align-self: flex-end;
+  background: var(--indigo);
+  color: var(--cream);
+  border-bottom-right-radius: 4px;
+}
+
+/* Step 2 — profile card */
+.profile-card {
+  background: var(--paper);
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  padding: 22px 24px;
+}
+.profile-card__name {
+  font-family: var(--serif);
+  font-size: 22px;
+  line-height: 1.1;
+  margin-bottom: 4px;
+}
+.profile-card__name span { color: var(--stone); font-size: 13px; font-family: var(--sans); }
+.profile-card__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 12px 0;
+}
+.tag {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-family: var(--mono);
+  font-size: 11px;
+  background: var(--cream-2);
+  color: var(--ink-2);
+  border: 1px solid var(--hairline);
+}
+.profile-card__meaning {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--hairline);
+  font-size: 14px;
+  color: var(--ink-2);
+  line-height: 1.5;
+}
+.meaning__label {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--indigo);
+  margin-right: 6px;
+}
+
+/* Step 3 — intro pair */
+.intro-pair {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: start;
+  gap: 8px;
+  padding: 8px 0;
+}
+.intro-pair__person {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+}
+.intro-pair__avatar {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.intro-pair__name {
+  font-weight: 500;
+  font-size: 13.5px;
+  line-height: 1.25;
+}
+.intro-pair__role {
+  font-size: 11.5px;
+  color: var(--stone);
+  line-height: 1.3;
+  margin-top: 2px;
+}
+.intro-pair__line {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--indigo);
+  padding: 14px 8px 0;
+  white-space: nowrap;
+}
+.intro-pair__line::before,
+.intro-pair__line::after {
+  content: "";
+  position: absolute;
+  top: 20px;
+  width: 12px;
+  height: 1px;
+  background: var(--indigo);
+}
+.intro-pair__line::before { right: 100%; }
+.intro-pair__line::after  { left: 100%; }
+.intro-pair__line span {
+  background: var(--paper);
+  padding: 0 4px;
+}
+.intro-note {
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: var(--cream-2);
+  border-left: 2px solid var(--indigo);
+  font-size: 14px;
+  color: var(--ink-2);
+  line-height: 1.5;
+}
+
+/* Step 4 — signals */
+.signal-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+.signal-tag {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+  padding: 3px 9px;
+  border-radius: 4px;
+  background: var(--cream-2);
+  color: var(--ink-2);
+  border: 1px solid var(--hairline);
+}
+.signal-tag--up {
+  background: rgba(45,62,184,0.08);
+  border-color: var(--indigo);
+  color: var(--indigo);
+}
+
+/* ─────────────────────────────  LOOP  ───────────────────────────────── */
+
+.loop {
+  padding: clamp(80px, 12vw, 160px) 0;
+  background: var(--cream-2);
+  border-top: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
+  position: relative;
+  z-index: 2;
+}
+.loop__inner {
+  max-width: var(--max);
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+}
+
+.loop__diagram {
+  margin: clamp(48px, 8vw, 96px) auto 0;
+  max-width: 900px;
+}
+.loop__diagram svg { width: 100%; height: auto; display: block; }
+.loop__legend {
+  display: flex;
+  justify-content: center;
+  gap: 32px;
+  margin-top: 28px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-2);
+  flex-wrap: wrap;
+}
+.loop__legend > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.legend__sw {
+  width: 18px; height: 2px;
+  display: inline-block;
+}
+.legend__sw--ink    { background: var(--ink); }
+.legend__sw--indigo { background: var(--indigo); border-top: 1px dashed var(--indigo); height: 0; border-style: dashed; border-width: 1px 0 0 0; }
+
+.loop__compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(24px, 4vw, 48px);
+  margin-top: clamp(64px, 10vw, 120px);
+}
+.compare-card {
+  background: var(--paper);
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  padding: 32px;
+  position: relative;
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+}
+.compare-card--bad   { color: var(--ink-2); }
+.compare-card--good  { color: var(--indigo); border-color: var(--indigo); }
+.compare-card--good .compare-card__label { color: var(--indigo); }
+
+.compare-card__label {
+  font-family: var(--mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 500;
+  margin-bottom: 12px;
+  color: var(--ink);
+}
+.compare-card__line {
+  height: 1px;
+  background: var(--hairline);
+  margin-bottom: 16px;
+}
+.compare-card__desc {
+  font-family: var(--serif);
+  font-size: 22px;
+  line-height: 1.25;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+  margin-bottom: auto;
+  padding-bottom: 24px;
+}
+.compare-card--good .compare-card__desc { color: var(--ink); }
+.compare-card--good .compare-card__desc::first-letter,
+.compare-card--good .compare-card__desc { color: var(--ink); }
+.compare-card__chart {
+  width: 100%;
+  height: 60px;
+  display: block;
+}
+
+/* ───────────────────────────  ORGANIZATIONS  ────────────────────────── */
+
+.orgs {
+  padding: clamp(52px, 8vw, 96px) 0;
+}
+.orgs__tabs {
+  max-width: var(--max);
+  margin: clamp(28px, 4vw, 44px) auto 0;
+  padding: 0 var(--gutter);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  border-bottom: 1px solid var(--hairline);
+}
+.org-tab {
+  background: transparent;
+  border: none;
+  padding: 14px 18px;
+  font-family: var(--sans);
+  font-size: 14px;
+  color: var(--stone);
+  position: relative;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.org-tab:hover { color: var(--ink); }
+.org-tab.is-active { color: var(--ink); }
+.org-tab.is-active::after {
+  content: "";
+  position: absolute;
+  left: 18px; right: 18px;
+  bottom: -1px;
+  height: 2px;
+  background: var(--indigo);
+}
+
+/* Cross-vertical proof ribbon — the one mechanism, whatever the community */
+.orgs__proof {
+  max-width: var(--max);
+  margin: clamp(30px, 4vw, 44px) auto 0;
+  padding: 0 var(--gutter);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--hairline);
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.proof-cell {
+  background: var(--paper);
+  padding: clamp(20px, 2.4vw, 26px) clamp(20px, 2.4vw, 28px);
+}
+.proof-cell__k {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--indigo);
+  margin-bottom: 12px;
+}
+.proof-cell__k b {
+  font-weight: 500;
+  width: 18px; height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--indigo);
+  border-radius: 50%;
+  font-size: 10px;
+}
+.proof-cell__t {
+  font-family: var(--serif);
+  font-size: clamp(19px, 1.8vw, 23px);
+  line-height: 1.14;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.proof-cell__t em { color: var(--indigo); }
+.proof-cell__s {
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+
+.orgs__panels {
+  max-width: var(--max);
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+}
+.org-panel {
+  display: none;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+  gap: clamp(36px, 5vw, 72px);
+  padding: clamp(32px, 4vw, 52px) 0;
+  align-items: center;
+}
+.org-panel.is-active { display: grid; }
+
+.org-panel__index {
+  font-family: var(--serif);
+  font-style: italic;
+  color: var(--indigo);
+  font-size: 28px;
+  margin-bottom: 10px;
+}
+.org-panel__title {
+  font-family: var(--serif);
+  font-size: clamp(32px, 3.4vw, 48px);
+  line-height: 1.02;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  margin: 0 0 16px;
+}
+.org-panel__title span {
+  font-style: italic;
+  color: var(--ink-2);
+}
+.org-panel__copy p {
+  font-size: 16.5px;
+  line-height: 1.5;
+  color: var(--ink-2);
+  max-width: 50ch;
+  margin: 0 0 18px;
+}
+.org-panel__bullets {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.org-panel__bullets li {
+  display: flex;
+  gap: 12px;
+  font-size: 14.5px;
+  color: var(--ink);
+  line-height: 1.45;
+  padding: 9px 0;
+  border-top: 1px solid var(--hairline);
+}
+.org-panel__bullets li:last-child {
+  border-bottom: 1px solid var(--hairline);
+}
+.org-panel__bullets li span {
+  color: var(--indigo);
+  font-weight: 500;
+  flex-shrink: 0;
+}
+.org-panel__quote {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 20px;
+  line-height: 1.4;
+  color: var(--ink);
+  padding-left: 16px;
+  border-left: 2px solid var(--ember);
+}
+.org-panel__quote span {
+  display: block;
+  font-family: var(--sans);
+  font-style: normal;
+  font-size: 12px;
+  color: var(--stone);
+  margin-top: 6px;
+}
+
+/* Before → after delta — the proof, not a slogan */
+.org-delta {
+  border-top: 1px solid var(--hairline);
+  padding-top: 20px;
+}
+.org-delta__row {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+}
+.org-delta__row + .org-delta__row { margin-top: 10px; }
+.org-delta__tag {
+  flex-shrink: 0;
+  width: 74px;
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--stone);
+  padding-top: 4px;
+}
+.org-delta__tag--on { color: var(--indigo); }
+.org-delta__before {
+  font-size: 14.5px;
+  line-height: 1.4;
+  color: var(--stone);
+}
+.org-delta__after {
+  font-family: var(--serif);
+  font-size: clamp(19px, 1.8vw, 23px);
+  line-height: 1.22;
+  color: var(--ink);
+}
+.org-delta__after b { font-weight: 400; font-style: italic; color: var(--ember); }
+.org-delta__after .num { font-style: italic; color: var(--indigo); }
+
+/* Mock surfaces */
+.org-panel__mock {
+  position: relative;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mock-window {
+  width: 100%;
+  background: var(--paper);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 20px 40px -20px rgba(28,24,20,0.2);
+}
+.mock-window__chrome {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--cream-2);
+  border-bottom: 1px solid var(--hairline);
+}
+.mock-window__chrome span {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--hairline);
+}
+.mock-window__url {
+  margin-left: 16px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--stone);
+}
+.mock-window__body { padding: 22px 24px; }
+.mock-title {
+  font-family: var(--serif);
+  font-size: 22px;
+  margin-bottom: 18px;
+  letter-spacing: -0.01em;
+}
+.mock-title span { color: var(--indigo); font-style: italic; }
+.mock-intro {
+  display: grid;
+  grid-template-columns: 1fr 20px 1fr 78px;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 0;
+  border-top: 1px solid var(--hairline);
+  font-size: 13.5px;
+}
+.mi-from, .mi-to { color: var(--ink); min-width: 0; }
+.mi-arr { color: var(--indigo); text-align: center; font-family: var(--mono); }
+.mi-tag {
+  justify-self: end;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  padding: 2px 8px;
+  background: var(--cream-2);
+  border-radius: 4px;
+  color: var(--ink-2);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.mock-intro--muted { grid-template-columns: 1fr; }
+.mock-intro--muted { color: var(--stone); font-style: italic; }
+
+/* Market mock */
+.mock-stalls {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 22px;
+  background: var(--paper);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  position: relative;
+}
+.stall {
+  background: var(--cream-2);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  padding: 14px;
+}
+.stall--paired {
+  background: rgba(45,62,184,0.08);
+  border-color: var(--indigo);
+}
+.stall__name { font-weight: 500; font-size: 14px; margin-bottom: 4px; }
+.stall__type { font-family: var(--mono); font-size: 11px; color: var(--stone); }
+.pair-line {
+  grid-column: 1 / -1;
+  margin-top: 10px;
+  padding: 12px;
+  border-top: 1px dashed var(--indigo);
+  font-size: 13px;
+  color: var(--ink);
+}
+.pair-line span {
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--indigo);
+  margin-right: 8px;
+}
+.pair-line em { font-size: 14px; color: var(--ink-2); }
+
+/* Creator mock */
+.org-panel__mock--creator {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 14px;
+}
+.creator-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding: 20px;
+  background: var(--paper);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+}
+.creator-card {
+  background: var(--cream-2);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  padding: 12px;
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+.creator-card--match {
+  background: rgba(45,62,184,0.1);
+  border-color: var(--indigo);
+  position: relative;
+}
+.creator-card--match::before {
+  content: "★";
+  position: absolute;
+  top: 8px; right: 10px;
+  color: var(--indigo);
+  font-size: 12px;
+}
+.creator-card__name { font-size: 13px; font-weight: 500; }
+.creator-card__medium { font-family: var(--mono); font-size: 10px; color: var(--stone); margin-top: 2px; }
+.creator-suggest {
+  background: var(--cream-2);
+  border: 1px solid var(--indigo);
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.creator-suggest span { color: var(--indigo); font-weight: 500; }
+
+/* Civic mock */
+.org-panel__mock--civic {
+  flex-direction: column;
+  align-items: stretch;
+}
+.civic-map {
+  background: var(--paper);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.civic-map svg { width: 100%; height: auto; display: block; }
+.civic-event {
+  padding: 14px 18px;
+  background: var(--cream-2);
+  border-top: 1px solid var(--hairline);
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 16px;
+  color: var(--ink);
+}
+
+/* Accelerator mock */
+.org-panel__mock--accel {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 16px;
+  padding: 32px;
+  background: var(--paper);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: auto auto;
+}
+.accel-stat {
+  padding: 16px 0;
+  border-top: 1px solid var(--hairline);
+}
+.accel-stat__num {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 56px;
+  line-height: 0.9;
+  color: var(--indigo);
+  letter-spacing: -0.03em;
+  margin-bottom: 8px;
+}
+.accel-stat__lbl {
+  font-size: 13px;
+  color: var(--ink-2);
+  max-width: 18ch;
+  line-height: 1.4;
+}
+.accel-bar {
+  grid-column: 1 / -1;
+  height: 8px;
+  background: var(--cream-2);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.accel-bar__fill {
+  height: 100%;
+  background: var(--indigo);
+  border-radius: 4px;
+}
+
+/* ───────────────────────────  MARKETPLACE  ──────────────────────────── */
+
+.market {
+  padding: clamp(80px, 12vw, 160px) 0;
+  background: var(--paper);
+  border-top: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
+  position: relative;
+  z-index: 2;
+}
+.market__layout {
+  max-width: var(--max);
+  margin: clamp(48px, 8vw, 96px) auto 0;
+  padding: 0 var(--gutter);
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  grid-template-areas:
+    "map     events"
+    "cards   events";
+  gap: clamp(32px, 4vw, 56px);
+}
+.market__map { grid-area: map; }
+.market__cards { grid-area: cards; }
+.market__events { grid-area: events; }
+
+.market__map {
+  background: var(--cream);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  padding: 22px;
+}
+.market__map svg { width: 100%; height: auto; display: block; }
+.market__map-cap {
+  margin-top: 16px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-2);
+  letter-spacing: 0.02em;
+}
+.market__map-cap span { color: var(--indigo); margin-right: 8px; }
+
+.market__cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.market-card {
+  background: var(--cream);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.market-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 20px 30px -20px rgba(28,24,20,0.25);
+}
+.market-card__photo {
+  height: 130px;
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  padding: 12px;
+}
+.market-card__chip {
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: rgba(241,234,217,0.95);
+  color: var(--ink);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+.market-card__name {
+  font-family: var(--serif);
+  font-size: 22px;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  padding: 14px 16px 4px;
+}
+.market-card__meta {
+  font-size: 12px;
+  color: var(--stone);
+  padding: 0 16px 8px;
+}
+.market-card__tags {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--ink-2);
+  padding: 0 16px 14px;
+  letter-spacing: 0.02em;
+}
+.market-card--featured { border-color: var(--indigo); }
+.market-card__badge {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--indigo);
+  padding: 0 16px 14px;
+}
+
+.market__events {
+  background: var(--cream);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  padding: 24px;
+}
+.events__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--hairline);
+  margin-bottom: 12px;
+}
+.events__head > span:first-child {
+  font-family: var(--serif);
+  font-size: 22px;
+  letter-spacing: -0.01em;
+}
+.events__week {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--stone);
+  letter-spacing: 0.04em;
+}
+.events__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.events__list li {
+  display: grid;
+  grid-template-columns: 36px 36px 1fr;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 0;
+  border-top: 1px solid var(--hairline);
+}
+.events__list li:first-child { border-top: none; }
+.events__day {
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--indigo);
+}
+.events__date {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 28px;
+  line-height: 1;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+}
+.events__name { font-weight: 500; font-size: 14px; line-height: 1.3; }
+.events__where { font-size: 12px; color: var(--stone); margin-top: 2px; }
+
+/* ─────────────────────────────  PILLARS  ────────────────────────────── */
+
+.pillars {
+  padding: clamp(80px, 12vw, 160px) 0;
+}
+.pillars__grid {
+  max-width: var(--max);
+  margin: clamp(48px, 8vw, 96px) auto 0;
+  padding: 0 var(--gutter);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: clamp(20px, 3vw, 40px);
+}
+.pillar {
+  border-top: 1px solid var(--ink);
+  padding-top: 24px;
+}
+.pillar__num {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--indigo);
+  margin-bottom: 16px;
+  letter-spacing: 0.04em;
+}
+.pillar h3 {
+  font-family: var(--serif);
+  font-size: clamp(28px, 2.6vw, 40px);
+  font-weight: 400;
+  line-height: 1.05;
+  margin: 0 0 16px;
+  letter-spacing: -0.02em;
+}
+.pillar p {
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--ink-2);
+  margin: 0;
+}
+
+/* ──────────────────────────────  JOIN  ──────────────────────────────── */
+
+.join {
+  background: var(--ink);
+  color: var(--cream);
+  padding: clamp(80px, 12vw, 140px) 0;
+  position: relative;
+  z-index: 2;
+}
+.join__inner {
+  max-width: var(--max);
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: clamp(40px, 6vw, 96px);
+  align-items: center;
+}
+.join__title {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(40px, 5.4vw, 80px);
+  line-height: 1.02;
+  letter-spacing: -0.02em;
+  margin: 0 0 24px;
+  text-wrap: balance;
+}
+.join__title em { font-style: italic; color: #c4502b; }
+.join__lede {
+  font-size: 18px;
+  line-height: 1.55;
+  color: #d8cfb9;
+  max-width: 52ch;
+  margin: 0 0 36px;
+}
+.join__form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  max-width: 480px;
+}
+.join__form input {
+  background: transparent;
+  border: 1px solid #4a423a;
+  border-radius: 999px;
+  padding: 13px 22px;
+  font: inherit;
+  color: var(--cream);
+  font-size: 15px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.join__form input:focus { border-color: var(--cream); }
+.join__form input::placeholder { color: #807766; }
+.join__form .btn--indigo:hover { background: var(--ember); }
+.join__form-status {
+  grid-column: 1 / -1;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: #d8cfb9;
+  letter-spacing: 0.04em;
+  min-height: 18px;
+}
+.join__or {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 28px 0 18px;
+  max-width: 480px;
+  color: #807766;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.join__or-rule {
+  flex: 1;
+  height: 1px;
+  background: #4a423a;
+}
+.join__sms {
+  font-size: 15px;
+  color: #d8cfb9;
+}
+.join__sms-label { display: block; color: #807766; font-size: 12px; margin-bottom: 4px; font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.06em; }
+
+.join__card {
+  background: #2a241e;
+  border: 1px solid #4a423a;
+  border-radius: 10px;
+  padding: 32px;
+  position: relative;
+}
+.join__card-head {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #807766;
+  margin-bottom: 22px;
+}
+.join__card-eyebrow { color: var(--ember); }
+.join__card p {
+  font-family: var(--serif);
+  font-size: 20px;
+  line-height: 1.4;
+  color: #e8dfc8;
+  margin: 0 0 14px;
+}
+.join__card-sig {
+  font-family: var(--serif);
+  font-style: italic;
+  color: var(--ember);
+  margin-top: 22px;
+  font-size: 17px;
+}
+
+/* ─────────────────────────────  FOOTER  ─────────────────────────────── */
+
+.foot {
+  background: var(--ink);
+  color: var(--cream);
+  padding: clamp(64px, 8vw, 96px) 0 24px;
+  border-top: 1px solid #4a423a;
+}
+.foot__inner {
+  max-width: var(--max);
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 2fr);
+  gap: clamp(40px, 6vw, 80px);
+  padding-bottom: 64px;
+  border-bottom: 1px solid #4a423a;
+}
+.foot__brand p {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 18px;
+  color: #d8cfb9;
+  max-width: 32ch;
+  margin: 12px 0 0;
+}
+.foot__cols {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 40px;
+}
+.foot__col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.foot__col-h {
+  font-family: var(--mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ember);
+  margin-bottom: 8px;
+}
+.foot__col a {
+  color: #d8cfb9;
+  font-size: 14px;
+  transition: color 0.15s;
+}
+.foot__col a:hover { color: var(--cream); }
+
+.foot__base {
+  max-width: var(--max);
+  margin: 0 auto;
+  padding: 24px var(--gutter) 0;
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: #807766;
+}
+.foot__base-mid { color: #d8cfb9; }
+
+/* ───────────────────────────  RESPONSIVE  ───────────────────────────── */
+
+@media (max-width: 1080px) {
+  .topnav { gap: 18px; font-size: 13px; margin-left: 12px; }
+  .topnav a:nth-child(4) { display: none; }
+}
+
+@media (max-width: 720px) {
+  .topnav { display: none; }
+  .hero__grid {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "eyebrow"
+      "title"
+      "lede"
+      "phone"
+      "ctas"
+      "meta"
+      "sidemark";
+  }
+  .hero__phone { transform: rotate(0); margin: 16px auto; }
+  .hero__phone-cap { transform: rotate(0); }
+
+  .step { grid-template-columns: 1fr; gap: 12px; }
+  .step__body { grid-template-columns: 1fr; }
+  .step__detail { grid-row: auto; grid-column: 1; }
+  .step__num { font-size: 80px; }
+
+  .org-panel.is-active { grid-template-columns: 1fr; }
+  .orgs__proof { grid-template-columns: 1fr; }
+  .market__layout {
+    grid-template-columns: 1fr;
+    grid-template-areas: "map" "cards" "events";
+  }
+  .loop__compare { grid-template-columns: 1fr; }
+  .pillars__grid { grid-template-columns: 1fr 1fr; }
+
+  .join__inner { grid-template-columns: 1fr; }
+  .foot__inner { grid-template-columns: 1fr; }
+  .foot__cols { grid-template-columns: 1fr 1fr; }
+
+  .topnav { display: none; }
+}
+
+@media (max-width: 640px) {
+  .market__cards { grid-template-columns: 1fr; }
+  .pillars__grid { grid-template-columns: 1fr; }
+  .orgs__tabs { overflow-x: auto; flex-wrap: nowrap; }
+  .org-tab { white-space: nowrap; }
+  .foot__cols { grid-template-columns: 1fr; }
+  .foot__base { flex-direction: column; gap: 4px; }
+  .hero__meta { grid-template-columns: 1fr; gap: 16px; }
+}
+</style>
+<style>
+html,body{background:#f1ead9;font-family:system-ui,-apple-system,BlinkMacSystemFont,sans-serif;}
+body.hero-only .topbar,body.hero-only .marquee,body.hero-only section:not(.hero),body.hero-only .foot{display:none!important;}
+/* Removed in both views: navbar, metrics/sidemark bars, scrolling marquee, footer. */
+.topbar,.marquee,.hero__meta,.hero__sidemark,.foot{display:none!important;}
+/* Hidden sections: marketplace (§02), loop (§03), pillars (§05). */
+.market,.loop,.pillars{display:none!important;}
+/* Thread scrolls so the newest message is always visible (hidden scrollbar). */
+.phone__thread{overflow-y:auto!important;scrollbar-width:none;-ms-overflow-style:none;justify-content:flex-end;}
+.phone__thread::-webkit-scrollbar{display:none;}
+/* Fit the hero inside the popup — no scroll. vh here is relative to the iframe. */
+body.hero-only{min-height:0;height:100vh;overflow:hidden;display:flex;align-items:center;}
+body.hero-only .hero{width:100%;padding:16px clamp(20px,4vw,44px);}
+body.hero-only .hero__grid{align-items:center;gap:20px 44px;grid-template-areas:"eyebrow phone" "title phone" "lede phone" "ctas phone";grid-template-rows:auto auto auto auto;}
+body.hero-only .hero__meta,body.hero-only .hero__sidemark,body.hero-only .hero__phone-cap,body.hero-only .hero__eyebrow-meta{display:none!important;}
+body.hero-only .hero__title{font-size:clamp(34px,5vw,60px);}
+body.hero-only .hero__lede{font-size:16px;line-height:1.5;}
+body.hero-only .hero__phone{height:82vh;justify-content:center;margin:0;}
+body.hero-only .hero__phone .phone{max-width:none;width:auto;height:100%;margin:0 auto;}
+@media (max-width:720px){body.hero-only .hero__phone{height:auto;}body.hero-only .hero__phone .phone{height:auto;max-width:220px;}}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar__inner">
+    <a class="wordmark" href="#top">
+      <span class="wordmark__the"></span>
+      <span class="wordmark__name">WhatsLocal</span>
+      <span class="wordmark__dot"></span>
+    </a>
+    <nav class="topnav">
+      <a href="#how">How it works</a>
+      <a href="#orgs">For organizations</a>
+      <a href="#marketplace">Marketplace</a>
+      <a href="#loop">The loop</a>
+    </nav>
+    <div class="topbar__cta">
+      <a class="link-quiet" href="#join">Join by text</a>
+      <a class="btn btn--ink" href="#orgs">Run a community →</a>
+    </div>
+  </div>
+  <div class="topbar__rule"></div>
+</header>
+
+<main id="top">
+
+<!-- ──────────────────────────────  HERO  ────────────────────────────── -->
+<section class="hero">
+  <div class="hero__grid">
+
+    <div class="hero__eyebrow">
+      <span class="dot dot--live"></span>
+      <span>An AI concierge for local communities</span>
+      <span class="hero__eyebrow-meta">Est. 2026 · v1.0</span>
+    </div>
+
+    <h1 class="hero__title">
+      Your community,<br>
+      <em>connected.</em>
+    </h1>
+
+    <p class="hero__lede">
+      WhatsLocal is a relationship engine for local communities. A friendly AI
+      welcomes every member by text, learns what they're about, and proactively
+      introduces them to the people, businesses, and events that matter — then
+      follows up to see how it went. <strong>Get smarter with every hello.</strong>
+    </p>
+
+    <div class="hero__ctas" style="align-items:center">
+      <a class="btn btn--indigo" href="sms:+15622573224">Join by text</a>
+      <span style="font-size:14px;color:var(--stone)">Text <strong style="color:var(--ink)">+1-LOCAL-REACH</strong> to join</span>
+    </div>
+
+    <div class="hero__meta">
+      <div class="meta-cell">
+        <div class="meta-cell__k">2 min</div>
+        <div class="meta-cell__v">to onboard a new member, by SMS</div>
+      </div>
+      <div class="meta-cell">
+        <div class="meta-cell__k">3 intros</div>
+        <div class="meta-cell__v">delivered to every new member</div>
+      </div>
+      <div class="meta-cell">
+        <div class="meta-cell__k">∞ loop</div>
+        <div class="meta-cell__v">every reply trains the next match</div>
+      </div>
+    </div>
+
+    <!-- Animated phone-with-chat -->
+    <aside class="hero__phone" aria-label="Live SMS demo">
+      <div class="phone">
+        <div class="phone__notch"></div>
+        <div class="phone__status">
+          <span>9:41</span>
+          <span class="phone__status-right">
+            <svg width="16" height="10" viewBox="0 0 16 10" fill="none"><path d="M1 8.5L4 5.5L7 8.5L15 1" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"></path></svg>
+            <svg width="14" height="10" viewBox="0 0 14 10" fill="none"><rect x="0.5" y="0.5" width="11" height="9" rx="1.5" stroke="currentColor"></rect><rect x="2" y="2" width="8" height="6" fill="currentColor"></rect><rect x="12" y="3" width="1.5" height="4" rx="0.5" fill="currentColor"></rect></svg>
+          </span>
+        </div>
+        <div class="phone__sms-header">
+          <div class="phone__avatar">
+            <svg viewBox="0 0 32 32" width="28" height="28"><circle cx="16" cy="16" r="16" fill="#2d3eb8"></circle><path d="M9 22c1.5-3.5 4-5 7-5s5.5 1.5 7 5" stroke="#f4ede0" stroke-width="1.6" fill="none" stroke-linecap="round"></path><circle cx="16" cy="13" r="3.6" fill="#f4ede0"></circle></svg>
+          </div>
+          <div class="phone__sms-name">
+            <div>WhatsLocal</div>
+            <div class="phone__sms-sub">+1 (562) 257-3224 · concierge</div>
+          </div>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" class="phone__sms-info"><circle cx="7" cy="7" r="6.3" stroke="currentColor"></circle><path d="M7 6v4M7 4v0" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"></path></svg>
+        </div>
+        <div class="phone__thread" id="chatThread">
+          <!-- messages injected by JS -->
+        </div>
+        <div class="phone__composer">
+          <div class="phone__composer-field">iMessage</div>
+          <div class="phone__composer-send">↑</div>
+        </div>
+        <div class="phone__home"></div>
+      </div>
+
+      <div class="hero__phone-cap">
+        <span class="cap-arrow">↘</span>
+        A real conversation. The concierge lives in your texts and replies in plain English.
+      </div>
+    </aside>
+
+    <div class="hero__sidemark">
+      <span>fig.</span>
+      <span class="sidemark__num">01</span>
+      <span>—</span>
+      <span>The concierge in conversation with Maya, a new ceramicist in Temescal.</span>
+    </div>
+
+  </div>
+</section>
+
+<!-- ─────────────────────────────  MARQUEE  ──────────────────────────── -->
+<section class="marquee" aria-hidden="true">
+  <div class="marquee__track">
+    <span>Onboarding</span><span class="marquee__dot">●</span>
+    <span>Matchmaking</span><span class="marquee__dot">●</span>
+    <span><em>Introductions</em></span><span class="marquee__dot">●</span>
+    <span>Discovery</span><span class="marquee__dot">●</span>
+    <span>Follow-up</span><span class="marquee__dot">●</span>
+    <span>Smarter every hello</span><span class="marquee__dot">●</span>
+    <span>Onboarding</span><span class="marquee__dot">●</span>
+    <span>Matchmaking</span><span class="marquee__dot">●</span>
+    <span><em>Introductions</em></span><span class="marquee__dot">●</span>
+    <span>Discovery</span><span class="marquee__dot">●</span>
+    <span>Follow-up</span><span class="marquee__dot">●</span>
+    <span>Smarter every hello</span><span class="marquee__dot">●</span>
+  </div>
+</section>
+
+<!-- ───────────────────────────  HOW IT WORKS  ───────────────────────── -->
+<section class="how" id="how">
+  <header class="section-head">
+    <div class="section-head__kicker">
+      <span class="kicker__num">§ 01</span>
+      <span class="kicker__label">How it works</span>
+    </div>
+    <h2 class="section-head__title">
+      Four steps from <em>hello</em> to <em>here's who you should meet.</em>
+    </h2>
+    <p class="section-head__lede">
+      WhatsLocal replaces the messy spreadsheet, the dead Facebook group, and the
+      organizer who's always too busy to make the intro. Every member onboards through
+      a conversation — and every conversation makes the network smarter.
+    </p>
+  </header>
+
+  <ol class="steps">
+
+    <li class="step">
+      <div class="step__num">1</div>
+      <div class="step__body">
+        <h3 class="step__title">Members join by chatting.</h3>
+        <p class="step__copy">
+          No forms. People sign up through a web chat or by texting a number. The
+          concierge asks natural questions — what they make, what they're looking for,
+          their vibe, their neighborhood — and builds a complete profile from the
+          conversation.
+        </p>
+        <div class="step__detail">
+          <div class="bubble bubble--in">What do you make?</div>
+          <div class="bubble bubble--out">Wheel-thrown stoneware. Mostly mugs, the occasional weird vase.</div>
+          <div class="bubble bubble--in">Where are you based?</div>
+          <div class="bubble bubble--out">Temescal, north Oakland.</div>
+        </div>
+      </div>
+    </li>
+
+    <li class="step">
+      <div class="step__num">2</div>
+      <div class="step__body">
+        <h3 class="step__title">The agent enriches and understands.</h3>
+        <p class="step__copy">
+          It automatically fills in the gaps — pulling public info from their site,
+          their Instagram, their listings — and turns every profile into a deep
+          searchable understanding, not just keywords but meaning.
+        </p>
+        <div class="step__detail step__detail--card">
+          <div class="profile-card">
+            <div class="profile-card__name">
+              <strong>Maya Ortiz</strong>
+              <span>· joined 2 days ago</span>
+            </div>
+            <div class="profile-card__tags">
+              <span class="tag">ceramics</span>
+              <span class="tag">stoneware</span>
+              <span class="tag">temescal</span>
+              <span class="tag">wholesale-curious</span>
+              <span class="tag">vendor markets</span>
+            </div>
+            <div class="profile-card__meaning">
+              <span class="meaning__label">meaning →</span>
+              <span class="meaning__text">
+                Solo maker, production-scale curious. Aesthetic leans muted &amp; earthy.
+                Wants wholesale relationships with cafés &amp; restaurants. Open to pop-ups.
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </li>
+
+    <li class="step">
+      <div class="step__num">3</div>
+      <div class="step__body">
+        <h3 class="step__title">It makes introductions.</h3>
+        <p class="step__copy">
+          Once it knows enough, the concierge recommends the three best connections for
+          each new member — a vendor who'd love their product, an organizer running their
+          kind of event, a neighbor with shared interests — with a personal note on why.
+        </p>
+        <div class="step__detail">
+          <div class="intro-pair">
+            <div class="intro-pair__person">
+              <div class="intro-pair__avatar" style="background:#c4502b"></div>
+              <div>
+                <div class="intro-pair__name">Maya Ortiz</div>
+                <div class="intro-pair__role">Ceramics · Temescal</div>
+              </div>
+            </div>
+            <div class="intro-pair__line">
+              <span>warm intro</span>
+            </div>
+            <div class="intro-pair__person">
+              <div class="intro-pair__avatar" style="background:#2d3eb8"></div>
+              <div>
+                <div class="intro-pair__name">Joel @ Beachwood</div>
+                <div class="intro-pair__role">Café · Piedmont Ave</div>
+              </div>
+            </div>
+          </div>
+          <p class="intro-note">
+            <em>"Joel just took over Beachwood and is replacing every dish on the bar.
+            He buys local and pays on time. Worth a coffee."</em>
+          </p>
+        </div>
+      </div>
+    </li>
+
+    <li class="step">
+      <div class="step__num">4</div>
+      <div class="step__body">
+        <h3 class="step__title">It learns from what happens.</h3>
+        <p class="step__copy">
+          A couple days later it checks in: <em>"Did you connect? How'd it go?"</em> Members
+          reply in plain language. The agent turns that into a signal, updates their
+          profile, and makes every future match sharper. This feedback loop is the
+          core of the product — the network literally gets better the more it's used.
+        </p>
+        <div class="step__detail">
+          <div class="bubble bubble--in">Did you get a chance to talk with Joel?</div>
+          <div class="bubble bubble--out">Yeah! He's ordering 30 mugs for trial. Loved his energy.</div>
+          <div class="bubble bubble--in">Amazing. I'll keep an eye out for more cafés that fit that vibe.</div>
+          <div class="signal-row">
+            <span class="signal-tag signal-tag--up">+ wholesale match: confirmed</span>
+            <span class="signal-tag signal-tag--up">+ vibe: "warm, low-pressure"</span>
+            <span class="signal-tag">profile updated</span>
+          </div>
+        </div>
+      </div>
+    </li>
+
+  </ol>
+</section>
+
+<!-- ─────────────────────────────  MARKETPLACE  ──────────────────────── -->
+<section class="market" id="marketplace">
+  <header class="section-head">
+    <div class="section-head__kicker">
+      <span class="kicker__num">§ 02</span>
+      <span class="kicker__label">The marketplace</span>
+    </div>
+    <h2 class="section-head__title">
+      A storefront for your <em>whole community,</em> open to the public.
+    </h2>
+    <p class="section-head__lede">
+      Behind the concierge is a public, branded site where anyone can browse members
+      and discover events. Two surfaces, one engine — the back office and the front of
+      house ship together.
+    </p>
+  </header>
+
+  <div class="market__layout">
+
+    <div class="market__map">
+      <svg viewBox="0 0 600 400" preserveAspectRatio="xMidYMid meet">
+        <!-- water -->
+        <path d="M0 0 L0 400 L180 400 L210 350 L240 360 L260 320 L240 280 L260 240 L230 200 L240 160 L210 130 L200 90 L180 50 L160 0 Z" fill="var(--cream-2)"></path>
+        <!-- streets -->
+        <g stroke="var(--stone)" stroke-width="0.6" fill="none" opacity="0.6">
+          <path d="M200 0 L260 400"></path>
+          <path d="M280 0 L340 400"></path>
+          <path d="M360 0 L420 400"></path>
+          <path d="M440 0 L500 400"></path>
+          <path d="M520 0 L580 400"></path>
+          <path d="M180 80 L600 60"></path>
+          <path d="M200 160 L600 140"></path>
+          <path d="M220 240 L600 220"></path>
+          <path d="M240 320 L600 300"></path>
+          <path d="M260 380 L600 360"></path>
+        </g>
+        <!-- park -->
+        <rect x="380" y="180" width="80" height="60" fill="var(--cream-3)" rx="2"></rect>
+        <text x="420" y="215" font-family="Instrument Serif" font-style="italic" font-size="11" fill="var(--stone)" text-anchor="middle">Mosswood</text>
+
+        <!-- member pins -->
+        <g class="map-pin"><circle cx="320" cy="120" r="6" fill="var(--indigo)"></circle><circle cx="320" cy="120" r="12" fill="var(--indigo)" opacity="0.15"></circle></g>
+        <g class="map-pin"><circle cx="380" cy="90" r="6" fill="var(--indigo)"></circle></g>
+        <g class="map-pin"><circle cx="450" cy="110" r="6" fill="var(--ember)"></circle></g>
+        <g class="map-pin"><circle cx="290" cy="200" r="6" fill="var(--indigo)"></circle></g>
+        <g class="map-pin"><circle cx="350" cy="260" r="6" fill="var(--ink)"></circle></g>
+        <g class="map-pin"><circle cx="420" cy="310" r="6" fill="var(--indigo)"></circle></g>
+        <g class="map-pin"><circle cx="500" cy="160" r="6" fill="var(--indigo)"></circle></g>
+        <g class="map-pin"><circle cx="520" cy="290" r="6" fill="var(--ember)"></circle></g>
+        <g class="map-pin"><circle cx="270" cy="320" r="6" fill="var(--indigo)"></circle></g>
+        <g class="map-pin"><circle cx="470" cy="60" r="6" fill="var(--indigo)"></circle></g>
+
+        <!-- label -->
+        <text x="220" y="60" font-family="Instrument Serif" font-style="italic" font-size="16" fill="var(--stone)">North Oakland</text>
+      </svg>
+      <div class="market__map-cap">
+        <span>↑ fig. 02</span> Live density: 47 members within 6 blocks of Mosswood Park.
+      </div>
+    </div>
+
+    <div class="market__cards">
+      <div class="market-card">
+        <div class="market-card__photo" style="background:linear-gradient(135deg,#c4502b,#7a2d1a);">
+          <span class="market-card__chip">ceramicist</span>
+        </div>
+        <div class="market-card__name">Maya Ortiz</div>
+        <div class="market-card__meta">Temescal · joined Apr</div>
+        <div class="market-card__tags">stoneware · wholesale-curious · markets</div>
+      </div>
+
+      <div class="market-card market-card--featured">
+        <div class="market-card__photo" style="background:linear-gradient(135deg,#2d3eb8,#1a2580);">
+          <span class="market-card__chip">café</span>
+        </div>
+        <div class="market-card__name">Beachwood Café</div>
+        <div class="market-card__meta">Piedmont Ave · since 2019</div>
+        <div class="market-card__tags">local-first · breakfast · buys handmade</div>
+        <div class="market-card__badge">★ open to intros</div>
+      </div>
+
+      <div class="market-card">
+        <div class="market-card__photo" style="background:linear-gradient(135deg,#5a6b3a,#2f3a1c);">
+          <span class="market-card__chip">florist</span>
+        </div>
+        <div class="market-card__name">Wren &amp; Branch</div>
+        <div class="market-card__meta">Rockridge · joined Mar</div>
+        <div class="market-card__tags">events · weddings · seasonal</div>
+      </div>
+
+      <div class="market-card">
+        <div class="market-card__photo" style="background:linear-gradient(135deg,#a07e3e,#5a4520);">
+          <span class="market-card__chip">leatherwork</span>
+        </div>
+        <div class="market-card__name">Otto Hide Co.</div>
+        <div class="market-card__meta">West Oakland · joined Feb</div>
+        <div class="market-card__tags">bags · repairs · custom</div>
+      </div>
+    </div>
+
+    <aside class="market__events">
+      <div class="events__head">
+        <span>Coming up</span>
+        <span class="events__week">week of May 24</span>
+      </div>
+      <ul class="events__list">
+        <li>
+          <span class="events__day">FRI</span>
+          <span class="events__date">24</span>
+          <div class="events__copy">
+            <div class="events__name">Temescal Night Market</div>
+            <div class="events__where">5–10pm · 49th &amp; Telegraph · 22 vendors</div>
+          </div>
+        </li>
+        <li>
+          <span class="events__day">SAT</span>
+          <span class="events__date">25</span>
+          <div class="events__copy">
+            <div class="events__name">Maya's studio open hours</div>
+            <div class="events__where">11–3 · 5400 College · come watch the wheel</div>
+          </div>
+        </li>
+        <li>
+          <span class="events__day">SUN</span>
+          <span class="events__date">26</span>
+          <div class="events__copy">
+            <div class="events__name">Repair Café @ Mosswood</div>
+            <div class="events__where">12–4 · bring broken things · free</div>
+          </div>
+        </li>
+        <li>
+          <span class="events__day">WED</span>
+          <span class="events__date">29</span>
+          <div class="events__copy">
+            <div class="events__name">Beachwood vendor mixer</div>
+            <div class="events__where">7pm · for makers buying wholesale</div>
+          </div>
+        </li>
+      </ul>
+    </aside>
+
+  </div>
+</section>
+
+<!-- ────────────────────────────  THE LOOP  ──────────────────────────── -->
+<section class="loop" id="loop">
+  <div class="loop__inner">
+    <header class="section-head section-head--center">
+      <div class="section-head__kicker">
+        <span class="kicker__num">§ 03</span>
+        <span class="kicker__label">The compounding loop</span>
+      </div>
+      <h2 class="section-head__title">
+        Static directories decay. <em>WhatsLocal</em> compounds.
+      </h2>
+      <p class="section-head__lede">
+        Most platforms make you list yourself and hope. We close the loop on every
+        introduction, so each one becomes a labeled training example. Six months in,
+        the network knows your community better than any single human coordinator could.
+      </p>
+    </header>
+
+    <div class="loop__diagram" role="img" aria-label="A four-node loop showing onboard, understand, introduce, follow up — feeding back into a smarter match.">
+      <!-- SVG diagram — clean symmetric clockwise cycle with a traveling pulse -->
+      <svg viewBox="0 0 900 440" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--ink)"></path>
+          </marker>
+        </defs>
+
+        <!-- Feedback spokes: the hub feeds every node (subtle, dashed) -->
+        <g stroke="var(--indigo)" stroke-width="1" stroke-dasharray="2 6" stroke-linecap="round" opacity="0.4" fill="none">
+          <path d="M 416 196 L 250 152"></path>
+          <path d="M 484 196 L 650 152"></path>
+          <path d="M 484 244 L 650 288"></path>
+          <path d="M 416 244 L 250 288"></path>
+        </g>
+
+        <!-- Outer cycle arrows (clockwise) -->
+        <g stroke="var(--ink)" stroke-width="1.5" fill="none" stroke-linecap="round">
+          <path d="M 262 122 Q 450 92 638 122" marker-end="url(#arrow)"></path>
+          <path d="M 708 186 Q 792 220 708 254" marker-end="url(#arrow)"></path>
+          <path d="M 638 318 Q 450 348 262 318" marker-end="url(#arrow)"></path>
+          <path d="M 192 254 Q 108 220 192 186" marker-end="url(#arrow)"></path>
+        </g>
+
+        <!-- Traveling pulse — the loop, in motion -->
+        <g>
+          <circle r="11" fill="var(--indigo)" opacity="0.18">
+            <animateMotion dur="7s" repeatCount="indefinite" path="M 450 96 C 620 96 806 132 806 220 C 806 308 620 344 450 344 C 280 344 94 308 94 220 C 94 132 280 96 450 96 Z"></animateMotion>
+          </circle>
+          <circle r="4.5" fill="var(--indigo)">
+            <animateMotion dur="7s" repeatCount="indefinite" path="M 450 96 C 620 96 806 132 806 220 C 806 308 620 344 450 344 C 280 344 94 308 94 220 C 94 132 280 96 450 96 Z"></animateMotion>
+          </circle>
+        </g>
+
+        <!-- Central feedback hub -->
+        <circle cx="450" cy="220" r="46" fill="var(--indigo)"></circle>
+        <text x="450" y="220" font-family="Instrument Serif" font-style="italic" font-size="23" fill="var(--cream)" text-anchor="middle" dominant-baseline="central">loop</text>
+
+        <!-- Nodes -->
+        <g class="loop-node">
+          <circle cx="200" cy="130" r="56" fill="var(--paper)" stroke="var(--ink)" stroke-width="1.2"></circle>
+          <text x="200" y="122" font-family="Geist Mono" font-size="9" letter-spacing="1" fill="var(--indigo)" text-anchor="middle">01</text>
+          <text x="200" y="144" font-family="Instrument Serif" font-style="italic" font-size="19" fill="var(--ink)" text-anchor="middle">onboard</text>
+        </g>
+        <g class="loop-node">
+          <circle cx="700" cy="130" r="56" fill="var(--paper)" stroke="var(--ink)" stroke-width="1.2"></circle>
+          <text x="700" y="122" font-family="Geist Mono" font-size="9" letter-spacing="1" fill="var(--indigo)" text-anchor="middle">02</text>
+          <text x="700" y="144" font-family="Instrument Serif" font-style="italic" font-size="19" fill="var(--ink)" text-anchor="middle">understand</text>
+        </g>
+        <g class="loop-node">
+          <circle cx="700" cy="310" r="56" fill="var(--paper)" stroke="var(--ink)" stroke-width="1.2"></circle>
+          <text x="700" y="302" font-family="Geist Mono" font-size="9" letter-spacing="1" fill="var(--indigo)" text-anchor="middle">03</text>
+          <text x="700" y="324" font-family="Instrument Serif" font-style="italic" font-size="19" fill="var(--ink)" text-anchor="middle">introduce</text>
+        </g>
+        <g class="loop-node">
+          <circle cx="200" cy="310" r="56" fill="var(--paper)" stroke="var(--ink)" stroke-width="1.2"></circle>
+          <text x="200" y="302" font-family="Geist Mono" font-size="9" letter-spacing="1" fill="var(--indigo)" text-anchor="middle">04</text>
+          <text x="200" y="324" font-family="Instrument Serif" font-style="italic" font-size="19" fill="var(--ink)" text-anchor="middle">follow up</text>
+        </g>
+      </svg>
+
+      <div class="loop__legend">
+        <div>
+          <span class="legend__sw legend__sw--ink"></span>
+          The cycle every member moves through.
+        </div>
+        <div>
+          <span class="legend__sw legend__sw--indigo"></span>
+          The feedback the loop sends back to make the next match smarter.
+        </div>
+      </div>
+    </div>
+
+    <div class="loop__compare">
+      <div class="compare-card compare-card--bad">
+        <div class="compare-card__label">Static directory</div>
+        <div class="compare-card__line"></div>
+        <div class="compare-card__desc">One-time setup, decaying value. People list themselves and hope someone finds them. By year two, the listings are stale.</div>
+        <svg class="compare-card__chart" viewBox="0 0 200 60"><path d="M0 20 Q 50 25 100 35 T 200 55" stroke="currentColor" stroke-width="1.4" fill="none"></path></svg>
+      </div>
+      <div class="compare-card compare-card--good">
+        <div class="compare-card__label">WhatsLocal</div>
+        <div class="compare-card__line"></div>
+        <div class="compare-card__desc">Compounding value. Every introduction is a labeled training example. Year two is when it really starts to sing.</div>
+        <svg class="compare-card__chart" viewBox="0 0 200 60"><path d="M0 55 Q 50 50 100 35 T 200 5" stroke="currentColor" stroke-width="1.4" fill="none"></path></svg>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ──────────────────────────  FOR ORGANIZATIONS  ───────────────────── -->
+<section class="orgs" id="orgs">
+  <header class="section-head">
+    <div class="section-head__kicker">
+      <span class="kicker__num">§ 02</span>
+      <span class="kicker__label">For organizations</span>
+    </div>
+    <h2 class="section-head__title">
+      Stop being the bottleneck for <em>every introduction.</em>
+    </h2>
+    <p class="section-head__lede">
+      Run WhatsLocal under your own name. Every community you steward gets its own concierge
+      and public marketplace — it onboards members by text, makes the warm introductions you
+      used to make one late-night DM at a time, and keeps a single living feed of what's
+      happening. You stop being the router. The network becomes one.
+    </p>
+  </header>
+
+  <div class="orgs__proof">
+    <div class="proof-cell">
+      <div class="proof-cell__k"><b>1</b> Onboards by text</div>
+      <div class="proof-cell__t">Two minutes, <em>zero forms.</em></div>
+      <div class="proof-cell__s">A member texts back three answers and they're live — from any phone, no app to install.</div>
+    </div>
+    <div class="proof-cell">
+      <div class="proof-cell__k"><b>2</b> Introduces 24/7</div>
+      <div class="proof-cell__t">Matched on <em>real work,</em> not proximity.</div>
+      <div class="proof-cell__s">The concierge reads what members actually do and makes the warm intro the moment it fits.</div>
+    </div>
+    <div class="proof-cell">
+      <div class="proof-cell__k"><b>3</b> Runs under your brand</div>
+      <div class="proof-cell__t">Your name on <em>the door.</em></div>
+      <div class="proof-cell__s">A public marketplace and events feed at <span style="font-family:var(--mono);font-size:12px">your-name.whatslocal.ai</span>.</div>
+    </div>
+  </div>
+
+  <div class="orgs__tabs" role="tablist">
+    <button class="org-tab is-active" data-tab="chamber" role="tab">Chambers of Commerce</button>
+    <button class="org-tab" data-tab="market" role="tab">Farmers markets</button>
+    <button class="org-tab" data-tab="creator" role="tab">Creator networks</button>
+    <button class="org-tab" data-tab="civic" role="tab">Neighborhood groups</button>
+    <button class="org-tab" data-tab="accel" role="tab">Accelerators</button>
+  </div>
+
+  <div class="orgs__panels">
+
+    <article class="org-panel is-active" data-panel="chamber">
+      <div class="org-panel__copy">
+        <div class="org-panel__index">i.</div>
+        <h3 class="org-panel__title">Chambers of Commerce <span>&amp; BIDs</span></h3>
+        <p>
+          Auto-onboard every member business by text. The moment one joins, the concierge
+          surfaces B2B referrals and folds their events into one local feed your whole
+          district can rally around.
+        </p>
+        <ul class="org-panel__bullets">
+          <li><span>→</span> Bulk-onboard your existing roster from a CSV — they get a warm intro text, not a form.</li>
+          <li><span>→</span> Member-to-member referrals tracked automatically (no more "did you call them?").</li>
+          <li><span>→</span> One unified events feed, scraped + curated, branded under your district.</li>
+        </ul>
+        <div class="org-delta">
+          <div class="org-delta__row"><span class="org-delta__tag">By hand</span><span class="org-delta__before">a director makes maybe eight introductions in a month</span></div>
+          <div class="org-delta__row"><span class="org-delta__tag org-delta__tag--on">Networked</span><span class="org-delta__after"><span class="num">200</span> in the first month — <b>every one warm.</b></span></div>
+        </div>
+      </div>
+      <div class="org-panel__mock org-panel__mock--chamber">
+        <div class="mock-window">
+          <div class="mock-window__chrome">
+            <span></span><span></span><span></span>
+            <div class="mock-window__url">oakland-chamber.whatslocal.ai</div>
+          </div>
+          <div class="mock-window__body">
+            <div class="mock-title">New introductions this week <span>· 23</span></div>
+            <div class="mock-intro"><div class="mi-from">Maya Ortiz</div><div class="mi-arr">→</div><div class="mi-to">Beachwood Café</div><div class="mi-tag">wholesale</div></div>
+            <div class="mock-intro"><div class="mi-from">Avila Bookshop</div><div class="mi-arr">→</div><div class="mi-to">East Bay Book Club</div><div class="mi-tag">venue</div></div>
+            <div class="mock-intro"><div class="mi-from">Ferry Tile Co.</div><div class="mi-arr">→</div><div class="mi-to">Mission Remodel</div><div class="mi-tag">supplier</div></div>
+            <div class="mock-intro mock-intro--muted"><div class="mi-from">+ 20 more</div></div>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <article class="org-panel" data-panel="market">
+      <div class="org-panel__copy">
+        <div class="org-panel__index">ii.</div>
+        <h3 class="org-panel__title">Farmers markets &amp; <span>maker collectives</span></h3>
+        <p>
+          Vendors sign up in two minutes from their phone, while they're loading the
+          truck. The concierge cross-promotes complementary sellers and pushes pop-ups
+          &amp; market dates into one public marketplace anyone can browse.
+        </p>
+        <ul class="org-panel__bullets">
+          <li><span>→</span> Vendor onboarding: a text, three questions, done.</li>
+          <li><span>→</span> Cross-promotion engine pairs the bread person with the jam person, automatically.</li>
+          <li><span>→</span> Public market page with stalls, hours, and "who's there this weekend."</li>
+        </ul>
+        <div class="org-delta">
+          <div class="org-delta__row"><span class="org-delta__tag">By hand</span><span class="org-delta__before">vendors trade numbers in the lot, and maybe follow up</span></div>
+          <div class="org-delta__row"><span class="org-delta__tag org-delta__tag--on">Networked</span><span class="org-delta__after"><b>paired and cross-promoting</b> before the truck is unloaded.</span></div>
+        </div>
+      </div>
+      <div class="org-panel__mock org-panel__mock--market">
+        <div class="mock-stalls">
+          <div class="stall"><div class="stall__name">Heron Bread</div><div class="stall__type">bakery · stall 04</div></div>
+          <div class="stall stall--paired"><div class="stall__name">Sunday Jam</div><div class="stall__type">preserves · stall 11</div></div>
+          <div class="stall"><div class="stall__name">Brae Farm</div><div class="stall__type">produce · stall 02</div></div>
+          <div class="stall stall--paired"><div class="stall__name">Two Knife Kitchen</div><div class="stall__type">prepared · stall 08</div></div>
+          <div class="stall"><div class="stall__name">Tilden Hill Goat</div><div class="stall__type">dairy · stall 07</div></div>
+          <div class="stall"><div class="stall__name">Maya Ortiz</div><div class="stall__type">ceramics · stall 12</div></div>
+          <div class="pair-line">
+            <span>↔ paired</span>
+            <em>"Sunday Jam's apricot would slay on Heron's miche."</em>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <article class="org-panel" data-panel="creator">
+      <div class="org-panel__copy">
+        <div class="org-panel__index">iii.</div>
+        <h3 class="org-panel__title">Creator &amp; <span>artist networks</span></h3>
+        <p>
+          Profiles capture every social channel and medium. The agent connects
+          collaborators and routes gigs, shows, and opportunities to the right
+          person — without a human curator burning out in the middle.
+        </p>
+        <ul class="org-panel__bullets">
+          <li><span>→</span> Profiles pull from your members' real work, not their bios.</li>
+          <li><span>→</span> Opportunity routing: a casting call lands with the five members it actually fits.</li>
+          <li><span>→</span> Collaborator suggestions ranked by past work, not follower count.</li>
+        </ul>
+        <div class="org-delta">
+          <div class="org-delta__row"><span class="org-delta__tag">By hand</span><span class="org-delta__before">one curator burns out deciding who should meet whom</span></div>
+          <div class="org-delta__row"><span class="org-delta__tag org-delta__tag--on">Networked</span><span class="org-delta__after">gigs and collaborators <b>routed by the work itself</b>, 24/7.</span></div>
+        </div>
+      </div>
+      <div class="org-panel__mock org-panel__mock--creator">
+        <div class="creator-grid">
+          <div class="creator-card"><div class="creator-card__name">Asha Vey</div><div class="creator-card__medium">illustration · risograph</div></div>
+          <div class="creator-card creator-card--match"><div class="creator-card__name">Theo Lin</div><div class="creator-card__medium">zine publisher</div></div>
+          <div class="creator-card"><div class="creator-card__name">Rin Park</div><div class="creator-card__medium">documentary photo</div></div>
+          <div class="creator-card creator-card--match"><div class="creator-card__name">Mara Field</div><div class="creator-card__medium">essayist</div></div>
+          <div class="creator-card"><div class="creator-card__name">Jules Okafor</div><div class="creator-card__medium">analog synth</div></div>
+          <div class="creator-card"><div class="creator-card__name">Sami Tran</div><div class="creator-card__medium">stop-motion</div></div>
+        </div>
+        <div class="creator-suggest">
+          <span>Asha + Theo</span> · suggested collab — Asha's riso work would print at Theo's press.
+        </div>
+      </div>
+    </article>
+
+    <article class="org-panel" data-panel="civic">
+      <div class="org-panel__copy">
+        <div class="org-panel__index">iv.</div>
+        <h3 class="org-panel__title">Neighborhood &amp; <span>civic groups</span></h3>
+        <p>
+          Residents onboard by SMS — the concierge lives in their texts, no Facebook group to die in.
+          It links neighbors by shared interests and keeps a living events
+          calendar that actually reflects what's happening on your block.
+        </p>
+        <ul class="org-panel__bullets">
+          <li><span>→</span> Works on any phone. Grandma onboards as easily as her grandkid.</li>
+          <li><span>→</span> Hyperlocal events — block parties, repair cafés, lost-cat reports.</li>
+          <li><span>→</span> "Who on my street has a ladder?" actually has an answer now.</li>
+        </ul>
+        <div class="org-delta">
+          <div class="org-delta__row"><span class="org-delta__tag">By hand</span><span class="org-delta__before">a Facebook group three neighbors still bother to open</span></div>
+          <div class="org-delta__row"><span class="org-delta__tag org-delta__tag--on">Networked</span><span class="org-delta__after">a block feed that <b>answers "who has a ladder?"</b></span></div>
+        </div>
+      </div>
+      <div class="org-panel__mock org-panel__mock--civic">
+        <div class="civic-map">
+          <svg viewBox="0 0 320 220" preserveAspectRatio="xMidYMid slice">
+            <!-- streets -->
+            <path d="M0 60 L320 60 M0 120 L320 120 M0 180 L320 180 M80 0 L80 220 M180 0 L180 220 M260 0 L260 220" stroke="var(--stone)" stroke-width="0.7" fill="none"></path>
+            <!-- blocks -->
+            <rect x="80" y="60" width="100" height="60" fill="var(--cream-2)"></rect>
+            <rect x="180" y="120" width="80" height="60" fill="var(--cream-2)"></rect>
+            <!-- pins -->
+            <circle cx="120" cy="90" r="5" fill="var(--indigo)"></circle>
+            <circle cx="155" cy="100" r="5" fill="var(--indigo)"></circle>
+            <circle cx="210" cy="150" r="5" fill="var(--ember)"></circle>
+            <circle cx="240" cy="160" r="5" fill="var(--indigo)"></circle>
+            <circle cx="60" cy="40" r="5" fill="var(--indigo)"></circle>
+            <circle cx="290" cy="40" r="5" fill="var(--ink)"></circle>
+            <!-- intro line -->
+            <path d="M120 90 Q 140 70 155 100" stroke="var(--indigo)" stroke-width="1" stroke-dasharray="2 3" fill="none"></path>
+          </svg>
+          <div class="civic-event">Wed · block-long repair café — bring broken things</div>
+        </div>
+      </div>
+    </article>
+
+    <article class="org-panel" data-panel="accel">
+      <div class="org-panel__copy">
+        <div class="org-panel__index">v.</div>
+        <h3 class="org-panel__title">Accelerators &amp; <span>membership orgs</span></h3>
+        <p>
+          Replace the intro-request bottleneck. The concierge makes warm introductions
+          automatically and tracks which ones actually landed — so you can stop being
+          the LinkedIn router for 300 founders.
+        </p>
+        <ul class="org-panel__bullets">
+          <li><span>→</span> Founders &amp; mentors profiled in 5 minutes, by text.</li>
+          <li><span>→</span> Warm intros made 24/7, with conversion tracking.</li>
+          <li><span>→</span> A real signal on which intros worked — your batch reports write themselves.</li>
+        </ul>
+        <div class="org-delta">
+          <div class="org-delta__row"><span class="org-delta__tag">By hand</span><span class="org-delta__before">a partner makes ~10 warm intros a batch, when there's time</span></div>
+          <div class="org-delta__row"><span class="org-delta__tag org-delta__tag--on">Networked</span><span class="org-delta__after"><span class="num">412</span> this batch — <b>68% reached a meeting.</b></span></div>
+        </div>
+      </div>
+      <div class="org-panel__mock org-panel__mock--accel">
+        <div class="accel-stat">
+          <div class="accel-stat__num">412</div>
+          <div class="accel-stat__lbl">intros made this batch</div>
+        </div>
+        <div class="accel-stat">
+          <div class="accel-stat__num">68%</div>
+          <div class="accel-stat__lbl">resulted in a meeting</div>
+        </div>
+        <div class="accel-stat">
+          <div class="accel-stat__num">11</div>
+          <div class="accel-stat__lbl">turned into pilots or hires</div>
+        </div>
+        <div class="accel-bar">
+          <div class="accel-bar__fill" style="width:68%"></div>
+        </div>
+      </div>
+    </article>
+
+  </div>
+</section>
+
+<!-- ────────────────────────────  PILLARS  ───────────────────────────── -->
+<section class="pillars">
+  <header class="section-head">
+    <div class="section-head__kicker">
+      <span class="kicker__num">§ 05</span>
+      <span class="kicker__label">What we believe</span>
+    </div>
+    <h2 class="section-head__title">
+      Built on four <em>quiet convictions.</em>
+    </h2>
+  </header>
+
+  <div class="pillars__grid">
+    <div class="pillar">
+      <div class="pillar__num">i.</div>
+      <h3>Effortless.</h3>
+      <p>Join by text. No forms, no app, no "please sign up at our website." If your grandmother can text, she can join.</p>
+    </div>
+    <div class="pillar">
+      <div class="pillar__num">ii.</div>
+      <h3>Proactive.</h3>
+      <p>It introduces you. You don't have to search a directory or hope someone notices you exist.</p>
+    </div>
+    <div class="pillar">
+      <div class="pillar__num">iii.</div>
+      <h3>Smarter over time.</h3>
+      <p>Every connection teaches it. The product compounds — year two is when it really gets good.</p>
+    </div>
+    <div class="pillar">
+      <div class="pillar__num">iv.</div>
+      <h3>Truly local.</h3>
+      <p>Built around your neighborhood, your people, your events. Not "global community." This block.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────  JOIN  ───────────────────────────── -->
+<section class="join" id="join">
+  <div class="join__inner" style="display:block;max-width:620px;text-align:center">
+    <h2 class="join__title">
+      Run a community? <em>Let it run itself.</em>
+    </h2>
+    <p class="join__lede" style="max-width:52ch;margin:0 auto 32px">
+      We're working with a small set of design partners — chambers, markets,
+      collectives, and civic groups. If you've ever stayed up answering
+      "do you know someone who…?", we'd love to talk.
+    </p>
+    <form class="join__form" style="margin:0 auto" onsubmit="return submitDemoRequest(event, this)">
+      <input type="email" name="email" placeholder="you@yourcommunity.org" required="">
+      <button class="btn btn--indigo" type="submit">Request a demo →</button>
+      <div class="join__form-status"></div>
+    </form>
+  </div>
+</section>
+
+<!-- ────────────────────────────  FOOTER  ────────────────────────────── -->
+<footer class="foot">
+  <div class="foot__inner">
+    <div class="foot__brand">
+      <span class="wordmark wordmark--big">
+        <span class="wordmark__the">The</span>
+        <span class="wordmark__name">Local</span>
+      </span>
+      <p>The relationship engine for local communities.</p>
+    </div>
+    <div class="foot__cols">
+      <div class="foot__col">
+        <div class="foot__col-h">Product</div>
+        <a href="#how">How it works</a>
+        <a href="#loop">The loop</a>
+        <a href="#marketplace">Marketplace</a>
+      </div>
+      <div class="foot__col">
+        <div class="foot__col-h">For</div>
+        <a href="#orgs">Chambers</a>
+        <a href="#orgs">Markets</a>
+        <a href="#orgs">Creators</a>
+        <a href="#orgs">Neighborhoods</a>
+      </div>
+      <div class="foot__col">
+        <div class="foot__col-h">Company</div>
+        <a href="#">About</a>
+        <a href="#">Manifesto</a>
+        <a href="#">Press</a>
+        <a href="#join">Contact</a>
+      </div>
+    </div>
+  </div>
+  <div class="foot__base">
+    <span>© 2026 WhatsLocal Co.</span>
+    <span class="foot__base-mid">Made in Oakland · for communities everywhere</span>
+    <span>v1.0</span>
+  </div>
+</footer>
+
+</main>
+
+<script src="ea599103-951d-470a-b79f-3de728ef4539"></script>
+<script>
+(function(){var v=new URLSearchParams(location.search).get("view");document.body.classList.add(v==="full"?"show-all":"hero-only");})();
+
+// "Request a demo" → POST to the app's Resend-backed endpoint. Same-origin
+// (the page is served from the app), so a plain fetch works inside the iframe.
+async function submitDemoRequest(e, form) {
+  e.preventDefault();
+  var status = form.querySelector(".join__form-status");
+  var input = form.querySelector('input[name="email"]');
+  var btn = form.querySelector('button[type="submit"]');
+  var email = (input.value || "").trim();
+  if (!email) return false;
+  btn.disabled = true;
+  status.textContent = "Sending…";
+  try {
+    var res = await fetch("/api/demo-request", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email, source: "org-promo" }),
+    });
+    if (res.ok) {
+      status.textContent = "Thanks — we'll be in touch within a day.";
+      input.value = "";
+    } else {
+      var d = await res.json().catch(function () { return {}; });
+      status.textContent = d.error || "Something went wrong — try again.";
+    }
+  } catch (err) {
+    status.textContent = "Something went wrong — try again.";
+  }
+  btn.disabled = false;
+  return false;
+}
+/* ============================================================
+   WhatsLocal — interactivity
+   ============================================================ */
+
+/* ---------- 1. Hero SMS chat demo ---------- */
+
+const thread = document.getElementById("chatThread");
+
+const SCRIPT = [
+  { kind: "day",     text: "TODAY, 9:38 AM" },
+  { kind: "in",      text: "hey! is this WhatsLocal?" },
+  { kind: "typing",  duration: 900 },
+  { kind: "out",     text: "Hi Maya 👋 yes! Welcome. I help connect people in the Oakland community." },
+  { kind: "out",     text: "Tell me a little about what you do?" },
+  { kind: "in",      text: "I make wheel-thrown stoneware. Mostly mugs out of my Temescal studio." },
+  { kind: "typing",  duration: 1100 },
+  { kind: "out",     text: "Beautiful. Are you mostly retail right now, or open to wholesale too?" },
+  { kind: "in",      text: "Open to wholesale — that's actually why I'm here." },
+  { kind: "typing",  duration: 1200 },
+  { kind: "out",     text: "I found three great matches and drafted an intro for each 👇" },
+  { kind: "reco",    title: "3 picks for you", items: [
+      { emoji: "☕", name: "Beachwood Café", note: "wants wholesale mugs" },
+      { emoji: "🧺", name: "Temescal Sunday Market", note: "booth open this weekend" },
+      { emoji: "🏺", name: "Ana R. — neighbor maker", note: "glaze swap" },
+    ], cta: "Open in app" },
+  { kind: "out",     text: "Say the word and I'll send the invites. If they accept, you can chat with them right in the app." },
+  { kind: "in",      text: "do it! 🙌" },
+  { kind: "typing",  duration: 900 },
+  { kind: "out",     text: "Sent ✅ I'll text you the moment someone says yes." },
+  { kind: "day",     text: "TWO DAYS LATER" },
+  { kind: "out",     text: "Quick check-in — did you get a chance to talk with Joel at Beachwood?" },
+  { kind: "in",      text: "Yeah! Trial order of 30 mugs. Loved his energy." },
+  { kind: "typing",  duration: 900 },
+  { kind: "out",     text: "Amazing 🎉 I'll keep an eye out for more cafés that fit that vibe." },
+];
+
+const MAX_VISIBLE = 7; // keep the thread tight
+
+function buildBubble(kind, text, step) {
+  const el = document.createElement("div");
+  if (kind === "day") {
+    el.className = "sms__day";
+    el.textContent = text;
+  } else if (kind === "typing") {
+    el.className = "sms sms--typing";
+    el.innerHTML = '<span class="dot-t"></span><span class="dot-t"></span><span class="dot-t"></span>';
+  } else if (kind === "reco") {
+    el.className = "sms sms--out sms--reco";
+    el.style.maxWidth = "88%";
+    el.style.padding = "10px 11px";
+    const rows = (step.items || []).map(function (it) {
+      return '<div style="display:flex;gap:8px;align-items:baseline;padding:7px 9px;margin-top:6px;background:rgba(255,255,255,0.14);border-radius:12px">' +
+             '<span style="font-size:15px;line-height:1">' + it.emoji + '</span>' +
+             '<span style="min-width:0"><span style="display:block;font-weight:600">' + it.name + '</span>' +
+             '<span style="display:block;font-size:12px;opacity:0.8">' + it.note + '</span></span></div>';
+    }).join("");
+    el.innerHTML =
+      '<div style="font-weight:600;font-size:12.5px;opacity:0.85;padding:0 2px">' + step.title + '</div>' +
+      rows +
+      '<a href="/vendor/network" target="_top" style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:9px;padding:9px;background:#fff;color:var(--indigo);font-weight:600;border-radius:12px;text-decoration:none">' +
+      step.cta + ' <span style="font-size:15px">→</span></a>';
+  } else {
+    el.className = "sms sms--" + kind;
+    el.textContent = text;
+  }
+  return el;
+}
+
+async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function runChatLoop() {
+  while (true) {
+    thread.innerHTML = "";
+    for (let i = 0; i < SCRIPT.length; i++) {
+      const step = SCRIPT[i];
+
+      if (step.kind === "typing") {
+        const t = buildBubble("typing");
+        thread.appendChild(t);
+        trimThread();
+        await sleep(step.duration || 1000);
+        t.remove();
+        continue;
+      }
+
+      const el = buildBubble(step.kind, step.text, step);
+      thread.appendChild(el);
+      trimThread();
+
+      // pacing: messages from outside (in) come in faster than ours;
+      // the recommendations card dwells longer so it's readable.
+      const pause = step.kind === "day"
+        ? 900
+        : step.kind === "reco"
+          ? 3400
+          : step.kind === "in"
+            ? 1100 + Math.min(text_pause(step.text), 1400)
+            : 1300 + Math.min(text_pause(step.text), 1800);
+      await sleep(pause);
+    }
+    await sleep(2400);
+  }
+}
+
+function text_pause(s) {
+  return Math.round((s || "").length * 22);
+}
+
+function trimThread() {
+  while (thread.children.length > MAX_VISIBLE) {
+    thread.removeChild(thread.firstChild);
+  }
+  thread.scrollTop = thread.scrollHeight;
+}
+
+runChatLoop();
+
+
+/* ---------- 2. Org vertical tabs ---------- */
+
+const tabs = document.querySelectorAll(".org-tab");
+const panels = document.querySelectorAll(".org-panel");
+
+tabs.forEach(tab => {
+  tab.addEventListener("click", () => {
+    const key = tab.dataset.tab;
+    tabs.forEach(t => t.classList.toggle("is-active", t === tab));
+    panels.forEach(p => p.classList.toggle("is-active", p.dataset.panel === key));
+  });
+});
+
+
+/* ---------- 3. Smooth-scroll for nav links ---------- */
+
+document.querySelectorAll('a[href^="#"]').forEach(a => {
+  a.addEventListener("click", e => {
+    const href = a.getAttribute("href");
+    if (href.length <= 1) return;
+    const target = document.querySelector(href);
+    if (target) {
+      e.preventDefault();
+      const rect = target.getBoundingClientRect();
+      const y = window.scrollY + rect.top - 70;
+      window.scrollTo({ top: y, behavior: "smooth" });
+    }
+  });
+});
+
+</script>
+</body></html>

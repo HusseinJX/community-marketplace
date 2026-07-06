@@ -20,6 +20,17 @@ const nextConfig: NextConfig = {
     imageSizes: [128, 256, 400, 640, 768],
     minimumCacheTTL: 31536000,
   },
+  // Apple requires the app-site-association file to be served as JSON (no
+  // redirect) for Universal Links — used so Clerk's OAuth callback returns into
+  // the native app instead of Safari.
+  async headers() {
+    return [
+      {
+        source: "/.well-known/apple-app-site-association",
+        headers: [{ key: "Content-Type", value: "application/json" }],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

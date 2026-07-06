@@ -1,12 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { Show, SignInButton, UserButton } from "@clerk/nextjs";
+import { Show, SignInButton, UserButton, useUser } from "@clerk/nextjs";
 import { Heart, ShoppingBag, Receipt, Users, ArrowRight, PenLine } from "lucide-react";
+import { PushTestButton } from "@/components/PushTestButton";
 
 // Demo shopper admin — the shopper's personal space (parallel to the vendor
 // portal). Public/no-auth for demo so it's quickly testable and refinable.
 export default function ShopperAdmin() {
+  const { user } = useUser();
+
   const cards = [
     { label: "Saved", value: "—", href: "/favorites", icon: Heart },
     { label: "Cart", value: "—", href: "/cart", icon: ShoppingBag },
@@ -15,34 +18,31 @@ export default function ShopperAdmin() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-8 px-4 py-10 md:px-8">
-      {/* Account / sign-in */}
-      <Show
-        when="signed-out"
-        fallback={
-          <div className="flex items-center justify-end gap-2">
-            <span className="text-sm text-stone-500">Account</span>
-            <UserButton />
-          </div>
-        }
-      >
-        <div className="flex items-center justify-between rounded-2xl border border-stone-200 bg-white p-4">
-          <div>
-            <p className="text-sm font-semibold text-stone-900">Sign in to WhatsLocal</p>
-            <p className="text-xs text-stone-500">Save places, track orders, get recommendations.</p>
-          </div>
+      <div className="h-2 w-full rounded-full bg-gradient-to-r from-teal-400 to-sky-400" />
+
+      {/* Header row: title on the left, account on the right */}
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold text-stone-900">Your space</h1>
+          <p className="mt-1 text-sm text-stone-500">Everything you&apos;ve saved, ordered, and discovered nearby.</p>
+        </div>
+        <Show
+          when="signed-out"
+          fallback={
+            <div className="flex shrink-0 items-center gap-2">
+              <span className="max-w-[8rem] truncate text-sm font-medium text-stone-700">
+                {user?.firstName || user?.fullName || user?.primaryEmailAddress?.emailAddress}
+              </span>
+              <UserButton />
+            </div>
+          }
+        >
           <SignInButton mode="modal">
             <button className="shrink-0 rounded-full bg-stone-900 px-5 py-2 text-sm font-semibold text-white transition hover:bg-stone-800">
               Sign in
             </button>
           </SignInButton>
-        </div>
-      </Show>
-
-      <div className="h-2 w-full rounded-full bg-gradient-to-r from-teal-400 to-sky-400" />
-
-      <div>
-        <h1 className="text-2xl font-semibold text-stone-900">Your space</h1>
-        <p className="mt-1 text-sm text-stone-500">Everything you&apos;ve saved, ordered, and discovered nearby.</p>
+        </Show>
       </div>
 
       {/* Quick access — compact metric grid */}
@@ -101,6 +101,16 @@ export default function ShopperAdmin() {
           <ArrowRight className="h-4 w-4 text-stone-400" />
         </Link>
       </div>
+
+      {/* Notifications — test the native push pipeline (only sends if this device
+          is registered, i.e. inside the iOS app with permission granted). */}
+      <Show when="signed-in">
+        <div className="rounded-2xl border border-stone-200 bg-white p-4">
+          <p className="text-sm font-semibold text-stone-900">Notifications</p>
+          <p className="mb-3 text-xs text-stone-500">Send yourself a test push to check it&apos;s working.</p>
+          <PushTestButton />
+        </div>
+      </Show>
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { QrCode, X, ExternalLink, CameraOff, Nfc, ScanLine, Radio } from 'lucide-react'
 import type { IScannerControls } from '@zxing/browser'
 import { nativeNfcAvailable, scanNativeNfc } from '@/lib/native-nfc'
+import { nativeScanAvailable, scanNativeQr } from '@/lib/native-scan'
 
 // LinkedIn-style code sheet: two tabs — "NFC tag" (default) and "Scan" — that
 // both route a marketplace profile URL in-app. Independent of any QR-generation
@@ -50,7 +51,7 @@ export function QrScanButton() {
 
 function CodeSheet({ onClose }: { onClose: () => void }) {
   const router = useRouter()
-  const [tab, setTab] = useState<Tab>('nfc')
+  const [tab, setTab] = useState<Tab>('scan')
   const [result, setResult] = useState<ShownResult | null>(null)
 
   // Shared: a profile navigates immediately; anything else is shown.
@@ -74,7 +75,7 @@ function CodeSheet({ onClose }: { onClose: () => void }) {
         <div className="border-b border-stone-100">
           <div className="flex items-center justify-between px-4 pt-3">
             <span className="text-sm font-semibold text-stone-900">Connect</span>
-            <button onClick={onClose} aria-label="Close" className="rounded-full p-1 text-stone-400 hover:bg-stone-100">
+            <button type="button" onClick={onClose} aria-label="Close" className="rounded-full p-1 text-stone-400 hover:bg-stone-100">
               <X className="h-4 w-4" />
             </button>
           </div>
@@ -103,6 +104,7 @@ function CodeSheet({ onClose }: { onClose: () => void }) {
 function TabBtn({ active, onClick, icon, children }: { active: boolean; onClick: () => void; icon: React.ReactNode; children: React.ReactNode }) {
   return (
     <button
+      type="button"
       onClick={onClick}
       className={`-mb-px flex flex-1 items-center justify-center gap-1.5 border-b-2 px-3 py-2.5 text-sm font-medium transition ${
         active ? 'border-stone-900 text-stone-900' : 'border-transparent text-stone-400 hover:text-stone-700'
@@ -133,9 +135,14 @@ function NfcPanel({ onDecoded }: { onDecoded: (raw: string) => void }) {
   const [error, setError] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
-  // Abort any in-flight NFC scan on unmount. Support is detected when the user
-  // taps Start (keeps setState out of the effect body).
-  useEffect(() => () => abortRef.current?.abort(), [])
+  // Auto-start on iOS native as soon as the tab opens (the tab tap is the user
+  // gesture that presents the system NFC sheet). Web NFC's scan() requires a
+  // direct user gesture, so there we keep the Start button. Abort on unmount.
+  useEffect(() => {
+    if (nativeNfcAvailable()) start()
+    return () => abortRef.current?.abort()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   async function start() {
     // Native iOS shell (Core NFC) takes priority — Web NFC doesn't exist on iOS.
@@ -221,6 +228,7 @@ function NfcPanel({ onDecoded }: { onDecoded: (raw: string) => void }) {
         <>
           <p className="text-sm font-medium text-stone-800">Tap to share & read with NFC</p>
           <button
+            type="button"
             onClick={start}
             className="inline-flex items-center gap-1.5 rounded-full bg-stone-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-stone-800"
           >
@@ -234,7 +242,10 @@ function NfcPanel({ onDecoded }: { onDecoded: (raw: string) => void }) {
   )
 }
 
-// ── Scan tab (camera QR via zxing) ──────────────────────────────────────────
+// ── Scan tab (camera QR via zxing, embedded in the sheet — LinkedIn-style) ────
+// Capacitor's WKWebView grants camera to web content, so the embedded <video>
+// preview works inside the iOS app too. If getUserMedia ever fails and the native
+// scanner is available, we offer it as a full-screen fallback.
 function ScanPanel({ onDecoded }: { onDecoded: (raw: string) => void }) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const controlsRef = useRef<IScannerControls | null>(null)
@@ -244,6 +255,10 @@ function ScanPanel({ onDecoded }: { onDecoded: (raw: string) => void }) {
     let cancelled = false
     async function start() {
       try {
+        if (!navigator.mediaDevices?.getUserMedia) {
+          setError('Camera access is unavailable here.')
+          return
+        }
         const { BrowserQRCodeReader } = await import('@zxing/browser')
         const reader = new BrowserQRCodeReader()
         if (!videoRef.current) return
@@ -256,13 +271,13 @@ function ScanPanel({ onDecoded }: { onDecoded: (raw: string) => void }) {
         if (cancelled) controls.stop()
         else controlsRef.current = controls
       } catch (e) {
-        const name = (e as { name?: string })?.name
+        const err = e as { name?: string; message?: string }
         setError(
-          name === 'NotAllowedError'
+          err.name === 'NotAllowedError'
             ? 'Camera access was blocked. Allow camera access and try again.'
-            : name === 'NotFoundError'
+            : err.name === 'NotFoundError'
               ? 'No camera found on this device.'
-              : "Couldn't start the camera. Try a different browser."
+              : `Couldn't start the camera (${err.name || 'error'}: ${err.message || 'unknown'}).`
         )
       }
     }
@@ -273,19 +288,31 @@ function ScanPanel({ onDecoded }: { onDecoded: (raw: string) => void }) {
     }
   }, [onDecoded])
 
+  async function nativeFallback() {
+    try {
+      onDecoded(await scanNativeQr())
+    } catch {
+      /* cancel/no-code — stay on the error panel */
+    }
+  }
+
   return (
     <>
       <div className="relative aspect-square bg-stone-900">
         <video ref={videoRef} className="h-full w-full object-cover" playsInline muted />
-        {!error && (
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <div className="h-44 w-44 rounded-2xl border-2 border-white/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.35)]" />
-          </div>
-        )}
         {error && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center text-sm text-stone-200">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center text-sm text-stone-200">
             <CameraOff className="h-8 w-8 text-stone-400" />
             {error}
+            {nativeScanAvailable() && (
+              <button
+                type="button"
+                onClick={nativeFallback}
+                className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-medium text-stone-900 hover:bg-white/90"
+              >
+                <ScanLine className="h-4 w-4" /> Open camera
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -312,7 +339,7 @@ function ResultPanel({ result, onAgain }: { result: ShownResult; onAgain: () => 
             Open link <ExternalLink className="h-3.5 w-3.5" />
           </a>
         )}
-        <button onClick={onAgain} className="rounded-lg px-4 py-2 text-sm font-medium text-stone-600 hover:bg-stone-100">
+        <button type="button" onClick={onAgain} className="rounded-lg px-4 py-2 text-sm font-medium text-stone-600 hover:bg-stone-100">
           Try again
         </button>
       </div>

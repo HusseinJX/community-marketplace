@@ -3,11 +3,13 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { TopNav } from "@/components/TopNav";
 import { BottomNav } from "@/components/BottomNav";
 import { SmsBanner } from "@/components/SmsBanner";
+import { AppBanner } from "@/components/AppBanner";
 import { SiteFooter } from "@/components/SiteFooter";
 import { StoreProvider } from "@/lib/store";
 import { LocationProvider } from "@/lib/location";
 import { PostHogProvider } from "@/lib/posthog-provider";
 import { FeedbackWidget } from "@/components/FeedbackWidget";
+import { PushInit } from "@/components/PushInit";
 import { SITE_NAME, SITE_URL } from "@/lib/seo";
 import "./globals.css";
 
@@ -59,7 +61,6 @@ export default function RootLayout({
           <PostHogProvider>
           <LocationProvider>
           <StoreProvider>
-            <SmsBanner />
             <header
               className="sticky top-0 z-30 border-b border-stone-200 bg-stone-50/80 backdrop-blur"
               style={{ paddingTop: "env(safe-area-inset-top)" }}
@@ -69,6 +70,11 @@ export default function RootLayout({
               </div>
             </header>
 
+            {/* Promo banners sit just under the nav so the header owns the notch
+                safe-area; they scroll away with the page. */}
+            <SmsBanner />
+            <AppBanner />
+
             <main className="flex-1">{children}</main>
 
             <SiteFooter />
@@ -77,6 +83,7 @@ export default function RootLayout({
             <div style={{ height: "calc(3.25rem + env(safe-area-inset-bottom))" }} aria-hidden />
             <BottomNav />
             <FeedbackWidget />
+            <PushInit />
           </StoreProvider>
           </LocationProvider>
           </PostHogProvider>

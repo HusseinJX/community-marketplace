@@ -47,7 +47,7 @@ export function MemberCard({ member, matchedOn }: { member: Member; matchedOn?: 
   return (
     <Link
       href={`/members/${member.id}`}
-      className="group card-soft card-hover flex flex-col overflow-hidden"
+      className="group card-soft card-hover flex h-full flex-col overflow-hidden"
     >
       {carouselImages && carouselImages.length > 0 ? (
         <ImageCarousel
@@ -86,7 +86,7 @@ export function MemberCard({ member, matchedOn }: { member: Member; matchedOn?: 
         )}
 
         {blurb && (
-          <p className="line-clamp-3 text-sm text-stone-700">{blurb}</p>
+          <p className="line-clamp-2 text-sm text-stone-700">{blurb}</p>
         )}
 
         {matchedOn && matchedOn.length > 0 && (

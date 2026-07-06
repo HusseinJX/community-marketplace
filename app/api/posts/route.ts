@@ -63,6 +63,7 @@ export async function POST(request: Request) {
       tagged_event_id: b.taggedEventId ?? null,
       tagged_event_title: b.taggedEventTitle ?? null,
       livestream_url: b.livestreamUrl ?? null,
+      location: (b.location ?? '').toString().trim() || null,
     })
     return NextResponse.json({ post })
   } catch (err) {

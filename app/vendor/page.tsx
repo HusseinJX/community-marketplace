@@ -5,6 +5,7 @@ import { getVendorProfile, getVendorConnectAccount, getOrdersByMember } from "@/
 import { stripe } from "@/lib/stripe-server";
 import { isDemoMode } from "@/lib/demo-admin";
 import { CommerceCards } from "@/components/vendor/CommerceCards";
+import { CollectivePromoModal } from "@/components/vendor/CollectivePromoModal";
 
 export default async function VendorDashboard() {
   const { userId } = await auth()
@@ -44,6 +45,7 @@ export default async function VendorDashboard() {
 
   return (
     <div className="space-y-8">
+      <CollectivePromoModal />
       <div className="h-2 w-full rounded-full bg-gradient-to-r from-indigo-400 to-violet-400" />
 
       {/* Welcome */}

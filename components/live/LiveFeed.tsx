@@ -70,31 +70,30 @@ export function LiveFeed({ afterHero, afterFeed }: { afterHero?: React.ReactNode
 
   return (
     <>
-      {/* Compact page hero — frames the whole Live tab (live venues + events). */}
-      <div className="mx-auto max-w-6xl px-4 md:px-8">
-        <section className="relative -mx-4 mb-6 overflow-hidden rounded-b-[1.75rem] md:-mx-8 md:mt-6 md:rounded-[1.75rem]">
-          <div className="absolute inset-0 bg-gradient-to-br from-rose-50 via-orange-50 to-amber-50" />
-          <div className="absolute -left-16 -top-16 h-44 w-44 rounded-full bg-rose-300/40 blur-3xl" />
-          <div className="absolute right-[-4rem] top-2 h-48 w-48 rounded-full bg-orange-300/40 blur-3xl" />
-          <div className="relative px-6 py-7 md:py-9">
-            <div className="mx-auto max-w-2xl text-center">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-600 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-white">
-                <Radio className="h-3 w-3" /> {event === "all" ? "Happening now" : "Where to watch"}
-              </span>
-              <h1 className="mt-3 text-2xl font-semibold tracking-tight text-stone-900 md:text-3xl">
-                {event === "all"
-                  ? "Live & local"
-                  : `Where to watch the ${eventLabel(event)} in SF`}
-              </h1>
-              <p className="mx-auto mt-2 max-w-lg text-sm text-stone-600">
-                {event === "all"
-                  ? "Games showing now near you, plus local events happening today and coming up."
-                  : "The best watch parties in San Francisco — bars and venues showing every match, with the vibe and the crowd."}
-              </p>
+      {/* Contextual hero — only on a deep-linked single event ("Where to watch
+          the World Cup in SF"). The generic feed view skips it. */}
+      {locked && (
+        <div className="mx-auto max-w-6xl px-4 md:px-8">
+          <section className="relative -mx-4 mb-6 overflow-hidden rounded-b-[1.75rem] md:-mx-8 md:mt-6 md:rounded-[1.75rem]">
+            <div className="absolute inset-0 bg-gradient-to-br from-rose-50 via-orange-50 to-amber-50" />
+            <div className="absolute -left-16 -top-16 h-44 w-44 rounded-full bg-rose-300/40 blur-3xl" />
+            <div className="absolute right-[-4rem] top-2 h-48 w-48 rounded-full bg-orange-300/40 blur-3xl" />
+            <div className="relative px-6 py-7 md:py-9">
+              <div className="mx-auto max-w-2xl text-center">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-600 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-white">
+                  <Radio className="h-3 w-3" /> Where to watch
+                </span>
+                <h1 className="mt-3 text-2xl font-semibold tracking-tight text-stone-900 md:text-3xl">
+                  {`Where to watch the ${eventLabel(event)} in SF`}
+                </h1>
+                <p className="mx-auto mt-2 max-w-lg text-sm text-stone-600">
+                  The best watch parties in San Francisco — bars and venues showing every match, with the vibe and the crowd.
+                </p>
+              </div>
             </div>
-          </div>
-        </section>
-      </div>
+          </section>
+        </div>
+      )}
 
       {/* Events happening now / upcoming render here (passed by the page). */}
       {afterHero}
@@ -130,14 +129,18 @@ export function LiveFeed({ afterHero, afterFeed }: { afterHero?: React.ReactNode
           >
             <RefreshCw className="h-4 w-4" />
           </button>
-          <div className="flex rounded-full border border-stone-200 bg-white p-1">
-            <ToggleBtn active={view === "feed"} onClick={() => setView("feed")}>
-              <LayoutGrid className="h-4 w-4" /> Feed
-            </ToggleBtn>
-            <ToggleBtn active={view === "map"} onClick={() => setView("map")}>
-              <MapIcon className="h-4 w-4" /> Map
-            </ToggleBtn>
-          </div>
+          {/* Feed/Map toggle only on the focused single-event view (the rail
+              feed has no map). */}
+          {locked && (
+            <div className="flex rounded-full border border-stone-200 bg-white p-1">
+              <ToggleBtn active={view === "feed"} onClick={() => setView("feed")}>
+                <LayoutGrid className="h-4 w-4" /> Feed
+              </ToggleBtn>
+              <ToggleBtn active={view === "map"} onClick={() => setView("map")}>
+                <MapIcon className="h-4 w-4" /> Map
+              </ToggleBtn>
+            </div>
+          )}
         </div>
       </div>
 
@@ -158,11 +161,19 @@ export function LiveFeed({ afterHero, afterFeed }: { afterHero?: React.ReactNode
 
       {/* Body */}
       {loading ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-44 animate-pulse rounded-2xl bg-stone-100" />
-          ))}
-        </div>
+        locked ? (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-44 animate-pulse rounded-2xl bg-stone-100" />
+            ))}
+          </div>
+        ) : (
+          <div className="-mx-4 flex gap-4 overflow-x-auto px-4 pb-2 md:-mx-8 md:px-8">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="h-64 w-72 shrink-0 animate-pulse rounded-2xl bg-stone-100 sm:w-80" />
+            ))}
+          </div>
+        )
       ) : items.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-stone-300 bg-white/60 p-12 text-center">
           <p className="text-base font-medium text-stone-800">Nothing live right now.</p>
@@ -170,16 +181,17 @@ export function LiveFeed({ afterHero, afterFeed }: { afterHero?: React.ReactNode
             Check back around game time — venues broadcast what they&apos;re showing here.
           </p>
         </div>
-      ) : view === "map" ? (
-        <LiveMap broadcasts={filtered} />
       ) : filtered.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-stone-300 bg-white/60 p-12 text-center">
           <p className="text-base font-medium text-stone-800">No venues match that filter.</p>
           <p className="mt-1 text-sm text-stone-500">Try a different team or event.</p>
         </div>
+      ) : locked ? (
+        // Focused single-event view: full grid or map.
+        view === "map" ? <LiveMap broadcasts={filtered} /> : <Grid items={filtered} lean />
       ) : (
-        // One consolidated grid of live venues (filter via the event/team chips).
-        <Grid items={filtered} lean={locked} />
+        // Feed view: horizontal scroll rail of live venues.
+        <Rail items={filtered} />
       )}
       </div>
 
@@ -193,6 +205,19 @@ function Grid({ items, lean = false }: { items: LiveBroadcast[]; lean?: boolean 
     <div className="grid auto-rows-fr grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {items.map((b) => (
         <BroadcastCard key={b.id} b={b} lean={lean} />
+      ))}
+    </div>
+  );
+}
+
+// Horizontal scroll of live-venue cards (the home feed view).
+function Rail({ items }: { items: LiveBroadcast[] }) {
+  return (
+    <div className="-mx-4 flex gap-4 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:-mx-8 md:px-8">
+      {items.map((b) => (
+        <div key={b.id} className="w-72 shrink-0 sm:w-80">
+          <BroadcastCard b={b} />
+        </div>
       ))}
     </div>
   );

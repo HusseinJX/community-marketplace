@@ -25,6 +25,7 @@ export interface Post {
   tagged_event_id: string | null
   tagged_event_title: string | null
   livestream_url: string | null
+  location: string | null
   created_at: string
   // attached by the API layer (not columns on the row)
   reactions?: number

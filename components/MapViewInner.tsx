@@ -6,6 +6,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import Link from "next/link";
 import type { Member, MemberType } from "@/lib/types";
+import { nativeGeoAvailable, getNativePosition } from "@/lib/native-geo";
 
 const TYPE_COLORS: Record<MemberType | "unknown", string> = {
   vendor:     "#3B82F6",
@@ -218,13 +219,26 @@ export default function MapViewInner({ members }: { members: Member[] }) {
       : [37.7749, -122.4194]
   );
 
-  function handleLocate() {
-    if (!navigator.geolocation) {
-      setLocError("Geolocation not supported by your browser.");
-      return;
-    }
+  async function handleLocate() {
     setLocating(true);
     setLocError(null);
+    // Inside the iOS app, WKWebView has no navigator.geolocation — use the native
+    // Capacitor plugin; on the web, fall back to the browser API.
+    if (nativeGeoAvailable()) {
+      try {
+        setUserPos(await getNativePosition());
+      } catch {
+        setLocError("Could not get your location. Check location permissions.");
+      } finally {
+        setLocating(false);
+      }
+      return;
+    }
+    if (!navigator.geolocation) {
+      setLocError("Geolocation not supported by your browser.");
+      setLocating(false);
+      return;
+    }
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setUserPos([pos.coords.latitude, pos.coords.longitude]);

@@ -24,13 +24,13 @@ export function LocalDirectory() {
   const groups = useMemo(() => groupMembers(visible), [visible]);
 
   return (
-    <section className="mx-auto max-w-6xl border-t border-stone-100 px-4 pb-20 pt-8 md:px-8">
+    <section className="mx-auto max-w-6xl border-t border-stone-100 px-4 pb-12 pt-8 md:px-8">
       <h2 className="mb-5 text-xl font-semibold tracking-tight text-stone-900">Who&apos;s local</h2>
 
       {visible.length === 0 ? (
         <p className="text-sm text-stone-400">No one local to show yet.</p>
       ) : (
-        <div className="space-y-10">
+        <div className="space-y-7">
           {groups.map(({ group, members: gm }) => (
             <Rail key={group.key} label={group.label} emoji={group.emoji} members={gm} />
           ))}
