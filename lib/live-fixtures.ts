@@ -20,6 +20,12 @@ export interface Fixture {
   teams?: string[];
   starts_at: string;
   ends_at: string;
+  /**
+   * True when the source (e.g. ESPN state="in") says the game is on right NOW —
+   * authoritative over our estimated window, which can be too short (extra time,
+   * stoppages) and wrongly mark a live game as ended.
+   */
+  live?: boolean;
 }
 
 // Offset (minutes from now) + length so each fixture's window floats with time.
@@ -72,8 +78,10 @@ export function getFixtures(now: number = Date.now()): Fixture[] {
   );
 }
 
-/** True if the fixture's window contains `now`. */
+/** True if the fixture is on now — the source's live flag wins over the window. */
 export function isFixtureLive(f: Fixture, now: number = Date.now()): boolean {
+  if (f.live === true) return true;
+  if (f.live === false) return false;
   return Date.parse(f.starts_at) <= now && now < Date.parse(f.ends_at);
 }
 

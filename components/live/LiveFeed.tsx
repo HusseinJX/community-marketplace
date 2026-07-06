@@ -6,8 +6,7 @@ import { groupByEvent, eventEmoji, eventLabel } from "@/lib/live-events";
 import { BroadcastCard } from "./BroadcastCard";
 import { MatchCard, type MatchGroup } from "./MatchCard";
 import { LiveMap } from "./LiveMap";
-import { getDemoBroadcasts } from "@/lib/demo-live";
-import { fetchDemoLiveBroadcasts } from "@/lib/demo-live-fixtures";
+import { fetchLiveBroadcasts } from "@/lib/demo-live-fixtures";
 import type { LiveBroadcast } from "./types";
 
 type ViewMode = "feed" | "map";
@@ -23,25 +22,9 @@ export function LiveFeed({ afterHero, afterFeed }: { afterHero?: React.ReactNode
   const [locked, setLocked] = useState(false);
 
   const load = useCallback(async () => {
-    // Demo fallback: real live games (ESPN slate) populated with demo venues.
-    // Falls back to the static demo only if nothing is live right now.
-    const demo = async () => {
-      const live = await fetchDemoLiveBroadcasts();
-      return live.length ? live : getDemoBroadcasts();
-    };
-    try {
-      const res = await fetch("/api/broadcasts");
-      if (res.ok) {
-        const data = await res.json();
-        setItems(data.broadcasts?.length ? data.broadcasts : await demo());
-      } else {
-        setItems(await demo());
-      }
-    } catch {
-      setItems(await demo());
-    } finally {
-      setLoading(false);
-    }
+    // Real venue broadcasts when present, else real live games + demo venues.
+    setItems(await fetchLiveBroadcasts());
+    setLoading(false);
   }, []);
 
   useEffect(() => {

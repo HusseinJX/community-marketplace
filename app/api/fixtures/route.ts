@@ -84,13 +84,20 @@ async function fetchLeague(
       if (!matchup) continue;
 
       const start = Date.parse(startsAt);
+      const isLiveNow = state === 'in';
+      // For a live game, keep the window open (our length estimate can be short);
+      // otherwise it's start + estimated length.
+      const end = isLiveNow
+        ? Math.max(start + lengthMin * 60_000, Date.now() + 90 * 60_000)
+        : start + lengthMin * 60_000;
       out.push({
         id: `espn-${slug}-${ev.id ?? matchup}`,
         event_slug: slug,
         matchup,
         teams: [awayName, homeName].filter(Boolean),
         starts_at: new Date(start).toISOString(),
-        ends_at: new Date(start + lengthMin * 60_000).toISOString(),
+        ends_at: new Date(end).toISOString(),
+        live: isLiveNow,
       });
     }
     return out;

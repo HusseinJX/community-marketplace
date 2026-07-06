@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, MapPin, Radio, Calendar } from "lucide-react";
 import { eventEmoji, eventLabel, timeLeftLabel, isLive } from "@/lib/live-events";
 import { streamEmbed } from "@/lib/embed";
@@ -13,6 +14,7 @@ import { MemoriesGrid } from "@/components/posts/MemoriesGrid";
 import type { LiveBroadcast } from "./types";
 
 export function BroadcastDetail({ id }: { id: string }) {
+  const router = useRouter();
   const [b, setB] = useState<LiveBroadcast | null>(null);
   const [loading, setLoading] = useState(true);
   const [host, setHost] = useState<string>("");
@@ -67,9 +69,12 @@ export function BroadcastDetail({ id }: { id: string }) {
   return (
     <div className="mx-auto max-w-4xl px-4 pb-20 md:px-8">
       <div className="pt-6">
-        <Link href="/live" className="inline-flex items-center gap-1 text-sm text-stone-500 hover:text-stone-900">
-          <ArrowLeft className="h-4 w-4" /> Live now
-        </Link>
+        <button
+          onClick={() => router.back()}
+          className="inline-flex items-center gap-1 text-sm text-stone-500 hover:text-stone-900"
+        >
+          <ArrowLeft className="h-4 w-4" /> Back
+        </button>
       </div>
 
       {/* Header */}

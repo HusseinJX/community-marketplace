@@ -1,5 +1,6 @@
 import type { LiveBroadcast } from "@/components/live/types";
 import { isFixtureLive, type Fixture } from "@/lib/live-fixtures";
+import { getDemoBroadcasts } from "@/lib/demo-live";
 
 // Demo "Live Now" content built from the REAL games slate (/api/fixtures, ESPN):
 // the matches are real live games, the PLACES showing them are demo venues. This
@@ -100,4 +101,28 @@ export async function fetchDemoLiveBroadcasts(): Promise<LiveBroadcast[]> {
 /** Resolve one demo broadcast by id (for /live/[id]). */
 export async function findDemoLiveBroadcast(id: string): Promise<LiveBroadcast | null> {
   return (await fetchDemoLiveBroadcasts()).find((b) => b.id === id) ?? null;
+}
+
+/** Stable key that groups broadcasts by match (game). */
+export function matchKeyOf(b: { whats_on: string | null; event_slug: string }): string {
+  return b.whats_on?.trim().toLowerCase() || `event:${b.event_slug}`;
+}
+
+/**
+ * All live broadcasts to render — real venue broadcasts when present, else the
+ * real-live-games + demo-venues fallback (static demo only if nothing is live).
+ * Shared by the home feed and the match page so they agree.
+ */
+export async function fetchLiveBroadcasts(): Promise<LiveBroadcast[]> {
+  try {
+    const res = await fetch("/api/broadcasts");
+    if (res.ok) {
+      const data = await res.json();
+      if (data.broadcasts?.length) return data.broadcasts as LiveBroadcast[];
+    }
+  } catch {
+    /* fall through to demo */
+  }
+  const live = await fetchDemoLiveBroadcasts();
+  return live.length ? live : getDemoBroadcasts();
 }
