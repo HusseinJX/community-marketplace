@@ -1,0 +1,149 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import {
+  ArrowRight,
+  Sparkles,
+  CalendarHeart,
+  HandHeart,
+  BookOpen,
+} from "lucide-react";
+
+export const metadata: Metadata = {
+  title: "What's this about?",
+  description:
+    "WhatsLocal AI connects your neighborhood — showcasing local stories, bringing people together at real-world events, celebrating businesses that support community orgs, and gathering resources for people and small businesses.",
+  alternates: { canonical: "/about" },
+};
+
+type Section = {
+  icon: typeof Sparkles;
+  eyebrow: string;
+  title: string;
+  body: string;
+  href: string;
+  cta: string;
+  accent: string; // tailwind gradient classes for the icon chip
+};
+
+const SECTIONS: Section[] = [
+  {
+    icon: Sparkles,
+    eyebrow: "Stories",
+    title: "We showcase local stories",
+    body: "Every neighborhood is full of people doing remarkable things. We surface their stories — the makers, the founders, the newcomers finding their footing — so the community around you feels seen, not scrolled past.",
+    href: "/sf",
+    cta: "Read local stories",
+    accent: "from-fuchsia-500 to-purple-600",
+  },
+  {
+    icon: CalendarHeart,
+    eyebrow: "Events",
+    title: "Events connect people in real life",
+    body: "Community happens face to face. We help you find what's on nearby — festivals, watch parties, markets, meetups — so it's easy to show up, meet your neighbors, and build the in-person connections that keep a community healthy.",
+    href: "/events",
+    cta: "Find events near you",
+    accent: "from-rose-500 to-pink-600",
+  },
+  {
+    icon: HandHeart,
+    eyebrow: "Giving back",
+    title: "Businesses that support the community",
+    body: "When a local business backs a community org — with funds, goods, or time — that support should be visible. We show which businesses are giving back, enriching and strengthening the ecosystem that everyone shares.",
+    href: "/vendor/giving",
+    cta: "See who gives back",
+    accent: "from-emerald-500 to-teal-600",
+  },
+  {
+    icon: BookOpen,
+    eyebrow: "Resources",
+    title: "Resources for people & small businesses",
+    body: "Help exists — but it's scattered. We gather it in one place: food, housing, health, legal aid and more for residents, plus grants, permits, and growth support for small businesses. Browse what's out there, all in one guide.",
+    href: "/resources",
+    cta: "Browse resources",
+    accent: "from-sky-500 to-indigo-600",
+  },
+];
+
+export default function AboutPage() {
+  return (
+    <div className="mx-auto max-w-3xl px-4 pb-24 pt-8 md:px-8">
+      {/* Hero */}
+      <div className="rounded-3xl bg-gradient-to-br from-purple-700 to-pink-600 px-6 py-10 text-white sm:px-10 sm:py-12">
+        <p className="text-xs font-semibold uppercase tracking-widest text-white/70">
+          WhatsLocal AI
+        </p>
+        <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">
+          Your neighborhood, all in one place.
+        </h1>
+        <p className="mt-3 max-w-2xl text-base leading-relaxed text-white/85 sm:text-lg">
+          WhatsLocal is where a community sees itself — the stories worth telling, the events
+          that bring people together, the businesses that give back, and the resources that
+          help everyone get by and grow.
+        </p>
+        <Link
+          href="/"
+          className="mt-6 inline-flex items-center gap-1.5 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-purple-700 transition hover:bg-white/90"
+        >
+          Explore what&apos;s local
+          <ArrowRight className="h-4 w-4" />
+        </Link>
+      </div>
+
+      {/* Sections */}
+      <div className="mt-8 space-y-4">
+        {SECTIONS.map(({ icon: Icon, eyebrow, title, body, href, cta, accent }, i) => (
+          <section
+            key={eyebrow}
+            className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm sm:p-7"
+          >
+            <div className="flex items-start gap-4">
+              <div
+                className={
+                  "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-white " +
+                  accent
+                }
+              >
+                <Icon className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-wide text-stone-400">
+                  {String(i + 1).padStart(2, "0")} · {eyebrow}
+                </p>
+                <h2 className="mt-0.5 text-lg font-semibold tracking-tight text-stone-900 sm:text-xl">
+                  {title}
+                </h2>
+                <p className="mt-2 text-sm leading-relaxed text-stone-600 sm:text-[0.95rem]">
+                  {body}
+                </p>
+                <Link
+                  href={href}
+                  className="group mt-3 inline-flex items-center gap-1 text-sm font-semibold text-purple-700 transition hover:text-purple-900"
+                >
+                  {cta}
+                  <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+                </Link>
+              </div>
+            </div>
+          </section>
+        ))}
+      </div>
+
+      {/* Footer CTA */}
+      <div className="mt-8 rounded-2xl border border-stone-200 bg-stone-100 p-6 text-center sm:p-8">
+        <h2 className="text-lg font-semibold tracking-tight text-stone-900">
+          Ready to dig in?
+        </h2>
+        <p className="mt-1 text-sm text-stone-600">
+          Everything local — live now, what&apos;s on, and who&apos;s around you.
+        </p>
+        <Link
+          href="/"
+          className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-stone-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-stone-700"
+        >
+          Go to WhatsLocal
+          <ArrowRight className="h-4 w-4" />
+        </Link>
+      </div>
+    </div>
+  );
+}

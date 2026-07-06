@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronRight, Newspaper, CalendarDays, Store } from "lucide-react";
+import { ChevronRight, Newspaper, CalendarDays, Store, ArrowRight, Trophy, MapPin } from "lucide-react";
 import { LiveFeed } from "@/components/live/LiveFeed";
 import { CommunityEventsLive } from "@/components/live/CommunityEventsLive";
 import { LocalDirectory } from "@/components/home/LocalDirectory";
@@ -46,6 +46,42 @@ export function HomeTabs() {
 
   return (
     <>
+      {/* Small hero — one-line "what this is" so first-time visitors get oriented. */}
+      <div className="mx-auto max-w-6xl px-4 pt-4 md:px-8">
+        <div className="rounded-2xl bg-gradient-to-br from-purple-700 to-pink-600 px-5 py-4 text-white sm:px-6 sm:py-5">
+          <h1 className="text-lg font-semibold tracking-tight sm:text-xl">
+            Your neighborhood, all in one place.
+          </h1>
+          <p className="mt-1 max-w-2xl text-sm leading-snug text-white/85 sm:text-[0.95rem]">
+            Discover local stories, real-world events, and the businesses, makers &amp; community
+            orgs near you — and see who&apos;s giving back to the neighborhood.
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Link
+              href="/watch-world-cup"
+              className="inline-flex items-center gap-1.5 rounded-full bg-white px-3.5 py-1.5 text-xs font-semibold text-purple-700 transition hover:bg-white/90"
+            >
+              <Trophy className="h-3.5 w-3.5" />
+              Watch World Cup
+            </Link>
+            <Link
+              href="/sf"
+              className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3.5 py-1.5 text-xs font-semibold transition hover:bg-white/25"
+            >
+              <MapPin className="h-3.5 w-3.5" />
+              SF
+            </Link>
+            <Link
+              href="/about"
+              className="inline-flex items-center gap-1 rounded-full bg-white/15 px-3.5 py-1.5 text-xs font-semibold transition hover:bg-white/25"
+            >
+              What&apos;s this about?
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+        </div>
+      </div>
+
       <div className="mx-auto max-w-6xl px-4 pt-4 md:px-8">
         <HomeSearch />
       </div>

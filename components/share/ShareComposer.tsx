@@ -413,7 +413,11 @@ export function ShareComposer() {
         />
         <ToolButton onClick={() => fileRef.current?.click()} icon={ImagePlus} label="Photo" />
         <ToolButton onClick={() => fileRef.current?.click()} icon={Video} label="Video" />
-        <ToolButton onClick={() => setScannerOpen(true)} icon={QrCode} label="Scan QR" />
+        {/* Toolbar QR scan — hidden in vendor mode (the business/event Tag
+            fields below keep their own Scan buttons). */}
+        {!vendorMode && (
+          <ToolButton onClick={() => setScannerOpen(true)} icon={QrCode} label="Scan QR" />
+        )}
         {uploading && <Loader2 className="h-4 w-4 animate-spin text-stone-400" />}
       </div>
 
