@@ -32,12 +32,25 @@ exists in the world and has something at stake.** So the split is not the
 
 | Type | Required to own the profile | Optional (enrich + badge) |
 |---|---|---|
-| **Vendor** | **Google Maps anchor** — outbound OTP to the Maps-listed phone (or Google Business OAuth) | socials OAuth, website (from Maps) |
-| **Community org** | **Google Maps anchor** — same as vendor | socials, website |
+| **Vendor** | **any of the 3 anchors** (below) | socials OAuth, website (from Maps) |
+| **Community org** | **any of the 3 anchors** (below) | socials, website |
 | **Artist** | **nothing — the account is self-owned** | socials OAuth, website |
 | **Shopper / individual** | nothing — the account | optional socials |
 
 Everyone signs up with **any** email (login), separate from all of the above.
+
+### The three ownership anchors (entities pick whichever applies)
+
+1. **Google Maps** — outbound OTP to the Maps-listed phone. Google = the
+   authoritative directory (the *number*); WE verify possession. Only the real
+   business can receive at its own listed number.
+2. **Google Business OAuth** — the person logs into the Google account that
+   *manages* the listing → we inherit Google's own owner-check. Stronger, needs a
+   Google login. (Also the fallback when the Maps listing has no phone.)
+3. **In-person admin vouch** — a trusted admin/rep physically confirms the
+   business on-site and records the owner's number/email. Ground truth by a
+   trusted human. **Needs no Google presence** — so it's the anchor for
+   businesses/orgs (and artists) that have no Maps listing at all.
 
 ## Google Maps = the root of trust (for entities)
 
@@ -56,6 +69,31 @@ Edges:
   hours, reviews). Fine.
 - **No phone on the Maps listing** → fall back to **Google Business OAuth**
   (logging into the Google account that manages the listing proves control).
+
+## In-person admin vouch (anchor #3, and the no-Google fallback)
+
+A trusted admin/rep physically visits, confirms the business is real and the
+person represents it, and records the number/email the owner gives on-site. This
+is the "human / field verification" tier — the same model field reps use to sign
+up restaurants — and for local it's one of the *strongest* anchors: physical
+ground truth. It's also the **only** anchor that needs no Google presence, so it
+covers businesses/orgs (and artists) with no Maps listing.
+
+Rules:
+- **The admin is the trust root.** Fine at founder scale. At rep scale, add an
+  **audit trail** (who set it, when, where) — a sloppy/socially-engineered rep is
+  the failure mode.
+- **The channel (number/email) is just how the owner logs in / gets linked** —
+  the *admin's on-site confirmation* is what makes it trustworthy, not the channel.
+- **Don't have the admin directly flip "verified" and leave.** Admin sets the
+  trusted number/email → the owner does **one lightweight possession confirm**
+  (OTP to the number, or an email confirm link) to activate. Result: human vouch
+  **+** possession proof **+** audit trail, minimal friction.
+- Built already: the admin `trustedPhone` field. Missing: the audit trail + the
+  owner-side possession confirm to activate.
+
+The **organizer-vouches-for-an-artist-at-an-event** path is the same pattern (a
+trusted human onboarding someone in person) — a legit anchor for artists too.
 
 ## Possession must be OUTBOUND, not inbound ⚠️
 
@@ -140,10 +178,13 @@ Match → enrich/update the existing record instead of creating a new one.
 5. **Demote `verifyCrossRef`** off `ownershipVerification` → data-quality only.
 6. **Teams / ownership transfer / disputes** (Clerk Organizations when wanted).
 7. **Re-verification / staleness** (Maps numbers change hands).
+8. **In-person vouch: audit trail + owner-side possession confirm** to activate
+   (the `trustedPhone` field exists; the activation step + audit log don't).
 
 ## One-liner
 
-> Login proves you're a person. Businesses prove ownership with an anchor they
-> already publicly own (Google Maps — outbound OTP to its phone); artists are just
-> people, so their account is self-owned. Everything else — websites, socials,
-> cross-ref — is additive enrichment that never grants control on its own.
+> Login proves you're a person. Businesses prove ownership with one of three
+> anchors — Google Maps (outbound OTP to its phone), Google Business OAuth, or an
+> in-person admin vouch — while artists are just people, so their account is
+> self-owned. Everything else — websites, socials, cross-ref — is additive
+> enrichment that never grants control on its own.
