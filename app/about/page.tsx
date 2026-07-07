@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
 import {
   ArrowRight,
   Sparkles,
@@ -186,7 +187,35 @@ export default function AboutPage() {
           </p>
         </div>
 
+        {/* The illustrated ecosystem */}
         <div className="overflow-hidden rounded-2xl border border-stone-200 shadow-sm">
+          <Image
+            src="/rainforest-ecosystem.png"
+            alt="A living ecosystem, in five layers: emergent layer, canopy, understory, forest floor, and roots & fungi — the connective tissue."
+            width={1122}
+            height={1402}
+            className="h-auto w-full"
+            priority
+          />
+        </div>
+
+        {/* The insight: life is in the middle; we work at the roots. */}
+        <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 sm:p-6">
+          <p className="text-sm leading-relaxed text-stone-700 sm:text-[0.95rem]">
+            In a rainforest, most of the life — the color, the flowers, the animals, the everyday
+            beauty — lives in the <span className="font-semibold text-emerald-800">understory and
+            forest floor</span>. That&apos;s where the real people are: local businesses, artists,
+            events, neighbors, and the organizations that care for them.
+          </p>
+          <p className="mt-3 text-sm leading-relaxed text-stone-700 sm:text-[0.95rem]">
+            WhatsLocal works one layer deeper — at the{" "}
+            <span className="font-semibold text-emerald-800">roots &amp; fungi</span>. We
+            strengthen the connective tissue: the unseen network that routes support, nutrients, and
+            connection between everyone, so all the life above it can flourish.
+          </p>
+        </div>
+
+        <div className="mt-4 overflow-hidden rounded-2xl border border-stone-200 shadow-sm">
           {LAYERS.map((l) => (
             <div key={l.name} className={"px-5 py-4 sm:px-6 " + l.bg}>
               <div className="flex flex-wrap items-baseline gap-x-2">
