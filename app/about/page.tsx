@@ -66,66 +66,6 @@ const SECTIONS: Section[] = [
   },
 ];
 
-// The rainforest strata (top → down), matching the "Living Ecosystem" frame.
-// Roots/fungi = the connector itself: the connective tissue threading all layers.
-const LAYERS: {
-  name: string;
-  blurb: string;
-  tags: string[];
-  bg: string;
-  sub: string;
-  body: string;
-  chip: string;
-  isUs?: boolean;
-}[] = [
-  {
-    name: "Emergent layer",
-    blurb: "Big business, innovation & investment reaching new heights.",
-    tags: ["Large business", "Innovation", "Investment", "Growth", "Scale"],
-    bg: "bg-[#e7dabc]",
-    sub: "text-[#4a3f22]",
-    body: "text-[#6b5d3a]",
-    chip: "bg-[#d6c69c] text-[#4a3f22]",
-  },
-  {
-    name: "Canopy",
-    blurb: "Connected crowns that create opportunity, commerce & institutions.",
-    tags: ["Commerce", "Institutions", "Networks", "Opportunity", "Collaboration", "Impact"],
-    bg: "bg-[#6f8f4e]",
-    sub: "text-white",
-    body: "text-emerald-50/90",
-    chip: "bg-white/20 text-white",
-  },
-  {
-    name: "Understory",
-    blurb: "Vibrant life below the canopy — local business, culture & events.",
-    tags: ["Local businesses", "Events & festivals", "Arts & culture", "Gathering", "Neighborhood vibrancy"],
-    bg: "bg-[#8fae63]",
-    sub: "text-[#26330f]",
-    body: "text-[#31431a]",
-    chip: "bg-[#26330f]/15 text-[#26330f]",
-  },
-  {
-    name: "Forest floor",
-    blurb: "The base that nurtures life — care, trust & mutual support.",
-    tags: ["Shelter", "Belonging", "Care", "Mutual aid", "Trust", "Community orgs"],
-    bg: "bg-[#6b4a2f]",
-    sub: "text-[#f3e6d2]",
-    body: "text-[#e2cdb2]",
-    chip: "bg-[#f3e6d2]/15 text-[#f3e6d2]",
-  },
-  {
-    name: "Roots & fungi — connective tissue",
-    blurb: "The unseen network that connects, nourishes & sustains us all.",
-    tags: ["Networks", "Coordination", "Routing support", "Shared resources", "Interdependence"],
-    bg: "bg-[#211710]",
-    sub: "text-amber-300",
-    body: "text-amber-100/80",
-    chip: "bg-amber-400/15 text-amber-200",
-    isUs: true,
-  },
-];
-
 export default function AboutPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 pb-24 pt-8 md:px-8">
@@ -215,29 +155,7 @@ export default function AboutPage() {
           </p>
         </div>
 
-        <div className="mt-4 overflow-hidden rounded-2xl border border-stone-200 shadow-sm">
-          {LAYERS.map((l) => (
-            <div key={l.name} className={"px-5 py-4 sm:px-6 " + l.bg}>
-              <div className="flex flex-wrap items-baseline gap-x-2">
-                <span className={"text-sm font-bold " + l.sub}>{l.name}</span>
-                <span className={"text-xs " + l.body}>{l.blurb}</span>
-              </div>
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {l.tags.map((t) => (
-                  <span key={t} className={"rounded-full px-2 py-0.5 text-[11px] font-medium " + l.chip}>
-                    {t}
-                  </span>
-                ))}
-              </div>
-              {l.isUs && (
-                <p className="mt-2 text-xs font-semibold text-amber-300">
-                  ↑ This is WhatsLocal — the connective tissue.
-                </p>
-              )}
-            </div>
-          ))}
-        </div>
-        <p className="mt-2 px-1 text-center text-xs italic text-stone-500">
+        <p className="mt-4 px-1 text-center text-xs italic text-stone-500">
           One living network. Many forms. Shared purpose. Collective flourishing.
         </p>
       </section>
