@@ -36,6 +36,9 @@ export interface MemberProfile {
   businessPhone?: string;
   websiteUrl?: string;
   instagramHandle?: string;
+  /** Admin-set "trusted" onboarding number: only a call/text from this number
+   *  may onboard/claim this profile (possession gate in the connector). */
+  trustedPhone?: string;
   tiktokHandle?: string;
   twitterHandle?: string;
   xHandle?: string;

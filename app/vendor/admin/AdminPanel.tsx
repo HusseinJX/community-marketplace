@@ -80,6 +80,7 @@ function CreateProfile({ ownerMemberId }: { ownerMemberId: string }) {
     businessDescription: "",
     instagramHandle: "",
     phone: "",
+    trustedPhone: "",
     websiteUrl: "",
     organizerFocus: "",
   });
@@ -111,6 +112,7 @@ function CreateProfile({ ownerMemberId }: { ownerMemberId: string }) {
             businessDescription: form.businessDescription || undefined,
             instagramHandle: form.instagramHandle || undefined,
             phone: form.phone || undefined,
+            trustedPhone: form.trustedPhone.trim() || undefined,
             websiteUrl: form.websiteUrl || undefined,
             organizerFocus: form.memberType === "organizer" && form.organizerFocus ? form.organizerFocus : undefined,
           },
@@ -130,7 +132,7 @@ function CreateProfile({ ownerMemberId }: { ownerMemberId: string }) {
   }
 
   function reset() {
-    setForm({ name: "", memberType: "vendor", category: "", city: "", neighborhood: "", businessDescription: "", instagramHandle: "", phone: "", websiteUrl: "", organizerFocus: "" });
+    setForm({ name: "", memberType: "vendor", category: "", city: "", neighborhood: "", businessDescription: "", instagramHandle: "", phone: "", trustedPhone: "", websiteUrl: "", organizerFocus: "" });
     setTags("");
     setCreated(null);
     setErr("");
@@ -168,6 +170,10 @@ function CreateProfile({ ownerMemberId }: { ownerMemberId: string }) {
         <Field label="Phone"><input value={form.phone} onChange={(e) => up("phone", e.target.value)} className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm" /></Field>
       </div>
       <Field label="Website"><input value={form.websiteUrl} onChange={(e) => up("websiteUrl", e.target.value)} className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm" /></Field>
+      <Field label="Trusted onboarding number">
+        <input value={form.trustedPhone} onChange={(e) => up("trustedPhone", e.target.value)} placeholder="+1 415 555 0123 — only this number can call/text to onboard" className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm" />
+        <p className="mt-1 text-xs text-stone-400">Set the number you confirmed in person. Only a call/text from it can onboard or claim this profile — no one else.</p>
+      </Field>
       <Field label="Tags (comma-separated)"><input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="farmers market, sf library" className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm" /></Field>
 
       <div className="flex items-center gap-3 pt-1">
