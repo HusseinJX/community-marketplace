@@ -181,6 +181,60 @@ Match → enrich/update the existing record instead of creating a new one.
 8. **In-person vouch: audit trail + owner-side possession confirm** to activate
    (the `trustedPhone` field exists; the activation step + audit log don't).
 
+## Execution map (for a fresh session to build from)
+
+**Repos & current branch/deploy state:**
+- **Marketplace:** `~/Desktop/dev/community-marketplace`, branch `feat/collab-rooms`
+  — deployed to Netlify (`comfy-zuccutto-73b27f`), **not merged to `main`.**
+- **Connector:** `~/Desktop/dev/community-connector-agent`, branch
+  `feat/trusted-number-enrichment` — **committed, NOT deployed, NOT on `main`.**
+  `main` there has ~59 pre-existing WIP files (untouched — stage only your files).
+  Connector deploys separately (Netlify CLI from the connector repo).
+- **The possession gate as currently built is the INBOUND (spoofable) version**
+  in `voice-tool.js`. Item 1 replaces it.
+
+**Per build item — repo · files · approach:**
+
+1. **Outbound OTP** (replaces inbound possession). *Connector:* new
+   `lib/otp.js` (issue: generate code, store `{code,expiresAt}` in a Firestore
+   `otps` doc keyed by memberId+phone, send via `sendSms`/Telnyx to the trusted or
+   Places phone; verify: compare + expire). Wire into `verify.js` as a new method
+   `phone_otp`, and into the claim flow. *Marketplace:* `app/claim/[memberId]/`
+   + `app/api/claim/route.ts` add a "request code → enter code" step. Retire the
+   inbound routing in `voice-tool.js`.
+2. **Pull website+phone FROM Maps** (not typed). *Connector:* `lib/verify.js`
+   already has `resolvePlace` (Places `nationalPhoneNumber`); `lib/enrich.js` has
+   `searchGooglePlaces`. When a `googleMapsUrl`/`placeId` exists, resolve it and
+   use its phone+website as authoritative (override typed); enrich from the
+   Maps-listed website in `trigger/post-save-pipeline.ts`.
+3. **Artist username + optional social connect.** *Marketplace:* create/onboard
+   UI (`app/vendor/admin/AdminPanel.tsx`, `/onboard`) — username identity for
+   artists; add IG/Twitter/Meta OAuth (new lib + callback routes) for the badge.
+   *Connector:* member schema — artists skip the ownership anchor; store `username`.
+4. **Dedup-before-create.** *Connector:* add `db.findMemberByIdentifier(...)`
+   (query by normalized phone / website domain / IG handle); in
+   `marketplace-create-member.js` + `marketplace-onboard.js`, match before
+   `saveMember` and update-instead-of-create on hit.
+5. **Demote `verifyCrossRef`.** *Connector:* `lib/verifyCrossRef.js` +
+   `trigger/post-save-pipeline.ts` — write `channelConsistency` (not
+   `ownershipVerification`); audit any reader that treats `method:"cross_ref"` as
+   trust and stop it.
+6. **Teams / transfer / disputes.** *Marketplace:* adopt Clerk Organizations;
+   evolve `vendor_profiles` (clerk_user_id→member_id) into org membership + roles.
+   Larger, separate effort.
+7. **Re-verification / staleness.** *Connector:* a scheduled Trigger.dev task
+   re-resolving Maps numbers via `verify.js`; flag drift.
+8. **In-person vouch: audit + activation.** *Marketplace:* `AdminPanel.tsx`
+   (`trustedPhone` exists) — add who/when/where audit fields; owner activation =
+   the OTP from item 1. *Connector:* persist the audit metadata on the profile.
+
+**Already built (this session, on the branches above):** enrichment enqueue on
+all create paths (`marketplace-create-member` / `marketplace-onboard` /
+`voice-tool`), `db.findMemberByTrustedPhone`, inbound voice possession routing,
+`verify.js` trusted-number enforcement + `availableVerificationMethods`,
+marketplace admin `trustedPhone` field. Start item 1 by *replacing* the inbound
+routing, not adding alongside it.
+
 ## One-liner
 
 > Login proves you're a person. Businesses prove ownership with one of three
