@@ -4,6 +4,7 @@ import { getMember } from '@/lib/api'
 import { createInvite, getInvitesFor } from '@/lib/collab-network'
 import { demoInvites } from '@/lib/demo-collab'
 import { gateCapability } from '@/lib/gate'
+import { rateLimit } from '@/lib/rate-limit'
 
 // GET — the acting member's invites (incoming + outgoing).
 export async function GET(req: Request) {
@@ -19,6 +20,9 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}))
   const actor = await resolveActor(body.memberId)
   if (!actor) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const limited = rateLimit({ req, name: 'invites', id: actor.memberId, limit: 30, windowMs: 3_600_000 })
+  if (limited) return limited
 
   const toId = String(body.toId ?? '').trim()
   if (!toId) return NextResponse.json({ error: 'Pick someone to invite' }, { status: 400 })

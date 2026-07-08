@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
+import { rateLimit } from '@/lib/rate-limit'
 
 // POST { memberId }
 // Requests an outbound ownership OTP: proxies to the connector's otp-request,
@@ -9,6 +10,11 @@ import { auth } from '@clerk/nextjs/server'
 export async function POST(request: Request) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  // OTP sends real SMS/voice → tight limit to prevent cost abuse (connector also
+  // caps 5/hr per member; this is the per-user/per-IP front-line guard).
+  const limited = rateLimit({ req: request, name: 'otp', id: userId, limit: 5, windowMs: 600_000, ipLimit: 10 })
+  if (limited) return limited
 
   const { memberId } = await request.json()
   if (!memberId) {

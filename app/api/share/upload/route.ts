@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { uploadImage } from '@/lib/storage'
 import { isDemoMode } from '@/lib/demo-admin'
+import { rateLimit } from '@/lib/rate-limit'
 
 export const runtime = 'nodejs'
 
@@ -12,6 +13,9 @@ export async function POST(req: Request) {
   if (!userId && !isDemoMode()) {
     return NextResponse.json({ error: 'Sign in to upload' }, { status: 401 })
   }
+
+  const limited = rateLimit({ req, name: 'share-upload', id: userId, limit: 40, windowMs: 3_600_000 })
+  if (limited) return limited
 
   const form = await req.formData().catch(() => null)
   if (!form) return NextResponse.json({ error: 'Expected multipart form' }, { status: 400 })

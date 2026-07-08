@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { createPost, getPosts, getPostsByMemberId, getPostsByEventId, getReactionsForPosts } from '@/lib/posts'
 import { isDemoMode } from '@/lib/demo-admin'
+import { rateLimit } from '@/lib/rate-limit'
 
 // GET — public feed of share posts. `?member=` / `?event=` scope to one entity's
 // "memories" (everyone's media tagged to that business or event). Each post is
@@ -35,6 +36,9 @@ export async function POST(request: Request) {
   if (!userId && !isDemoMode()) {
     return NextResponse.json({ error: 'Sign in to post' }, { status: 401 })
   }
+
+  const limited = rateLimit({ req: request, name: 'posts', id: userId, limit: 15, windowMs: 600_000 })
+  if (limited) return limited
 
   let authorName: string | null = null
   if (userId) {
