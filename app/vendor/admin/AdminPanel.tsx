@@ -94,6 +94,47 @@ function CreateProfile({ ownerMemberId }: { ownerMemberId: string }) {
 
   const up = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
+  // Google Places: search a business → pick the real listing → auto-fill.
+  const [pq, setPq] = useState("");
+  const [results, setResults] = useState<{ placeId: string; name: string; address: string }[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [picked, setPicked] = useState(false);
+
+  useEffect(() => {
+    if (pq.trim().length < 3 || picked) { setResults([]); return; }
+    const t = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const r = await fetch(`/api/places/search?q=${encodeURIComponent(pq)}`);
+        const d = await r.json();
+        setResults(d.results || []);
+      } catch { setResults([]); } finally { setSearching(false); }
+    }, 350);
+    return () => clearTimeout(t);
+  }, [pq, picked]);
+
+  async function pickPlace(placeId: string, name: string) {
+    setResults([]); setPq(name); setPicked(true); setBusy(true);
+    try {
+      const r = await fetch(`/api/places/details?placeId=${encodeURIComponent(placeId)}`);
+      const p = (await r.json()).details;
+      if (p) {
+        const GENERIC = new Set(["point_of_interest", "establishment", "food", "store"]);
+        const cat = (p.types || []).find((t: string) => !GENERIC.has(t));
+        setForm((f) => ({
+          ...f,
+          name: p.name || f.name,
+          category: cat ? String(cat).replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()) : f.category,
+          city: p.city || f.city,
+          neighborhood: p.neighborhood || f.neighborhood,
+          phone: p.phone || f.phone,
+          websiteUrl: p.website || f.websiteUrl,
+          businessDescription: p.summary || f.businessDescription,
+        }));
+      }
+    } catch { /* leave form as-is */ } finally { setBusy(false); }
+  }
+
   async function create() {
     if (!form.name.trim()) {
       setErr("A name is required.");
@@ -145,7 +186,42 @@ function CreateProfile({ ownerMemberId }: { ownerMemberId: string }) {
 
   return (
     <div className="card-soft space-y-3 p-5">
-      <p className="section-label">Basic profile</p>
+      {/* Find them on Google → auto-fill (no typing) */}
+      <div className="relative">
+        <p className="section-label">Find them on Google</p>
+        <div className="mt-1 flex items-center gap-2 rounded-lg border border-stone-300 bg-white px-3 py-2">
+          <Search className="h-4 w-4 shrink-0 text-stone-400" />
+          <input
+            value={pq}
+            onChange={(e) => { setPq(e.target.value); setPicked(false); }}
+            placeholder="Search the business — e.g. Zeitgeist SF"
+            className="w-full text-sm outline-none"
+          />
+          {searching && <Loader2 className="h-4 w-4 shrink-0 animate-spin text-stone-400" />}
+        </div>
+        {results.length > 0 && (
+          <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-lg border border-stone-200 bg-white shadow-lg">
+            {results.map((r) => (
+              <button
+                key={r.placeId}
+                type="button"
+                onClick={() => pickPlace(r.placeId, r.name)}
+                className="flex w-full flex-col items-start gap-0.5 border-b border-stone-100 px-3 py-2 text-left hover:bg-stone-50 last:border-0"
+              >
+                <span className="text-sm font-medium text-stone-900">{r.name}</span>
+                <span className="text-xs text-stone-500">{r.address}</span>
+              </button>
+            ))}
+          </div>
+        )}
+        <p className="mt-1 text-xs text-stone-400">
+          {picked
+            ? "✓ Auto-filled from Google — review & edit below, then create. The story + vibe enrich automatically after."
+            : "Google fills name, category, address, phone & website — you type nothing. Or fill it in manually below."}
+        </p>
+      </div>
+
+      <p className="section-label pt-1">Basic profile</p>
       <Field label="Name *"><input value={form.name} onChange={(e) => up("name", e.target.value)} placeholder="Rosa's Tamales" className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm" /></Field>
       <div className="flex gap-2">
         <Field label="Type">
