@@ -6,7 +6,12 @@ import http2 from "node:http2";
 // `device_tokens`; sending signs an ES256 JWT with the .p8 auth key and posts to
 // Apple's HTTP/2 endpoint. Everything no-ops until the APNS_* env is set.
 
-const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!);
+// Server-only, server-to-server reads/writes — prefer the service-role key so RLS
+// (which revoked anon grants on several tables) can't silently block token lookups.
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY!
+);
 
 // ── Registration ────────────────────────────────────────────────────────────
 export async function saveDeviceToken(token: string, clerkUserId: string | null, platform = "ios") {
@@ -88,6 +93,34 @@ async function sendToToken(
     req.on("error", () => { client.close(); resolve({ ok: false, status: 0, reason: "request_error" }); });
     req.end(body);
   });
+}
+
+// Resolve the Clerk user(s) who own a member (via vendor_profiles). A member can
+// in principle be linked by more than one Clerk account, so this returns a list.
+export async function clerkIdsForMember(memberId: string): Promise<string[]> {
+  const { data } = await supabase
+    .from("vendor_profiles")
+    .select("clerk_user_id")
+    .eq("member_id", memberId);
+  return (data ?? []).map((r) => r.clerk_user_id as string).filter(Boolean);
+}
+
+// Push to a member (business/organizer) — bridges member_id → clerk_user_id →
+// devices. Collab invites, room messages, and event invites are member-keyed, so
+// this is the entry point for all of them. No-ops safely when unconfigured/unlinked.
+export async function notifyMember(memberId: string, payload: PushPayload): Promise<number> {
+  if (!apnsConfig()) return 0;
+  const clerkIds = await clerkIdsForMember(memberId);
+  if (!clerkIds.length) return 0;
+  let sent = 0;
+  for (const id of clerkIds) sent += await sendPushToUser(id, payload);
+  return sent;
+}
+
+// Fire-and-forget wrapper for use in request handlers: never throws, never blocks
+// the response. Callers do `void notify(...)`.
+export async function notifyMemberSafe(memberId: string, payload: PushPayload): Promise<void> {
+  try { await notifyMember(memberId, payload); } catch { /* push is best-effort */ }
 }
 
 // Send a push to every device belonging to a Clerk user. No-ops (returns 0) when

@@ -4,6 +4,7 @@ import { getMember } from '@/lib/api'
 import { createInvite, getInvitesFor } from '@/lib/collab-network'
 import { demoInvites } from '@/lib/demo-collab'
 import { gateCapability } from '@/lib/gate'
+import { notifyMemberSafe } from '@/lib/push'
 import { rateLimit } from '@/lib/rate-limit'
 
 // GET — the acting member's invites (incoming + outgoing).
@@ -60,6 +61,12 @@ export async function POST(req: Request) {
       role: body.role ? String(body.role) : null,
       occasion_id: body.occasionId ? String(body.occasionId) : null,
       occasion_label: body.occasionLabel ? String(body.occasionLabel).trim() : null,
+    })
+    // Notify the invitee (best-effort; no-ops until APNs env is set).
+    void notifyMemberSafe(toId, {
+      title: 'New collab invite',
+      body: fromName ? `${fromName} wants to collaborate` : 'You have a new collaboration invite',
+      url: '/vendor/network',
     })
     return NextResponse.json({ invite })
   } catch (err) {

@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
 import { resolveActor } from '@/lib/admin'
 import { getMember } from '@/lib/api'
-import { getMessages, sendMessage, isRoomMember } from '@/lib/collab-network'
+import { getMessages, sendMessage, isRoomMember, ensureRoomMembers } from '@/lib/collab-network'
 import { demoMessages, addDemoMessage, isDemoRoomId } from '@/lib/demo-collab'
+import { notifyMemberSafe } from '@/lib/push'
 
 // GET — messages in a room (members only).
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -44,5 +45,23 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
 
   const message = await sendMessage({ room_id: id, sender_id: actor.memberId, sender_name: senderName, text })
+
+  // Notify every other room member (1:1 rooms are seeded lazily). Best-effort.
+  void ensureRoomMembers(id)
+    .then((members) =>
+      Promise.all(
+        members
+          .filter((m) => m.member_id !== actor.memberId)
+          .map((m) =>
+            notifyMemberSafe(m.member_id, {
+              title: senderName ? `Message from ${senderName}` : 'New message',
+              body: text.length > 120 ? `${text.slice(0, 117)}…` : text,
+              url: '/vendor/network',
+            })
+          )
+      )
+    )
+    .catch(() => {})
+
   return NextResponse.json({ message })
 }

@@ -44,3 +44,16 @@ export async function initNativePush(onToken: (token: string) => void): Promise<
   });
   await plugin.register();
 }
+
+// Route the app when the user taps a notification. The payload's `url` (set by
+// sendPushToUser) rides in the APS `data`. Safe to call when unavailable.
+export async function onPushTap(onUrl: (url: string) => void): Promise<void> {
+  const plugin = cap()?.Plugins?.PushNotifications;
+  if (!plugin) return;
+  await plugin.addListener("pushNotificationActionPerformed", (data) => {
+    // Shape: { notification: { data: { url } } } — `url` is a top-level custom key.
+    const d = data as { notification?: { data?: Record<string, unknown> } };
+    const url = d?.notification?.data?.url;
+    if (typeof url === "string" && url) onUrl(url);
+  });
+}

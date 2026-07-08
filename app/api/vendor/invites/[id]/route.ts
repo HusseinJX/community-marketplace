@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { resolveActor } from '@/lib/admin'
-import { acceptInvite, declineInvite } from '@/lib/collab-network'
+import { acceptInvite, declineInvite, getInvite } from '@/lib/collab-network'
+import { notifyMemberSafe } from '@/lib/push'
 
 // PATCH — invitee accepts or declines. Body: { status: 'accepted' | 'declined', memberId? }
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -13,8 +14,20 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   try {
     if (body.status === 'accepted') {
+      // Resolve the invite first so we can notify the sender (accept clears state).
+      const invite = await getInvite(id)
       const room = await acceptInvite(id, actor.memberId)
-      if (!room) return NextResponse.json({ error: 'Invite not found' }, { status: 404 })
+      // Event-scoped invites return no room but are a valid accept.
+      if (!room && invite?.scope_type !== 'event') {
+        return NextResponse.json({ error: 'Invite not found' }, { status: 404 })
+      }
+      if (invite) {
+        void notifyMemberSafe(invite.from_id, {
+          title: 'Invite accepted',
+          body: invite.to_name ? `${invite.to_name} accepted your invite` : 'Your collaboration invite was accepted',
+          url: room ? '/vendor/network' : '/vendor/organize',
+        })
+      }
       return NextResponse.json({ ok: true, room })
     }
     if (body.status === 'declined') {

@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
-import { nativePushAvailable, initNativePush } from "@/lib/native-push";
+import { nativePushAvailable, initNativePush, onPushTap } from "@/lib/native-push";
 import { initNativeLinks } from "@/lib/native-links";
 
 // Mounted app-wide. Inside the native iOS app it registers the device with APNs
@@ -10,10 +11,17 @@ import { initNativeLinks } from "@/lib/native-links";
 // the plain website. Re-runs when the user signs in/out so the token re-associates.
 export function PushInit() {
   const { isLoaded, userId } = useAuth();
+  const router = useRouter();
   const lastKey = useRef<string | null>(null);
 
   // Register the Universal-Link handler once so OAuth callbacks return in-app.
   useEffect(() => { initNativeLinks(); }, []);
+
+  // Deep-link on notification tap (e.g. an invite opens /vendor/network).
+  useEffect(() => {
+    if (!nativePushAvailable()) return;
+    onPushTap((url) => router.push(url)).catch(() => {});
+  }, [router]);
 
   useEffect(() => {
     if (!isLoaded || !nativePushAvailable()) return;

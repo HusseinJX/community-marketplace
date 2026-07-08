@@ -3,6 +3,7 @@ import { auth, currentUser } from '@clerk/nextjs/server'
 import { getVendorEventById } from '@/lib/vendor-connect'
 import { getGoingCount, getMyRsvp, rsvp, cancelRsvp } from '@/lib/attendees'
 import { isDemoMode } from '@/lib/demo-admin'
+import { notifyMemberSafe } from '@/lib/push'
 
 // GET — public RSVP state for an event: total going, capacity, and whether the
 // current user is going.
@@ -56,7 +57,18 @@ export async function POST(req: Request, { params }: { params: Promise<{ eventId
   if (phone) contact = phone
 
   try {
+    const wasGoing = (await getMyRsvp(eventId, attendeeId))?.status === 'going'
     await rsvp(eventId, { attendee_id: attendeeId, attendee_name: name, attendee_contact: contact, party_size: partySize })
+    // Notify the organizer on a *new* RSVP (not an edit of an existing one).
+    if (!wasGoing && event?.member_id) {
+      const who = name || 'Someone'
+      const party = partySize > 1 ? ` (+${partySize - 1})` : ''
+      void notifyMemberSafe(event.member_id, {
+        title: 'New RSVP',
+        body: `${who}${party} is going to "${event.title}"`,
+        url: '/vendor/organize',
+      })
+    }
     return NextResponse.json({ going: true, count: await getGoingCount(eventId) })
   } catch (err) {
     if (isDemoMode()) return NextResponse.json({ going: true, demo: true })

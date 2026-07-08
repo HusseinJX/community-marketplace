@@ -339,6 +339,12 @@ export async function setEventInviteStatus(
   if (error) throw new Error(`Failed to update lineup entry: ${error.message}`)
 }
 
+// A single invite by id (used by notification triggers to find the sender).
+export async function getInvite(id: string): Promise<CollabInvite | null> {
+  const { data } = await db().from('collab_invites').select('*').eq('id', id).maybeSingle()
+  return (data as CollabInvite) ?? null
+}
+
 export async function getInvitesFor(memberId: string): Promise<{ incoming: CollabInvite[]; outgoing: CollabInvite[] }> {
   const [inc, out] = await Promise.all([
     db().from('collab_invites').select('*').eq('to_id', memberId).order('created_at', { ascending: false }),

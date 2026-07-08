@@ -6,6 +6,7 @@ import { demoMemberId } from '@/lib/demo-server'
 import { demoEvents, demoLineup, isDemoEventId } from '@/lib/demo-organize'
 import { getVendorEventById } from '@/lib/vendor-connect'
 import { createInvite, getEventInvites, setEventInviteStatus } from '@/lib/collab-network'
+import { notifyMemberSafe } from '@/lib/push'
 
 // GET — the event's lineup (all event-scoped invites, any status). Host only.
 export async function GET(req: Request, { params }: { params: Promise<{ eventId: string }> }) {
@@ -71,6 +72,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ eventId
         }).catch(() => null)
       )
   )
+
+  // Notify each vendor that got an invite (best-effort; no-ops until APNs env set).
+  for (const inv of created) {
+    if (inv) {
+      void notifyMemberSafe(inv.to_id, {
+        title: 'Event lineup invite',
+        body: `${hostName} invited you to "${event.title}"`,
+        url: '/vendor/network',
+      })
+    }
+  }
 
   return NextResponse.json({ invited: created.filter(Boolean).length })
 }
