@@ -4,6 +4,13 @@ All notable changes to this project are documented here.
 
 ## [Unreleased] — commerce, live, social shell (branch `feat/collab-rooms`)
 
+### Added — /join in-app onboarding interview (voice + text) — 2026-07-08
+Deployed to prod (connector → Netlify; marketplace → CapRover `marketplace` v17). Commits `e5bb715` (marketplace) + connector `8a08aea`.
+- **New interview step in `/join`** (`app/join/JoinFlow.tsx`) between verification and the plan picker. After the member is created + verified/claimed, the person picks **Talk it out** (in-browser OpenAI Realtime **voice**, WebRTC — same plumbing as the business voice agent, no phone number), **Type it** (the `/onboard` chat brain), or **Skip**. `components/join/JoinInterview.tsx` drives the choose/text/voice surface.
+- **Both modes enrich the just-verified member via the connector's FULL profiling brain.** Transcript → `POST /api/join/enrich {memberId, messages}` → `onboardFromMessages(messages, { memberId })` → connector `marketplace-onboard`, which gained an optional **`memberId` = enrich-in-place** path: same `buildSystemPrompt` profiling (~45-field schema), price normalization, `enqueuePostSave` enrichment, and Pinecone re-embed — run against the existing member instead of minting a new id. **Protects the verified anchors** (name, memberType, claim status, phone/businessPhone/trustedPhone, googleMapsUrl, lat/lng, city) from being overwritten. Backward-compatible: no `memberId` = unchanged create path (booth QR onboarding untouched).
+- **Voice plumbing:** `app/api/onboard/voice/route.ts` mints the interviewer Realtime session with `interviewVoicePrompt()` (`lib/onboard.ts`); **not** Pro-gated (person is mid-join), bounded by Clerk sign-in + `VoiceCall`'s 5-min cap. `components/VoiceCall.tsx` is now parameterized (`tokenUrl`/`tokenBody`/`onTranscript`) and harvests the transcript from the `oai-events` data channel; existing business calls unaffected.
+- **Replaces the deprecated Telnyx call-in onboarding** (connector `voice-tool.js` / Telnyx Voice AI Assistant). That path is dead/unused — this in-app interview is the onboarding now, and is actually richer (profiles the whole conversation vs. relying on the agent to fill a tool) and lower-latency (direct WebRTC, speech-to-speech, no PSTN hop).
+
 ### Launched — SF launch: tiers, payments, verification, security, enrichment — 2026-07-08
 Went LIVE on prod (`whatslocal.ai` / CapRover). Full write-up: `session-context/2026-07-08-sf-launch.md`.
 - **Demo mode OFF** in prod (`NEXT_PUBLIC_DEMO_MODE=0`) — `/vendor/*` now requires real Clerk auth. Added johnxen to `ADMIN_CLERK_USER_IDS`.

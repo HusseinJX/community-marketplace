@@ -2,6 +2,8 @@
 
 ## 2026-07-08 SF launch — carry-forward (see `session-context/2026-07-08-sf-launch.md`)
 The app is **LIVE** on prod (`whatslocal.ai` / CapRover). Remaining:
+- ✅ **`/join` in-app onboarding interview (voice + text)** — shipped 2026-07-08 (marketplace `e5bb715`, connector `8a08aea`, both deployed + pushed). Replaces deprecated Telnyx call-in onboarding. Both modes enrich the verified member via `marketplace-onboard` enrich-in-place (full brain + Pinecone). *Follow-up (optional): the live conversation prompts (`onboardingSystemPrompt` text, `interviewVoicePrompt` voice) are marketplace-side and can be reworded/tuned without touching the connector profiling brain.*
+- ✅ **Email (Resend)** — `RESEND_API_KEY` + `RESEND_FROM` now SET on prod (organizer blasts + invite emails send). `APNS_ENV` typo fixed (`sandboxA`→`sandbox`).
 - [ ] **Real Pro card checkout** end-to-end test (only unverified payment link).
 - [ ] **Places key:** lower per-minute quota (6000 → ~100) + add a **$50 GCP budget alert**.
 - [ ] **RLS full sweep:** `device_tokens`/`products`/`orders`/`vendor_*` still open to anon and their clients use the anon key directly (`lib/push.ts`, `lib/vendor-connect.ts`, `app/api/uber/*`) — convert to service-role, then revoke.
