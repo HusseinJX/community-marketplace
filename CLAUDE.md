@@ -101,7 +101,7 @@ A Next.js 16 (App Router) community marketplace that lets users browse local mem
 - `middleware.ts` — single `clerkMiddleware`; protects `/vendor/*` except `/vendor/sign-in` — **skipped entirely when `NEXT_PUBLIC_DEMO_MODE=1`** (see Demo Mode)
 
 ## Demo Mode
-In demo, gated vendor pages resolve a representative demo member via `lib/demo-server.ts` `demoMemberId()` (by the demo-type cookie) so the admin UIs render with sample data instead of the "link your profile" gate. Demo **writes still no-op** (`resolveActor` has no demo path). **`NEXT_PUBLIC_DEMO_MODE=1`** opens the vendor portal *without Clerk auth* so each member type's admin UI is testable/refinable quickly. `lib/demo-admin.ts` (`isDemoMode()`, `DEMO_TYPES`, `writeDemoCookies`) + `components/DemoTypeSwitcher.tsx`. `middleware.ts` skips protection and `app/vendor/layout.tsx` skips the auth redirect when on, rendering a demo banner + in-portal type switcher + "Exit demo". `/demo` is an admin type picker (Vendor/Artist/Community + category). **Turn off (set `0`/remove) before any real public launch** to restore full auth protection. Currently **on** on the Netlify deploy (it's a demo/testing env).
+In demo, gated vendor pages resolve a representative demo member via `lib/demo-server.ts` `demoMemberId()` (by the demo-type cookie) so the admin UIs render with sample data instead of the "link your profile" gate. Demo **writes still no-op** (`resolveActor` has no demo path). **`NEXT_PUBLIC_DEMO_MODE=1`** opens the vendor portal *without Clerk auth* so each member type's admin UI is testable/refinable quickly. `lib/demo-admin.ts` (`isDemoMode()`, `DEMO_TYPES`, `writeDemoCookies`) + `components/DemoTypeSwitcher.tsx`. `middleware.ts` skips protection and `app/vendor/layout.tsx` skips the auth redirect when on, rendering a demo banner + in-portal type switcher + "Exit demo". `/demo` is an admin type picker (Vendor/Artist/Community + category). **Turn off (set `0`/remove) before any real public launch** to restore full auth protection. **As of 2026-07-08 it is OFF (`0`) on the live CapRover prod deploy** — the app launched. Keep it off in prod; only turn on in a throwaway preview env.
 
 ## Auth Architecture
 **All auth is Clerk.** WorkOS has been fully removed.
@@ -232,7 +232,24 @@ npm test   # vitest run
 - `SUPABASE_SERVICE_ROLE_KEY` — preferred for Supabase Storage writes; falls back to anon key
 - `SUPABASE_MEDIA_BUCKET` — storage bucket name (default `marketplace-media`)
 - `ADMIN_CLERK_USER_IDS` — comma-separated Clerk user IDs allowed to manage any business's catalog/events on their behalf
-- `NEXT_PUBLIC_DEMO_MODE` — `1` opens the vendor portal without auth for demo/testing (see Demo Mode). **Set to `0`/remove before real public launch.** Currently on in the Netlify deploy.
+- `NEXT_PUBLIC_DEMO_MODE` — `1` opens the vendor portal without auth for demo/testing (see Demo Mode). **`0` on live CapRover prod as of 2026-07-08 (launched) — keep it off.**
+
+**Platform subscriptions (Stripe, LIVE):**
+- `STRIPE_PRICE_MEMBER` / `STRIPE_PRICE_PRO` — live recurring Price ids ($10/mo, $30/mo).
+- `STRIPE_SUBSCRIPTION_WEBHOOK_SECRET` — signing secret for `/api/billing/webhook` (SEPARATE from the Connect `STRIPE_WEBHOOK_SECRET`). Events: `checkout.session.completed` + `customer.subscription.*`.
+- `SUPABASE_SERVICE_ROLE_KEY` — **now set on prod** (2026-07-08); the app writes via service-role (bypasses RLS). Required after the RLS-hardening migration (`20260708120000`) revoked anon grants on `subscriptions`/`collab_*`/`posts`.
+
+**Google Places (onboarding enrichment + create UI):**
+- `GOOGLE_PLACES_API_KEY` — server-side (marketplace `/api/places/*` proxy + connector `enrich.js`). Restrict to Places/Places-New/Geocoding APIs + a quota cap. Keeps off the browser (no `NEXT_PUBLIC`).
+
+**Perplexity (enrichment "story" — connector):**
+- `PERPLEXITY_API_KEY` — `sonar` web-search for the business story/vibe in `enrich.js`.
+
+**Twilio Verify (business-ownership OTP — connector):**
+- `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_VERIFY_SERVICE_SID` — Twilio Verify (SMS + voice fallback; bypasses 10DLC). Telnyx stays for other SMS.
+
+**Trigger.dev cron flags (connector):**
+- `HARVEST_OAKLAND_ENABLED` / `HARVEST_EVENTS_ENABLED` / `FOLLOWUP_INTROS_ENABLED` — set `=1` to re-enable a disabled cron (all off as of 2026-07-08 except `prune-collab-pool`).
 
 **Email (Resend) — organizer event update blasts:**
 - `RESEND_API_KEY` — Resend API key. Email blasts no-op until set (SMS still works).
@@ -251,6 +268,7 @@ npm test   # vitest run
 - `NEXT_PUBLIC_POSTHOG_KEY` / `NEXT_PUBLIC_POSTHOG_HOST` — same PostHog project as connector-agent so visitor + onboarding events stitch into one funnel
 
 ## Recent Decisions
+- **SF LAUNCH — went live (2026-07-08):** Full write-up in `session-context/2026-07-08-sf-launch.md`. The app is **live on prod** (`whatslocal.ai` / **CapRover**, not Netlify). **Demo mode OFF** (`NEXT_PUBLIC_DEMO_MODE=0`). **Tiers finalized:** Free = posts+discovery; Member $10 = +agent +*receive* invites +claimed profile; Pro $30 = +*send* invites +organize +booking voice agent +commerce (`lib/entitlements.ts` `FREE_CAN`). Launch discounts via **Stripe coupons**, not an app flag. **Real Stripe subscriptions LIVE** (live keys + `STRIPE_PRICE_MEMBER`/`STRIPE_PRICE_PRO` + `STRIPE_SUBSCRIPTION_WEBHOOK_SECRET`; created `subscriptions` table + `posts.location` on prod — migration history was out of sync). **Removed all unconditional fake-demo fallbacks** (440 real businesses show). **Security:** set `SUPABASE_SERVICE_ROLE_KEY` on prod + **revoked anon grants** on `subscriptions`/`collab_*`/`posts` (migration `20260708120000`); **rate limiting** (`lib/rate-limit.ts`, in-memory — CapRover is a persistent container). **Twilio Verify** for business-ownership OTP (connector `lib/twilio.js`; SMS+voice, no 10DLC). **Enrichment:** added **Perplexity `sonar` "story"** layer to connector `enrich.js` + activated **Google Places** (`GOOGLE_PLACES_API_KEY`), plus a **"search Google → pick → auto-fill" create UI** (`lib/places.ts` + `/api/places/*` + `AdminPanel`) — prolocaliq-style. **Crons:** disabled `harvest-oakland`/`harvest-events`/`followup-intros` (env-flag), kept `prune-collab-pool`. **Correction:** the "Firestore quota" scare was a false alarm (test used Firestore's reserved `__…__` doc-id pattern). **Direction:** consolidate the connector into the marketplace/Supabase (+`pgvector`) as a deliberate future north star.
 - **UI polish + RSC fixes (2026-06-30):** Live page is now the **events surface** — `components/live/CommunityEventsLive.tsx` (below the venue feed) shows real `/api/events/feed` events split into *happening now* / *upcoming* with place filter tags + a Feed/Map toggle (`EventsMap`, centroid-placed pins); the TopNav dropdown dropped its **Events** item (Home/Feed only). Vendor dashboard got a persisted **Commerce** on/off toggle (`components/vendor/CommerceCards.tsx`) replacing the demo-locked gating. **Super-admin is reachable only via `/vendor/admin`** (removed from the Tools grid); **Featured lists** moved to a tab inside `AdminPanel` (`?tab=featured`); Act-on-behalf now normalizes the connector `profile.*` shape and persists tab + picked member in the URL (so back returns to the managed member, not the Create tab). Share composer has a vendor-mode **Go Live** block. Explore filters are one horizontal scroll row. **Clerk RSC fix:** `SignInButton`/`SignOutButton` with a custom child crash ("multiple children") when rendered from a Server Component — `app/shopper/page.tsx` is now a client component and vendor sign-out moved to `components/vendor/VendorSignOut.tsx`. **Caution: never run two `next dev` servers from this repo at once** — they share `.next` and corrupt the Turbopack cache (intermittent 500s); fix is kill all + `rm -rf .next` + one server.
 - **WorkOS fully removed** — all auth consolidated to Clerk. Simpler ops, one dashboard, one set of keys. Vendor portal uses the same Clerk instance as shoppers, differentiated by portal path (`/vendor/*`) not by auth provider.
 - Commerce layer shipped in 3 phases: orders (Phase 1) → Composio catalog sync (Phase 2) → Uber Direct delivery (Phase 3)

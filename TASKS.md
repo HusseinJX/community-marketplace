@@ -1,5 +1,17 @@
 # Tasks
 
+## 2026-07-08 SF launch — carry-forward (see `session-context/2026-07-08-sf-launch.md`)
+The app is **LIVE** on prod (`whatslocal.ai` / CapRover). Remaining:
+- [ ] **Real Pro card checkout** end-to-end test (only unverified payment link).
+- [ ] **Places key:** lower per-minute quota (6000 → ~100) + add a **$50 GCP budget alert**.
+- [ ] **RLS full sweep:** `device_tokens`/`products`/`orders`/`vendor_*` still open to anon and their clients use the anon key directly (`lib/push.ts`, `lib/vendor-connect.ts`, `app/api/uber/*`) — convert to service-role, then revoke.
+- [ ] **Path A ownership** (Twilio-independent): Clerk phone possession + `trustedPhone` match → grant. Designed, not built. A new `phone_possession` claim method.
+- [ ] **Connector → Supabase consolidation** (north star, phased — matching→pgvector, embeddings, assistant, enrichment).
+- [ ] Email (Resend) keys still unset; App Store/TestFlight + NFC unchanged.
+- ✅ **CORRECTION:** the "connector Firestore quota" blocker (below/older notes) was a **false alarm** — OTP 500s were from test member ids hitting Firestore's reserved `__…__` doc-id pattern, not quota. Real reads/writes work; **no Blaze needed.**
+
+---
+
 Follow-ups from the 2026-06-28 community / organizer / onboarding / NFC session.
 Code is built and type-checks/lints clean; these are the deploy + config steps to
 make it live, plus offered-but-unbuilt enhancements.

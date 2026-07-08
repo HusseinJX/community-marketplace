@@ -4,6 +4,21 @@ All notable changes to this project are documented here.
 
 ## [Unreleased] — commerce, live, social shell (branch `feat/collab-rooms`)
 
+### Launched — SF launch: tiers, payments, verification, security, enrichment — 2026-07-08
+Went LIVE on prod (`whatslocal.ai` / CapRover). Full write-up: `session-context/2026-07-08-sf-launch.md`.
+- **Demo mode OFF** in prod (`NEXT_PUBLIC_DEMO_MODE=0`) — `/vendor/*` now requires real Clerk auth. Added johnxen to `ADMIN_CLERK_USER_IDS`.
+- **Tier model finalized** (`lib/entitlements.ts`, `BillingPlans.tsx`): **Free** = posts + discovery (community/resources); **Member $10** = + text agent + *receive* invites + claimed profile; **Pro $30** = + *send* invites + organize + booking voice agent + commerce. Launch discounts via **Stripe coupons**, not an app flag (removed the `NEXT_PUBLIC_LAUNCH_PROMO` approach).
+- **Real Stripe subscription payments LIVE** — live keys + `STRIPE_PRICE_MEMBER` ($10/mo) / `STRIPE_PRICE_PRO` ($30/mo) + `STRIPE_SUBSCRIPTION_WEBHOOK_SECRET`. Created the missing `subscriptions` table + `posts.location` column on prod (migration history was out of sync). Checkout→webhook→`subscriptions`→entitlements verified. *(One unverified link: a real card checkout.)*
+- **Removed all unconditional fake-demo fallbacks** (14 files; deleted `lib/demo-events.ts`) so the **440 real** businesses show. Petitions left as-is (no DB backing).
+- **Seed** (`scripts/seed-launch.mjs`): realistic `broadcasts`/`posts`/`featured_lists` from real connector members (idempotent). Ran on prod (8/10/2).
+- **Security:** RLS hardening — set `SUPABASE_SERVICE_ROLE_KEY` on prod (app writes via service-role, bypasses RLS), then **revoked anon grants** on `subscriptions`/`collab_*`/`posts` (migration `20260708120000_harden_table_grants`). In-memory **rate limiting** (`lib/rate-limit.ts`) on OTP/posts/upload/invites (works because CapRover = persistent container).
+- **Twilio Verify OTP** — connector business-ownership OTP swapped Telnyx→Twilio Verify (`lib/twilio.js` + `otp.js`; SMS + voice fallback, no code at rest, no 10DLC). Verified working. Designed but not built: **Path A** — Twilio-independent ownership via Clerk phone possession + in-person `trustedPhone` match.
+- **Enrichment (prolocaliq-style):** added a **Perplexity `sonar` web-search "story" layer** to the connector `enrich.js` + a `story` field (works with no website; tested on real businesses). Activated the dormant **Google Places** enrichment (fresh `GOOGLE_PLACES_API_KEY`). Built a server-side Places proxy (`lib/places.ts` + `/api/places/search|details`, key off-browser) and a **"search Google → pick → auto-fill" create UI** in `AdminPanel`.
+- **Crons:** disabled `harvest-oakland`/`harvest-events`/`followup-intros` (env-flag guarded), kept `prune-collab-pool`; deployed to Trigger.dev.
+- **Correction:** the "Firestore quota" issue was a **false alarm** — OTP 500s were from test member ids hitting Firestore's reserved `__…__` doc-id pattern; real members work, no Blaze needed.
+- **Direction set:** consolidate the connector into the marketplace/Supabase (+`pgvector`) as a deliberate future north star (UI-first pivot obsoletes its conversational premise); not urgent.
+
+
 ### Changed / Fixed — UI polish + RSC fixes — 2026-06-30
 - **Live page = the events surface**: added `components/live/CommunityEventsLive.tsx` below the venue "what's on right now" feed — real community events (`/api/events/feed`) split into **Events happening now** (today) + **Upcoming**, each with place filter tags, plus a **Feed / Map** view toggle (`EventsMap`/`EventsMapInner`, Leaflet pins placed by city/neighborhood centroid since `vendor_events` carry no lat/lng). Demo fallback floats event dates relative to now. `FeedEvent` gained an `eventDate` field for tz-safe now/upcoming bucketing.
 - **TopNav dropdown** trimmed to **Home / Feed** — the **Events** item was removed (events now live on the Live tab).
