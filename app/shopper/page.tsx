@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Show, SignInButton, UserButton, useUser } from "@clerk/nextjs";
 import { Heart, ShoppingBag, Receipt, Users, ArrowRight, PenLine } from "lucide-react";
 import { PushTestButton } from "@/components/PushTestButton";
+import { DeleteAccountButton } from "@/components/account/DeleteAccountButton";
 
 // Demo shopper admin — the shopper's personal space (parallel to the vendor
 // portal). Public/no-auth for demo so it's quickly testable and refinable.
@@ -109,6 +110,16 @@ export default function ShopperAdmin() {
           <p className="text-sm font-semibold text-stone-900">Notifications</p>
           <p className="mb-3 text-xs text-stone-500">Send yourself a test push to check it&apos;s working.</p>
           <PushTestButton />
+        </div>
+      </Show>
+
+      {/* Account — sign-out lives in the UserButton menu; deletion is here so
+          there's an in-app path (App Store requirement for account-based apps). */}
+      <Show when="signed-in">
+        <div className="rounded-2xl border border-stone-200 bg-white p-4">
+          <p className="text-sm font-semibold text-stone-900">Account</p>
+          <p className="mb-3 text-xs text-stone-500">Manage your WhatsLocal account.</p>
+          <DeleteAccountButton />
         </div>
       </Show>
     </div>
