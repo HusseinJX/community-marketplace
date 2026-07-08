@@ -55,6 +55,32 @@ export async function sendEmailBatch(
   return results.filter(Boolean).length
 }
 
+// A collaboration invite as an email — just another channel so the invitee (a
+// claimed member with an on-file account email) doesn't miss it. Best-effort:
+// no-ops when email isn't configured or there's no address.
+export async function sendInviteEmail(opts: {
+  to: string | null
+  fromName: string | null
+  message: string | null
+  ctaUrl: string
+}): Promise<boolean> {
+  if (!emailConfigured() || !opts.to) return false
+  const who = opts.fromName || 'A local business'
+  const subject = `${who} invited you to collaborate on WhatsLocal`
+  const note = opts.message
+    ? `<p style="margin:0 0 16px;padding:12px 14px;background:#f5f5f4;border-radius:10px;color:#44403c">${escapeHtml(opts.message)}</p>`
+    : ''
+  const html = `<div style="font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.55;color:#1c1917;max-width:480px">
+    <p style="margin:0 0 8px;font-size:18px;font-weight:600">${escapeHtml(who)} wants to collaborate</p>
+    <p style="margin:0 0 16px;color:#57534e">You've got a new collaboration invite on WhatsLocal. Open your network to accept or decline.</p>
+    ${note}
+    <p style="margin:0 0 24px"><a href="${opts.ctaUrl}" style="display:inline-block;background:#1c1917;color:#fff;text-decoration:none;padding:11px 20px;border-radius:10px;font-weight:600">View invite</a></p>
+    <p style="margin:0;color:#a8a29e;font-size:13px">WhatsLocal AI · local businesses, collaborating</p>
+  </div>`
+  const text = `${who} invited you to collaborate on WhatsLocal.${opts.message ? `\n\n"${opts.message}"` : ''}\n\nView it: ${opts.ctaUrl}`
+  return sendEmail({ to: opts.to, subject, html, text })
+}
+
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, '&amp;')

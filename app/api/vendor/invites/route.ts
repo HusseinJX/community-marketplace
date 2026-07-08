@@ -3,9 +3,12 @@ import { resolveActor } from '@/lib/admin'
 import { getMember } from '@/lib/api'
 import { createInvite, getInvitesFor } from '@/lib/collab-network'
 import { demoInvites } from '@/lib/demo-collab'
+import { sendInviteEmail } from '@/lib/email'
+import { getMemberContacts } from '@/lib/event-comms'
 import { gateCapability } from '@/lib/gate'
 import { notifyMemberSafe } from '@/lib/push'
 import { rateLimit } from '@/lib/rate-limit'
+import { SITE_URL } from '@/lib/seo'
 
 // GET — the acting member's invites (incoming + outgoing).
 export async function GET(req: Request) {
@@ -68,6 +71,19 @@ export async function POST(req: Request) {
       body: fromName ? `${fromName} wants to collaborate` : 'You have a new collaboration invite',
       url: '/vendor/network',
     })
+    // Email as a third channel — only reaches claimed members with an on-file
+    // account email (getMemberContacts → vendor_profiles). Never emails
+    // unclaimed/non-app listings. Best-effort, non-blocking.
+    void getMemberContacts([toId])
+      .then(([c]) =>
+        sendInviteEmail({
+          to: c?.email ?? null,
+          fromName,
+          message: body.message ? String(body.message).trim() : null,
+          ctaUrl: `${SITE_URL}/vendor/network`,
+        })
+      )
+      .catch(() => {})
     return NextResponse.json({ invite })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to send invite'
