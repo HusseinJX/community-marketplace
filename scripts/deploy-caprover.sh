@@ -20,6 +20,26 @@ CAPTAIN="${CAPROVER_URL:-https://captain.whatslocal.ai}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
+# Guard against the Clerk build-time key trap (fail fast, before the build):
+# NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY is inlined at build time, and .env.local holds
+# pk_test for localhost. If a prod build bakes the DEV key, fresh visitors get a 500
+# (dev-browser handshake). Resolve the key Next WILL bake (production precedence:
+# .env.production.local > .env.local > .env.production > .env) and require pk_live.
+echo "==> Verifying prod Clerk key (must be pk_live)…"
+CLERK_PK=""
+for f in .env.production.local .env.local .env.production .env; do
+  [ -f "$f" ] || continue
+  v="$(grep -E '^NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=' "$f" | head -1 | cut -d= -f2- | tr -d '"' )"
+  if [ -n "$v" ]; then CLERK_PK="$v"; break; fi
+done
+case "$CLERK_PK" in
+  pk_live_*) echo "    OK — prod build will bake a live Clerk key." ;;
+  pk_test_*) echo "!! ABORT: prod build would bake a DEV Clerk key (pk_test) — fresh visitors would 500."
+             echo "   Fix: add .env.production.local with NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_live_…"; exit 1 ;;
+  "")        echo "!! ABORT: no NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY found in any env file."; exit 1 ;;
+  *)         echo "!! ABORT: unexpected Clerk key format: ${CLERK_PK:0:12}…"; exit 1 ;;
+esac
+
 echo "==> Building locally (npm run build)…"
 npm run build
 
