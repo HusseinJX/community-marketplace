@@ -8,8 +8,6 @@ import { eventEmoji, eventLabel, timeLeftLabel, isLive } from "@/lib/live-events
 import { streamEmbed } from "@/lib/embed";
 import { SaveButton } from "./SaveButton";
 import { LiveMap } from "./LiveMap";
-import { getDemoBroadcasts } from "@/lib/demo-live";
-import { findDemoLiveBroadcast } from "@/lib/demo-live-fixtures";
 import { MemoriesGrid } from "@/components/posts/MemoriesGrid";
 import type { LiveBroadcast } from "./types";
 
@@ -29,14 +27,10 @@ export function BroadcastDetail({ id }: { id: string }) {
       setB(bc);
       setLoading(false);
     };
-    // Demo resolution: fixture-based live venues first (match the home feed),
-    // then the static demo, so a clicked demo place always opens.
-    const demo = async () =>
-      (await findDemoLiveBroadcast(id)) ?? getDemoBroadcasts().find((x) => x.id === id) ?? null;
     fetch(`/api/broadcasts/view/${id}`)
       .then((r) => (r.ok ? r.json() : { broadcast: null }))
-      .then(async (d) => finish(d.broadcast ?? (await demo())))
-      .catch(async () => finish(await demo()));
+      .then((d) => finish(d.broadcast ?? null))
+      .catch(() => finish(null));
     return () => {
       cancelled = true;
     };

@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { DEMO_FEED, type FeedItem, type EventFeedItem, type SharePostFeedItem } from "@/lib/demo-feed";
+import { type FeedItem, type EventFeedItem, type SharePostFeedItem } from "@/lib/demo-feed";
 import { EventFeedCard } from "@/components/feed/EventFeedCard";
 import { VendorPostCard } from "@/components/feed/VendorPostCard";
 import { CommunityPostCard } from "@/components/feed/CommunityPostCard";
@@ -126,9 +126,7 @@ export function CommunityFeed({
 
   const effectiveFilter: Filter = eventsOnly ? "event" : filter;
   const filtered: FeedItem[] = useMemo(() => {
-    const realIds = new Set(realEvents.map((e) => e.eventId));
-    const demo = DEMO_FEED.filter((i) => i.kind !== "event" || !realIds.has(i.eventId));
-    const sorted = [...realPosts, ...realEvents, ...demo].sort((a, b) => a.postedAtOrder - b.postedAtOrder);
+    const sorted: FeedItem[] = [...realPosts, ...realEvents].sort((a, b) => a.postedAtOrder - b.postedAtOrder);
     if (effectiveFilter === "all") return sorted;
     // "Posts" spans both demo vendor posts and real community share posts.
     if (effectiveFilter === "post") return sorted.filter((i) => i.kind === "post" || i.kind === "share");

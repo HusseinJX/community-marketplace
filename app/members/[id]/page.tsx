@@ -10,7 +10,6 @@ import {
 } from "@/lib/seo";
 import { MemberJsonLd } from "@/components/JsonLd";
 import { getProductsByMember, getVendorEventsByMember, type SupabaseProduct, type VendorEvent } from "@/lib/vendor-connect";
-import { getDemoMember } from "@/lib/demo-members";
 import { MemberTypeBadge } from "@/components/MemberTypeBadge";
 import { EventCard } from "@/components/EventCard";
 import { MiniMap } from "@/components/MiniMap";
@@ -31,38 +30,6 @@ import { BusinessFacets } from "@/components/business/BusinessFacets";
 import { resolveActor } from "@/lib/admin";
 import { readOwnership } from "@/lib/business-facets";
 
-const DEMO_EVENTS = [
-  {
-    id: "demo-e1",
-    title: "Free Solar Consultation Day",
-    date: "Sat, Jun 7",
-    time: "10:00 AM – 2:00 PM",
-    location: "Downtown LA Maker Space",
-    description: "Meet our engineers for a one-on-one rooftop assessment. Learn about incentives, tax credits, and custom install quotes — no pressure.",
-    gradient: "from-amber-300 to-orange-500",
-    platform: "In-person",
-  },
-  {
-    id: "demo-e2",
-    title: "Clean Energy Workshop",
-    date: "Thu, Jun 19",
-    time: "6:00 PM – 8:00 PM",
-    location: "Echo Park Community Center",
-    description: "Hands-on intro to home solar + battery systems. Walk through real installs, costs, and the new CA incentive programs.",
-    gradient: "from-emerald-300 to-teal-500",
-    platform: "Free",
-  },
-  {
-    id: "demo-e3",
-    title: "Sustainable Living Expo 2026",
-    date: "Sat, Jul 12",
-    time: "9:00 AM – 5:00 PM",
-    location: "Grand Park, Los Angeles",
-    description: "Stop by booth 14 for live demos, giveaways, and exclusive expo pricing on our full product line.",
-    gradient: "from-sky-300 to-indigo-500",
-    platform: "Expo",
-  },
-];
 
 const TYPE_GRADIENTS: Record<string, string> = {
   vendor: "from-blue-300 to-indigo-400",
@@ -113,12 +80,10 @@ function SocialLink({ href, label, icon }: { href: string; label: string; icon: 
   );
 }
 
-// Resolve a member from demo data or the connector API. `getMember` uses fetch,
+// Resolve a member from the connector API. `getMember` uses fetch,
 // which Next memoizes — so calling this in both generateMetadata and the page
 // for the same id hits the network at most once per request.
 async function resolveMember(id: string): Promise<Member | null> {
-  const demo = getDemoMember(id);
-  if (demo) return demo;
   try {
     return (await getMember(id)).member;
   } catch {
@@ -184,24 +149,19 @@ export default async function MemberProfilePage({
   let supabaseProducts: SupabaseProduct[] = [];
   let fetchError: string | null = null;
 
-  const demo = getDemoMember(id);
-  if (demo) {
-    member = demo;
-  } else {
-    try {
-      const [memberRes, eventsRes, prods, vEvents] = await Promise.all([
-        getMember(id),
-        listEvents({ memberId: id, limit: 20 }),
-        getProductsByMember(id),
-        getVendorEventsByMember(id),
-      ]);
-      member = memberRes.member;
-      events = eventsRes.events;
-      supabaseProducts = prods;
-      vendorEvents = vEvents;
-    } catch (err) {
-      fetchError = err instanceof Error ? err.message : "Failed to load profile.";
-    }
+  try {
+    const [memberRes, eventsRes, prods, vEvents] = await Promise.all([
+      getMember(id),
+      listEvents({ memberId: id, limit: 20 }),
+      getProductsByMember(id),
+      getVendorEventsByMember(id),
+    ]);
+    member = memberRes.member;
+    events = eventsRes.events;
+    supabaseProducts = prods;
+    vendorEvents = vEvents;
+  } catch (err) {
+    fetchError = err instanceof Error ? err.message : "Failed to load profile.";
   }
 
   if (fetchError || !member) {
@@ -468,24 +428,7 @@ export default async function MemberProfilePage({
                   ))}
                 </div>
               ) : vendorEvents.length > 0 ? null : (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {DEMO_EVENTS.map((ev) => (
-                    <Link
-                      key={ev.id}
-                      href={`/events/${ev.id}`}
-                      className="card-soft group flex items-stretch gap-3 p-3 transition hover:shadow-md"
-                    >
-                      <div className={`shrink-0 self-stretch w-20 rounded-lg bg-gradient-to-br ${ev.gradient}`} />
-                      <div className="min-w-0 flex-1 py-0.5">
-                        <div className="truncate font-medium text-stone-900 group-hover:text-indigo-700">
-                          {ev.title}
-                        </div>
-                        <div className="mt-1 text-sm text-stone-500">{ev.date}</div>
-                        <div className="truncate text-sm text-stone-500">{ev.location}</div>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
+                <></>
               )}
             </Section>
           )}
@@ -518,22 +461,13 @@ export default async function MemberProfilePage({
             <div className="card-soft p-5">
               <div className="section-label">Events</div>
               <ul className="mt-3 space-y-3">
-                {(events.length > 0
-                  ? events.map((e) => ({
-                      id: e.id,
-                      title: e.title || "Untitled event",
-                      date: e.date || "",
-                      location: e.location || "",
-                      gradient: TYPE_GRADIENTS[memberType] ?? "from-emerald-300 to-teal-500",
-                    }))
-                  : DEMO_EVENTS.map((e) => ({
-                      id: e.id,
-                      title: e.title,
-                      date: e.date,
-                      location: e.location,
-                      gradient: e.gradient,
-                    }))
-                ).map((ev) => (
+                {events.map((e) => ({
+                  id: e.id,
+                  title: e.title || "Untitled event",
+                  date: e.date || "",
+                  location: e.location || "",
+                  gradient: TYPE_GRADIENTS[memberType] ?? "from-emerald-300 to-teal-500",
+                })).map((ev) => (
                   <li key={ev.id}>
                     <Link
                       href={`/events/${ev.id}`}

@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import { TopNav } from "@/components/TopNav";
 import { BottomNav } from "@/components/BottomNav";
-import { SmsBanner } from "@/components/SmsBanner";
 import { AppBanner } from "@/components/AppBanner";
 import { SiteFooter } from "@/components/SiteFooter";
 import { StoreProvider } from "@/lib/store";
@@ -72,7 +71,7 @@ export default function RootLayout({
 
             {/* Promo banners sit just under the nav so the header owns the notch
                 safe-area; they scroll away with the page. */}
-            <SmsBanner />
+            {/* SmsBanner (call-to-join) hidden — onboarding is app-first now. */}
             <AppBanner />
 
             <main className="flex-1">{children}</main>

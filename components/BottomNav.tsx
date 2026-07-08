@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Compass, User } from "lucide-react";
+import { Compass, Sparkles, User } from "lucide-react";
 
-// Deliberately just two shopper tabs: one "Local" page (live now + events +
-// directory) and Profile (account, tickets, orders, cart). Everything a shopper
-// does is on the Local page; buying/booking are flows off cards.
+// Shopper tabs: a "Local" page (live now + events + directory), an "AI" tab that
+// opens the ChatGPT-style assistant (the one brain), and Profile (account,
+// tickets, orders, cart). Buying/booking are flows off cards on Local.
 const ITEMS = [
   { href: "/", label: "Local", icon: Compass },
+  { href: "/messages/assistant", label: "AI", icon: Sparkles },
   { href: "/shopper", label: "Profile", icon: User },
 ];
 
@@ -27,8 +28,13 @@ export function BottomNav() {
       <div className="mx-auto flex max-w-2xl items-center justify-around px-2">
         {ITEMS.map((it) => {
           const Icon = it.icon;
-          // Profile owns /shopper/*; "Local" owns everything else.
-          const active = it.href === "/shopper" ? pathname.startsWith("/shopper") : !pathname.startsWith("/shopper");
+          // Profile owns /shopper/*; AI owns /messages/*; "Local" owns the rest.
+          const active =
+            it.href === "/shopper"
+              ? pathname.startsWith("/shopper")
+              : it.href === "/messages/assistant"
+                ? pathname.startsWith("/messages")
+                : !pathname.startsWith("/shopper") && !pathname.startsWith("/messages");
           return (
             <Link
               key={it.href}

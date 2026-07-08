@@ -6,7 +6,6 @@ import Image from "next/image";
 import { Search } from "lucide-react";
 import { listMembers } from "@/lib/api";
 import type { Member } from "@/lib/types";
-import { DEMO_MEMBERS } from "@/lib/demo-members";
 import { MEMBER_HERO_IMAGES } from "@/lib/member-images";
 import { usableImages, isPlaceholder } from "@/lib/image-utils";
 import { BUSINESS_SIZES, OWNERSHIP_TAGS, matchesFacets } from "@/lib/business-facets";
@@ -26,7 +25,7 @@ function firstImage(m: Member): string | null {
 // Instagram-style Explore: a full-bleed grid of square image tiles.
 export default function ExplorePage() {
   // Seed with demo members so the grid paints instantly; real data replaces it.
-  const [members, setMembers] = useState<Member[]>(() => DEMO_MEMBERS);
+  const [members, setMembers] = useState<Member[]>([]);
   const [q, setQ] = useState("");
   const [size, setSize] = useState("");
   const [own, setOwn] = useState<string[]>([]);

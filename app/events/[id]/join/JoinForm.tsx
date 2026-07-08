@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Search, Check, Store } from "lucide-react";
 import { useAuth, SignInButton } from "@clerk/nextjs";
 import { listMembers } from "@/lib/api";
-import { DEMO_MEMBERS } from "@/lib/demo-members";
 import type { Member } from "@/lib/types";
 
 type Mode = "find" | "new";
@@ -81,8 +80,8 @@ function FindBusiness({
 
   useEffect(() => {
     listMembers({ limit: 100 })
-      .then((r) => setMembers(r.members?.length ? r.members : DEMO_MEMBERS))
-      .catch(() => setMembers(DEMO_MEMBERS));
+      .then((r) => setMembers(r.members ?? []))
+      .catch(() => setMembers([]));
   }, []);
 
   const matches = useMemo(() => {

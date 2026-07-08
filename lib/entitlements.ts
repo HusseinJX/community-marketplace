@@ -67,12 +67,19 @@ const NONE: Record<Capability, boolean> = {
   automations: false,
 }
 
-const MEMBER_CAN: Record<Capability, boolean> = {
+// Free: post to the community, be discoverable, use community support/resources.
+// No AI agent, no invites — those start at Member.
+const FREE_CAN: Record<Capability, boolean> = {
   ...NONE,
-  claimedProfile: true,
-  textAssistant: true,
   posts: true,
   discovery: true,
+}
+
+// Member ($10): everything free + the text AI agent + RECEIVING collab/event invites.
+const MEMBER_CAN: Record<Capability, boolean> = {
+  ...FREE_CAN,
+  claimedProfile: true,
+  textAssistant: true,
   networkReceive: true,
 }
 
@@ -92,7 +99,7 @@ const PRO_CAN: Record<Capability, boolean> = {
 }
 
 export const PLANS: Record<Plan, { can: Record<Capability, boolean>; limits: Limits }> = {
-  free: { can: NONE, limits: { voiceCallsPerMonth: 0, voiceCallsPerDay: 0, aiImagesPerMonth: 0, productLimit: 0 } },
+  free: { can: FREE_CAN, limits: { voiceCallsPerMonth: 0, voiceCallsPerDay: 0, aiImagesPerMonth: 0, productLimit: 0 } },
   member: {
     can: MEMBER_CAN,
     limits: { voiceCallsPerMonth: 0, voiceCallsPerDay: 0, aiImagesPerMonth: 0, productLimit: 0 },
@@ -151,6 +158,7 @@ export async function getEntitlements(memberId: string): Promise<Entitlements> {
   } catch {
     /* no row / DB blip → free */
   }
+
   const def = PLANS[plan]
   return { plan, active, can: def.can, limits: def.limits }
 }

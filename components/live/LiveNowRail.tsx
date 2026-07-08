@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { eventEmoji, eventLabel, timeLeftLabel } from "@/lib/live-events";
-import { getDemoBroadcasts } from "@/lib/demo-live";
 import type { LiveBroadcast } from "./types";
 
 // Compact "Live Now near you" strip for the home page. Renders nothing when
@@ -14,10 +13,6 @@ export function LiveNowRail() {
 
   useEffect(() => {
     let cancelled = false;
-    // Render demo content immediately on mount so the rail doesn't pop in
-    // seconds later (the /api/broadcasts fetch is a cold serverless + Supabase
-    // round-trip). Real data replaces it as soon as the fetch resolves.
-    setItems(getDemoBroadcasts());
     fetch("/api/broadcasts")
       .then((r) => (r.ok ? r.json() : { broadcasts: [] }))
       .then((d) => {

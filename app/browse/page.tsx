@@ -18,7 +18,6 @@ import { useLocation } from "@/lib/location";
 import { FilterSidebar } from "@/components/FilterSidebar";
 import { matchesFacets } from "@/lib/business-facets";
 import { groupMembers } from "@/lib/browse-groups";
-import { DEMO_MEMBERS } from "@/lib/demo-members";
 import { MEMBER_HERO_IMAGES } from "@/lib/member-images";
 import { usableImages, isPlaceholder } from "@/lib/image-utils";
 
@@ -212,8 +211,7 @@ export default function BrowsePage() {
 
   const visible = useMemo(() => {
     const real = members.filter((m) => m.profile?.name);
-    const demos = DEMO_MEMBERS.filter((m) => type === "all" || m.profile?.memberType === type);
-    let all = [...real, ...demos];
+    let all = [...real];
 
     // Normal-mode keyword filter — substring match across name, category,
     // descriptions, neighborhood, and a few tag-like arrays.

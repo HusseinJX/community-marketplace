@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Heart, Check, X, Search } from "lucide-react";
 import { listMembers } from "@/lib/api";
-import { DEMO_MEMBERS } from "@/lib/demo-members";
 import { readServes, focusLabel } from "@/lib/org-focus";
 import { KIND_LABEL, type Contribution, type ContributionKind } from "@/lib/contributions";
 import type { Member } from "@/lib/types";
@@ -48,8 +47,8 @@ export function GivingManager({
 
   useEffect(() => {
     listMembers({ type: "organizer", limit: 100 })
-      .then((r) => setOrgs(r.members?.length ? r.members : DEMO_MEMBERS.filter((m) => m.profile?.memberType === "organizer")))
-      .catch(() => setOrgs(DEMO_MEMBERS.filter((m) => m.profile?.memberType === "organizer")));
+      .then((r) => setOrgs(r.members ?? []))
+      .catch(() => setOrgs([]));
   }, []);
 
   const matches = useMemo(() => {

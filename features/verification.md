@@ -170,10 +170,30 @@ Match → enrich/update the existing record instead of creating a new one.
   routing (inbound — needs the OTP fix).
 
 **Designed, not built (the remaining work):**
-1. **Outbound OTP** to replace the spoofable inbound possession. ← most important
+1. ✅ **Outbound OTP** — BUILT (2026-07-06). Connector: `lib/otp.js` (`issueOtp`/
+   `verifyOtp`, Telnyx send, Firestore `otps` doc keyed by memberId, 6-digit code,
+   10-min TTL, 5-attempt cap, single-use), `lib/verify.js` `resolveOwnershipPhone`
+   (trusted→owner→profile→Places, E.164) + `phone_otp` in the method lists, new
+   `otp-request.js` endpoint (admin-authed, 5/hr rate limit), `verify.js` branches
+   `phone_otp`→`verifyOtp` (no Gemini escalation, code never persisted). Marketplace:
+   `app/api/otp/route.ts` (Clerk-authed proxy) + `app/claim/[memberId]/page.tsx`
+   "text me a code → enter code" step (recommended method; typed-number option
+   removed). Confirm reuses the generic `/api/claim` with `method:"phone_otp"`.
+   Inbound voice possession **retired** (2026-07-06): `voice-tool.js` no longer
+   sets `verified:true` from an inbound caller-ID — it links the caller + enriches
+   but leaves ownership `pending_outbound_otp`; the /claim OTP is the only path to
+   verified. Connector deployed + `TELNYX_*` env confirmed live.
 2. **Pull website + phone from the Maps listing** (Places API) instead of trusting
    typed fields.
-3. **Artist "username + optional connect socials"** flow (self-owned account).
+3. 🟡 **Artist self-owned account** — PARTIAL (2026-07-06). BUILT: entity-vs-person
+   branching. Connector `lib/verify.js` `isPersonType()` (artist/shopper/influencer/
+   individual) → `availableVerificationMethods` returns `["self_owned"]` for people
+   and the anchor list for entities; new `self_owned` method verifies trivially
+   (account IS ownership, entities can never reach it). Marketplace claim page
+   branches: people get a one-tap "This is me — claim my page" (no code), entities
+   get the anchor UI. NOT built: `username` identity field; **social OAuth**
+   (IG/Twitter/Meta connect + verified badge) — needs developer-app credentials
+   (client id/secret per platform) the founder must create first.
 4. **Dedup-before-create.**
 5. **Demote `verifyCrossRef`** off `ownershipVerification` → data-quality only.
 6. **Teams / ownership transfer / disputes** (Clerk Organizations when wanted).

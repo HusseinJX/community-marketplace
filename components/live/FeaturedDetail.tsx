@@ -7,7 +7,6 @@ import { eventEmoji } from "@/lib/live-events";
 import { BroadcastCard } from "./BroadcastCard";
 import { LiveMap } from "./LiveMap";
 import { VenueCard, type FeaturedVenue } from "./VenueCard";
-import { getDemoFeaturedLists } from "@/lib/demo-live";
 import type { LiveBroadcast } from "./types";
 
 interface FeaturedList {
@@ -30,8 +29,8 @@ export function FeaturedDetail({ id }: { id: string }) {
   useEffect(() => {
     let cancelled = false;
     function pick(lists: FeaturedList[]): FeaturedList | null {
-      const pool = lists.length ? lists : (getDemoFeaturedLists() as FeaturedList[]);
-      return pool.find((l) => l.id === id) ?? getDemoFeaturedLists().find((l) => l.id === id) ?? null;
+      const pool = lists;
+      return pool.find((l) => l.id === id) ?? null;
     }
     fetch("/api/featured")
       .then((r) => (r.ok ? r.json() : { lists: [] }))

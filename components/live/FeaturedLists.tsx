@@ -6,7 +6,6 @@ import { ArrowRight } from "lucide-react";
 import { eventEmoji } from "@/lib/live-events";
 import { BroadcastCard } from "./BroadcastCard";
 import { VenueCard, type FeaturedVenue } from "./VenueCard";
-import { getDemoFeaturedLists } from "@/lib/demo-live";
 import type { LiveBroadcast } from "./types";
 
 interface FeaturedList {
@@ -31,10 +30,10 @@ export function FeaturedLists() {
       .then((r) => (r.ok ? r.json() : { lists: [] }))
       .then((d) => {
         if (cancelled) return;
-        setLists(d.lists?.length ? d.lists : getDemoFeaturedLists());
+        setLists(d.lists ?? []);
       })
       .catch(() => {
-        if (!cancelled) setLists(getDemoFeaturedLists());
+        if (!cancelled) setLists([]);
       });
     return () => {
       cancelled = true;

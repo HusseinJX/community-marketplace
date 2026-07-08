@@ -4,6 +4,8 @@ import { getVendorProfile } from "@/lib/vendor-connect";
 import { isAdmin } from "@/lib/admin";
 import { isDemoMode } from "@/lib/demo-admin";
 import { demoMemberId } from "@/lib/demo-server";
+import { getEntitlements } from "@/lib/entitlements";
+import { CollabsGate } from "@/components/vendor/CollabsGate";
 import { NetworkManager } from "./NetworkManager";
 
 export default async function VendorNetworkPage({
@@ -35,5 +37,11 @@ export default async function VendorNetworkPage({
     );
   }
 
-  return <NetworkManager memberId={memberId} isAdmin={admin} />;
+  const { plan } = await getEntitlements(memberId);
+
+  return (
+    <CollabsGate plan={plan}>
+      <NetworkManager memberId={memberId} isAdmin={admin} />
+    </CollabsGate>
+  );
 }

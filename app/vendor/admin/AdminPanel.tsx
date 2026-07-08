@@ -1,17 +1,18 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Shield, UserPlus, FileText, Search, Check, Package, Calendar, ExternalLink, Star } from "lucide-react";
+import { Shield, UserPlus, FileText, Search, Check, Package, Calendar, ExternalLink, Star, PenSquare, ImagePlus, X, Loader2, Store } from "lucide-react";
 import { OnboardManager } from "../onboard/OnboardManager";
 import { FeaturedManager } from "../featured/FeaturedManager";
 import { ORG_FOCUS } from "@/lib/org-focus";
 
 const TYPES = ["vendor", "artist", "organizer", "shopper", "influencer"] as const;
 
-type Tab = "create" | "transcript" | "behalf" | "featured";
-const TABS: Tab[] = ["create", "transcript", "behalf", "featured"];
+type Tab = "create" | "transcript" | "behalf" | "post" | "featured";
+const TABS: Tab[] = ["create", "transcript", "behalf", "post", "featured"];
 
 export function AdminPanel({ ownerMemberId }: { ownerMemberId: string }) {
   const router = useRouter();
@@ -45,12 +46,14 @@ export function AdminPanel({ ownerMemberId }: { ownerMemberId: string }) {
         <TabButton active={tab === "create"} onClick={() => setTab("create")} icon={UserPlus} label="Create profile" />
         <TabButton active={tab === "transcript"} onClick={() => setTab("transcript")} icon={FileText} label="Add by transcript" />
         <TabButton active={tab === "behalf"} onClick={() => setTab("behalf")} icon={Search} label="Act on behalf" />
+        <TabButton active={tab === "post"} onClick={() => setTab("post")} icon={PenSquare} label="Add post" />
         <TabButton active={tab === "featured"} onClick={() => setTab("featured")} icon={Star} label="Featured lists" />
       </div>
 
       {tab === "create" && <CreateProfile ownerMemberId={ownerMemberId} />}
       {tab === "transcript" && <OnboardManager memberId={ownerMemberId} isAdmin />}
       {tab === "behalf" && <ActOnBehalf />}
+      {tab === "post" && <AddPost />}
       {tab === "featured" && <FeaturedManager />}
     </div>
   );
@@ -363,6 +366,203 @@ function ActOnBehalf() {
       {searched && !loading && results.length === 0 && (
         <p className="text-sm text-stone-500">No members found. Try a different name, or create the profile in the “Create profile” tab.</p>
       )}
+    </div>
+  );
+}
+
+// ── Add a share post (optionally tagged to a business) ───────────────────────
+interface PostMedia {
+  url: string;
+  kind: "image" | "video";
+}
+
+function AddPost() {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<FoundMember[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [tagged, setTagged] = useState<FoundMember | null>(null);
+  const [body, setBody] = useState("");
+  const [media, setMedia] = useState<PostMedia[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const [done, setDone] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function search() {
+    if (!query.trim()) return;
+    setSearching(true);
+    try {
+      const base = process.env.NEXT_PUBLIC_API_BASE || "https://community-connector-agent.netlify.app";
+      const url = new URL("/.netlify/functions/marketplace-members", base);
+      url.searchParams.set("search", query.trim());
+      const res = await fetch(url.toString());
+      const data = res.ok ? await res.json() : { members: [] };
+      setResults(Array.isArray(data.members) ? data.members.map(normalize) : []);
+    } catch {
+      setResults([]);
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  async function handleFiles(files: FileList | null) {
+    if (!files?.length) return;
+    setUploading(true);
+    setErr("");
+    for (const file of Array.from(files)) {
+      const form = new FormData();
+      form.append("file", file);
+      try {
+        const res = await fetch("/api/share/upload", { method: "POST", body: form });
+        const data = await res.json();
+        if (data.url) setMedia((m) => [...m, { url: data.url, kind: data.kind }]);
+        else setErr(data.error ?? "Upload failed");
+      } catch {
+        setErr("Upload failed");
+      }
+    }
+    setUploading(false);
+    if (fileRef.current) fileRef.current.value = "";
+  }
+
+  async function submit() {
+    setBusy(true);
+    setErr("");
+    try {
+      const res = await fetch("/api/posts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          body,
+          imageUrls: media.filter((m) => m.kind === "image").map((m) => m.url),
+          videoUrls: media.filter((m) => m.kind === "video").map((m) => m.url),
+          taggedMemberId: tagged?.id ?? null,
+          taggedMemberName: tagged?.name ?? null,
+        }),
+      });
+      const data = await res.json();
+      if (data.post) {
+        setBody("");
+        setMedia([]);
+        setDone(true);
+      } else {
+        setErr(data.error ?? "Failed to post");
+      }
+    } catch {
+      setErr("Failed to post");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const canPost = (body.trim() || media.length > 0) && !busy && !uploading;
+
+  if (done) {
+    return (
+      <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-6 text-center">
+        <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500">
+          <Check className="h-5 w-5 text-white" />
+        </div>
+        <p className="font-semibold text-stone-900">Posted</p>
+        <p className="mt-1 text-sm text-stone-600">
+          {tagged ? `Shared to ${tagged.name}'s memories and the feed.` : "Shared to the community feed."}
+        </p>
+        <button onClick={() => setDone(false)} className="mt-4 rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800">
+          Post another
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="card-soft space-y-3 p-5">
+      <p className="section-label">New post</p>
+
+      {/* Tag a business */}
+      {tagged ? (
+        <div className="flex items-center gap-2 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5">
+          <Store className="h-4 w-4 text-indigo-500" />
+          <span className="flex-1 truncate text-sm font-medium text-stone-800">{tagged.name}</span>
+          <button onClick={() => setTagged(null)} aria-label="Remove tag" className="text-stone-400 hover:text-stone-700">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      ) : (
+        <div>
+          <div className="flex gap-2">
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && search()}
+              placeholder="Tag a business (optional)…"
+              className="flex-1 rounded-lg border border-stone-200 px-3 py-2 text-sm"
+            />
+            <button onClick={search} disabled={searching} className="rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-700 disabled:opacity-50">
+              {searching ? "…" : "Search"}
+            </button>
+          </div>
+          {results.length > 0 && (
+            <ul className="mt-2 divide-y divide-stone-100 rounded-xl border border-stone-200 bg-white">
+              {results.map((m) => (
+                <li key={m.id} className="flex items-center justify-between px-3 py-2">
+                  <div>
+                    <p className="text-sm font-medium text-stone-900">{m.name}</p>
+                    {(m.type || m.city) && <p className="text-xs text-stone-500">{[m.type, m.city].filter(Boolean).join(" · ")}</p>}
+                  </div>
+                  <button onClick={() => { setTagged(m); setResults([]); setQuery(""); }} className="rounded-lg bg-stone-100 px-3 py-1.5 text-xs font-medium text-stone-700 hover:bg-stone-200">
+                    Tag
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
+      <textarea
+        value={body}
+        onChange={(e) => setBody(e.target.value)}
+        rows={4}
+        placeholder="What's happening?"
+        className="w-full resize-none rounded-lg border border-stone-200 px-3 py-2 text-sm"
+      />
+
+      {media.length > 0 && (
+        <div className="grid grid-cols-3 gap-2">
+          {media.map((m, i) => (
+            <div key={i} className="relative aspect-square overflow-hidden rounded-lg bg-stone-100">
+              {m.kind === "image" ? (
+                <Image src={m.url} alt="" fill sizes="33vw" className="object-cover" />
+              ) : (
+                <video src={m.url} className="h-full w-full object-cover" muted />
+              )}
+              <button
+                onClick={() => setMedia((arr) => arr.filter((_, j) => j !== i))}
+                className="absolute right-1 top-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white"
+                aria-label="Remove"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="flex items-center gap-2">
+        <input ref={fileRef} type="file" accept="image/*,video/*" multiple hidden onChange={(e) => handleFiles(e.target.files)} />
+        <button onClick={() => fileRef.current?.click()} className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">
+          <ImagePlus className="h-4 w-4" /> Photo / video
+        </button>
+        {uploading && <Loader2 className="h-4 w-4 animate-spin text-stone-400" />}
+      </div>
+
+      <div className="flex items-center gap-3 pt-1">
+        <button onClick={submit} disabled={!canPost} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50">
+          {busy ? "Posting…" : "Post"}
+        </button>
+        {err && <span className="text-sm text-rose-600">{err}</span>}
+      </div>
     </div>
   );
 }

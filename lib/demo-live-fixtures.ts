@@ -1,6 +1,5 @@
 import type { LiveBroadcast } from "@/components/live/types";
 import { isFixtureLive, type Fixture } from "@/lib/live-fixtures";
-import { getDemoBroadcasts } from "@/lib/demo-live";
 
 // Demo "Live Now" content built from the REAL games slate (/api/fixtures, ESPN):
 // the matches are real live games, the PLACES showing them are demo venues. This
@@ -123,6 +122,5 @@ export async function fetchLiveBroadcasts(): Promise<LiveBroadcast[]> {
   } catch {
     /* fall through to demo */
   }
-  const live = await fetchDemoLiveBroadcasts();
-  return live.length ? live : getDemoBroadcasts();
+  return [];
 }

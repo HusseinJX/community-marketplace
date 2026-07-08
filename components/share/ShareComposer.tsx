@@ -6,7 +6,6 @@ import { ImagePlus, Video, QrCode, X, Radio, Store, CalendarDays, Loader2, MapPi
 import type { IScannerControls } from "@zxing/browser";
 import { listMembers, listEvents } from "@/lib/api";
 import type { Member, EventSuggestion } from "@/lib/types";
-import { DEMO_MEMBERS } from "@/lib/demo-members";
 import { eventEmoji, eventLabel } from "@/lib/live-events";
 import { partitionFixtures, getFixtures, startsInLabel, type Fixture } from "@/lib/live-fixtures";
 
@@ -24,7 +23,7 @@ export function ShareComposer() {
   const [livestreamUrl, setLivestreamUrl] = useState("");
   const [location, setLocation] = useState("");
 
-  const [members, setMembers] = useState<Member[]>(() => DEMO_MEMBERS);
+  const [members, setMembers] = useState<Member[]>([]);
   const [events, setEvents] = useState<EventSuggestion[]>([]);
   const [bizQuery, setBizQuery] = useState("");
   const [eventQuery, setEventQuery] = useState("");

@@ -3,14 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { listMembers } from "@/lib/api";
 import type { Member } from "@/lib/types";
-import { DEMO_MEMBERS } from "@/lib/demo-members";
 import { MemberCard } from "@/components/MemberCard";
 import { groupMembers } from "@/lib/browse-groups";
 
 // Lean directory for the single home page: grouped rails of who's local.
 // No search / category tabs / map / facets — just find who's local and tap.
 export function LocalDirectory() {
-  const [members, setMembers] = useState<Member[]>(() => DEMO_MEMBERS);
+  const [members, setMembers] = useState<Member[]>([]);
 
   useEffect(() => {
     let cancelled = false;

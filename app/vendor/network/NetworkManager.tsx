@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Users, UserRound, Send, Check, X, CalendarPlus, Plus } from "lucide-react";
+import { Users, UserRound, Send, Check, X, CalendarPlus, Plus, Lock } from "lucide-react";
 import { MatchFinder } from "@/components/match/MatchFinder";
 import type { MatchCandidate } from "@/lib/types";
 import type { CollabInvite, CollabRoom, CollabMessage, RoomMember, CollaborationSummary } from "@/lib/collab-network";
@@ -13,9 +13,13 @@ type Tab = "discover" | "invites" | "rooms";
 export function NetworkManager({
   memberId,
   isAdmin,
+  demo = false,
+  plan,
 }: {
   memberId: string;
   isAdmin: boolean;
+  demo?: boolean;
+  plan?: "free" | "member" | "pro";
 }) {
   const [tab, setTab] = useState<Tab>("rooms");
   const [incoming, setIncoming] = useState<CollabInvite[]>([]);
@@ -25,9 +29,9 @@ export function NetworkManager({
   const [focusRoomId, setFocusRoomId] = useState<string | null>(null);
   // Invite modal — `occasion` null = create a new collaboration.
   const [modal, setModal] = useState<{ occasion: { id: string; label: string } | null } | null>(null);
-  // Membership tier — Basic can only join collaborations they're invited to.
-  const [membership, setMembership] = useState<"basic" | "pro">("basic");
-  const canOwn = membership !== "basic";
+  // Only Pro can start/own collaborations; Basic joins ones they're invited to.
+  // Driven by the shared plan switch (falls back to Pro for standalone usage).
+  const canOwn = (plan ?? "pro") === "pro";
   const qp = isAdmin ? `?memberId=${memberId}` : "";
 
   const jumpToRoom = (roomId?: string) => {
@@ -58,11 +62,32 @@ export function NetworkManager({
   };
 
   useEffect(() => {
+    // Free (demo) view: a single teaser collaboration called "Demo" that opens
+    // but shows an upsell inside. No real invites — the Invites tab shows its own
+    // "upgrade to get invites" card. Everything real needs Basic.
+    if (demo) {
+      setIncoming([]);
+      setOutgoing([]);
+      setRooms([
+        {
+          id: "demo-room-1", member_a: memberId, member_a_name: "You", member_b: "demo-cafe", member_b_name: "Nokku Coffee",
+          is_group: false, title: "Demo", owner_id: null, occasion_id: null, occasion_label: null, event_id: null,
+          created_at: "2026-06-28T15:00:00.000Z",
+        },
+      ]);
+      setCollabs([
+        {
+          occasion_id: "demo-occ", label: "Demo", roomId: "demo-room-1", eventId: null,
+          owned: false, acceptedCount: 1, members: [],
+        },
+      ]);
+      return;
+    }
     loadInvites();
     loadRooms();
     loadCollabs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [qp]);
+  }, [qp, demo]);
 
   const pendingIn = incoming.filter((i) => i.status === "pending").length;
 
@@ -77,20 +102,6 @@ export function NetworkManager({
             Find nearby vendors, artists, and community orgs to collaborate with — send an invite, and
             when they accept you get a shared room to plan it.
           </p>
-        </div>
-        {/* Membership tier — Basic can only join collaborations they're invited to. */}
-        <div className="inline-flex shrink-0 rounded-lg border border-stone-200 p-0.5 text-xs font-medium">
-          {(["basic", "pro"] as const).map((m) => (
-            <button
-              key={m}
-              onClick={() => setMembership(m)}
-              className={`rounded-md px-2.5 py-1 capitalize ${
-                membership === m ? "bg-stone-900 text-white" : "text-stone-500 hover:text-stone-800"
-              }`}
-            >
-              {m}
-            </button>
-          ))}
         </div>
       </div>
       {!canOwn && (
@@ -122,6 +133,7 @@ export function NetworkManager({
         <Invites
           memberId={memberId}
           isAdmin={isAdmin}
+          demo={demo}
           incoming={incoming}
           onChange={() => {
             loadInvites();
@@ -135,6 +147,7 @@ export function NetworkManager({
         <Rooms
           memberId={memberId}
           isAdmin={isAdmin}
+          demo={demo}
           rooms={rooms}
           collabs={collabs}
           focusRoomId={focusRoomId}
@@ -344,19 +357,51 @@ function InviteModal({
   );
 }
 
+// Free-tier upsell — shown in place of the real chat / invites list.
+function UpsellCard({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="card-soft flex flex-col items-center justify-center gap-3 p-8 text-center">
+      <span className="flex h-11 w-11 items-center justify-center rounded-full bg-amber-100">
+        <Lock className="h-5 w-5 text-amber-600" />
+      </span>
+      <div>
+        <p className="text-sm font-semibold text-stone-900">{title}</p>
+        <p className="mt-1 text-xs text-stone-500">{body}</p>
+      </div>
+      <Link
+        href="/vendor/billing"
+        className="rounded-lg bg-stone-900 px-4 py-2 text-xs font-semibold text-white hover:bg-stone-800"
+      >
+        Upgrade to Basic
+      </Link>
+    </div>
+  );
+}
+
 function Invites({
   memberId,
   isAdmin,
+  demo,
   incoming,
   onChange,
   openRoom,
 }: {
   memberId: string;
   isAdmin: boolean;
+  demo?: boolean;
   incoming: CollabInvite[];
   onChange: () => void;
   openRoom: (roomId?: string) => void;
 }) {
+  if (demo) {
+    return (
+      <UpsellCard
+        title="Basic to get invites"
+        body="On Free you can preview the network. Upgrade to Basic to receive collab invites and respond to them."
+      />
+    );
+  }
+
   async function respond(id: string, status: "accepted" | "declined") {
     const res = await fetch(`/api/vendor/invites/${id}`, {
       method: "PATCH",
@@ -445,6 +490,7 @@ function StatusPill({ status }: { status: string }) {
 function Rooms({
   memberId,
   isAdmin,
+  demo,
   rooms,
   collabs,
   focusRoomId,
@@ -454,6 +500,7 @@ function Rooms({
 }: {
   memberId: string;
   isAdmin: boolean;
+  demo?: boolean;
   rooms: CollabRoom[];
   collabs: CollaborationSummary[];
   focusRoomId: string | null;
@@ -560,7 +607,14 @@ function Rooms({
 
       {active ? (
         <div className="min-w-0">
-          <Chat key={active.id} room={active} memberId={memberId} isAdmin={isAdmin} />
+          {demo ? (
+            <UpsellCard
+              title="Basic to engage"
+              body="This is a preview room. Upgrade to Basic to message collaborators, agree on plans, and turn a collab into an event."
+            />
+          ) : (
+            <Chat key={active.id} room={active} memberId={memberId} isAdmin={isAdmin} />
+          )}
         </div>
       ) : (
         <div className="card-soft flex min-w-0 items-center justify-center p-6 text-sm text-stone-400">

@@ -1,6 +1,5 @@
 import { getMember, listEvents } from './api'
 import { getProductsByMember, getVendorSettings, getBusinessKnowledge, getVendorEventsByMember } from './vendor-connect'
-import { getDemoMember } from './demo-members'
 import type { MemberProfile } from './types'
 
 export interface BusinessContext {
@@ -30,16 +29,11 @@ function field(label: string, val?: unknown): string | null {
 // store to keep in sync. Reuses existing data helpers (getMember/getProductsByMember/...).
 export async function buildBusinessContext(memberId: string): Promise<BusinessContext> {
   let profile: MemberProfile = {}
-  const demo = getDemoMember(memberId)
-  if (demo) {
-    profile = demo.profile ?? {}
-  } else {
-    try {
-      const res = await getMember(memberId)
-      profile = res.member.profile ?? {}
-    } catch {
-      profile = {}
-    }
+  try {
+    const res = await getMember(memberId)
+    profile = res.member.profile ?? {}
+  } catch {
+    profile = {}
   }
 
   const [products, connectorEvents, vendorEvents, settings, knowledge] = await Promise.all([

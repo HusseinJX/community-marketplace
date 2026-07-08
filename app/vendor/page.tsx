@@ -1,11 +1,14 @@
 import { auth, currentUser } from '@clerk/nextjs/server'
-import { ArrowRight, Heart, MessageCircle, QrCode, CreditCard } from "lucide-react";
 import Link from "next/link";
 import { getVendorProfile, getVendorConnectAccount, getOrdersByMember } from "@/lib/vendor-connect";
 import { stripe } from "@/lib/stripe-server";
 import { isDemoMode } from "@/lib/demo-admin";
+import { demoMemberId } from "@/lib/demo-server";
+import { getMember } from "@/lib/api";
 import { getEntitlements, PLAN_META } from "@/lib/entitlements";
-import { CommerceCards } from "@/components/vendor/CommerceCards";
+import { SITE_URL } from "@/lib/seo";
+import { VendorHome } from "@/components/vendor/VendorHome";
+import { TitleQrButton } from "@/components/vendor/TitleQrButton";
 import { CollectivePromoModal } from "@/components/vendor/CollectivePromoModal";
 
 export default async function VendorDashboard() {
@@ -39,14 +42,43 @@ export default async function VendorDashboard() {
   // Super-admin + Featured are intentionally NOT listed — the super-admin dash is
   // reachable only via its direct URL (/vendor/admin).
   const entitlements = profile ? await getEntitlements(profile.member_id) : null;
-  const planLabel = entitlements ? PLAN_META[entitlements.plan].label : PLAN_META.free.label;
+  const plan = entitlements?.plan ?? (demo ? "pro" : "free");
+  const planLabel = PLAN_META[plan].label;
 
-  const tools = [
-    { label: "QR code", href: "/vendor/qr", icon: QrCode, desc: "Generate a QR that links to your profile" },
-    { label: "Your agent", href: "/vendor/assistant", icon: MessageCircle, desc: "Train your customer-service AI (notes + PDFs)" },
-    { label: "Giving", href: "/vendor/giving", icon: Heart, desc: "Log community contributions" },
-    { label: "Plan & billing", href: "/vendor/billing", icon: CreditCard, desc: `Current plan: ${planLabel} — upgrade or manage` },
-  ];
+  const memberId = profile?.member_id ?? (demo ? await demoMemberId() : null);
+  const profileUrl = memberId ? `${SITE_URL}/members/${memberId}` : null;
+
+  // Business name + about details — live on the member record, not vendor_profiles.
+  let businessName = user?.firstName || "your business";
+  let about: {
+    bio?: string; category?: string; city?: string; neighborhood?: string;
+    instagram?: string; website?: string;
+  } | null = null;
+  if (memberId) {
+    try {
+      const m = await getMember(memberId);
+      const p = (m as {
+        member?: {
+          profile?: {
+            businessName?: string; name?: string; businessDescription?: string; bio?: string;
+            category?: string; city?: string; neighborhood?: string;
+            instagramHandle?: string; websiteUrl?: string;
+          };
+        };
+      })?.member?.profile;
+      businessName = p?.businessName || p?.name || businessName;
+      about = {
+        bio: p?.businessDescription || p?.bio || undefined,
+        category: p?.category || undefined,
+        city: p?.city || undefined,
+        neighborhood: p?.neighborhood || undefined,
+        instagram: p?.instagramHandle || undefined,
+        website: p?.websiteUrl || undefined,
+      };
+    } catch {
+      /* connector slow/unavailable → keep the fallback name */
+    }
+  }
 
   return (
     <div className="space-y-8">
@@ -55,9 +87,12 @@ export default async function VendorDashboard() {
 
       {/* Welcome */}
       <div>
-        <h1 className="text-2xl font-semibold text-stone-900">
-          Welcome back{user?.firstName ? `, ${user.firstName}` : ""}
-        </h1>
+        <div className="flex items-center gap-2.5">
+          <h1 className="text-2xl font-semibold text-stone-900">
+            Welcome, {businessName}
+          </h1>
+          {profileUrl && <TitleQrButton url={profileUrl} businessName={businessName} />}
+        </div>
         {user?.email && <p className="mt-1 text-sm text-stone-500">{user.email}</p>}
       </div>
 
@@ -93,37 +128,7 @@ export default async function VendorDashboard() {
         </div>
       )}
 
-      <CommerceCards orderCount={orderCount} />
-
-      {/* Tools (kept off the slim top nav) */}
-      <div>
-        <p className="section-label mb-3">Tools</p>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {tools.map((t) => {
-            const Icon = t.icon;
-            const badge = "badge" in t ? (t.badge as string | undefined) : undefined;
-            return (
-              <Link key={t.href} href={t.href} className="card-soft card-hover flex items-center justify-between p-5">
-                <span className="flex items-center gap-3">
-                  <Icon className="h-5 w-5 text-indigo-500" />
-                  <span>
-                    <span className="flex items-center gap-2 text-sm font-semibold text-stone-900">
-                      {t.label}
-                      {badge && (
-                        <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-medium text-violet-700">
-                          {badge}
-                        </span>
-                      )}
-                    </span>
-                    <span className="block text-xs text-stone-500">{t.desc}</span>
-                  </span>
-                </span>
-                <ArrowRight className="h-4 w-4 text-stone-400" />
-              </Link>
-            );
-          })}
-        </div>
-      </div>
+      <VendorHome orderCount={orderCount} plan={plan} planLabel={planLabel} about={about} memberId={memberId} />
     </div>
   );
 }
