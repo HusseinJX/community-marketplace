@@ -102,13 +102,15 @@ export async function patchMember(id: string, fields: Partial<MemberProfile>): P
 // conversation transcript (same engine as SMS/web onboarding). Server-only.
 export async function onboardFromMessages(
   messages: { role: "user" | "assistant"; content: string }[],
-  opts?: { source?: string }
+  opts?: { source?: string; memberId?: string }
 ): Promise<Member> {
   const token = process.env.CONNECTOR_ADMIN_TOKEN || process.env.ADMIN_TOKEN;
   const res = await fetch(fnUrl("marketplace-onboard"), {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ messages, source: opts?.source ?? "qr_onboard" }),
+    // memberId (optional) → enrich that existing member in place instead of
+    // creating a new one (used by the /join interview, which already made it).
+    body: JSON.stringify({ messages, source: opts?.source ?? "qr_onboard", memberId: opts?.memberId }),
     cache: "no-store",
   });
   if (!res.ok) {

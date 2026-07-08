@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useClerk, useAuth } from "@clerk/nextjs";
 import { Store, Users, Mic, Search, Loader2, Check, ArrowRight } from "lucide-react";
+import { JoinInterview } from "@/components/join/JoinInterview";
 
 // Self-serve "fresh join" — matches the rep-flow mockup:
 //   pick type → who you are + phone (code #1, Clerk) → confirm →
@@ -13,7 +14,7 @@ import { Store, Users, Mic, Search, Loader2, Check, ArrowRight } from "lucide-re
 // /api/claim, /api/vendor/profile.
 
 type Kind = "vendor" | "organizer" | "artist";
-type Step = "type" | "who" | "code1" | "business" | "code2" | "working" | "done";
+type Step = "type" | "who" | "code1" | "business" | "code2" | "working" | "interview" | "done";
 
 const TYPES: { key: Kind; icon: typeof Store; label: string; sub: string }[] = [
   { key: "vendor", icon: Store, label: "A business or vendor", sub: "Shop, bar, restaurant, maker" },
@@ -204,7 +205,7 @@ export function JoinFlow() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ memberId }),
       });
-      setStep("done");
+      setStep("interview");
     } catch (e) {
       setErr(e instanceof Error ? e.message : "That code didn't match.");
     } finally {
@@ -235,7 +236,7 @@ export function JoinFlow() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ memberId: created.memberId }),
       });
-      setStep("done");
+      setStep("interview");
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Something went wrong.");
       setStep("who");
@@ -247,7 +248,7 @@ export function JoinFlow() {
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="mx-auto max-w-md px-4 py-10">
-      {step !== "type" && step !== "done" && (
+      {step !== "type" && step !== "done" && step !== "interview" && (
         <p className="mb-4 text-xs font-medium uppercase tracking-wide text-stone-400">
           {isArtist ? "Artist" : step === "business" || step === "code2" ? "Step 2 of 2 · the business" : "Step 1 of 2 · you"}
         </p>
@@ -340,6 +341,10 @@ export function JoinFlow() {
           <Loader2 className="h-6 w-6 animate-spin text-violet-600" />
           <p className="text-sm text-stone-500">Setting up your page…</p>
         </div>
+      )}
+
+      {step === "interview" && (
+        <JoinInterview memberId={memberId} bizName={bizName} kind={kind} onDone={() => setStep("done")} />
       )}
 
       {step === "done" && (

@@ -22,10 +22,21 @@ export function VoiceCall({
   memberId,
   memberName,
   onClose,
+  tokenUrl,
+  tokenBody,
+  onTranscript,
 }: {
-  memberId: string;
+  memberId?: string;
   memberName: string;
   onClose: () => void;
+  // Override the session-minting endpoint. Defaults to the business voice agent.
+  // The onboarding interview passes /api/onboard/voice.
+  tokenUrl?: string;
+  // Optional JSON body to POST when minting (e.g. { name, kind } for onboarding).
+  tokenBody?: Record<string, unknown>;
+  // Streams each completed transcript line (user + agent) as it lands, so a
+  // parent can persist the conversation (used by the onboarding interview).
+  onTranscript?: (m: { role: "user" | "assistant"; content: string }) => void;
 }) {
   const [state, setState] = useState<CallState>("idle");
   const [muted, setMuted] = useState(false);
@@ -55,8 +66,13 @@ export function VoiceCall({
     setError(null);
     setState("connecting");
     try {
-      // 1. Mint an ephemeral, business-grounded Realtime session server-side.
-      const tokenRes = await fetch(`/api/chat/${memberId}/voice`, { method: "POST" });
+      // 1. Mint an ephemeral, grounded Realtime session server-side.
+      const url = tokenUrl ?? `/api/chat/${memberId}/voice`;
+      const tokenRes = await fetch(url, {
+        method: "POST",
+        headers: tokenBody ? { "Content-Type": "application/json" } : undefined,
+        body: tokenBody ? JSON.stringify(tokenBody) : undefined,
+      });
       if (!tokenRes.ok) {
         const body = await tokenRes.json().catch(() => ({}));
         throw new Error(
@@ -94,8 +110,34 @@ export function VoiceCall({
       micRef.current = mic;
       mic.getTracks().forEach((t) => pc.addTrack(t, mic));
 
-      // Data channel (Realtime events; not strictly needed for basic voice).
-      pc.createDataChannel("oai-events");
+      // Data channel — Realtime server events. Used to harvest the running
+      // transcript (both sides) so the onboarding interview can be saved.
+      const dc = pc.createDataChannel("oai-events");
+      if (onTranscript) {
+        dc.onmessage = (e) => {
+          try {
+            const evt = JSON.parse(e.data);
+            // The customer's speech, transcribed by whisper.
+            if (
+              evt.type === "conversation.item.input_audio_transcription.completed" &&
+              typeof evt.transcript === "string" &&
+              evt.transcript.trim()
+            ) {
+              onTranscript({ role: "user", content: evt.transcript.trim() });
+            }
+            // The agent's spoken reply, transcribed.
+            else if (
+              evt.type === "response.audio_transcript.done" &&
+              typeof evt.transcript === "string" &&
+              evt.transcript.trim()
+            ) {
+              onTranscript({ role: "assistant", content: evt.transcript.trim() });
+            }
+          } catch {
+            /* non-JSON keepalive frames — ignore */
+          }
+        };
+      }
 
       // 4. SDP offer/answer handshake with OpenAI, authed by the ephemeral key.
       const offer = await pc.createOffer();
@@ -127,7 +169,7 @@ export function VoiceCall({
       setState("error");
       hangUp("error");
     }
-  }, [memberId, hangUp]);
+  }, [memberId, tokenUrl, tokenBody, onTranscript, hangUp]);
 
   // Auto-start when the panel mounts.
   useEffect(() => {
