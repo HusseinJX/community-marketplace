@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { X, Images, Heart } from "lucide-react";
 import { useAuth, SignInButton } from "@clerk/nextjs";
+import { useMemories } from "@/lib/data-hooks";
 import type { Post } from "@/lib/posts";
 
 type Tile = {
@@ -27,6 +28,9 @@ export function MemoriesGrid({
   title?: string | null;
   subtitle?: string;
 }) {
+  // Cached per-entity fetch; local `posts` mirrors it so optimistic ❤️ toggles
+  // stay snappy. Reseeded whenever the cached data changes.
+  const { posts: fetched } = useMemories(memberId, eventId);
   const [posts, setPosts] = useState<Post[]>([]);
   const [open, setOpen] = useState<Post | null>(null);
   const { isSignedIn } = useAuth();
@@ -51,23 +55,8 @@ export function MemoriesGrid({
   }
 
   useEffect(() => {
-    const qs = memberId
-      ? `member=${encodeURIComponent(memberId)}`
-      : eventId
-        ? `event=${encodeURIComponent(eventId)}`
-        : "";
-    if (!qs) return;
-    let cancelled = false;
-    fetch(`/api/posts?${qs}`)
-      .then((r) => (r.ok ? r.json() : { posts: [] }))
-      .then((d) => {
-        if (!cancelled) setPosts(Array.isArray(d.posts) ? d.posts : []);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [memberId, eventId]);
+    setPosts(fetched);
+  }, [fetched]);
 
   // Flatten every post's media into individual square tiles.
   const tiles: Tile[] = posts.flatMap((post) => [

@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, LayoutGrid, Map as MapIcon, Radio } from "lucide-react";
 import { eventEmoji } from "@/lib/live-events";
 import { BroadcastCard } from "./BroadcastCard";
 import { LiveMap } from "./LiveMap";
 import { VenueCard, type FeaturedVenue } from "./VenueCard";
+import { useFeatured } from "@/lib/data-hooks";
 import type { LiveBroadcast } from "./types";
 
 interface FeaturedList {
@@ -22,32 +23,11 @@ interface FeaturedList {
 type ViewMode = "feed" | "map";
 
 export function FeaturedDetail({ id }: { id: string }) {
-  const [list, setList] = useState<FeaturedList | null>(null);
-  const [loading, setLoading] = useState(true);
   const [view, setView] = useState<ViewMode>("feed");
-
-  useEffect(() => {
-    let cancelled = false;
-    function pick(lists: FeaturedList[]): FeaturedList | null {
-      const pool = lists;
-      return pool.find((l) => l.id === id) ?? null;
-    }
-    fetch("/api/featured")
-      .then((r) => (r.ok ? r.json() : { lists: [] }))
-      .then((d) => {
-        if (cancelled) return;
-        setList(pick(d.lists ?? []));
-        setLoading(false);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setList(pick([]));
-        setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [id]);
+  // Shared cache with the home FeaturedLists rail — arriving via "See all"
+  // resolves instantly from cache; direct loads fetch once.
+  const { lists, loading } = useFeatured<FeaturedList>();
+  const list = useMemo(() => lists.find((l) => l.id === id) ?? null, [lists, id]);
 
   const broadcasts = useMemo(() => list?.broadcasts ?? [], [list]);
 

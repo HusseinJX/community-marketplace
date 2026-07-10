@@ -5,24 +5,18 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { eventEmoji, eventLabel, timeLeftLabel } from "@/lib/live-events";
 import { getUserPosition, distanceKm } from "@/lib/native-geo";
+import { useBroadcasts } from "@/lib/data-hooks";
 import type { LiveBroadcast } from "./types";
 
 // Compact "Live Now near you" strip for the home page. Renders nothing when
 // there's nothing live, so it never takes up space on a quiet day.
 export function LiveNowRail() {
-  const [items, setItems] = useState<LiveBroadcast[]>([]);
+  // Shared cache with the main live feed — one request, instant on return.
+  const { broadcasts: items } = useBroadcasts();
   const [coords, setCoords] = useState<[number, number] | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/broadcasts")
-      .then((r) => (r.ok ? r.json() : { broadcasts: [] }))
-      .then((d) => {
-        if (!cancelled && d.broadcasts?.length) setItems(d.broadcasts);
-      })
-      .catch(() => {
-        /* keep demo content already shown */
-      });
     // Best-effort location so "near you" is literally true (silent if denied).
     getUserPosition().then((c) => !cancelled && setCoords(c)).catch(() => {});
     return () => {

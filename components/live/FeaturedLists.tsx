@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { eventEmoji } from "@/lib/live-events";
 import { BroadcastCard } from "./BroadcastCard";
 import { VenueCard, type FeaturedVenue } from "./VenueCard";
+import { useFeatured } from "@/lib/data-hooks";
 import type { LiveBroadcast } from "./types";
 
 interface FeaturedList {
@@ -22,23 +22,8 @@ interface FeaturedList {
 // horizontal scrollers, each openable to its own /featured/[id] page.
 // Renders nothing when there are no non-empty lists.
 export function FeaturedLists() {
-  const [lists, setLists] = useState<FeaturedList[]>([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/api/featured")
-      .then((r) => (r.ok ? r.json() : { lists: [] }))
-      .then((d) => {
-        if (cancelled) return;
-        setLists(d.lists ?? []);
-      })
-      .catch(() => {
-        if (!cancelled) setLists([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  // Shared cache with FeaturedDetail (/featured/[id]) — one request, instant.
+  const { lists } = useFeatured<FeaturedList>();
 
   if (lists.length === 0) return null;
 

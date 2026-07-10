@@ -1,22 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import { Calendar, MapPin, ArrowRight } from "lucide-react";
 import { useLocation, matchesPlace, placeIsSet, placeLabel } from "@/lib/location";
-
-interface FeedEvent {
-  eventId: string;
-  title: string;
-  date: string;
-  location: string;
-  city: string;
-  neighborhood: string;
-  description: string;
-  image: string | null;
-  memberId: string;
-  memberName: string;
-}
+import { useEventsFeed } from "@/lib/data-hooks";
 
 const gradients = [
   "from-emerald-300 to-teal-500",
@@ -33,16 +21,8 @@ function gradientFor(s: string) {
 
 export function HappeningThisWeek() {
   const { place } = useLocation();
-  const [events, setEvents] = useState<FeedEvent[]>([]);
-  const [loaded, setLoaded] = useState(false);
-
-  useEffect(() => {
-    fetch("/api/events/feed")
-      .then((r) => (r.ok ? r.json() : { events: [] }))
-      .then((d) => setEvents(Array.isArray(d.events) ? d.events : []))
-      .catch(() => {})
-      .finally(() => setLoaded(true));
-  }, []);
+  // Shared cache with the community feed (same /api/events/feed key).
+  const { events, loading } = useEventsFeed();
 
   // Scope to the selected place. Events with no known place still show (so
   // sparse/legacy data isn't hidden); placed events scope properly.
@@ -57,7 +37,7 @@ export function HappeningThisWeek() {
   const scoped = placeIsSet(place);
 
   // Until the feed has data, don't take up space.
-  if (!loaded || events.length === 0) return null;
+  if (loading || events.length === 0) return null;
 
   return (
     <section className="mb-8">

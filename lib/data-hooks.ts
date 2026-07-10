@@ -4,6 +4,7 @@ import useSWR from "swr";
 import type { Member } from "@/lib/types";
 import type { LiveBroadcast } from "@/components/live/types";
 import type { FeedEvent } from "@/app/api/events/feed/route";
+import type { Post } from "@/lib/posts";
 import { fetchLiveBroadcasts } from "@/lib/demo-live-fixtures";
 
 // Shared, cached data hooks. Every surface that needs one of these datasets
@@ -60,4 +61,37 @@ export function usePosts() {
 export function useDirectory() {
   const { data, isLoading } = useSWR<{ members?: Member[] }>("/api/directory");
   return { members: data?.members ?? [], loading: isLoading && !data };
+}
+
+/**
+ * Superadmin-curated home rails. FeaturedLists (home) and FeaturedDetail
+ * (/featured/[id]) share this one key, so opening "See all" is instant.
+ * Generic over the list shape the caller casts to.
+ */
+export function useFeatured<T = unknown>() {
+  const { data, isLoading } = useSWR<{ lists?: T[] }>("/api/featured");
+  return { lists: data?.lists ?? [], loading: isLoading && !data };
+}
+
+/** One live broadcast by id (the /live/[id] detail page). */
+export function useBroadcast(id: string) {
+  const { data, isLoading } = useSWR<{ broadcast?: LiveBroadcast | null }>(
+    id ? `/api/broadcasts/view/${id}` : null
+  );
+  return { broadcast: data?.broadcast ?? null, loading: isLoading && !data };
+}
+
+/**
+ * The "memories" wall for one entity — posts tagged to a member or event.
+ * Conditional key: null (skips fetch) when neither id is set. Each entity is
+ * cached separately, so revisiting a profile/event paints instantly.
+ */
+export function useMemories(memberId?: string, eventId?: string) {
+  const qs = memberId
+    ? `member=${encodeURIComponent(memberId)}`
+    : eventId
+      ? `event=${encodeURIComponent(eventId)}`
+      : "";
+  const { data } = useSWR<{ posts?: Post[] }>(qs ? `/api/posts?${qs}` : null);
+  return { posts: data?.posts ?? [] };
 }

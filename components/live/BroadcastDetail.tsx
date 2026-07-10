@@ -10,32 +10,20 @@ import { SaveButton } from "./SaveButton";
 import { LiveMap } from "./LiveMap";
 import { MemoriesGrid } from "@/components/posts/MemoriesGrid";
 import { ShareMenu } from "@/components/ShareMenu";
-import type { LiveBroadcast } from "./types";
+import { useBroadcast } from "@/lib/data-hooks";
 
 export function BroadcastDetail({ id }: { id: string }) {
   const router = useRouter();
-  const [b, setB] = useState<LiveBroadcast | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Cached per-id — back/forward and re-open resolve instantly.
+  const { broadcast: b, loading } = useBroadcast(id);
   const [host, setHost] = useState<string>("");
   const [nowTs, setNowTs] = useState(0);
 
+  // Client-only values for share URLs and live/ended computation.
   useEffect(() => {
-    let cancelled = false;
-    const finish = (bc: LiveBroadcast | null) => {
-      if (cancelled) return;
-      setHost(window.location.hostname);
-      setNowTs(Date.now());
-      setB(bc);
-      setLoading(false);
-    };
-    fetch(`/api/broadcasts/view/${id}`)
-      .then((r) => (r.ok ? r.json() : { broadcast: null }))
-      .then((d) => finish(d.broadcast ?? null))
-      .catch(() => finish(null));
-    return () => {
-      cancelled = true;
-    };
-  }, [id]);
+    setHost(window.location.hostname);
+    setNowTs(Date.now());
+  }, []);
 
   if (loading) {
     return (
