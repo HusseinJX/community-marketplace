@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Shield, UserPlus, FileText, Search, Check, Package, Calendar, ExternalLink, Star, PenSquare, ImagePlus, X, Loader2, Store } from "lucide-react";
+import { Shield, UserPlus, FileText, Search, Check, Package, Calendar, ExternalLink, Star, PenSquare, ImagePlus, X, Loader2, Store, Radio } from "lucide-react";
 import { OnboardManager } from "../onboard/OnboardManager";
 import { FeaturedManager } from "../featured/FeaturedManager";
 import { ORG_FOCUS } from "@/lib/org-focus";
@@ -276,6 +276,7 @@ function CreatedCard({ created, onReset, resetLabel }: { created: { name: string
       <div className="mt-4 flex flex-wrap justify-center gap-2">
         <ActionLink href={`/vendor/products?memberId=${created.memberId}`} icon={Package} label="Add products" />
         <ActionLink href={`/vendor/events?memberId=${created.memberId}`} icon={Calendar} label="Add events" />
+        <ActionLink href={`/vendor/live?memberId=${created.memberId}`} icon={Radio} label="Schedule live" />
         <ActionLink href={`/members/${created.memberId}`} icon={ExternalLink} label="View profile" />
       </div>
       <Link href={created.claimUrl} className="mt-3 inline-block break-all text-xs font-medium text-indigo-600 hover:underline">
@@ -395,10 +396,11 @@ function ActOnBehalf() {
           {(picked.type || picked.city) && (
             <p className="text-xs text-stone-500">{[picked.type, picked.city].filter(Boolean).join(" · ")}</p>
           )}
-          <p className="mt-3 mb-2 text-xs text-stone-500">Add content on their behalf — both screens include AI capture (snap a menu, flyer, or schedule):</p>
+          <p className="mt-3 mb-2 text-xs text-stone-500">Add content on their behalf — Products &amp; Events include AI capture (snap a menu, flyer, or schedule); Live lets you post or schedule what they&apos;re showing (World Cup, UFC, etc.):</p>
           <div className="flex flex-wrap gap-2">
             <ActionLink href={`/vendor/products?memberId=${picked.id}`} icon={Package} label="Products" />
             <ActionLink href={`/vendor/events?memberId=${picked.id}`} icon={Calendar} label="Events" />
+            <ActionLink href={`/vendor/live?memberId=${picked.id}`} icon={Radio} label="Live" />
             <ActionLink href={`/members/${picked.id}`} icon={ExternalLink} label="View profile" />
           </div>
         </div>
