@@ -11,6 +11,7 @@ const PLACEHOLDER_HINTS = [
 const TRUSTED_IMAGE_HOSTS = [
   "zahabbucket.nyc3.digitaloceanspaces.com", // our DO Spaces bucket
   "images.unsplash.com",                     // hand-curated MEMBER_HERO_IMAGES set
+  "xbbnvkvlrucrzobhopgh.supabase.co",        // our Supabase Storage (marketplace-media): profile/product uploads + hero art
 ];
 
 function isTrustedHost(url: string): boolean {
