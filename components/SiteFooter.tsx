@@ -16,7 +16,9 @@ export function SiteFooter() {
       <div className="mx-auto max-w-7xl px-4 py-12 md:px-8">
         <div className="grid gap-10 md:grid-cols-4">
           <div className="md:col-span-2">
-            <Link href="/" className="text-lg font-semibold tracking-tight text-stone-900">
+            <Link href="/" className="inline-flex items-center gap-2 text-lg font-semibold tracking-tight text-stone-900">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo.png" alt="" className="h-8 w-8" />
               WhatsLocal AI
             </Link>
             <p className="mt-3 max-w-sm text-sm text-stone-600">

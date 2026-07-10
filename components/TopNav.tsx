@@ -22,12 +22,14 @@ export function TopNav() {
         </Link>
       </div>
 
-      {/* Center — brand wordmark (links home) */}
+      {/* Center — brand lockup (mark + wordmark, links home) */}
       <div className="flex justify-center">
         <Link
           href="/"
-          className="text-lg font-semibold tracking-tight text-stone-900"
+          className="inline-flex items-center gap-1.5 text-lg font-semibold tracking-tight text-stone-900"
         >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="" className="h-7 w-7" />
           WhatsLocal
         </Link>
       </div>
