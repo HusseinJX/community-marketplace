@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { LayoutGrid, Map as MapIcon, Radio, RefreshCw } from "lucide-react";
+import { LayoutGrid, Map as MapIcon, Radio, RefreshCw, MapPin } from "lucide-react";
 import { groupByEvent, eventEmoji, eventLabel } from "@/lib/live-events";
+import { getUserPosition, distanceKm } from "@/lib/native-geo";
 import { BroadcastCard } from "./BroadcastCard";
 import { MatchCard, type MatchGroup } from "./MatchCard";
 import { LiveMap } from "./LiveMap";
@@ -20,6 +21,9 @@ export function LiveFeed({ afterHero, afterFeed }: { afterHero?: React.ReactNode
   // Deep-linked to one event (e.g. /live?event=world-cup = "where to watch the
   // World Cup"): lock to that event and drop the filter chips — just the cards.
   const [locked, setLocked] = useState(false);
+  // The viewer's location, for "nearest to you" ranking. Best-effort: null until
+  // granted, and the feed silently stays in recency order without it.
+  const [coords, setCoords] = useState<[number, number] | null>(null);
 
   const load = useCallback(async () => {
     // Real venue broadcasts when present, else real live games + demo venues.
@@ -37,6 +41,8 @@ export function LiveFeed({ afterHero, afterFeed }: { afterHero?: React.ReactNode
     }
     // Keep the feed fresh — broadcasts start and expire on their own.
     const t = setInterval(load, 60_000);
+    // Best-effort location for "nearest first" ranking (silent if denied).
+    getUserPosition().then(setCoords).catch(() => {});
     return () => clearInterval(t);
   }, [load]);
 
@@ -59,11 +65,26 @@ export function LiveFeed({ afterHero, afterFeed }: { afterHero?: React.ReactNode
     [eventFiltered, team]
   );
 
+  // Rank by proximity when we know where the viewer is: nearest venue first.
+  // Broadcasts with no coordinates sort last. Sorting `filtered` up front means
+  // the match groups and grid below inherit the order for free (venues within a
+  // group come out nearest-first, and groups order by their nearest venue).
+  const sorted = useMemo(() => {
+    if (!coords) return filtered;
+    const [uLat, uLng] = coords;
+    const dist = (b: LiveBroadcast) =>
+      typeof b.latitude === "number" && typeof b.longitude === "number"
+        ? distanceKm(uLat, uLng, b.latitude, b.longitude)
+        : Number.POSITIVE_INFINITY;
+    return [...filtered].sort((a, b) => dist(a) - dist(b));
+  }, [filtered, coords]);
+  const nearFirst = coords != null && sorted.some((b) => typeof b.latitude === "number");
+
   // Group broadcasts by match (the game), not by venue — one card per game, each
   // opening the list of places showing it.
   const matchGroups = useMemo<MatchGroup[]>(() => {
     const buckets = new Map<string, LiveBroadcast[]>();
-    for (const b of filtered) {
+    for (const b of sorted) {
       const key = (b.whats_on?.trim().toLowerCase() || `event:${b.event_slug}`);
       const arr = buckets.get(key) ?? [];
       arr.push(b);
@@ -81,7 +102,7 @@ export function LiveFeed({ afterHero, afterFeed }: { afterHero?: React.ReactNode
         venues,
       };
     });
-  }, [filtered]);
+  }, [sorted]);
 
   return (
     <>
@@ -116,7 +137,14 @@ export function LiveFeed({ afterHero, afterFeed }: { afterHero?: React.ReactNode
       <div className="mx-auto max-w-6xl border-t border-stone-100 px-4 pb-8 pt-8 md:px-8">
       {/* Live now — venue broadcasts. */}
       {!locked && (
-        <h2 className="mb-3 text-xl font-semibold tracking-tight text-stone-900">Live now</h2>
+        <div className="mb-3 flex items-center gap-2">
+          <h2 className="text-xl font-semibold tracking-tight text-stone-900">Live now</h2>
+          {nearFirst && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-700 sm:hidden">
+              <MapPin className="h-3.5 w-3.5" /> Nearest
+            </span>
+          )}
+        </div>
       )}
 
       {/* Controls */}
@@ -137,6 +165,11 @@ export function LiveFeed({ afterHero, afterFeed }: { afterHero?: React.ReactNode
           )}
         </div>
         <div className="hidden shrink-0 items-center gap-2 sm:flex">
+          {nearFirst && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-700">
+              <MapPin className="h-3.5 w-3.5" /> Nearest to you
+            </span>
+          )}
           <button
             onClick={load}
             className="inline-flex h-9 w-9 items-center justify-center rounded-full text-stone-500 hover:bg-stone-100 hover:text-stone-900"
@@ -203,7 +236,7 @@ export function LiveFeed({ afterHero, afterFeed }: { afterHero?: React.ReactNode
         </div>
       ) : locked ? (
         // Focused single-event view: full grid or map.
-        view === "map" ? <LiveMap broadcasts={filtered} /> : <Grid items={filtered} lean />
+        view === "map" ? <LiveMap broadcasts={sorted} /> : <Grid items={sorted} lean />
       ) : (
         // Feed view: horizontal scroll rail — one card per match (game).
         <MatchRail groups={matchGroups} />

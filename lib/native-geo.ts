@@ -34,3 +34,33 @@ export async function getNativePosition(): Promise<[number, number]> {
   const pos = await plugin.getCurrentPosition({ enableHighAccuracy: true, timeout: 8000 });
   return [pos.coords.latitude, pos.coords.longitude];
 }
+
+// Unified position lookup: native plugin inside the iOS shell, browser
+// geolocation on the web. Rejects on denial/unavailable so callers can fall
+// back silently. `maximumAge` lets a recent fix return instantly.
+export async function getUserPosition(): Promise<[number, number]> {
+  if (nativeGeoAvailable()) return getNativePosition();
+  return new Promise((resolve, reject) => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      reject(new Error("Geolocation unavailable"));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (p) => resolve([p.coords.latitude, p.coords.longitude]),
+      (e) => reject(e),
+      { timeout: 8000, maximumAge: 300_000 }
+    );
+  });
+}
+
+// Great-circle distance in km between two [lat, lng] points (haversine).
+export function distanceKm(aLat: number, aLng: number, bLat: number, bLng: number): number {
+  const R = 6371;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(bLat - aLat);
+  const dLng = toRad(bLng - aLng);
+  const s =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(aLat)) * Math.cos(toRad(bLat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(s));
+}
