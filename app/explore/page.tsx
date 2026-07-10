@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Search } from "lucide-react";
@@ -31,16 +31,50 @@ export default function ExplorePage() {
   const [own, setOwn] = useState<string[]>([]);
   const toggleOwn = (k: string) => setOwn((o) => (o.includes(k) ? o.filter((x) => x !== k) : [...o, k]));
 
+  // Real search: the cached directory is only the first browse page, so typing a
+  // name filters too small a set. When there's a query we hit the connector's
+  // server-side index via /api/directory?search= (covers all members).
+  const term = q.trim();
+  const searching = term.length >= 2;
+  const [results, setResults] = useState<Member[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!searching) {
+      setResults([]);
+      return;
+    }
+    const ctrl = new AbortController();
+    setLoading(true);
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/directory?search=${encodeURIComponent(term)}`, {
+          signal: ctrl.signal,
+        });
+        const data = res.ok ? await res.json() : { members: [] };
+        setResults(Array.isArray(data.members) ? data.members : []);
+      } catch {
+        /* aborted or failed — leave prior results */
+      } finally {
+        setLoading(false);
+      }
+    }, 250);
+    return () => {
+      ctrl.abort();
+      clearTimeout(t);
+    };
+  }, [term, searching]);
+
   const tiles = useMemo(() => {
-    const term = q.trim().toLowerCase();
-    return members
+    // Browse mode: cached directory, image tiles only. Search mode: server
+    // results, and keep members even without a photo (fallback tile) so a real
+    // match is never silently dropped for lacking a hero image.
+    const source = searching ? results : members;
+    return source
       .map((m) => ({ m, img: firstImage(m) }))
-      .filter((t) => t.img)
-      .filter((t) =>
-        term ? (t.m.profile?.name ?? "").toLowerCase().includes(term) : true
-      )
+      .filter((t) => searching || t.img)
       .filter((t) => matchesFacets(t.m.profile, { size, ownership: own }));
-  }, [members, q, size, own]);
+  }, [members, results, searching, size, own]);
 
   return (
     <div className="pb-6">
@@ -90,19 +124,27 @@ export default function ExplorePage() {
             href={`/members/${m.id}`}
             className="relative block aspect-square overflow-hidden bg-stone-100"
           >
-            <Image
-              src={img as string}
-              alt={m.profile?.name || "Local business"}
-              fill
-              sizes="33vw"
-              className="object-cover transition duration-200 hover:opacity-90"
-            />
+            {img ? (
+              <Image
+                src={img}
+                alt={m.profile?.name || "Local business"}
+                fill
+                sizes="33vw"
+                className="object-cover transition duration-200 hover:opacity-90"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-stone-200 to-stone-300 p-2 text-center text-xs font-medium text-stone-600 transition duration-200 hover:opacity-90">
+                {m.profile?.name || "Local business"}
+              </div>
+            )}
           </Link>
         ))}
       </div>
 
       {tiles.length === 0 && (
-        <p className="px-4 py-16 text-center text-sm text-stone-400">No results.</p>
+        <p className="px-4 py-16 text-center text-sm text-stone-400">
+          {searching ? (loading ? "Searching…" : "No results.") : "No results."}
+        </p>
       )}
     </div>
   );

@@ -46,6 +46,8 @@ export interface ListMembersParams {
   city?: string;
   category?: string;
   subcategory?: string;
+  /** Free-text server-side search across name/description/etc. */
+  search?: string;
   limit?: number;
   cursor?: string;
 }
@@ -58,6 +60,7 @@ export async function listMembers(params: ListMembersParams = {}): Promise<Membe
       city: params.city,
       category: params.category,
       subcategory: params.subcategory,
+      search: params.search,
       limit: params.limit ? String(params.limit) : undefined,
       cursor: params.cursor,
     })
