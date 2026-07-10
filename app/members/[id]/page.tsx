@@ -73,12 +73,25 @@ function Section({ title, right, children }: { title: string; right?: React.Reac
   );
 }
 
-function SocialLink({ href, label, icon }: { href: string; label: string; icon: string }) {
+// Instagram glyph (lucide dropped brand icons over trademark concerns, so we
+// inline the classic mark — rounded square + lens + flash dot).
+function InstagramIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+      <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+    </svg>
+  );
+}
+
+function SocialLink({ href, label, icon }: { href: string; label: string; icon: React.ReactNode }) {
   const url = href.startsWith("http") ? href : `https://${href}`;
   return (
     <a href={url} target="_blank" rel="noopener noreferrer"
       className="flex items-center gap-2 text-sm text-indigo-700 hover:underline">
-      <span>{icon}</span>
+      <span className="inline-flex w-4 justify-center">{icon}</span>
       <span>{label}</span>
     </a>
   );
@@ -242,7 +255,10 @@ export default async function MemberProfilePage({
   const extraSocials = Object.entries(p).filter(([k, v]) => {
     if (!v || typeof v !== "string") return false;
     if (knownSocialKeys.has(k)) return false;
-    if (k === "websiteUrl" || k === "googleMapsUrl") return false;
+    // Not socials: the hero image, the shop link (rendered elsewhere), and the
+    // website/maps links (their own rows). Without this, imageUrl/shopUrl leak
+    // into "Find them online" as a bogus link.
+    if (k === "websiteUrl" || k === "googleMapsUrl" || k === "imageUrl" || k === "shopUrl") return false;
     return k.endsWith("Handle") || k.endsWith("Url");
   });
 
@@ -324,7 +340,7 @@ export default async function MemberProfilePage({
           ) : (
             bio && (
               <Section title="About">
-                <p className="leading-relaxed text-stone-800">{bio}</p>
+                <p className="whitespace-pre-line leading-relaxed text-stone-800">{bio}</p>
               </Section>
             )
           )}
@@ -606,7 +622,7 @@ export default async function MemberProfilePage({
             <div className="card-soft p-5">
               <div className="section-label">Find them online</div>
               <ul className="mt-3 space-y-2 text-sm">
-                {p.instagramHandle && <li><SocialLink href={`https://instagram.com/${p.instagramHandle}`} label={`@${p.instagramHandle}`} icon="📸" /></li>}
+                {p.instagramHandle && <li><SocialLink href={`https://instagram.com/${p.instagramHandle}`} label={`@${p.instagramHandle}`} icon={<InstagramIcon className="h-4 w-4" />} /></li>}
                 {p.tiktokHandle && <li><SocialLink href={`https://tiktok.com/@${p.tiktokHandle}`} label={`@${p.tiktokHandle}`} icon="🎵" /></li>}
                 {(p.twitterHandle || p.xHandle) && <li><SocialLink href={`https://x.com/${p.twitterHandle || p.xHandle}`} label={`@${p.twitterHandle || p.xHandle}`} icon="𝕏" /></li>}
                 {p.threadsHandle && <li><SocialLink href={`https://threads.net/@${p.threadsHandle}`} label={`@${p.threadsHandle}`} icon="🧵" /></li>}
