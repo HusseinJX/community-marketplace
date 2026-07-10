@@ -23,7 +23,8 @@ export function MemoriesGrid({
 }: {
   memberId?: string;
   eventId?: string;
-  title?: string;
+  // null suppresses the built-in header (when the caller renders its own).
+  title?: string | null;
   subtitle?: string;
 }) {
   const [posts, setPosts] = useState<Post[]>([]);
@@ -80,7 +81,7 @@ export function MemoriesGrid({
 
   return (
     <section>
-      <div className="mb-3 flex items-baseline justify-between gap-3">
+      <div className={"mb-3 flex items-baseline justify-between gap-3" + (title === null ? " hidden" : "")}>
         <p className="section-label flex items-center gap-1.5">
           <Images className="h-3.5 w-3.5" /> {title}
         </p>

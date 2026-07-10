@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, MapPin, Radio, Calendar } from "lucide-react";
+import { ArrowLeft, MapPin, Radio, Calendar, Camera } from "lucide-react";
 import { eventEmoji, eventLabel, timeLeftLabel, isLive } from "@/lib/live-events";
 import { streamEmbed } from "@/lib/embed";
 import { SaveButton } from "./SaveButton";
@@ -148,9 +148,23 @@ export function BroadcastDetail({ id }: { id: string }) {
         </div>
       )}
 
-      {/* Community memories — fans' photos tagged to this broadcast */}
+      {/* Community memories — fans' photos tagged to this broadcast, plus a CTA
+          to add yours (deep-links the composer with this broadcast pre-tagged so
+          the post lands right here in the capsule). */}
       <div className="mt-6">
-        <MemoriesGrid eventId={b.id} title="From the crowd" subtitle="Tagged here" />
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <p className="section-label">From the crowd</p>
+            <p className="text-xs text-stone-500">Tagged here</p>
+          </div>
+          <Link
+            href={`/share?event=${b.id}&eventTitle=${encodeURIComponent(b.whats_on || eventLabel(b.event_slug, b.event_label))}`}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-rose-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-rose-700"
+          >
+            <Camera className="h-4 w-4" /> Post your vibe
+          </Link>
+        </div>
+        <MemoriesGrid eventId={b.id} title={null} />
       </div>
 
       {/* Map */}

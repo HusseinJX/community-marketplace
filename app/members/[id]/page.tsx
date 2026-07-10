@@ -10,6 +10,8 @@ import {
 } from "@/lib/seo";
 import { MemberJsonLd } from "@/components/JsonLd";
 import { getProductsByMember, getVendorEventsByMember, type SupabaseProduct, type VendorEvent } from "@/lib/vendor-connect";
+import { getBroadcastsByMember, type Broadcast } from "@/lib/broadcasts";
+import { isLive, eventEmoji, eventLabel as liveEventLabel, timeLeftLabel } from "@/lib/live-events";
 import { MemberTypeBadge } from "@/components/MemberTypeBadge";
 import { EventCard } from "@/components/EventCard";
 import { MiniMap } from "@/components/MiniMap";
@@ -147,19 +149,24 @@ export default async function MemberProfilePage({
   let events: EventSuggestion[] = [];
   let vendorEvents: VendorEvent[] = [];
   let supabaseProducts: SupabaseProduct[] = [];
+  let broadcasts: Broadcast[] = [];
   let fetchError: string | null = null;
 
   try {
-    const [memberRes, eventsRes, prods, vEvents] = await Promise.all([
+    const [memberRes, eventsRes, prods, vEvents, bcasts] = await Promise.all([
       getMember(id),
       listEvents({ memberId: id, limit: 20 }),
       getProductsByMember(id),
       getVendorEventsByMember(id),
+      // includeExpired → the venue's full live history (past + current), so
+      // people can browse what they've shown, not just what's on right now.
+      getBroadcastsByMember(id, true),
     ]);
     member = memberRes.member;
     events = eventsRes.events;
     supabaseProducts = prods;
     vendorEvents = vEvents;
+    broadcasts = bcasts;
   } catch (err) {
     fetchError = err instanceof Error ? err.message : "Failed to load profile.";
   }
@@ -430,6 +437,47 @@ export default async function MemberProfilePage({
               ) : vendorEvents.length > 0 ? null : (
                 <></>
               )}
+            </Section>
+          )}
+
+          {broadcasts.length > 0 && (
+            <Section title="Live & watch parties">
+              <div className="grid gap-3 sm:grid-cols-2">
+                {broadcasts.map((b) => {
+                  const live = isLive(b);
+                  const cover = b.image_urls?.[0];
+                  return (
+                    <Link key={b.id} href={`/live/${b.id}`} className="card-soft group flex items-stretch gap-3 p-3 transition hover:shadow-md">
+                      {cover ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={cover} alt={b.whats_on || "broadcast"} className="w-20 shrink-0 self-stretch rounded-lg object-cover" />
+                      ) : (
+                        <div className="flex w-20 shrink-0 items-center justify-center self-stretch rounded-lg bg-gradient-to-br from-rose-300 to-orange-400 text-2xl">
+                          {eventEmoji(b.event_slug)}
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1 py-0.5">
+                        <div className="flex items-center gap-2">
+                          <span className="truncate text-xs font-medium text-stone-500">{liveEventLabel(b.event_slug, b.event_label)}</span>
+                          {live && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-white">
+                              <span className="h-1.5 w-1.5 rounded-full bg-white" /> Live
+                            </span>
+                          )}
+                        </div>
+                        <div className="truncate font-medium text-stone-900">
+                          {b.whats_on || liveEventLabel(b.event_slug, b.event_label)}
+                        </div>
+                        <div className="mt-0.5 truncate text-sm text-stone-500">
+                          {live
+                            ? timeLeftLabel(b.ends_at)
+                            : new Date(b.starts_at).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })}
+                        </div>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
             </Section>
           )}
 
