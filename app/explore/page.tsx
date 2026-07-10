@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Search } from "lucide-react";
-import { listMembers } from "@/lib/api";
 import type { Member } from "@/lib/types";
 import { MEMBER_HERO_IMAGES } from "@/lib/member-images";
 import { usableImages, isPlaceholder } from "@/lib/image-utils";
 import { BUSINESS_SIZES, OWNERSHIP_TAGS, matchesFacets } from "@/lib/business-facets";
+import { useDirectory } from "@/lib/data-hooks";
 
 function firstImage(m: Member): string | null {
   const curated = MEMBER_HERO_IMAGES[m.id];
@@ -24,24 +24,12 @@ function firstImage(m: Member): string | null {
 
 // Instagram-style Explore: a full-bleed grid of square image tiles.
 export default function ExplorePage() {
-  // Seed with demo members so the grid paints instantly; real data replaces it.
-  const [members, setMembers] = useState<Member[]>([]);
+  // Shared, server-cached directory (same key as the home "Who's local" rail).
+  const { members } = useDirectory();
   const [q, setQ] = useState("");
   const [size, setSize] = useState("");
   const [own, setOwn] = useState<string[]>([]);
   const toggleOwn = (k: string) => setOwn((o) => (o.includes(k) ? o.filter((x) => x !== k) : [...o, k]));
-
-  useEffect(() => {
-    let cancelled = false;
-    listMembers({ limit: 90 })
-      .then((r) => {
-        if (!cancelled && r.members?.length) setMembers(r.members);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const tiles = useMemo(() => {
     const term = q.trim().toLowerCase();

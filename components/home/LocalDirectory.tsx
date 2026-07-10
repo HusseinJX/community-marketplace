@@ -1,23 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { listMembers } from "@/lib/api";
+import { useMemo } from "react";
 import type { Member } from "@/lib/types";
 import { MemberCard } from "@/components/MemberCard";
 import { groupMembers } from "@/lib/browse-groups";
+import { useDirectory } from "@/lib/data-hooks";
 
 // Lean directory for the single home page: grouped rails of who's local.
 // No search / category tabs / map / facets — just find who's local and tap.
 export function LocalDirectory() {
-  const [members, setMembers] = useState<Member[]>([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    listMembers({ limit: 100 })
-      .then((r) => { if (!cancelled && r.members?.length) setMembers(r.members); })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, []);
+  // Shared, server-cached directory (same key as /explore — one request, cached
+  // across tab switches, and the connector call runs server-side not in-browser).
+  const { members } = useDirectory();
 
   const visible = useMemo(() => members.filter((m) => m.profile?.name), [members]);
   const groups = useMemo(() => groupMembers(visible), [visible]);

@@ -3,6 +3,13 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   // Emit a self-contained server bundle so the Docker/CapRover image stays small.
   output: "standalone",
+  experimental: {
+    // Cache the RSC payload of visited routes in the client Router Cache so
+    // back/forward and tab-to-tab navigation reuse the rendered page instead of
+    // re-fetching it from the server. `dynamic` defaults to 0 (off) in Next 15+;
+    // 30s makes bouncing between nav tabs feel instant without going stale.
+    staleTimes: { dynamic: 30, static: 300 },
+  },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "images.unsplash.com" },

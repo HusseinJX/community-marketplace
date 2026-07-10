@@ -1,20 +1,21 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { LayoutGrid, Map as MapIcon, Radio, RefreshCw, MapPin } from "lucide-react";
 import { groupByEvent, eventEmoji, eventLabel } from "@/lib/live-events";
 import { getUserPosition, distanceKm } from "@/lib/native-geo";
 import { BroadcastCard } from "./BroadcastCard";
 import { MatchCard, type MatchGroup } from "./MatchCard";
 import { LiveMap } from "./LiveMap";
-import { fetchLiveBroadcasts } from "@/lib/demo-live-fixtures";
+import { useBroadcasts } from "@/lib/data-hooks";
 import type { LiveBroadcast } from "./types";
 
 type ViewMode = "feed" | "map";
 
 export function LiveFeed({ afterHero, afterFeed }: { afterHero?: React.ReactNode; afterFeed?: React.ReactNode } = {}) {
-  const [items, setItems] = useState<LiveBroadcast[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Shared, cached broadcasts (survives tab switches; polls every 60s). One
+  // request no matter how many live surfaces are mounted.
+  const { broadcasts: items, loading, refresh } = useBroadcasts();
   const [view, setView] = useState<ViewMode>("feed");
   const [event, setEvent] = useState<string>("all");
   const [team, setTeam] = useState<string>("all");
@@ -25,26 +26,16 @@ export function LiveFeed({ afterHero, afterFeed }: { afterHero?: React.ReactNode
   // granted, and the feed silently stays in recency order without it.
   const [coords, setCoords] = useState<[number, number] | null>(null);
 
-  const load = useCallback(async () => {
-    // Real venue broadcasts when present, else real live games + demo venues.
-    setItems(await fetchLiveBroadcasts());
-    setLoading(false);
-  }, []);
-
   useEffect(() => {
-    load();
     // Honor a ?event=<slug> deep link (e.g. from a live-event page).
     const q = new URLSearchParams(window.location.search).get("event");
     if (q) {
       setEvent(q);
       setLocked(true);
     }
-    // Keep the feed fresh — broadcasts start and expire on their own.
-    const t = setInterval(load, 60_000);
     // Best-effort location for "nearest first" ranking (silent if denied).
     getUserPosition().then(setCoords).catch(() => {});
-    return () => clearInterval(t);
-  }, [load]);
+  }, []);
 
   // Event chips derived from what's actually live, in curated order.
   const groups = useMemo(() => groupByEvent(items), [items]);
@@ -171,7 +162,7 @@ export function LiveFeed({ afterHero, afterFeed }: { afterHero?: React.ReactNode
             </span>
           )}
           <button
-            onClick={load}
+            onClick={() => refresh()}
             className="inline-flex h-9 w-9 items-center justify-center rounded-full text-stone-500 hover:bg-stone-100 hover:text-stone-900"
             aria-label="Refresh"
           >

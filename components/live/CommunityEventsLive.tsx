@@ -6,6 +6,7 @@ import Image from "next/image";
 import { CalendarDays, CalendarClock, MapPin } from "lucide-react";
 import type { FeedEvent } from "@/app/api/events/feed/route";
 import { groupEventsByTheme } from "@/lib/event-themes";
+import { useEventsFeed } from "@/lib/data-hooks";
 
 // Parse an event's day to LOCAL midnight ms. A "YYYY-MM-DD" string is parsed in
 // local time (Date.parse treats it as UTC, which shifts the day across zones).
@@ -48,26 +49,20 @@ function buildDemoEvents(now: number): FeedEvent[] {
 // horizontal scroll rails; upcoming is grouped into themed rails (Markets,
 // Music, Food, etc.). `only` renders just one section.
 export function CommunityEventsLive({ only }: { only?: "now" | "upcoming" } = {}) {
-  const [events, setEvents] = useState<FeedEvent[]>([]);
-  const [loading, setLoading] = useState(true);
   const [nowTs, setNowTs] = useState(0);
+  useEffect(() => { setNowTs(Date.now()); }, []);
 
-  useEffect(() => {
-    const ref = Date.now();
-    setNowTs(ref);
-    let cancelled = false;
-    fetch("/api/events/feed")
-      .then((r) => r.json())
-      .then((d) => {
-        if (cancelled) return;
-        // Fall back to demo events (floating relative to now) so the section
-        // looks alive before any real vendor_events exist.
-        setEvents(d.events?.length ? d.events : buildDemoEvents(ref));
-      })
-      .catch(() => { if (!cancelled) setEvents(buildDemoEvents(ref)); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, []);
+  // Shared, cached feed (same key as CommunityFeed — deduped, survives nav).
+  const { events: realEvents, loading: feedLoading } = useEventsFeed();
+
+  // Fall back to demo events (floating relative to now) so the section looks
+  // alive before any real vendor_events exist. Wait for both the feed and the
+  // client clock so demo dates render relative to the right "now".
+  const loading = feedLoading || nowTs === 0;
+  const events: FeedEvent[] = useMemo(
+    () => (realEvents.length ? realEvents : nowTs ? buildDemoEvents(nowTs) : []),
+    [realEvents, nowTs]
+  );
 
   // Classify by calendar day: today = happening now, future = upcoming, past
   // dropped. Unparseable dates fall into upcoming so nothing useful disappears.

@@ -5,6 +5,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { AppBanner } from "@/components/AppBanner";
 import { SiteFooter } from "@/components/SiteFooter";
 import { StoreProvider } from "@/lib/store";
+import { SWRProvider } from "@/lib/swr";
 import { LocationProvider } from "@/lib/location";
 import { PostHogProvider } from "@/lib/posthog-provider";
 import { FeedbackWidget } from "@/components/FeedbackWidget";
@@ -58,6 +59,7 @@ export default function RootLayout({
       <html lang="en" className="h-full antialiased">
         <body className="flex min-h-full flex-col overflow-x-hidden bg-stone-50 text-stone-900">
           <PostHogProvider>
+          <SWRProvider>
           <LocationProvider>
           <StoreProvider>
             <header
@@ -85,6 +87,7 @@ export default function RootLayout({
             <PushInit />
           </StoreProvider>
           </LocationProvider>
+          </SWRProvider>
           </PostHogProvider>
         </body>
       </html>
