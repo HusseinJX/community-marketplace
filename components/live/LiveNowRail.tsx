@@ -1,15 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { eventEmoji, eventLabel, timeLeftLabel } from "@/lib/live-events";
+import { getUserPosition, distanceKm } from "@/lib/native-geo";
 import type { LiveBroadcast } from "./types";
 
 // Compact "Live Now near you" strip for the home page. Renders nothing when
 // there's nothing live, so it never takes up space on a quiet day.
 export function LiveNowRail() {
   const [items, setItems] = useState<LiveBroadcast[]>([]);
+  const [coords, setCoords] = useState<[number, number] | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -21,10 +23,24 @@ export function LiveNowRail() {
       .catch(() => {
         /* keep demo content already shown */
       });
+    // Best-effort location so "near you" is literally true (silent if denied).
+    getUserPosition().then((c) => !cancelled && setCoords(c)).catch(() => {});
     return () => {
       cancelled = true;
     };
   }, []);
+
+  // Nearest-first when we know where the viewer is; venues without coordinates
+  // fall to the back. Otherwise keep the feed's (recency) order.
+  const ranked = useMemo(() => {
+    if (!coords) return items;
+    const [uLat, uLng] = coords;
+    const dist = (b: LiveBroadcast) =>
+      typeof b.latitude === "number" && typeof b.longitude === "number"
+        ? distanceKm(uLat, uLng, b.latitude, b.longitude)
+        : Number.POSITIVE_INFINITY;
+    return [...items].sort((a, b) => dist(a) - dist(b));
+  }, [items, coords]);
 
   if (items.length === 0) return null;
 
@@ -47,7 +63,7 @@ export function LiveNowRail() {
       </div>
 
       <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1">
-        {items.slice(0, 12).map((b) => (
+        {ranked.slice(0, 12).map((b) => (
           <Link
             key={b.id}
             href={`/live/${b.id}`}
