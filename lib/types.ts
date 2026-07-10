@@ -26,6 +26,9 @@ export interface MemberProfile {
   latitude?: number;
   longitude?: number;
   googleMapsUrl?: string;
+  /** Google Place ID — captured at signup/harvest from Google Places. Powers
+   *  the direct write-a-review deep link (and future Maps enrichment). */
+  placeId?: string;
   // enriched business fields
   businessName?: string;
   businessCategory?: string;

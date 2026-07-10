@@ -195,6 +195,13 @@ export default async function MemberProfilePage({
   const memberType = (p.memberType as string | undefined)?.toLowerCase() ?? "";
   const gradient = TYPE_GRADIENTS[memberType] ?? "from-stone-200 to-stone-300";
 
+  // The customer-service assistant is a Member+ capability and only exists for
+  // business-like members. The "Inquire" button must be gated on the same
+  // condition — otherwise it dispatches an event nothing is mounted to handle.
+  const hasAssistant =
+    ["vendor", "artist", "organizer"].includes(memberType) &&
+    (await getEntitlements(id)).can.textAssistant;
+
   // Owner/admin can edit the business facets (size + ownership) inline.
   const facetActor = await resolveActor(id).catch(() => null);
   const canEditFacets = !!facetActor && facetActor.memberId === id;
@@ -284,7 +291,7 @@ export default async function MemberProfilePage({
         {memberType === "vendor" && ENDORSEMENTS[id] && (
           <EndorsementRows data={ENDORSEMENTS[id]} />
         )}
-        <ActionBar memberName={name} memberId={id} isVendor={memberType === "vendor"} />
+        <ActionBar memberName={name} memberId={id} isVendor={memberType === "vendor"} canInquire={hasAssistant} />
       </header>
 
       <div className="mt-10 grid gap-10 lg:grid-cols-3">
@@ -574,6 +581,7 @@ export default async function MemberProfilePage({
               {/* One-click leave-a-review on the business's Google listing */}
               <div>
                 <GoogleReviewButton
+                  placeId={p.placeId as string | undefined}
                   name={(p.businessName as string) || name}
                   address={p.businessAddress as string | undefined}
                   mapsUrl={p.googleMapsUrl as string | undefined}
@@ -640,10 +648,9 @@ export default async function MemberProfilePage({
 
       {/* Customer-service assistant — a Member+ capability (text agent), Pro adds
           voice. Free/unclaimed listings don't show it. */}
-      {["vendor", "artist", "organizer"].includes(memberType) &&
-        (await getEntitlements(id)).can.textAssistant && (
-          <AskAssistant memberId={id} memberName={(p.businessName as string) || name} />
-        )}
+      {hasAssistant && (
+        <AskAssistant memberId={id} memberName={(p.businessName as string) || name} />
+      )}
     </div>
   );
 }

@@ -2,28 +2,33 @@
 
 import useSWR from "swr";
 import { Star } from "lucide-react";
-import { mapsSearchUrl, reviewQuery } from "@/lib/google-review";
+import { mapsSearchUrl, reviewQuery, writeReviewUrl } from "@/lib/google-review";
 
-// One-click "Leave a Google review" button. Resolves the business's Google
-// Place ID (cached server-side) so the link opens Google's write-a-review
-// composer directly. Until that resolves — or if the business isn't found — it
-// falls back to the known Maps URL / a Maps search so the button is always
-// clickable, then upgrades to the direct composer link.
+// One-click "Leave a Google review" button → opens Google's write-a-review
+// composer directly. Businesses onboarded via Google Places already carry a
+// `placeId`, so we use it verbatim (exact, instant, no API call). Only when
+// it's missing do we resolve one from name+address via /api/places/review-link
+// (cached), with a Maps URL / search fallback so the button is never dead.
 export function GoogleReviewButton({
+  placeId,
   name,
   address,
   mapsUrl,
 }: {
+  placeId?: string | null;
   name?: string | null;
   address?: string | null;
   mapsUrl?: string | null;
 }) {
   const q = reviewQuery(name, address);
+  // Skip the network entirely when we already know the Place ID.
   const { data } = useSWR<{ url: string | null; direct: boolean }>(
-    q ? `/api/places/review-link?q=${encodeURIComponent(q)}` : null
+    !placeId && q ? `/api/places/review-link?q=${encodeURIComponent(q)}` : null
   );
 
-  const href = data?.url || mapsUrl || (q ? mapsSearchUrl(q) : null);
+  const href = placeId
+    ? writeReviewUrl(placeId)
+    : data?.url || mapsUrl || (q ? mapsSearchUrl(q) : null);
   if (!href) return null;
 
   return (
