@@ -121,6 +121,26 @@ export async function onboardFromMessages(
   return d.member as Member;
 }
 
+// Fast, read-only web-search research pass to WARM the /join onboarding
+// interview — the connector runs Perplexity over the member's name+city (no
+// save/embed) so the interviewer can open already knowing the story. Best-effort
+// and time-boxed; returns { research, profile } (either may be null). Server-only.
+export async function researchMember(
+  memberId: string
+): Promise<{ research: string | null; profile: Partial<MemberProfile> | null }> {
+  const token = process.env.CONNECTOR_ADMIN_TOKEN || process.env.ADMIN_TOKEN;
+  const res = await fetch(fnUrl("enrich"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ sessionId: memberId, mode: "research" }),
+    cache: "no-store",
+    signal: AbortSignal.timeout(11000),
+  });
+  if (!res.ok) throw new Error(`research failed: ${res.status}`);
+  const d = await res.json();
+  return { research: d.research ?? null, profile: (d.profile ?? null) as Partial<MemberProfile> | null };
+}
+
 // Smart natural-language search.
 // "buzz cut under $15 in Chinatown with a TV", "family-owned jewelry maker",
 // "historic Italian restaurant in North Beach" — all valid. The backend GPT-

@@ -1,14 +1,22 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Mic, MessageSquare, Loader2, Sparkles, Send, ArrowRight, Check } from "lucide-react";
 import { VoiceCall } from "@/components/VoiceCall";
+import type { BriefInput } from "@/lib/onboard";
 
 // The onboarding INTERVIEW step of /join. The member already exists + is
 // verified; this conversation (voice or text) enriches it — description,
-// category, what they sell, price, socials — which powers their local matches.
-// Both modes POST the transcript to /api/join/enrich (extract → patch-member,
-// re-embeds). Everything here is optional: "Skip for now" jumps straight to done.
+// category, what they sell, price, socials, and (the real prize) how they want
+// to collaborate — which powers their local matches.
+//
+// On mount we run a fast web-search research pass (/api/join/research) so the
+// interviewer opens ALREADY KNOWING them — reflecting back their story and
+// asking them to confirm it (the "wow, it knows me" moment) before asking for
+// more. The `brief` it produces is threaded into both voice + text modes.
+//
+// Both modes POST the transcript to /api/join/enrich (full connector brain →
+// enrich-in-place, re-embeds). Everything here is optional: "Skip" jumps to done.
 
 type Mode = "choose" | "text" | "voice";
 interface Msg { role: "user" | "assistant"; content: string }
@@ -17,16 +25,45 @@ export function JoinInterview({
   memberId,
   bizName,
   kind,
+  seed,
   onDone,
 }: {
   memberId: string;
   bizName: string;
   kind: string;
+  // What we already know client-side (Google Places pick, or the artist's name +
+  // city). Sent to /api/join/research as the instant baseline for the brief.
+  seed?: BriefInput;
   onDone: () => void;
 }) {
   const [mode, setMode] = useState<Mode>("choose");
   const [saving, setSaving] = useState(false);
   const [saveErr, setSaveErr] = useState("");
+
+  // undefined = research still running; string = ready (may be ""); the interview
+  // modes wait on this so the agent opens warm.
+  const [brief, setBrief] = useState<string | undefined>(undefined);
+  const started = useRef(false);
+
+  useEffect(() => {
+    if (started.current) return;
+    started.current = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/join/research", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ memberId, seed: seed ?? {} }),
+        });
+        const d = await res.json().catch(() => ({}));
+        setBrief(typeof d.brief === "string" ? d.brief : "");
+      } catch {
+        setBrief("");
+      }
+    })();
+    // memberId is stable for the life of this step; seed is captured once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [memberId]);
 
   // Persist the transcript, then finish. Enrichment is best-effort — the page
   // already exists, so a hiccup here should never trap the person.
@@ -57,6 +94,17 @@ export function JoinInterview({
         <p className="text-sm text-stone-500">
           A quick 2-minute interview about {bizName}. It writes your profile and powers who WhatsLocal
           matches you with — collaborators, events, customers. Talk it out or type it.
+        </p>
+        <p className="flex items-center gap-1.5 text-xs font-medium text-violet-600">
+          {brief === undefined ? (
+            <>
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Looking up {bizName}…
+            </>
+          ) : (
+            <>
+              <Sparkles className="h-3.5 w-3.5" /> Did some homework — I already know a bit about you.
+            </>
+          )}
         </p>
         <div className="space-y-2 pt-1">
           <button
@@ -90,16 +138,27 @@ export function JoinInterview({
   }
 
   if (mode === "voice") {
-    return <VoiceInterview bizName={bizName} kind={kind} saving={saving} saveErr={saveErr} onSave={saveAndDone} onBack={() => setMode("choose")} />;
+    return <VoiceInterview bizName={bizName} kind={kind} brief={brief} saving={saving} saveErr={saveErr} onSave={saveAndDone} onBack={() => setMode("choose")} />;
   }
 
-  return <TextInterview bizName={bizName} saving={saving} saveErr={saveErr} onSave={saveAndDone} onBack={() => setMode("choose")} />;
+  return <TextInterview bizName={bizName} brief={brief} saving={saving} saveErr={saveErr} onSave={saveAndDone} onBack={() => setMode("choose")} />;
+}
+
+// A shared "getting the interviewer ready" panel while research is still running.
+function Preparing({ bizName }: { bizName: string }) {
+  return (
+    <div className="flex min-h-[280px] flex-col items-center justify-center gap-3 text-center">
+      <Loader2 className="h-6 w-6 animate-spin text-violet-600" />
+      <p className="text-sm text-stone-500">Reading up on {bizName} so this is quick…</p>
+    </div>
+  );
 }
 
 // ── Voice ────────────────────────────────────────────────────────────────────
 function VoiceInterview({
   bizName,
   kind,
+  brief,
   saving,
   saveErr,
   onSave,
@@ -107,6 +166,7 @@ function VoiceInterview({
 }: {
   bizName: string;
   kind: string;
+  brief: string | undefined;
   saving: boolean;
   saveErr: string;
   onSave: (m: Msg[]) => void;
@@ -116,6 +176,23 @@ function VoiceInterview({
   const msgsRef = useRef<Msg[]>([]);
   const [heard, setHeard] = useState(0);
 
+  // Don't mint the Realtime session until the brief resolves — VoiceCall
+  // auto-starts on mount and captures tokenBody once, so the agent must have the
+  // brief before it connects (that's what makes it open warm).
+  if (brief === undefined) {
+    return (
+      <div className="space-y-4">
+        <h1 className="text-xl font-bold text-stone-900">Tell me about {bizName}</h1>
+        <div className="rounded-2xl border border-stone-200 bg-stone-50">
+          <Preparing bizName={bizName} />
+        </div>
+        <button onClick={onBack} className="block w-full text-xs font-medium text-stone-400 hover:text-stone-600">
+          Back
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <h1 className="text-xl font-bold text-stone-900">Tell me about {bizName}</h1>
@@ -123,7 +200,7 @@ function VoiceInterview({
         <VoiceCall
           memberName={bizName}
           tokenUrl="/api/onboard/voice"
-          tokenBody={{ name: bizName, kind }}
+          tokenBody={{ name: bizName, kind, brief }}
           onTranscript={(m) => {
             msgsRef.current = [...msgsRef.current, m];
             setHeard(msgsRef.current.length);
@@ -153,28 +230,50 @@ function VoiceInterview({
 // ── Text ─────────────────────────────────────────────────────────────────────
 function TextInterview({
   bizName,
+  brief,
   saving,
   saveErr,
   onSave,
   onBack,
 }: {
   bizName: string;
+  brief: string | undefined;
   saving: boolean;
   saveErr: string;
   onSave: (m: Msg[]) => void;
   onBack: () => void;
 }) {
-  const [messages, setMessages] = useState<Msg[]>([
-    {
-      role: "assistant",
-      content: `Nice to meet you — let's set up ${bizName}. In a sentence or two, what do you make or sell?`,
-    },
-  ]);
+  const [messages, setMessages] = useState<Msg[]>([]);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  const openerAsked = useRef(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   const userTurns = messages.filter((m) => m.role === "user").length;
+
+  // Once research resolves, ask the brain for a tailored opener so turn 1 already
+  // reflects what we found. Falls back to a generic greeting if it's slow/empty.
+  useEffect(() => {
+    if (brief === undefined || openerAsked.current) return;
+    openerAsked.current = true;
+    (async () => {
+      setBusy(true);
+      try {
+        const res = await fetch("/api/onboard/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messages: [], brief }),
+        });
+        const d = await res.json();
+        setMessages([{ role: "assistant", content: d.reply || `Nice to meet you — let's set up ${bizName}. In a sentence or two, what do you make or sell?` }]);
+      } catch {
+        setMessages([{ role: "assistant", content: `Nice to meet you — let's set up ${bizName}. In a sentence or two, what do you make or sell?` }]);
+      } finally {
+        setBusy(false);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [brief]);
 
   async function send() {
     const t = text.trim();
@@ -187,7 +286,7 @@ function TextInterview({
       const res = await fetch("/api/onboard/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: next }),
+        body: JSON.stringify({ messages: next, brief }),
       });
       const d = await res.json();
       setMessages([...next, { role: "assistant", content: d.reply || "Got it!" }]);
@@ -197,6 +296,20 @@ function TextInterview({
       setBusy(false);
       requestAnimationFrame(() => scrollRef.current?.scrollTo({ top: 9e9, behavior: "smooth" }));
     }
+  }
+
+  if (brief === undefined) {
+    return (
+      <div className="space-y-3">
+        <h1 className="text-xl font-bold text-stone-900">Tell me about {bizName}</h1>
+        <div className="rounded-2xl border border-stone-200 bg-stone-50">
+          <Preparing bizName={bizName} />
+        </div>
+        <button onClick={onBack} className="block w-full text-xs font-medium text-stone-400 hover:text-stone-600">
+          Back
+        </button>
+      </div>
+    );
   }
 
   return (

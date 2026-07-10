@@ -29,7 +29,8 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}))
   const name = body.name ? String(body.name).slice(0, 120) : undefined
   const kind = body.kind ? String(body.kind).slice(0, 40) : undefined
-  const instructions = interviewVoicePrompt({ name, kind })
+  const brief = body.brief ? String(body.brief).slice(0, 2000) : undefined
+  const instructions = interviewVoicePrompt({ name, kind, brief })
 
   try {
     const res = await fetch('https://api.openai.com/v1/realtime/client_secrets', {

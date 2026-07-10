@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useClerk, useAuth } from "@clerk/nextjs";
 import { Store, Users, Mic, Search, Loader2, Check, ArrowRight } from "lucide-react";
 import { JoinInterview } from "@/components/join/JoinInterview";
+import type { BriefInput } from "@/lib/onboard";
 
 // Self-serve "fresh join" — matches the rep-flow mockup:
 //   pick type → who you are + phone (code #1, Clerk) → confirm →
@@ -44,6 +45,14 @@ export function JoinFlow() {
   const [memberId, setMemberId] = useState("");
   const [bizName, setBizName] = useState("");
   const [phoneHint, setPhoneHint] = useState<string | null>(null);
+
+  // artist-only extras (no Maps anchor → give the web-search a locale + handle)
+  const [city, setCity] = useState("");
+  const [igHandle, setIgHandle] = useState("");
+
+  // "What we already know" baseline handed to the onboarding interview so it
+  // opens warm — set from the Google Places pick (entities) or the artist form.
+  const [seed, setSeed] = useState<BriefInput>({});
 
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -169,6 +178,15 @@ export function JoinFlow() {
       if (!created.memberId) throw new Error(created.error || "Couldn't create the profile.");
       setMemberId(created.memberId);
       setBizName(p.name);
+      // Baseline the interviewer already knows (Perplexity deepens it on top).
+      setSeed({
+        name: p.name,
+        category: profile.category ?? null,
+        city: details?.city ?? null,
+        neighborhood: details?.neighborhood ?? null,
+        description: details?.summary ?? null,
+        websiteUrl: details?.website ?? null,
+      });
       // Send the ownership code to the listing's phone.
       const otp = await (await fetch("/api/otp", {
         method: "POST",
@@ -218,14 +236,27 @@ export function JoinFlow() {
     setBusy(true);
     setErr("");
     try {
+      const igClean = igHandle.trim().replace(/^@/, "");
       const created = await (await fetch("/api/members/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profile: { name: name, memberType: "artist", ownerName: name }, mode: "self" }),
+        body: JSON.stringify({
+          profile: {
+            name,
+            memberType: "artist",
+            ownerName: name,
+            city: city.trim() || undefined,
+            instagramHandle: igClean || undefined,
+          },
+          mode: "self",
+        }),
       })).json();
       if (!created.memberId) throw new Error(created.error || "Couldn't create your page.");
       setMemberId(created.memberId);
       setBizName(name);
+      // Artists have no Maps anchor — the seed (name + city + IG) is what the
+      // web-search research keys off to open the interview knowing them.
+      setSeed({ name, city: city.trim() || null, instagramHandle: igClean || null });
       await fetch("/api/claim", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -279,11 +310,17 @@ export function JoinFlow() {
         <div className="space-y-3">
           <h1 className="text-2xl font-bold text-stone-900">Tell us who you are</h1>
           <p className="text-sm text-stone-500">A few quick details — no password, no email.</p>
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" className="w-full rounded-lg border border-stone-200 px-3 py-2.5 text-sm" />
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder={isArtist ? "Your name or stage name" : "Your name"} className="w-full rounded-lg border border-stone-200 px-3 py-2.5 text-sm" />
           {!isArtist && (
             <select value={role} onChange={(e) => setRole(e.target.value)} className="w-full rounded-lg border border-stone-200 px-3 py-2.5 text-sm">
               {["Owner", "Manager", "Team member"].map((r) => <option key={r}>{r}</option>)}
             </select>
+          )}
+          {isArtist && (
+            <>
+              <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="City you're based in (e.g. San Francisco)" className="w-full rounded-lg border border-stone-200 px-3 py-2.5 text-sm" />
+              <input value={igHandle} onChange={(e) => setIgHandle(e.target.value)} placeholder="Instagram handle (optional) — helps us look you up" className="w-full rounded-lg border border-stone-200 px-3 py-2.5 text-sm" />
+            </>
           )}
           <input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" placeholder="🇺🇸 +1 (415) 555-0132" className="w-full rounded-lg border border-stone-200 px-3 py-2.5 text-sm" />
           <button onClick={sendPhoneCode} disabled={busy} className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-stone-900 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60">
@@ -344,7 +381,7 @@ export function JoinFlow() {
       )}
 
       {step === "interview" && (
-        <JoinInterview memberId={memberId} bizName={bizName} kind={kind} onDone={() => setStep("done")} />
+        <JoinInterview memberId={memberId} bizName={bizName} kind={kind} seed={seed} onDone={() => setStep("done")} />
       )}
 
       {step === "done" && (

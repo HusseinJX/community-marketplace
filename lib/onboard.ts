@@ -54,40 +54,103 @@ export const EXTRACT_INSTRUCTION =
   'Extract only what is stated or clearly implied — do not invent details. Leave unknown fields null ' +
   '(or empty arrays). Write the description in a warm, first-person-friendly tone.'
 
+// A compact "what we already know" brief, stitched from the Google Places seed
+// and/or a fast web-search research pass, to WARM the onboarding interview. When
+// present, the interviewer opens by reflecting it back and confirming — the
+// "wow, it already knows me" moment — before moving on to new questions.
+export interface BriefInput {
+  name?: string | null
+  category?: string | null
+  subcategory?: string | null
+  city?: string | null
+  neighborhood?: string | null
+  description?: string | null
+  products?: string[] | null
+  services?: string[] | null
+  websiteUrl?: string | null
+  instagramHandle?: string | null
+  research?: string | null // raw web-search prose (Perplexity)
+}
+
+export function buildInterviewBrief(input: BriefInput): string {
+  const lines: string[] = []
+  const place = [input.neighborhood, input.city].filter(Boolean).join(', ')
+  if (input.name) lines.push(`Name: ${input.name}`)
+  const cat = [input.category, input.subcategory].filter(Boolean).join(' · ')
+  if (cat) lines.push(`Category: ${cat}`)
+  if (place) lines.push(`Where: ${place}`)
+  if (input.description) lines.push(`About: ${input.description}`)
+  const offerings = [...(input.products || []), ...(input.services || [])].filter(Boolean)
+  if (offerings.length) lines.push(`Known for: ${offerings.slice(0, 8).join(', ')}`)
+  if (input.websiteUrl) lines.push(`Website: ${input.websiteUrl}`)
+  if (input.instagramHandle) lines.push(`Instagram: @${String(input.instagramHandle).replace(/^@/, '')}`)
+  if (input.research) lines.push(`Web research:\n${String(input.research).trim().slice(0, 1400)}`)
+  return lines.join('\n').trim()
+}
+
+// The collaboration ask is the real prize of the interview — once the member
+// feels seen, steer toward how they'd like to connect with the local network.
+const COLLAB_NUDGE =
+  'Then spend a little time on the most valuable part: how they want to collaborate — ' +
+  'who they would love to work with (other makers, venues, organizers), what kinds of ' +
+  'events or partnerships excite them, and what they need help with or can offer others.'
+
+// Preamble that makes the host open with what we already researched, so the
+// person feels recognized and opens up. Empty when we have no brief.
+function briefPreamble(brief?: string): string {
+  if (!brief || !brief.trim()) return ''
+  return [
+    'Before this conversation started, we already researched them. Here is what we found:',
+    '"""',
+    brief.trim(),
+    '"""',
+    'OPEN by warmly showing you already know them — reflect back ONE or TWO specific, accurate',
+    'details from the research (their vibe, a specialty, their neighborhood) and ask them to',
+    'confirm or correct it. Make it feel like you did your homework. Never dump the whole list;',
+    'never invent details that are not in the research. If the research says it could not confirm',
+    'them, skip it and just ask warmly instead.',
+  ].join(' ')
+}
+
 // System prompt for the interactive onboarding chat (QR self-onboarding).
-export function onboardingSystemPrompt(eventName?: string): string {
+export function onboardingSystemPrompt(eventName?: string, opts?: { brief?: string }): string {
   return [
     'You are a friendly local-marketplace onboarding host helping a small business or maker join',
     eventName ? `the "${eventName}" event and the WhatsLocal community.` : 'the WhatsLocal community.',
+    briefPreamble(opts?.brief),
     'Have a short, warm conversation (a few questions) to learn: their business name, what they sell or do,',
     'their category, the city/neighborhood they operate in, price range, and how people can reach or follow them',
     '(phone, email, Instagram, website).',
     'Ask one or two things at a time, keep it casual and quick — most people are standing at a booth.',
     'Work in a couple of quick texture questions too: whether it is just them or a small team (size),',
     'and how long they have been going / whether they run more than one location or business.',
+    COLLAB_NUDGE,
     'Once you have the essentials (at least a name and what they do), let them know they can tap',
     '"Create my profile" whenever they are ready. Do not ask for everything; respect their time.',
-  ].join(' ')
+  ].filter(Boolean).join(' ')
 }
 
 // Spoken-style system prompt for the in-browser VOICE onboarding interview
 // (OpenAI Realtime). Used by /join after a business is verified — the goal is to
 // GATHER their profile in a short warm conversation, not to answer as a business.
-export function interviewVoicePrompt(opts?: { name?: string; kind?: string }): string {
+export function interviewVoicePrompt(opts?: { name?: string; kind?: string; brief?: string }): string {
   const who = opts?.name ? `"${opts.name}"` : 'a local business or maker'
+  const pre = briefPreamble(opts?.brief)
   return [
     `You are a warm, upbeat WhatsLocal onboarding host on a live voice call, interviewing ${who}`,
     'to build their community profile. This is a real spoken conversation — keep every turn to a',
     'sentence or two and let them talk.',
     '',
-    'Open by welcoming them by name and saying you just need a couple of minutes to bring their',
-    'page to life and power their local matches. Then, one or two questions at a time, learn:',
+    pre ||
+      'Open by welcoming them by name and saying you just need a couple of minutes to bring their page to life and power their local matches.',
+    'Then, one or two questions at a time, learn:',
     'what they sell or do, their category, the neighborhood they operate in, price range, what',
     'makes them special, and how people can follow or reach them (Instagram, website).',
     'Also get a little texture: is it just them or a small team, and how long they have been going.',
+    COLLAB_NUDGE,
     '',
     'Be conversational and encouraging — react to their answers, do not read a checklist. Never read',
     'long lists aloud. When you have the essentials, warmly let them know they are all set and can tap',
     '"Finish" whenever they are ready. Do not drag it out; respect their time.',
-  ].join(' ')
+  ].filter(Boolean).join(' ')
 }
