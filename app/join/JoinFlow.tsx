@@ -160,6 +160,12 @@ export function JoinFlow() {
         category: (details?.types || []).find((t: string) => !["point_of_interest", "establishment", "food", "store"].includes(t))?.replace(/_/g, " ") || undefined,
         city: details?.city || undefined,
         neighborhood: details?.neighborhood || undefined,
+        // Capture the coordinates straight from Google Places — this is the only
+        // reliable source. The connector only back-fills lat/lng by parsing
+        // `@lat,lng` out of a Maps URL, and our place_id URL has no numbers, so
+        // without these the business never lands on the /live map.
+        latitude: typeof details?.lat === "number" ? details.lat : undefined,
+        longitude: typeof details?.lng === "number" ? details.lng : undefined,
         phone: details?.phone || undefined,
         // businessPhone is what resolveOwnershipPhone reads for the ownership OTP
         // (it does NOT read `phone`); googleMapsUrl is the authoritative fallback.
