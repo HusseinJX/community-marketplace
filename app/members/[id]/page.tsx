@@ -17,6 +17,7 @@ import { EventCard } from "@/components/EventCard";
 import { MiniMap } from "@/components/MiniMap";
 import { ShopSection } from "@/components/ShopSection";
 import { ActionBar } from "@/components/ActionBar";
+import { GoogleReviewButton } from "@/components/GoogleReviewButton";
 import { GroupChat } from "@/components/GroupChat";
 import { ImageCarousel } from "@/components/ImageCarousel";
 import { AskAssistant } from "@/components/AskAssistant";
@@ -570,6 +571,14 @@ export default async function MemberProfilePage({
                   Visit website →
                 </a>
               )}
+              {/* One-click leave-a-review on the business's Google listing */}
+              <div>
+                <GoogleReviewButton
+                  name={(p.businessName as string) || name}
+                  address={p.businessAddress as string | undefined}
+                  mapsUrl={p.googleMapsUrl as string | undefined}
+                />
+              </div>
             </div>
           )}
 
