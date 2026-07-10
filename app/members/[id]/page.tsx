@@ -32,6 +32,7 @@ import { GivesBackBadges } from "@/components/giving/GivesBackBadges";
 import { BusinessFacets } from "@/components/business/BusinessFacets";
 import { resolveActor } from "@/lib/admin";
 import { readOwnership } from "@/lib/business-facets";
+import { getDemoMember } from "@/lib/demo-members";
 
 
 const TYPE_GRADIENTS: Record<string, string> = {
@@ -88,9 +89,9 @@ function SocialLink({ href, label, icon }: { href: string; label: string; icon: 
 // for the same id hits the network at most once per request.
 async function resolveMember(id: string): Promise<Member | null> {
   try {
-    return (await getMember(id)).member;
+    return (await getMember(id)).member ?? getDemoMember(id) ?? null;
   } catch {
-    return null;
+    return getDemoMember(id) ?? null;
   }
 }
 
@@ -170,6 +171,17 @@ export default async function MemberProfilePage({
     broadcasts = bcasts;
   } catch (err) {
     fetchError = err instanceof Error ? err.message : "Failed to load profile.";
+  }
+
+  // Demo venues/members (the sports-bar seeds shown on the live/featured
+  // surfaces when the real feed is empty) live only in lib/demo-members — the
+  // connector 404s on them, so resolve them here so their cards don't dead-end.
+  if (!member) {
+    const demo = getDemoMember(id);
+    if (demo) {
+      member = demo;
+      fetchError = null;
+    }
   }
 
   if (fetchError || !member) {
