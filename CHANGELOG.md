@@ -4,6 +4,19 @@ All notable changes to this project are documented here.
 
 ## [Unreleased] — commerce, live, social shell (branch `feat/collab-rooms`)
 
+### Added — Vendor Messages, conversational agent tuner, collab tiering — 2026-07-10
+- **Vendor Messages inbox** (`/vendor/messages`, new nav tab): (1) **customer DMs** — real conversations customers had with the business agent (`app/api/vendor/messages` + `.../[conversationId]` over `chat_conversations`/`chat_messages`, `resolveActor`-gated), transcript inline; (2) pinned **"Your AI agent"** chat (`app/vendor/messages/assistant` + `components/vendor/VendorAgentChat.tsx` streaming `/api/chat/[memberId]`).
+- **Conversational agent tuner** on `/vendor/assistant` — a **"Tune your agent"** panel (`components/vendor/AgentTuner.tsx`) that refines the customer-service agent by **chat or voice** ("make it less aggressive" → applies + confirms). `app/api/vendor/assistant/tune` = OpenAI tool-loop (`update_tone`/`add_note`/`remove_note`/`set_enabled`) editing `assistant_persona`+`business_knowledge` (the owner inputs `buildSystemPrompt` composes — never the fixed scaffold/tools/live facts). `app/api/vendor/assistant/voice` = OpenAI Realtime session grounded in the current config; the transcript is applied on hang-up (reuses `VoiceCall`). Demo actors preview without persisting.
+- **Free can create self-hosted events** — Events unlocked on the vendor dashboard for every tier (`VendorHome`): CRUD + RSVP, no lineup/collaboration (that stays Pro).
+
+### Changed — collab tiering, member-profile polish — 2026-07-10
+- **Collabs tiered** (`NetworkManager`/`CollabsGate`): **Pro** = own + invite/add + New collaboration + Create-event in chat; **Basic** = read/chat only, all collaborations shown as **Joined** (no Owner badge), no invite/add, no Create-event; **Free** = inert **demo** (one demo collaboration + static demo chat + demo invites) with "you're not in the network yet — upgrade to Basic" notice cards. Removed the two redundant Free banners (`DemoBanner`, the `!canOwn` note in Free).
+- **Inquire** button on member profiles now gated on the `textAssistant` entitlement (`ActionBar canInquire`) — no more dead button on free/unclaimed listings.
+- **About** section header (vendor dashboard): left-aligned, blue **Edit** pill + gray **View profile** pill.
+- **Resources** tab: removed the "Link your business" gate and the `CollectivePromoModal` "See how it works" popup/button.
+- **`/browse`**: back-to-home button + Feed/Events/Shop quick-nav pills.
+- **Seed member `89516919-…` reworked into "Xeno"** — personal founder profile (SF) with 4 XENO merch tees + 4 hero artworks (Supabase Storage; host added to `next.config`) + 3 host-your-own **Atlas** events (immersive cultural journeys). Old Zahab hero images/endorsements/demo-feed refs repointed.
+
 ### Added — /join in-app onboarding interview (voice + text) — 2026-07-08
 Deployed to prod (connector → Netlify; marketplace → CapRover `marketplace` v17). Commits `e5bb715` (marketplace) + connector `8a08aea`.
 - **New interview step in `/join`** (`app/join/JoinFlow.tsx`) between verification and the plan picker. After the member is created + verified/claimed, the person picks **Talk it out** (in-browser OpenAI Realtime **voice**, WebRTC — same plumbing as the business voice agent, no phone number), **Type it** (the `/onboard` chat brain), or **Skip**. `components/join/JoinInterview.tsx` drives the choose/text/voice surface.

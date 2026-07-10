@@ -33,7 +33,7 @@ export function EventsCard({ className }: { className?: string }) {
 
       <div className="flex flex-col gap-1.5 p-4">
         <h3 className="text-base font-semibold leading-tight">Atlas events</h3>
-        <p className="text-sm text-teal-100/80">Markets, shows &amp; meetups near you.</p>
+        <p className="text-sm text-teal-100/80">Immersive cultural journeys — food, music, art &amp; stories, one culture at a time.</p>
         <div className="flex items-center justify-between gap-2 pt-2">
           <span className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-medium text-teal-100 ring-1 ring-white/10">
             Featured

@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 
 const NAV = [
   { href: '/vendor', label: 'Home' },
+  { href: '/vendor/messages', label: 'Messages' }, // customer DMs + your AI agent
   { href: '/vendor/network', label: 'Collabs' }, // find & invite collaborators + rooms
   { href: '/vendor/resources', label: 'Resources' },
 ]

@@ -6,10 +6,13 @@ import { UserPlus, Bell, HandHeart, MessageSquare, Check, MapPin } from "lucide-
 export function ActionBar({
   memberId,
   isVendor,
+  canInquire = false,
 }: {
   memberName?: string;
   memberId: string;
   isVendor: boolean;
+  /** Only show "Inquire" when the assistant is actually mounted on the page. */
+  canInquire?: boolean;
 }) {
   const [following, setFollowing] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
@@ -80,13 +83,15 @@ export function ActionBar({
         Support
       </button>
 
-      <button
-        onClick={() => window.dispatchEvent(new CustomEvent("open-assistant"))}
-        className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-indigo-300 hover:text-indigo-700"
-      >
-        <MessageSquare className="h-4 w-4" />
-        Inquire
-      </button>
+      {canInquire && (
+        <button
+          onClick={() => window.dispatchEvent(new CustomEvent("open-assistant"))}
+          className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-indigo-300 hover:text-indigo-700"
+        >
+          <MessageSquare className="h-4 w-4" />
+          Inquire
+        </button>
+      )}
     </div>
   );
 }

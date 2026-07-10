@@ -2,7 +2,7 @@
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { LayoutGrid, Map as MapIcon, Heart, Apple, DollarSign, CreditCard, X, MapPin } from "lucide-react";
+import { LayoutGrid, Map as MapIcon, Heart, Apple, DollarSign, CreditCard, X, MapPin, ArrowLeft, Newspaper, CalendarDays, Store } from "lucide-react";
 import { listMembers, searchMembers } from "@/lib/api";
 import type { Member, SearchResultMember, SearchIntent } from "@/lib/types";
 import { MemberCard, MemberCardSkeleton } from "@/components/MemberCard";
@@ -288,6 +288,16 @@ export default function BrowsePage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 pb-20 md:px-8">
+      {/* Back to the home tabs. */}
+      <div className="flex items-center gap-2 pt-4">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3.5 py-1.5 text-sm font-medium text-stone-700 transition hover:border-stone-300 hover:bg-stone-50"
+        >
+          <ArrowLeft className="h-4 w-4" /> Home
+        </Link>
+      </div>
+
       {/* Compact hero — same proportions as the Live tab header. */}
       <section className="relative -mx-4 mb-6 overflow-hidden rounded-b-[1.75rem] md:-mx-8 md:mt-6 md:rounded-[1.75rem]">
         <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 via-sky-50 to-violet-50" />
@@ -383,6 +393,13 @@ export default function BrowsePage() {
       {/* Category bar — Airbnb-style icon tabs, directly under the search. */}
       {!aiSearchActive && (
         <section className="mb-4 mt-1">
+          {/* Jump to the home surfaces (Feed / Events / Shop) — sits beside the
+              vendor/artist/community type tabs below. */}
+          <div className="-mx-1 mb-3 flex items-center gap-1.5 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <HomeTabLink href="/?tab=feed" icon={Newspaper} label="Feed" />
+            <HomeTabLink href="/?tab=events" icon={CalendarDays} label="Events" />
+            <HomeTabLink href="/?tab=shop" icon={Store} label="Shop" />
+          </div>
           <div className="flex items-start justify-between gap-3">
             <FilterBar
               type={type}
@@ -568,6 +585,22 @@ function GroupRail({ label, emoji, members }: { label: string; emoji: string; me
         ))}
       </div>
     </section>
+  );
+}
+
+// Quick link to one of the home tabs (Feed / Events / Shop), shown on /browse
+// next to the vendor/artist/community type filter.
+function HomeTabLink({
+  href, icon: Icon, label,
+}: { href: string; icon: typeof Newspaper; label: string }) {
+  return (
+    <Link
+      href={href}
+      className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-stone-200 bg-white px-3.5 py-1.5 text-sm font-medium text-stone-700 transition hover:border-stone-300 hover:bg-stone-50"
+    >
+      <Icon className="h-4 w-4" />
+      {label}
+    </Link>
   );
 }
 

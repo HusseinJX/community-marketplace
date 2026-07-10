@@ -13,6 +13,8 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "images.unsplash.com" },
+      // Supabase Storage (marketplace-media) — uploads, product + profile images
+      { protocol: "https", hostname: "xbbnvkvlrucrzobhopgh.supabase.co" },
       // ProLocalIQ DigitalOcean Spaces — imported business hero photos
       { protocol: "https", hostname: "zahabbucket.nyc3.digitaloceanspaces.com" },
       { protocol: "https", hostname: "zahabbucket.nyc3.cdn.digitaloceanspaces.com" },

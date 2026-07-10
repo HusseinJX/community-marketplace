@@ -47,9 +47,9 @@ export type SharePostFeedItem = FeedItemBase & {
 
 export type FeedItem = EventFeedItem | VendorPostFeedItem | SharePostFeedItem;
 
-const zahab: FeedAuthor = {
+const xeno: FeedAuthor = {
   id: "89516919-256f-4a95-96df-fc9d285f664a",
-  name: "Zahab Energy",
+  name: "Xeno",
   type: "vendor",
 };
 const dani: FeedAuthor = { id: "demo-dani-cruz", name: "Dani Cruz", type: "artist" };
@@ -68,17 +68,13 @@ export const DEMO_FEED: FeedItem[] = [
   {
     id: "f1",
     kind: "post",
-    author: zahab,
+    author: xeno,
     postedAt: "3 hours ago",
     postedAtOrder: 1,
-    body: "New product just dropped. Our 200W Solar Panel is back in stock after the supply delay. Limited units — order yours before they're gone.",
-    product: {
-      id: `${zahab.id}__Solar Panel 200W`,
-      name: "Solar Panel 200W",
-      price: 89900,
-      memberId: zahab.id,
-      memberName: zahab.name,
-    },
+    body: "Building WhatsLocal so every neighborhood has its own internet — where the corner shop, the muralist, and the block party all show up in one place. If you run something local in SF, come claim your profile.",
+    images: [
+      "https://images.unsplash.com/photo-1521747116042-5a810fda9664?auto=format&fit=crop&w=1200&q=70",
+    ],
   },
   {
     id: "f2",
@@ -114,17 +110,17 @@ export const DEMO_FEED: FeedItem[] = [
     id: "f4",
     kind: "event",
     eventId: "demo-e2",
-    author: zahab,
+    author: xeno,
     postedAt: "3 days ago",
     postedAtOrder: 4,
-    title: "Clean Energy Workshop",
+    title: "WhatsLocal SF Meetup — Founders & Makers",
     date: "Thursday, Jun 19 · 6pm – 8pm",
-    location: "Echo Park Community Center",
+    location: "SoMa · San Francisco",
     description:
-      "Hands-on intro to residential solar + battery. Walk through panel sizing, install basics, and the new CA incentive programs.",
+      "Casual meetup for local founders, makers, and small-business owners. Swap ideas, find collaborators, and see what we're building next on WhatsLocal.",
     images: [
-      "https://images.unsplash.com/photo-1509391366360-2e959784a276?auto=format&fit=crop&w=1200&q=70",
-      "https://images.unsplash.com/photo-1497435334941-8c899ee9e8e9?auto=format&fit=crop&w=1200&q=70",
+      "https://images.unsplash.com/photo-1501594907352-04cda38ebc29?auto=format&fit=crop&w=1200&q=70",
+      "https://images.unsplash.com/photo-1522199755839-a2bacb67c546?auto=format&fit=crop&w=1200&q=70",
     ],
   },
   {

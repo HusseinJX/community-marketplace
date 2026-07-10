@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { Sparkles, Trash2, Plus, Inbox, Save, FileUp } from 'lucide-react'
+import { AgentTuner } from '@/components/vendor/AgentTuner'
 
 interface Knowledge {
   id: string
@@ -114,6 +115,16 @@ export default function VendorAssistantPage() {
           hours, events, and the notes you add below.
         </p>
       </div>
+
+      {/* Conversational tuner — talk or type to refine the agent. Its changes
+          land in the config + notes below, so keep them in sync. */}
+      <AgentTuner
+        onUpdated={(cfg) => {
+          setEnabled(cfg.enabled)
+          setPersona(cfg.persona)
+          setKnowledge(cfg.knowledge)
+        }}
+      />
 
       {/* Config */}
       <section className="card-soft space-y-4 p-6">

@@ -9,7 +9,6 @@ import { getEntitlements, PLAN_META } from "@/lib/entitlements";
 import { SITE_URL } from "@/lib/seo";
 import { VendorHome } from "@/components/vendor/VendorHome";
 import { TitleQrButton } from "@/components/vendor/TitleQrButton";
-import { CollectivePromoModal } from "@/components/vendor/CollectivePromoModal";
 
 export default async function VendorDashboard() {
   const { userId } = await auth()
@@ -82,7 +81,6 @@ export default async function VendorDashboard() {
 
   return (
     <div className="space-y-8">
-      <CollectivePromoModal />
       <div className="h-2 w-full rounded-full bg-gradient-to-r from-indigo-400 to-violet-400" />
 
       {/* Welcome */}

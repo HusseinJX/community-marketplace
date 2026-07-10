@@ -57,23 +57,24 @@ function AboutSection({ about, memberId }: { about: VendorAbout | null; memberId
 
   return (
     <div>
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
         <p className="section-label">About</p>
-        <div className="flex items-center gap-3">
-          {memberId && !editing && (
-            <button
-              onClick={() => { setForm(saved); setErr(''); setEditing(true) }}
-              className="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-700"
-            >
-              <Pencil className="h-3 w-3" /> Edit
-            </button>
-          )}
-          {memberId && (
-            <Link href={`/members/${memberId}`} className="inline-flex items-center gap-1 text-xs font-medium text-stone-500 hover:text-stone-700">
-              View profile <ExternalLink className="h-3 w-3" />
-            </Link>
-          )}
-        </div>
+        {memberId && !editing && (
+          <button
+            onClick={() => { setForm(saved); setErr(''); setEditing(true) }}
+            className="inline-flex items-center gap-1 rounded-full bg-indigo-600 px-3 py-1 text-xs font-medium text-white transition hover:bg-indigo-700"
+          >
+            <Pencil className="h-3 w-3" /> Edit
+          </button>
+        )}
+        {memberId && (
+          <Link
+            href={`/members/${memberId}`}
+            className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-3 py-1 text-xs font-medium text-stone-600 transition hover:bg-stone-200"
+          >
+            View profile <ExternalLink className="h-3 w-3" />
+          </Link>
+        )}
       </div>
 
       <div className="card-soft space-y-3 p-5">
@@ -202,13 +203,15 @@ export function VendorHome({
   // Every tier shows the SAME cards; lower tiers just see the gated ones disabled.
   const rank = tier === 'pro' ? 2 : tier === 'member' ? 1 : 0
   const needsPro = rank < 2   // commerce (Products / Orders)
-  const needsBasic = rank < 1 // Events, Agent
+  const needsBasic = rank < 1 // Agent
+  // Events are self-hosted and available to EVERY tier (create/edit + RSVP, no
+  // collaboration/lineup — that lives in the Collabs tab, gated separately).
   // Collabs + Resources are top-nav tabs (gated there), not dashboard buttons.
 
   const metrics = [
     { label: 'Products', value: '3', href: '/vendor/products', icon: Package, locked: needsPro, note: 'Pro' },
     { label: 'Orders', value: orderCount > 0 ? String(orderCount) : '—', href: '/vendor/orders', icon: ShoppingCart, locked: needsPro, note: 'Pro' },
-    { label: 'Events', value: '—', href: '/vendor/events', icon: Calendar, locked: needsBasic, note: 'Basic' },
+    { label: 'Events', value: '—', href: '/vendor/events', icon: Calendar, locked: false, note: 'Basic' },
   ]
 
   return (
@@ -254,7 +257,7 @@ export function VendorHome({
       {/* Manage */}
       <div className="grid gap-3 sm:grid-cols-2">
         {needsPro ? <LockedTile Icon={Package} label="My Products" note="Pro" /> : <Tile href="/vendor/products" Icon={Package} label="My Products" />}
-        {needsBasic ? <LockedTile Icon={Calendar} label="My Events" note="Basic" /> : <Tile href="/vendor/events" Icon={Calendar} label="My Events" />}
+        <Tile href="/vendor/events" Icon={Calendar} label="My Events" desc="Host events + collect RSVPs" />
       </div>
 
       {/* Tools (QR moved to the title button; Collabs/Resources live in the top nav) */}

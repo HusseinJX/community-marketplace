@@ -1,9 +1,11 @@
 export const MEMBER_HERO_IMAGES: Record<string, string[]> = {
   // Real members
+  // Xeno — founder, WhatsLocal AI (San Francisco)
   "89516919-256f-4a95-96df-fc9d285f664a": [
-    "https://images.unsplash.com/photo-1509391366360-2e959784a276?auto=format&fit=crop&w=1200&q=70",
-    "https://images.unsplash.com/photo-1497435334941-8c899ee9e8e9?auto=format&fit=crop&w=1200&q=70",
-    "https://images.unsplash.com/photo-1466611653911-95081537e5b7?auto=format&fit=crop&w=1200&q=70",
+    "https://xbbnvkvlrucrzobhopgh.supabase.co/storage/v1/object/public/marketplace-media/profile/89516919-256f-4a95-96df-fc9d285f664a/art-1-6.jpeg",
+    "https://xbbnvkvlrucrzobhopgh.supabase.co/storage/v1/object/public/marketplace-media/profile/89516919-256f-4a95-96df-fc9d285f664a/art-2-7.jpeg",
+    "https://xbbnvkvlrucrzobhopgh.supabase.co/storage/v1/object/public/marketplace-media/profile/89516919-256f-4a95-96df-fc9d285f664a/art-3-8.jpeg",
+    "https://xbbnvkvlrucrzobhopgh.supabase.co/storage/v1/object/public/marketplace-media/profile/89516919-256f-4a95-96df-fc9d285f664a/art-4-9.jpeg",
   ],
   // Demo members
   "demo-dani-cruz": [

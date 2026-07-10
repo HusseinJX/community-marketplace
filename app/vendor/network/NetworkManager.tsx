@@ -62,24 +62,35 @@ export function NetworkManager({
   };
 
   useEffect(() => {
-    // Free (demo) view: a single teaser collaboration called "Demo" that opens
-    // but shows an upsell inside. No real invites — the Invites tab shows its own
-    // "upgrade to get invites" card. Everything real needs Basic.
+    // Free: you're not in the network, so there's nothing real to load. Show
+    // illustrative demo data only — one demo collaboration + a couple demo
+    // invites — each paired with a card that explains it's a preview and that
+    // real network access needs Basic.
     if (demo) {
-      setIncoming([]);
+      setIncoming([
+        {
+          id: "demo-inv-1", from_id: "demo-cafe", from_name: "Nokku Coffee", to_id: memberId, to_name: "You",
+          message: "Want to co-host a weekend pop-up?", status: "pending", room_id: null,
+          scope_type: "collab", scope_id: null, role: "vendor", occasion_id: "demo-occ-a",
+          occasion_label: "Weekend pop-up", created_at: "2026-06-28T15:00:00.000Z",
+        },
+        {
+          id: "demo-inv-2", from_id: "demo-muralist", from_name: "Dani Cruz", to_id: memberId, to_name: "You",
+          message: "Mural + launch collab?", status: "pending", room_id: null,
+          scope_type: "collab", scope_id: null, role: "artist", occasion_id: "demo-occ-b",
+          occasion_label: "Storefront mural", created_at: "2026-06-27T15:00:00.000Z",
+        },
+      ]);
       setOutgoing([]);
       setRooms([
         {
-          id: "demo-room-1", member_a: memberId, member_a_name: "You", member_b: "demo-cafe", member_b_name: "Nokku Coffee",
-          is_group: false, title: "Demo", owner_id: null, occasion_id: null, occasion_label: null, event_id: null,
-          created_at: "2026-06-28T15:00:00.000Z",
+          id: "demo-room-1", member_a: "demo-cafe", member_a_name: "Nokku Coffee", member_b: memberId, member_b_name: "You",
+          is_group: false, title: "Demo collaboration", owner_id: "demo-cafe", occasion_id: "demo-occ",
+          occasion_label: "Demo collaboration", event_id: null, created_at: "2026-06-28T15:00:00.000Z",
         },
       ]);
       setCollabs([
-        {
-          occasion_id: "demo-occ", label: "Demo", roomId: "demo-room-1", eventId: null,
-          owned: false, acceptedCount: 1, members: [],
-        },
+        { occasion_id: "demo-occ", label: "Demo collaboration", roomId: "demo-room-1", eventId: null, owned: false, acceptedCount: 1, members: [] },
       ]);
       return;
     }
@@ -104,7 +115,7 @@ export function NetworkManager({
           </p>
         </div>
       </div>
-      {!canOwn && (
+      {!canOwn && !demo && (
         <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
           On <strong>Basic</strong> you can join collaborations you&apos;re invited to. Upgrade to <strong>Pro</strong> to start your own.
         </p>
@@ -357,23 +368,65 @@ function InviteModal({
   );
 }
 
-// Free-tier upsell — shown in place of the real chat / invites list.
-function UpsellCard({ title, body }: { title: string; body: string }) {
+// Free-tier notice — explains the surface is demo data + why (not in the
+// network) alongside the demo content, with an upgrade CTA.
+function NetworkNoticeCard({ title, body }: { title: string; body: string }) {
   return (
-    <div className="card-soft flex flex-col items-center justify-center gap-3 p-8 text-center">
-      <span className="flex h-11 w-11 items-center justify-center rounded-full bg-amber-100">
-        <Lock className="h-5 w-5 text-amber-600" />
+    <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100">
+        <Lock className="h-4 w-4 text-amber-600" />
       </span>
-      <div>
-        <p className="text-sm font-semibold text-stone-900">{title}</p>
-        <p className="mt-1 text-xs text-stone-500">{body}</p>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold text-amber-900">{title}</p>
+        <p className="mt-0.5 text-xs text-amber-700">{body}</p>
       </div>
       <Link
         href="/vendor/billing"
-        className="rounded-lg bg-stone-900 px-4 py-2 text-xs font-semibold text-white hover:bg-stone-800"
+        className="shrink-0 rounded-lg bg-amber-900 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-800"
       >
         Upgrade to Basic
       </Link>
+    </div>
+  );
+}
+
+// Static, non-functional demo chat shown on Free so the collaboration room has
+// something to look at. No API calls, no send — purely illustrative.
+function DemoChat() {
+  const msgs = [
+    { mine: false, name: "Nokku Coffee", text: "Hey! Want to co-host a weekend pop-up at our place?" },
+    { mine: true, name: "You", text: "Love that. We could bring a merch table + tastings." },
+    { mine: false, name: "Nokku Coffee", text: "Perfect — let's lock a date and split promo." },
+  ];
+  return (
+    <div className="card-soft flex h-[460px] flex-col">
+      <div className="flex items-center justify-between gap-2 border-b border-stone-100 px-4 py-2.5">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-medium text-stone-800">Nokku Coffee</p>
+          <p className="truncate text-[11px] text-stone-400">Demo conversation</p>
+        </div>
+        <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-700">Demo</span>
+      </div>
+      <div className="flex-1 space-y-2 overflow-y-auto p-4">
+        {msgs.map((m, i) => (
+          <div key={i} className={`flex ${m.mine ? "justify-end" : "justify-start"}`}>
+            <div className={`max-w-[75%] break-words rounded-2xl px-3 py-1.5 text-sm ${m.mine ? "bg-indigo-600 text-white" : "bg-stone-100 text-stone-800"}`}>
+              {!m.mine && <p className="text-[10px] font-medium opacity-70">{m.name}</p>}
+              {m.text}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="flex items-center gap-2 border-t border-stone-100 p-3">
+        <input
+          disabled
+          placeholder="Upgrade to Basic to message collaborators…"
+          className="flex-1 cursor-not-allowed rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-400"
+        />
+        <button disabled className="cursor-not-allowed rounded-lg bg-stone-200 p-2 text-stone-400">
+          <Send className="h-4 w-4" />
+        </button>
+      </div>
     </div>
   );
 }
@@ -393,15 +446,6 @@ function Invites({
   onChange: () => void;
   openRoom: (roomId?: string) => void;
 }) {
-  if (demo) {
-    return (
-      <UpsellCard
-        title="Basic to get invites"
-        body="On Free you can preview the network. Upgrade to Basic to receive collab invites and respond to them."
-      />
-    );
-  }
-
   async function respond(id: string, status: "accepted" | "declined") {
     const res = await fetch(`/api/vendor/invites/${id}`, {
       method: "PATCH",
@@ -419,6 +463,14 @@ function Invites({
 
   return (
     <section>
+      {demo && (
+        <div className="mb-4">
+          <NetworkNoticeCard
+            title="You're not in the network yet"
+            body="In Free you can't get invites because you're not in the network. The invites below are demo data. Upgrade to Basic to be in the network and receive real invites."
+          />
+        </div>
+      )}
       <p className="section-label mb-3">Invites for you</p>
       {pending.length === 0 ? (
         <p className="text-sm text-stone-400">No pending invites.</p>
@@ -448,14 +500,18 @@ function Invites({
                 </div>
                 <div className="flex shrink-0 gap-2">
                   <button
-                    onClick={() => respond(i.id, "accepted")}
-                    className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700"
+                    onClick={() => !demo && respond(i.id, "accepted")}
+                    disabled={demo}
+                    title={demo ? "Upgrade to Basic to join the network" : undefined}
+                    className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-stone-200 disabled:text-stone-400 disabled:hover:bg-stone-200"
                   >
                     <Check className="h-3.5 w-3.5" /> Accept
                   </button>
                   <button
-                    onClick={() => respond(i.id, "declined")}
-                    className="inline-flex items-center gap-1 rounded-lg bg-stone-100 px-3 py-1.5 text-xs font-medium text-stone-600 hover:bg-stone-200"
+                    onClick={() => !demo && respond(i.id, "declined")}
+                    disabled={demo}
+                    title={demo ? "Upgrade to Basic to join the network" : undefined}
+                    className="inline-flex items-center gap-1 rounded-lg bg-stone-100 px-3 py-1.5 text-xs font-medium text-stone-600 hover:bg-stone-200 disabled:cursor-not-allowed disabled:text-stone-300 disabled:hover:bg-stone-100"
                   >
                     <X className="h-3.5 w-3.5" /> Decline
                   </button>
@@ -517,11 +573,19 @@ function Rooms({
   }, [focusRoomId, rooms]);
 
   const roomById = useMemo(() => new Map(rooms.map((r) => [r.id, r])), [rooms]);
-  // Basic tier: hide owned collaborations — you only see ones you were invited to.
-  const visible = canOwn ? collabs : collabs.filter((c) => !c.owned);
+  // Every tier sees all their collaborations as chat rooms — the "basic view".
+  // The invite/add/new controls are gated on canOwn (Pro) below.
+  const visible = collabs;
 
   return (
-    <div className="grid gap-4 md:grid-cols-[280px_1fr]">
+    <div className="space-y-4">
+      {demo && (
+        <NetworkNoticeCard
+          title="You're not in the network yet"
+          body="In Free you're not in the network, so you can't get invites or join a collaboration. The collaboration and chat below are demo data. Upgrade to Basic to join the network."
+        />
+      )}
+      <div className="grid gap-4 md:grid-cols-[280px_1fr]">
       <div className="space-y-3">
         {canOwn && (
           <button
@@ -551,7 +615,7 @@ function Rooms({
               <div className="mb-1 flex items-center justify-between gap-2 px-1">
                 <span className="flex min-w-0 items-center gap-1.5">
                   <p className="min-w-0 truncate text-xs font-semibold uppercase tracking-wide text-stone-500">{c.label}</p>
-                  {c.owned ? (
+                  {c.owned && canOwn ? (
                     <span className="shrink-0 rounded-full bg-indigo-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-indigo-700">Owner</span>
                   ) : (
                     <span className="shrink-0 rounded-full bg-stone-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-stone-500">Joined</span>
@@ -583,8 +647,9 @@ function Rooms({
                 <p className="px-3 py-1 text-xs text-stone-400">No one has accepted yet</p>
               )}
 
-              {/* Owner-only: pending invitees + invite control */}
-              {c.owned && (
+              {/* Owner + Pro only: pending invitees + invite control. Basic/Free
+                  get the room to read & chat, without the invite/add machinery. */}
+              {c.owned && canOwn && (
                 <>
                   {pending.map((m) => (
                     <div key={m.invite_id} className="flex items-center justify-between gap-2 px-3 py-1 text-sm text-stone-400">
@@ -608,24 +673,22 @@ function Rooms({
       {active ? (
         <div className="min-w-0">
           {demo ? (
-            <UpsellCard
-              title="Basic to engage"
-              body="This is a preview room. Upgrade to Basic to message collaborators, agree on plans, and turn a collab into an event."
-            />
+            <DemoChat />
           ) : (
-            <Chat key={active.id} room={active} memberId={memberId} isAdmin={isAdmin} />
+            <Chat key={active.id} room={active} memberId={memberId} isAdmin={isAdmin} canOwn={canOwn} />
           )}
         </div>
       ) : (
         <div className="card-soft flex min-w-0 items-center justify-center p-6 text-sm text-stone-400">
-          Pick a chat to open, or start a collaboration.
+          {canOwn ? "Pick a chat to open, or start a collaboration." : "Pick a chat to open."}
         </div>
       )}
+      </div>
     </div>
   );
 }
 
-function Chat({ room, memberId, isAdmin }: { room: CollabRoom; memberId: string; isAdmin: boolean }) {
+function Chat({ room, memberId, isAdmin, canOwn = true }: { room: CollabRoom; memberId: string; isAdmin: boolean; canOwn?: boolean }) {
   const [messages, setMessages] = useState<CollabMessage[]>([]);
   const [text, setText] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
@@ -739,14 +802,17 @@ function Chat({ room, memberId, isAdmin }: { room: CollabRoom; memberId: string;
             Arranged by {isArranger ? "you" : arrangerName}
           </p>
         </div>
-        <button
-          onClick={() => { if (!canCreate) return; setPlanning((p) => !p); setCreatedEventId(null); }}
-          disabled={!canCreate}
-          title={canCreate ? undefined : gateHint}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-indigo-200 bg-white px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:border-stone-200 disabled:bg-stone-50 disabled:text-stone-400 disabled:hover:bg-stone-50"
-        >
-          <CalendarPlus className="h-3.5 w-3.5" /> Create event
-        </button>
+        {/* Create-event is a Pro capability — on Basic you join & chat only. */}
+        {canOwn && (
+          <button
+            onClick={() => { if (!canCreate) return; setPlanning((p) => !p); setCreatedEventId(null); }}
+            disabled={!canCreate}
+            title={canCreate ? undefined : gateHint}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-indigo-200 bg-white px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:border-stone-200 disabled:bg-stone-50 disabled:text-stone-400 disabled:hover:bg-stone-50"
+          >
+            <CalendarPlus className="h-3.5 w-3.5" /> Create event
+          </button>
+        )}
       </div>
 
       {/* Consensus bar — who's in (1:1 and group) */}
