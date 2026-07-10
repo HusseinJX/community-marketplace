@@ -95,6 +95,13 @@ export function LiveFeed({ afterHero, afterFeed }: { afterHero?: React.ReactNode
     });
   }, [sorted]);
 
+  // Index/feed view (not a deep-linked single event): don't render an empty
+  // "Live now" section — hide it entirely (including while loading) until
+  // something is actually live. Any passed-in event content still renders.
+  if (!locked && items.length === 0) {
+    return <>{afterHero}{afterFeed}</>;
+  }
+
   return (
     <>
       {/* Contextual hero — only on a deep-linked single event ("Where to watch
