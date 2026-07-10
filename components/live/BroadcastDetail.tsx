@@ -9,6 +9,7 @@ import { streamEmbed } from "@/lib/embed";
 import { SaveButton } from "./SaveButton";
 import { LiveMap } from "./LiveMap";
 import { MemoriesGrid } from "@/components/posts/MemoriesGrid";
+import { ShareMenu } from "@/components/ShareMenu";
 import type { LiveBroadcast } from "./types";
 
 export function BroadcastDetail({ id }: { id: string }) {
@@ -109,6 +110,7 @@ export function BroadcastDetail({ id }: { id: string }) {
           </span>
         )}
         <SaveButton broadcastId={b.id} initialSaved={b.saved} initialCount={b.save_count} />
+        <ShareMenu title={b.whats_on || eventLabel(b.event_slug, b.event_label)} />
       </div>
 
       {b.note && <p className="mt-4 text-stone-700">{b.note}</p>}
