@@ -7,7 +7,7 @@ import type { Attendee } from "@/lib/attendees";
 
 // RSVP list + a blast composer (custom message via SMS / email) to attendees.
 // Shared by the festival organizer (/vendor/organize) and the per-event manager.
-export function EventAttendees({ event, emailReady }: { event: VendorEvent; emailReady: boolean }) {
+export function EventAttendees({ event, emailReady, demo = false }: { event: VendorEvent; emailReady: boolean; demo?: boolean }) {
   const [attendees, setAttendees] = useState<Attendee[]>([]);
   const [count, setCount] = useState(0);
   const [capacity, setCapacity] = useState<number | null>(null);
@@ -18,6 +18,21 @@ export function EventAttendees({ event, emailReady }: { event: VendorEvent; emai
   const [blastMsg, setBlastMsg] = useState("");
 
   useEffect(() => {
+    if (demo) {
+      const mk = (id: string, name: string, contact: string, party: number): Attendee => ({
+        id, event_id: event.id, attendee_id: id, attendee_name: name, attendee_contact: contact, party_size: party, status: "going", created_at: "2026-06-24T15:00:00.000Z",
+      });
+      const list = [
+        mk("demo-a-1", "Maya R.", "+14155550132", 2),
+        mk("demo-a-2", "Devon P.", "devon@example.com", 1),
+        mk("demo-a-3", "Priya S.", "+14155550188", 4),
+        mk("demo-a-4", "Local Fan", "fan@example.com", 1),
+      ];
+      setAttendees(list);
+      setCount(list.reduce((n, a) => n + a.party_size, 0));
+      setCapacity(event.capacity);
+      return;
+    }
     fetch(`/api/vendor/events/${event.id}/attendees`)
       .then((r) => (r.ok ? r.json() : { attendees: [] }))
       .then((d) => {
@@ -26,7 +41,7 @@ export function EventAttendees({ event, emailReady }: { event: VendorEvent; emai
         setCapacity(d.capacity ?? null);
       })
       .catch(() => {});
-  }, [event.id]);
+  }, [event.id, demo, event.capacity]);
 
   const phoneCount = attendees.filter((a) => (a.attendee_contact || "").replace(/\D/g, "").length >= 10).length;
   const emailCount = attendees.filter((a) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test((a.attendee_contact || "").trim())).length;

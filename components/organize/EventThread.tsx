@@ -20,6 +20,7 @@ export function EventThread({
   emailReady,
   audienceLabel = "lineup",
   showSquad = false,
+  demo = false,
 }: {
   event: VendorEvent;
   memberId: string;
@@ -27,6 +28,7 @@ export function EventThread({
   emailReady: boolean;
   audienceLabel?: string;
   showSquad?: boolean;
+  demo?: boolean;
 }) {
   const [messages, setMessages] = useState<EventMessage[]>([]);
   const [squad, setSquad] = useState<CollabInvite[]>([]);
@@ -42,6 +44,14 @@ export function EventThread({
   const qp = isAdmin ? `?memberId=${memberId}` : "";
 
   const load = () => {
+    if (demo) {
+      setMessages([
+        { id: "demo-msg-1", event_id: event.id, sender_id: "", sender_name: "You", text: "Lineup's set! Load-in is 4pm, booths face the plaza.", channel: "chat", recipients: null, created_at: "2026-06-24T15:00:00.000Z" },
+        { id: "demo-msg-2", event_id: event.id, sender_id: "", sender_name: "Nokku Coffee", text: "We'll bring the cold brew cart 🙌", channel: "chat", recipients: null, created_at: "2026-06-24T15:05:00.000Z" },
+        { id: "demo-msg-3", event_id: event.id, sender_id: "", sender_name: "You", text: "Reminder blast sent to the lineup.", channel: "sms", recipients: 4, created_at: "2026-06-24T15:10:00.000Z" },
+      ]);
+      return;
+    }
     fetch(`/api/vendor/events/${event.id}/messages${qp}`)
       .then((r) => (r.ok ? r.json() : { messages: [] }))
       .then((d) => setMessages(Array.isArray(d.messages) ? d.messages : []))
@@ -49,6 +59,7 @@ export function EventThread({
   };
   useEffect(() => {
     load();
+    if (demo) return;
     const t = setInterval(load, 8000);
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps

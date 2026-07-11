@@ -145,7 +145,7 @@ export function OrganizeManager({
                 ))}
               </div>
               {tab === "lineup" ? (
-                <Lineup key={`l-${selected.id}`} event={selected} memberId={memberId} isAdmin={isAdmin} />
+                <Lineup key={`l-${selected.id}`} event={selected} memberId={memberId} isAdmin={isAdmin} demo={demo} />
               ) : tab === "messages" ? (
                 <EventThread
                   key={`m-${selected.id}`}
@@ -153,11 +153,12 @@ export function OrganizeManager({
                   memberId={memberId}
                   isAdmin={isAdmin}
                   emailReady={emailReady}
+                  demo={demo}
                 />
               ) : tab === "preview" ? (
                 <EventPreview key={`p-${selected.id}`} event={selected} isAdmin={isAdmin} memberId={memberId} />
               ) : (
-                <EventAttendees key={`a-${selected.id}`} event={selected} emailReady={emailReady} />
+                <EventAttendees key={`a-${selected.id}`} event={selected} emailReady={emailReady} demo={demo} />
               )}
             </div>
           ) : null}
@@ -167,7 +168,17 @@ export function OrganizeManager({
   );
 }
 
-function Lineup({ event, memberId, isAdmin }: { event: VendorEvent; memberId: string; isAdmin: boolean }) {
+function demoLineup(eventId: string): CollabInvite[] {
+  const base = { from_id: "", from_name: "You", to_id: "", message: null, status: "accepted" as const, room_id: null, scope_type: "event" as const, scope_id: eventId, occasion_id: eventId, occasion_label: null, created_at: "2026-06-24T15:00:00.000Z" };
+  return [
+    { ...base, id: "demo-l-1", to_name: "Nokku Coffee", role: "vendor" },
+    { ...base, id: "demo-l-2", to_name: "Dani Cruz", role: "performer" },
+    { ...base, id: "demo-l-3", to_name: "El Tri Cantina", role: "food" },
+    { ...base, id: "demo-l-4", to_name: "Studio Nine", role: "vendor", status: "pending" },
+  ];
+}
+
+function Lineup({ event, memberId, isAdmin, demo }: { event: VendorEvent; memberId: string; isAdmin: boolean; demo?: boolean }) {
   const [lineup, setLineup] = useState<CollabInvite[]>([]);
   const [requests, setRequests] = useState<JoinRequest[]>([]);
   const [picked, setPicked] = useState<Map<string, MatchCandidate>>(new Map());
@@ -176,6 +187,11 @@ function Lineup({ event, memberId, isAdmin }: { event: VendorEvent; memberId: st
   const [msg, setMsg] = useState("");
 
   const load = () => {
+    if (demo) {
+      setLineup(demoLineup(event.id));
+      setRequests([]);
+      return;
+    }
     fetch(`/api/vendor/events/${event.id}/lineup`)
       .then((r) => (r.ok ? r.json() : { lineup: [] }))
       .then((d) => setLineup(Array.isArray(d.lineup) ? d.lineup : []))
