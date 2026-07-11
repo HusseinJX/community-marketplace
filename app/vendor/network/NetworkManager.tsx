@@ -561,7 +561,7 @@ function NetworkNoticeCard({ title, body }: { title: string; body: string }) {
 // Demo collaboration chat — mirrors the real room (header + Create-event, the
 // "I'm in" consensus bar with participants, transcript, and a message box) but
 // runs entirely locally: no API calls. Used in the Free preview + Admin demo.
-function DemoChat({ room, memberId, canOwn }: { room: CollabRoom; memberId: string; canOwn?: boolean }) {
+function DemoChat({ room, memberId, canOwn, hasGroup }: { room: CollabRoom; memberId: string; canOwn?: boolean; hasGroup?: boolean }) {
   const otherName = room.member_a_name === "You" ? room.member_b_name : room.member_a_name;
   const title = (room.is_group ? room.title : otherName) || room.title || "Collaboration";
   const owned = room.owner_id === memberId;
@@ -578,7 +578,11 @@ function DemoChat({ room, memberId, canOwn }: { room: CollabRoom; memberId: stri
   const [createdEvent, setCreatedEvent] = useState<{ id: string; title: string } | null>(
     DEMO_EVENT_BY_ROOM[room.id] ?? null
   );
-  const canCreateEvent = canOwn && owned && !createdEvent;
+  // An individual chat that belongs to a collab which already has a group room
+  // offers "Add to group chat" instead of "Create event".
+  const isIndividualInGroup = !room.is_group && !!hasGroup;
+  const [addedToGroup, setAddedToGroup] = useState(false);
+  const canCreateEvent = canOwn && owned && !createdEvent && !isIndividualInGroup;
 
   function send() {
     const t = text.trim();
@@ -597,7 +601,18 @@ function DemoChat({ room, memberId, canOwn }: { room: CollabRoom; memberId: stri
             {owned ? "Arranged by you" : room.is_group ? `Group · ${people.length}` : "Direct collaboration"}
           </p>
         </div>
-        {createdEvent ? (
+        {isIndividualInGroup && owned && canOwn ? (
+          <button
+            onClick={() => setAddedToGroup(true)}
+            disabled={addedToGroup}
+            className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium ${
+              addedToGroup ? "bg-emerald-100 text-emerald-700" : "border border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50"
+            }`}
+          >
+            {addedToGroup ? <Check className="h-3.5 w-3.5" /> : <Users className="h-3.5 w-3.5" />}
+            {addedToGroup ? "In group chat" : "Add to group chat"}
+          </button>
+        ) : createdEvent ? (
           DEMO_EVENT_BY_ROOM[room.id] ? (
             <Link
               href={`/events/${createdEvent.id}`}
@@ -1043,7 +1058,13 @@ function Rooms({
       {active ? (
         <div className="min-w-0">
           {inert ? (
-            <DemoChat key={active.id} room={active} memberId={memberId} canOwn={canOwn} />
+            <DemoChat
+              key={active.id}
+              room={active}
+              memberId={memberId}
+              canOwn={canOwn}
+              hasGroup={rooms.some((rm) => rm.occasion_id === active.occasion_id && rm.is_group)}
+            />
           ) : (
             <Chat key={active.id} room={active} memberId={memberId} isAdmin={isAdmin} canOwn={canOwn} />
           )}
