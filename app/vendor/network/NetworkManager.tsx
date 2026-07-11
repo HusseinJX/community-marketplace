@@ -585,7 +585,7 @@ function DemoChat({ room, memberId, canOwn, hasGroup }: { room: CollabRoom; memb
         <div className="min-w-0">
           <p className="truncate text-sm font-medium text-stone-800">{title}</p>
           <p className="truncate text-[11px] text-stone-400">
-            {owned ? "Arranged by you" : room.is_group ? `Group · ${people.length}` : "Direct collaboration"}
+            {owned && canOwn ? "Arranged by you" : room.is_group ? `Group · ${people.length}` : "Direct collaboration"}
           </p>
         </div>
         {isIndividualInGroup && owned && canOwn ? (

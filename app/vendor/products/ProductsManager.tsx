@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Plus, Trash2, Check } from 'lucide-react'
 import { ImageCaptureUploader } from '@/components/ImageCaptureUploader'
 import { UpgradePrompt, upgradeFrom } from '@/components/billing/UpgradePrompt'
+import { demoProducts } from '@/lib/demo-catalog'
 
 interface Product {
   id: string
@@ -20,10 +21,12 @@ export function ProductsManager({
   memberId,
   memberName,
   isAdmin,
+  adminDemo = false,
 }: {
   memberId: string
   memberName: string
   isAdmin: boolean
+  adminDemo?: boolean
 }) {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
@@ -32,16 +35,26 @@ export function ProductsManager({
   const [upgrade, setUpgrade] = useState<'member' | 'pro' | null>(null)
 
   const load = useCallback(async () => {
+    // Admin demo has no real backend member — seed sample rows instead.
+    if (adminDemo) {
+      setProducts(demoProducts())
+      setLoading(false)
+      return
+    }
     const res = await fetch(`/api/products/${memberId}?include_drafts=1`)
     if (res.ok) setProducts(await res.json())
     setLoading(false)
-  }, [memberId])
+  }, [memberId, adminDemo])
 
   useEffect(() => {
     load()
   }, [load])
 
   async function patch(id: string, fields: Partial<Product>) {
+    if (adminDemo) {
+      setProducts((p) => p.map((x) => (x.id === id ? { ...x, ...fields } : x)))
+      return
+    }
     await fetch(`/api/products/${memberId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -51,6 +64,10 @@ export function ProductsManager({
   }
 
   async function remove(id: string) {
+    if (adminDemo) {
+      setProducts((p) => p.filter((x) => x.id !== id))
+      return
+    }
     await fetch(`/api/products/${memberId}`, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
@@ -61,6 +78,15 @@ export function ProductsManager({
 
   async function addManual() {
     if (!form.name.trim()) return
+    if (adminDemo) {
+      setProducts((p) => [
+        { id: `demo-prod-${Date.now()}`, name: form.name, description: form.description || null, price: Math.round(parseFloat(form.price || '0') * 100), currency: 'usd', image_url: null, active: true, source: 'manual' },
+        ...p,
+      ])
+      setForm({ name: '', description: '', price: '' })
+      setShowAdd(false)
+      return
+    }
     const res = await fetch(`/api/products/${memberId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

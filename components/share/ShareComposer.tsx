@@ -227,16 +227,38 @@ export function ShareComposer() {
     setLocating(false);
   }
 
-  function onScan(kind: "business" | "event", id: string) {
-    const label =
-      kind === "event"
-        ? events.find((x) => x.id === id)?.title ?? "Event"
-        : members.find((x) => x.id === id)?.profile?.name ?? "Business";
-    if (scanSlot != null) {
-      selectSlotTag(scanSlot, { kind, id, label });
-      setScanSlot(null);
-    }
+  async function onScan(kind: "business" | "event", id: string) {
+    const slot = scanSlot;
     setScannerOpen(false);
+    setScanSlot(null);
+    if (slot == null) return;
+
+    // Prefer the already-loaded directory; the scanned id is usually NOT in it
+    // (we only cache ~100), so fall back to a server name lookup so the tag chip
+    // shows the real business/event name instead of a generic placeholder.
+    const local =
+      kind === "event"
+        ? events.find((x) => x.id === id)?.title
+        : members.find((x) => x.id === id)?.profile?.name;
+    if (local) {
+      selectSlotTag(slot, { kind, id, label: local });
+      return;
+    }
+
+    // Seed with a placeholder so the chip appears instantly, then resolve.
+    const placeholder = kind === "event" ? "Event" : "Business";
+    selectSlotTag(slot, { kind, id, label: placeholder });
+    try {
+      const res = await fetch(`/api/tag-lookup?kind=${kind}&id=${encodeURIComponent(id)}`);
+      const d = await res.json().catch(() => null);
+      if (d?.name) {
+        setSlots((arr) =>
+          arr.map((sl) => (sl.tag?.kind === kind && sl.tag.id === id ? { ...sl, tag: { ...sl.tag, label: d.name } } : sl))
+        );
+      }
+    } catch {
+      /* keep the placeholder */
+    }
   }
 
   async function goLiveSubmit() {

@@ -17,7 +17,11 @@ export default async function VendorProductsPage({
   const admin = isAdmin(userId)
 
   let memberId = admin && requested ? requested : profile?.member_id
-  if (!memberId && !userId && (await isDemoActive())) memberId = await demoMemberId()
+  let adminDemo = false
+  if (!memberId && !userId && (await isDemoActive())) {
+    memberId = await demoMemberId()
+    adminDemo = true
+  }
 
   if (!memberId) {
     return (
@@ -39,5 +43,5 @@ export default async function VendorProductsPage({
     /* keep default */
   }
 
-  return <ProductsManager memberId={memberId} memberName={memberName} isAdmin={admin} />
+  return <ProductsManager memberId={memberId} memberName={memberName} isAdmin={admin} adminDemo={adminDemo} />
 }

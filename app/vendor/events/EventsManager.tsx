@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Plus, Trash2, Check } from 'lucide-react'
 import { ImageCaptureUploader } from '@/components/ImageCaptureUploader'
+import { demoVendorEvents } from '@/lib/demo-catalog'
+import { EventLocationPicker } from '@/components/events/EventLocationPicker'
 
 interface VEvent {
   id: string
@@ -21,27 +23,47 @@ export function EventsManager({
   memberId,
   memberName,
   isAdmin,
+  adminDemo = false,
+  businessLat = null,
+  businessLng = null,
 }: {
   memberId: string
   memberName: string
   isAdmin: boolean
+  adminDemo?: boolean
+  businessLat?: number | null
+  businessLng?: number | null
 }) {
   const [events, setEvents] = useState<VEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
   const [form, setForm] = useState({ title: '', event_date: '', event_time: '', location: '', description: '', capacity: '' })
+  // Map pin for the new event — defaults to the business location, draggable.
+  const businessPin: [number, number] | null =
+    businessLat != null && businessLng != null ? [businessLat, businessLng] : null
+  const [pin, setPin] = useState<[number, number] | null>(businessPin)
 
   const load = useCallback(async () => {
+    // Admin demo has no real backend member — seed sample rows instead.
+    if (adminDemo) {
+      setEvents(demoVendorEvents())
+      setLoading(false)
+      return
+    }
     const res = await fetch(`/api/events/${memberId}?include_drafts=1`)
     if (res.ok) setEvents(await res.json())
     setLoading(false)
-  }, [memberId])
+  }, [memberId, adminDemo])
 
   useEffect(() => {
     load()
   }, [load])
 
   async function approve(id: string) {
+    if (adminDemo) {
+      setEvents((e) => e.map((x) => (x.id === id ? { ...x, active: true } : x)))
+      return
+    }
     await fetch(`/api/events/${memberId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -51,6 +73,10 @@ export function EventsManager({
   }
 
   async function remove(id: string) {
+    if (adminDemo) {
+      setEvents((e) => e.filter((x) => x.id !== id))
+      return
+    }
     await fetch(`/api/events/${memberId}`, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
@@ -59,15 +85,35 @@ export function EventsManager({
     setEvents((e) => e.filter((x) => x.id !== id))
   }
 
+  function resetForm() {
+    setForm({ title: '', event_date: '', event_time: '', location: '', description: '', capacity: '' })
+    setPin(businessPin)
+    setShowAdd(false)
+  }
+
   async function addManual() {
     if (!form.title.trim()) return
+    if (adminDemo) {
+      setEvents((e) => [
+        { id: `demo-vevent-${Date.now()}`, title: form.title, description: form.description || null, event_date: form.event_date || null, event_time: form.event_time || null, location: form.location || null, poster_image_url: null, source: 'manual', active: true },
+        ...e,
+      ])
+      resetForm()
+      return
+    }
     await fetch(`/api/events/${memberId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ memberName, ...form, active: true, source: 'manual' }),
+      body: JSON.stringify({
+        memberName,
+        ...form,
+        lat: pin ? pin[0] : undefined,
+        lng: pin ? pin[1] : undefined,
+        active: true,
+        source: 'manual',
+      }),
     })
-    setForm({ title: '', event_date: '', event_time: '', location: '', description: '', capacity: '' })
-    setShowAdd(false)
+    resetForm()
     load()
   }
 
@@ -93,7 +139,13 @@ export function EventsManager({
             <input value={form.event_date} onChange={(e) => setForm({ ...form, event_date: e.target.value })} placeholder="Date" className="w-1/2 rounded-lg border border-stone-200 px-3 py-2 text-sm" />
             <input value={form.event_time} onChange={(e) => setForm({ ...form, event_time: e.target.value })} placeholder="Time" className="w-1/2 rounded-lg border border-stone-200 px-3 py-2 text-sm" />
           </div>
-          <input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder="Location" className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm" />
+          <input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder="Location name (e.g. Dolores Park)" className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm" />
+          <div>
+            <p className="mb-1.5 text-xs text-stone-500">
+              Pin the venue on the map — drag or tap. Defaults to your business location.
+            </p>
+            <EventLocationPicker value={pin} onChange={setPin} />
+          </div>
           <input type="number" min="1" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} placeholder="Capacity (optional — blank = unlimited RSVPs)" className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm" />
           <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Description" rows={2} className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm" />
           <button onClick={addManual} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">Save</button>

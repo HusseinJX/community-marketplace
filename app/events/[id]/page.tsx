@@ -22,6 +22,7 @@ import { isEventOrganizer } from "@/lib/org-focus";
 import { EventActionBar } from "./EventActionBar";
 import { MemoriesGrid } from "@/components/posts/MemoriesGrid";
 import { RsvpButton } from "@/components/events/RsvpButton";
+import { EventLocationMap } from "@/components/events/EventLocationMap";
 
 // ─── Gradient helpers ────────────────────────────────────────────────────────
 
@@ -97,6 +98,8 @@ export default async function EventDetailPage({
   let event: EventSuggestion | undefined = DEMO_EVENTS[id];
   let isOrganizerEvent = false;
   let posterUrl: string | null = null;
+  let eventLat: number | null = null;
+  let eventLng: number | null = null;
   if (!event) {
     const { events } = await listEvents();
     event = events.find((e) => e.id === id);
@@ -108,6 +111,8 @@ export default async function EventDetailPage({
     if (ve) {
       isOrganizerEvent = true;
       posterUrl = ve.poster_image_url;
+      eventLat = ve.lat;
+      eventLng = ve.lng;
       event = {
         id: ve.id,
         memberId: ve.member_id,
@@ -127,6 +132,8 @@ export default async function EventDetailPage({
     const de = demoEvents(await demoMemberId()).find((e) => e.id === id);
     if (de) {
       isOrganizerEvent = true;
+      eventLat = de.lat;
+      eventLng = de.lng;
       event = {
         id: de.id,
         memberId: de.member_id,
@@ -184,6 +191,13 @@ export default async function EventDetailPage({
   ]
     .filter(Boolean)
     .join(", ");
+
+  // Map pin: the event's own coordinates (set on the create form), falling back
+  // to the host business's location so every event with a located host maps.
+  const pinLat =
+    eventLat ?? (typeof profile.latitude === "number" ? profile.latitude : null);
+  const pinLng =
+    eventLng ?? (typeof profile.longitude === "number" ? profile.longitude : null);
 
   // Confirmed lineup (vendors, performers, sponsors, …) for organizer/festival
   // events. Empty for connector/demo events — the section self-hides.
@@ -301,7 +315,7 @@ export default async function EventDetailPage({
             </div>
           )}
 
-          <EventActionBar title={title} />
+          <EventActionBar title={title} eventId={event.id} />
         </div>
 
         {/* Two-column layout */}
@@ -424,6 +438,13 @@ export default async function EventDetailPage({
                     <MapPin className="size-4 text-stone-400 shrink-0 mt-0.5" />
                     <p>{event.location}</p>
                   </div>
+                )}
+                {pinLat != null && pinLng != null && (
+                  <EventLocationMap
+                    lat={pinLat}
+                    lng={pinLng}
+                    label={event.location || hostName}
+                  />
                 )}
                 <div className="flex items-start gap-2.5">
                   <UserRound className="size-4 text-stone-400 shrink-0 mt-0.5" />

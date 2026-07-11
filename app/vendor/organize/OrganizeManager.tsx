@@ -23,12 +23,14 @@ const DEMO_EVENTS: VendorEvent[] = [
     id: "demo-ev-block", member_id: "", member_name: "You", title: "Summer Block Party",
     description: "Food trucks, live music, and a kids' zone on the block.", event_date: "2026-08-15",
     event_time: "2:00 PM – 8:00 PM", location: "Valencia St", city: "San Francisco", neighborhood: "Mission",
+    lat: 37.7599, lng: -122.4214,
     poster_image_url: null, capacity: 300, source: "manual", active: true, created_at: "2026-06-20T15:00:00.000Z",
   },
   {
     id: "demo-ev-market", member_id: "", member_name: "You", title: "Neighborhood Night Market",
     description: "Local makers, food stalls, and a live mural wall.", event_date: "2026-07-25",
     event_time: "6:00 PM – 10:00 PM", location: "Dolores Park", city: "San Francisco", neighborhood: "Mission",
+    lat: 37.7596, lng: -122.4269,
     poster_image_url: null, capacity: null, source: "manual", active: true, created_at: "2026-06-24T15:00:00.000Z",
   },
 ];

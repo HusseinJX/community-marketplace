@@ -9,6 +9,20 @@ import type { Member } from "@/lib/types";
 
 const KINDS: ContributionKind[] = ["goods", "funds", "time", "other"];
 
+// Sample community orgs for the search dropdown. Used as a fallback when the
+// directory returns nothing (e.g. the Admin demo, which has no real backend),
+// so the org picker is explorable instead of empty.
+const DEMO_ORGS: Member[] = [
+  { id: "demo-org-food-bank", profile: { name: "SF-Marin Food Bank", serves: ["individuals"] } },
+  { id: "demo-org-glide", profile: { name: "GLIDE Community Center", serves: ["individuals"] } },
+  { id: "demo-org-la-cocina", profile: { name: "La Cocina Kitchen Incubator", serves: ["small-businesses"] } },
+  { id: "demo-org-meda", profile: { name: "MEDA (Mission Economic Development)", serves: ["small-businesses"] } },
+  { id: "demo-org-mutual-aid", profile: { name: "Mission Mutual Aid", serves: ["individuals"] } },
+  { id: "demo-org-hamilton", profile: { name: "Hamilton Families", serves: ["individuals"] } },
+  { id: "demo-org-renaissance", profile: { name: "Renaissance Entrepreneurship Center", serves: ["small-businesses"] } },
+  { id: "demo-org-larkin", profile: { name: "Larkin Street Youth Services", serves: ["individuals"] } },
+];
+
 export function GivingManager({
   memberId,
   memberName,
@@ -30,6 +44,7 @@ export function GivingManager({
   const [amount, setAmount] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  const [focused, setFocused] = useState(false);
 
   const qp = isAdmin ? `?memberId=${memberId}` : "";
 
@@ -47,16 +62,17 @@ export function GivingManager({
 
   useEffect(() => {
     listMembers({ type: "organizer", limit: 100 })
-      .then((r) => setOrgs(r.members ?? []))
-      .catch(() => setOrgs([]));
+      .then((r) => setOrgs(r.members?.length ? r.members : DEMO_ORGS))
+      .catch(() => setOrgs(DEMO_ORGS));
   }, []);
 
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return [];
-    return orgs
-      .filter((m) => (m.profile?.name || "").toLowerCase().includes(q))
-      .slice(0, 6);
+    // With no query, still surface a few orgs so the dropdown is discoverable.
+    const pool = q
+      ? orgs.filter((m) => (m.profile?.name || "").toLowerCase().includes(q))
+      : orgs;
+    return pool.slice(0, 6);
   }, [query, orgs]);
 
   async function submit() {
@@ -140,10 +156,12 @@ export function GivingManager({
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              onFocus={() => setFocused(true)}
+              onBlur={() => setTimeout(() => setFocused(false), 150)}
               placeholder="Search a community org…"
               className="w-full rounded-lg border border-stone-200 py-2 pl-9 pr-3 text-sm"
             />
-            {matches.length > 0 && (
+            {focused && matches.length > 0 && (
               <ul className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-stone-200 bg-white shadow-lg">
                 {matches.map((m) => (
                   <li key={m.id}>

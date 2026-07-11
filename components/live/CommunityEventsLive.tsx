@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { CalendarDays, CalendarClock, MapPin } from "lucide-react";
+import { CalendarDays, MapPin } from "lucide-react";
 import type { FeedEvent } from "@/app/api/events/feed/route";
 import { groupEventsByTheme } from "@/lib/event-themes";
 import { useEventsFeed } from "@/lib/data-hooks";
@@ -75,7 +75,7 @@ export function CommunityEventsLive({ only }: { only?: "now" | "upcoming" } = {}
   return (
     <div className="mx-auto max-w-6xl space-y-10 px-4 md:px-8">
       {only === undefined && (
-        <h2 className="text-xl font-semibold tracking-tight text-stone-900">Community events</h2>
+        <h2 className="text-xl font-semibold tracking-tight text-stone-900">Upcoming community events</h2>
       )}
 
       {showNow && (
@@ -92,12 +92,6 @@ export function CommunityEventsLive({ only }: { only?: "now" | "upcoming" } = {}
 
       {showUpcoming && (
         <section className="space-y-8">
-          <SectionHead
-            icon={<CalendarClock className="h-5 w-5 text-sky-500" />}
-            title="Upcoming events"
-            count={upcoming.length}
-            countClass="bg-sky-100 text-sky-600"
-          />
           {themed.map((g) => (
             <div key={g.key}>
               <h3 className="mb-3 flex items-center gap-2 text-lg font-semibold tracking-tight text-stone-900">

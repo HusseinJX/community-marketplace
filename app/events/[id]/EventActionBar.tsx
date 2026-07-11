@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Ticket, Check, Bell } from "lucide-react";
+import Link from "next/link";
+import { Ticket, Check, Bell, Tag } from "lucide-react";
 import { ShareMenu } from "@/components/ShareMenu";
 
-export function EventActionBar({ title }: { title: string }) {
+export function EventActionBar({ title, eventId }: { title: string; eventId: string }) {
   const [rsvped, setRsvped] = useState(false);
   const [reminded, setReminded] = useState(false);
 
@@ -44,6 +45,14 @@ export function EventActionBar({ title }: { title: string }) {
         <Bell className="size-4" />
         {reminded ? "Reminder set" : "Remind me"}
       </button>
+
+      <Link
+        href={`/share?event=${eventId}&eventTitle=${encodeURIComponent(title)}`}
+        className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-indigo-300 hover:text-indigo-700"
+      >
+        <Tag className="size-4" />
+        Tag
+      </Link>
 
       <ShareMenu title={title} />
     </div>

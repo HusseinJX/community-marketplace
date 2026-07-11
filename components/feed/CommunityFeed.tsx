@@ -163,8 +163,9 @@ export function CommunityFeed({
             })}
           </div>
 
-          {/* List / board (masonry) toggle — a board is nicer on wide desktops. */}
-          <div className="flex shrink-0 items-center gap-0.5 rounded-full border border-stone-200 bg-white p-0.5">
+          {/* List / board (masonry) toggle — a board is nicer on wide desktops;
+              hidden on mobile where the board collapses to one column anyway. */}
+          <div className="hidden shrink-0 items-center gap-0.5 rounded-full border border-stone-200 bg-white p-0.5 sm:flex">
             <button
               type="button"
               onClick={() => setView("list")}

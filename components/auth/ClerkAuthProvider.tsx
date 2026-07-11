@@ -41,11 +41,35 @@ export function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <ClerkProvider localization={localization}>
+    <ClerkProvider localization={localization} appearance={CLERK_APPEARANCE}>
       <IntentSetter.Provider value={setIntent}>{children}</IntentSetter.Provider>
     </ClerkProvider>
   );
 }
+
+// Brand + mobile-friendly styling for every Clerk surface (the shopper/vendor
+// sign-in modal especially). 16px base font stops iOS from zooming on focus;
+// taller inputs/buttons give proper touch targets; the card goes full-width with
+// safe side margins on small screens instead of a cramped fixed box.
+const CLERK_APPEARANCE = {
+  variables: {
+    colorPrimary: "#7c3aed", // violet-600, matches the app accent
+    borderRadius: "0.85rem",
+    fontSize: "16px",
+  },
+  elements: {
+    modalContent: "mx-3 sm:mx-auto",
+    card: "w-full max-w-[26rem] rounded-2xl shadow-xl px-5 py-6 sm:px-8",
+    headerTitle: "text-xl font-bold",
+    headerSubtitle: "text-sm text-stone-500",
+    formButtonPrimary: "h-12 text-sm font-semibold normal-case tracking-normal rounded-full",
+    formFieldInput: "h-12 text-base rounded-xl",
+    formFieldLabel: "text-sm font-medium",
+    socialButtonsBlockButton: "h-12 rounded-xl",
+    otpCodeFieldInput: "h-12 w-12 text-lg",
+    footerActionLink: "font-semibold text-violet-600",
+  },
+};
 
 // Open the Clerk sign-in modal, tagged with which side you're logging into so
 // the modal reads "Signing in as a shopper / vendor". Vendors sign up through

@@ -39,6 +39,8 @@ export function demoEvents(memberId: string): VendorEvent[] {
       event_date: 'Sat, Jul 11',
       event_time: '10:00 AM',
       location: 'Dolores Park',
+      lat: 37.7596,
+      lng: -122.4269,
       capacity: 200,
       active: true,
     },
@@ -49,6 +51,8 @@ export function demoEvents(memberId: string): VendorEvent[] {
       event_date: 'Sun, Jul 12',
       event_time: '12:00 PM',
       location: 'Courtside Sports Bar',
+      lat: 37.7621,
+      lng: -122.4358,
       capacity: null,
       active: false, // draft
     },

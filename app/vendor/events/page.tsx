@@ -16,7 +16,11 @@ export default async function VendorEventsPage({
   const profile = userId ? await getVendorProfile(userId) : null
   const admin = isAdmin(userId)
   let memberId = admin && requested ? requested : profile?.member_id
-  if (!memberId && !userId && (await isDemoActive())) memberId = await demoMemberId()
+  let adminDemo = false
+  if (!memberId && !userId && (await isDemoActive())) {
+    memberId = await demoMemberId()
+    adminDemo = true
+  }
 
   if (!memberId) {
     return (
@@ -31,12 +35,25 @@ export default async function VendorEventsPage({
   }
 
   let memberName = 'Vendor'
+  let businessLat: number | null = null
+  let businessLng: number | null = null
   try {
     const m = await getMember(memberId)
     memberName = (m.member.profile?.businessName as string) || (m.member.profile?.name as string) || memberName
+    businessLat = typeof m.member.profile?.latitude === 'number' ? m.member.profile.latitude : null
+    businessLng = typeof m.member.profile?.longitude === 'number' ? m.member.profile.longitude : null
   } catch {
     /* keep default */
   }
 
-  return <EventsManager memberId={memberId} memberName={memberName} isAdmin={admin} />
+  return (
+    <EventsManager
+      memberId={memberId}
+      memberName={memberName}
+      isAdmin={admin}
+      adminDemo={adminDemo}
+      businessLat={businessLat}
+      businessLng={businessLng}
+    />
+  )
 }
