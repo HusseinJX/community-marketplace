@@ -49,6 +49,12 @@ const DEMO_ROOMS = (memberId: string): CollabRoom[] => [
     is_group: true, title: "Neighborhood Night Market", owner_id: memberId, occasion_id: "demo-occ-4",
     occasion_label: "Neighborhood Night Market", event_id: null, created_at: "2026-06-24T15:00:00.000Z",
   },
+  // An individual 1:1 chat that sits ALONGSIDE the Night Market group above.
+  {
+    id: "demo-occ-4-demo-studio", member_a: memberId, member_a_name: "You", member_b: "demo-studio", member_b_name: "Studio Nine",
+    is_group: false, title: "Studio Nine", owner_id: memberId, occasion_id: "demo-occ-4",
+    occasion_label: "Neighborhood Night Market", event_id: null, created_at: "2026-06-24T16:00:00.000Z",
+  },
   {
     id: "demo-room-5", member_a: memberId, member_a_name: "You", member_b: "demo-cantina", member_b_name: "El Tri Cantina",
     is_group: true, title: "Summer Block Party", owner_id: memberId, occasion_id: "demo-occ-5",
@@ -88,7 +94,7 @@ const DEMO_COLLABS: CollaborationSummary[] = [
       { invite_id: "demo-m-1", to_id: "demo-muralist", to_name: "Dani Cruz", status: "accepted", role: "artist" },
       { invite_id: "demo-m-2", to_id: "demo-cantina", to_name: "El Tri Cantina", status: "accepted", role: "food" },
       { invite_id: "demo-m-3", to_id: "demo-greenhouse", to_name: "Greenhouse Project", status: "accepted", role: "partner" },
-      { invite_id: "demo-m-4", to_id: "demo-studio", to_name: "Studio Nine", status: "pending", role: "vendor" },
+      { invite_id: "demo-m-4", to_id: "demo-studio", to_name: "Studio Nine", status: "accepted", role: "vendor" },
     ],
   },
   // Group you host with an event already created (shows the "Event" link).
@@ -131,6 +137,7 @@ const DEMO_PEOPLE: Record<string, { name: string; agreed: boolean }[]> = {
   "demo-occ-6-demo-cafe": [{ name: "You", agreed: true }, { name: "Nokku Coffee", agreed: true }],
   "demo-occ-6-demo-muralist": [{ name: "You", agreed: true }, { name: "Dani Cruz", agreed: true }],
   "demo-occ-6-demo-greenhouse": [{ name: "You", agreed: true }, { name: "Greenhouse Project", agreed: true }],
+  "demo-occ-4-demo-studio": [{ name: "You", agreed: true }, { name: "Studio Nine", agreed: false }],
 };
 const DEMO_TRANSCRIPT: Record<string, { mine: boolean; name: string; text: string }[]> = {
   "demo-room-1": [
@@ -167,6 +174,10 @@ const DEMO_TRANSCRIPT: Record<string, { mine: boolean; name: string; text: strin
   "demo-occ-6-demo-greenhouse": [
     { mine: true, name: "You", text: "Seedling booth for the market?" },
     { mine: false, name: "Greenhouse Project", text: "In! We'll do a kids' pot-painting table." },
+  ],
+  "demo-occ-4-demo-studio": [
+    { mine: true, name: "You", text: "Want your own booth at the Night Market too?" },
+    { mine: false, name: "Studio Nine", text: "Accepted! Still deciding if we join the group thread." },
   ],
 };
 
@@ -935,10 +946,11 @@ function Rooms({
           const roomLabel = isGroup ? `Group · ${c.acceptedCount + 1}` : accepted[0]?.to_name || c.label;
           // Joined collaborations always have a room to open (we're a member).
           const canOpen = !!room && (!c.owned || accepted.length > 0);
-          // No group room yet, but invitees accepted → each has an individual chat.
-          const individualChats = !room
-            ? accepted.map((m) => ({ m, r: roomById.get(`${c.occasion_id}-${m.to_id}`) })).filter((x): x is { m: typeof x.m; r: CollabRoom } => !!x.r)
-            : [];
+          // Accepted invitees that also have their own 1:1 room — shown as
+          // individual chats (a collab can have BOTH a group room and these).
+          const individualChats = accepted
+            .map((m) => ({ m, r: roomById.get(`${c.occasion_id}-${m.to_id}`) }))
+            .filter((x): x is { m: typeof x.m; r: CollabRoom } => !!x.r);
           return (
             <div key={c.occasion_id} className="rounded-xl border border-stone-100 p-2">
               <div className="mb-1 flex items-center justify-between gap-2 px-1">
@@ -962,7 +974,8 @@ function Rooms({
                 )}
               </div>
 
-              {canOpen && room ? (
+              {/* Group / shared room (if any) */}
+              {canOpen && room && (
                 <button
                   onClick={() => setActive(room)}
                   className={`flex w-full items-center gap-1.5 truncate rounded-lg px-3 py-2 text-left text-sm ${
@@ -972,39 +985,41 @@ function Rooms({
                   {isGroup ? <Users className="h-3.5 w-3.5 shrink-0 text-stone-400" /> : <UserRound className="h-3.5 w-3.5 shrink-0 text-stone-400" />}
                   <span className="truncate">{roomLabel}</span>
                 </button>
-              ) : individualChats.length > 0 ? (
-                // Accepted individually — each its own chat, not yet a group.
-                <>
-                  {individualChats.map(({ m, r }) => (
-                    <button
-                      key={r.id}
-                      onClick={() => setActive(r)}
-                      className={`flex w-full items-center gap-1.5 truncate rounded-lg px-3 py-2 text-left text-sm ${
-                        active?.id === r.id ? "bg-indigo-50 font-medium text-indigo-700" : "text-stone-600 hover:bg-stone-50"
-                      }`}
-                    >
-                      <UserRound className="h-3.5 w-3.5 shrink-0 text-stone-400" />
-                      <span className="truncate">{m.to_name || "Collaborator"}</span>
-                      <span className="ml-auto shrink-0 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-emerald-700">accepted</span>
-                    </button>
-                  ))}
-                  {c.owned && canOwn && (
-                    <button
-                      onClick={() => onInvite({ id: c.occasion_id, label: c.label })}
-                      className="mt-1 flex w-full items-center gap-1.5 rounded-lg px-3 py-1.5 text-left text-xs font-medium text-indigo-700 hover:bg-indigo-50"
-                    >
-                      <Users className="h-3.5 w-3.5" /> Add to group chat
-                    </button>
-                  )}
-                </>
-              ) : (
+              )}
+
+              {/* Individual accepted chats (can sit alongside a group room) */}
+              {individualChats.map(({ m, r }) => (
+                <button
+                  key={r.id}
+                  onClick={() => setActive(r)}
+                  className={`flex w-full items-center gap-1.5 truncate rounded-lg px-3 py-2 text-left text-sm ${
+                    active?.id === r.id ? "bg-indigo-50 font-medium text-indigo-700" : "text-stone-600 hover:bg-stone-50"
+                  }`}
+                >
+                  <UserRound className="h-3.5 w-3.5 shrink-0 text-stone-400" />
+                  <span className="truncate">{m.to_name || "Collaborator"}</span>
+                  <span className="ml-auto shrink-0 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-emerald-700">accepted</span>
+                </button>
+              ))}
+
+              {!room && individualChats.length === 0 && (
                 <p className="px-3 py-1 text-xs text-stone-400">No one has accepted yet</p>
               )}
 
-              {/* Owner + Pro only: pending invitees + invite control. Basic/Free
-                  get the room to read & chat, without the invite/add machinery.
-                  Skipped for the individual-chats case (it has its own control). */}
-              {c.owned && canOwn && individualChats.length === 0 && (
+              {/* No group room yet but people accepted individually → offer to
+                  combine them into a group chat. */}
+              {!room && individualChats.length > 0 && c.owned && canOwn && (
+                <button
+                  onClick={() => onInvite({ id: c.occasion_id, label: c.label })}
+                  className="mt-1 flex w-full items-center gap-1.5 rounded-lg px-3 py-1.5 text-left text-xs font-medium text-indigo-700 hover:bg-indigo-50"
+                >
+                  <Users className="h-3.5 w-3.5" /> Add to group chat
+                </button>
+              )}
+
+              {/* Owner + Pro only: pending invitees + invite control (group
+                  collabs). Individual-only collabs use "Add to group chat" above. */}
+              {c.owned && canOwn && !!room && (
                 <>
                   {pending.map((m) => (
                     <div key={m.invite_id} className="flex items-center justify-between gap-2 px-3 py-1 text-sm text-stone-400">
