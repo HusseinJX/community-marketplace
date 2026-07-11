@@ -30,16 +30,6 @@ const DEMO_INCOMING = (memberId: string): CollabInvite[] => [
 
 const DEMO_ROOMS = (memberId: string): CollabRoom[] => [
   {
-    id: "demo-room-1", member_a: "demo-cafe", member_a_name: "Nokku Coffee", member_b: memberId, member_b_name: "You",
-    is_group: false, title: "Weekend pop-up", owner_id: "demo-cafe", occasion_id: "demo-occ-1",
-    occasion_label: "Weekend pop-up", event_id: null, created_at: "2026-06-28T15:00:00.000Z",
-  },
-  {
-    id: "demo-room-2", member_a: "demo-muralist", member_a_name: "Dani Cruz", member_b: memberId, member_b_name: "You",
-    is_group: false, title: "Storefront mural", owner_id: "demo-muralist", occasion_id: "demo-occ-2",
-    occasion_label: "Storefront mural", event_id: null, created_at: "2026-06-27T15:00:00.000Z",
-  },
-  {
     id: "demo-room-3", member_a: memberId, member_a_name: "You", member_b: "demo-cafe", member_b_name: "Nokku Coffee",
     is_group: false, title: "Coffee + pastry pairing", owner_id: memberId, occasion_id: "demo-occ-3",
     occasion_label: "Coffee + pastry pairing", event_id: null, created_at: "2026-06-25T15:00:00.000Z",
@@ -80,9 +70,6 @@ const DEMO_ROOMS = (memberId: string): CollabRoom[] => [
 ];
 
 const DEMO_COLLABS: CollaborationSummary[] = [
-  // Individual (1:1) chats — a couple you were invited to, one you started.
-  { occasion_id: "demo-occ-1", label: "Weekend pop-up", roomId: "demo-room-1", eventId: null, owned: false, acceptedCount: 1, members: [] },
-  { occasion_id: "demo-occ-2", label: "Storefront mural", roomId: "demo-room-2", eventId: null, owned: false, acceptedCount: 1, members: [] },
   {
     occasion_id: "demo-occ-3", label: "Coffee + pastry pairing", roomId: "demo-room-3", eventId: null, owned: true, acceptedCount: 1,
     members: [{ invite_id: "demo-m-0", to_id: "demo-cafe", to_name: "Nokku Coffee", status: "accepted", role: "vendor" }],
