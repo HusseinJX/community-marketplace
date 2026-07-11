@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Users, UserRound, Send, Check, X, CalendarPlus, Plus, Lock } from "lucide-react";
+import { Users, UserRound, Send, Check, X, CalendarPlus, Plus, Lock, ChevronLeft } from "lucide-react";
 import { MatchFinder } from "@/components/match/MatchFinder";
 import type { MatchCandidate } from "@/lib/types";
 import type { CollabInvite, CollabRoom, CollabMessage, RoomMember, CollaborationSummary } from "@/lib/collab-network";
@@ -581,7 +581,7 @@ function DemoChat({ room, memberId, canOwn, hasGroup }: { room: CollabRoom; memb
   }
 
   return (
-    <div className="card-soft flex h-[460px] flex-col">
+    <div className="card-soft flex h-[70vh] flex-col md:h-[460px]">
       {/* Header — collaborator/group name + event control */}
       <div className="flex items-center justify-between gap-2 border-b border-stone-100 px-4 py-2.5">
         <div className="min-w-0">
@@ -926,7 +926,9 @@ function Rooms({
         />
       )}
       <div className="grid gap-4 md:grid-cols-[280px_1fr]">
-      <div className="space-y-3">
+      {/* List — on mobile it's the full view; hidden once a chat is open (the
+          chat takes over full-width with a back button). Always shown on md+. */}
+      <div className={`space-y-3 ${active ? "hidden md:block" : ""}`}>
         {canOwn && (
           <button
             onClick={onNew}
@@ -1049,6 +1051,13 @@ function Rooms({
 
       {active ? (
         <div className="min-w-0">
+          {/* Back to the list — mobile only (desktop shows both side-by-side). */}
+          <button
+            onClick={() => setActive(null)}
+            className="mb-3 inline-flex items-center gap-1 text-sm font-medium text-stone-600 hover:text-indigo-700 md:hidden"
+          >
+            <ChevronLeft className="h-4 w-4" /> All collaborations
+          </button>
           {inert ? (
             <DemoChat
               key={active.id}
@@ -1062,7 +1071,8 @@ function Rooms({
           )}
         </div>
       ) : (
-        <div className="card-soft flex min-w-0 items-center justify-center p-6 text-sm text-stone-400">
+        /* Placeholder — desktop only; on mobile the list is the full view. */
+        <div className="card-soft hidden min-w-0 items-center justify-center p-6 text-sm text-stone-400 md:flex">
           {canOwn ? "Pick a chat to open, or start a collaboration." : "Pick a chat to open."}
         </div>
       )}
@@ -1176,7 +1186,7 @@ function Chat({ room, memberId, isAdmin, canOwn = true }: { room: CollabRoom; me
   }
 
   return (
-    <div className="card-soft flex h-[460px] flex-col">
+    <div className="card-soft flex h-[70vh] flex-col md:h-[460px]">
       {/* Header — collaborator/group name + "Create event" (gated on agreement) */}
       <div className="flex items-center justify-between gap-2 border-b border-stone-100 px-4 py-2.5">
         <div className="min-w-0">
