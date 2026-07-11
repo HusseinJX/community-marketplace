@@ -963,9 +963,12 @@ function Rooms({
           const canOpen = !!room && (!c.owned || accepted.length > 0);
           // Accepted invitees that also have their own 1:1 room — shown as
           // individual chats (a collab can have BOTH a group room and these).
-          const individualChats = accepted
+          const allIndividual = accepted
             .map((m) => ({ m, r: roomById.get(`${c.occasion_id}-${m.to_id}`) }))
             .filter((x): x is { m: typeof x.m; r: CollabRoom } => !!x.r);
+          // Owners (Pro) see everyone they invited; a plain invitee (Free/Basic)
+          // only sees the one chat they were invited to, since they can't invite.
+          const individualChats = canOwn ? allIndividual : allIndividual.slice(0, 1);
           return (
             <div key={c.occasion_id} className="rounded-xl border border-stone-100 p-2">
               <div className="mb-1 flex items-center justify-between gap-2 px-1">
