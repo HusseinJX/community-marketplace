@@ -18,7 +18,8 @@ export default async function VendorOrganizePage({
   const profile = userId ? await getVendorProfile(userId) : null;
   const admin = isAdmin(userId);
   let memberId = admin && requested ? requested : profile?.member_id;
-  if (!memberId && !userId && (await isDemoActive())) memberId = await demoMemberId();
+  const demo = !userId && (await isDemoActive());
+  if (!memberId && demo) memberId = await demoMemberId();
 
   if (!memberId) {
     return (
@@ -51,6 +52,7 @@ export default async function VendorOrganizePage({
       isAdmin={admin}
       emailReady={emailConfigured()}
       eventOrganizer={eventOrganizer}
+      demo={demo}
     />
   );
 }

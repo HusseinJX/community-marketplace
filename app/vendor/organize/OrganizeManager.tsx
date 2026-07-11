@@ -17,22 +17,45 @@ import { EventPreview } from "@/components/organize/EventPreview";
 
 type Tab = "lineup" | "messages" | "attendees" | "preview";
 
+// Illustrative events for the Admin demo (no real backend).
+const DEMO_EVENTS: VendorEvent[] = [
+  {
+    id: "demo-ev-block", member_id: "", member_name: "You", title: "Summer Block Party",
+    description: "Food trucks, live music, and a kids' zone on the block.", event_date: "2026-08-15",
+    event_time: "2:00 PM – 8:00 PM", location: "Valencia St", city: "San Francisco", neighborhood: "Mission",
+    poster_image_url: null, capacity: 300, source: "manual", active: true, created_at: "2026-06-20T15:00:00.000Z",
+  },
+  {
+    id: "demo-ev-market", member_id: "", member_name: "You", title: "Neighborhood Night Market",
+    description: "Local makers, food stalls, and a live mural wall.", event_date: "2026-07-25",
+    event_time: "6:00 PM – 10:00 PM", location: "Dolores Park", city: "San Francisco", neighborhood: "Mission",
+    poster_image_url: null, capacity: null, source: "manual", active: true, created_at: "2026-06-24T15:00:00.000Z",
+  },
+];
+
 export function OrganizeManager({
   memberId,
   isAdmin,
   emailReady,
   eventOrganizer = false,
+  demo = false,
 }: {
   memberId: string;
   isAdmin: boolean;
   emailReady: boolean;
   eventOrganizer?: boolean;
+  demo?: boolean;
 }) {
   const [events, setEvents] = useState<VendorEvent[]>([]);
   const [selected, setSelected] = useState<VendorEvent | null>(null);
   const [tab, setTab] = useState<Tab>("lineup");
 
   useEffect(() => {
+    if (demo) {
+      setEvents(DEMO_EVENTS);
+      setSelected((s) => s ?? DEMO_EVENTS[0] ?? null);
+      return;
+    }
     fetch(`/api/events/${memberId}?include_drafts=1`)
       .then((r) => (r.ok ? r.json() : []))
       .then((d) => {
@@ -41,7 +64,7 @@ export function OrganizeManager({
         setSelected((s) => s ?? list[0] ?? null);
       })
       .catch(() => {});
-  }, [memberId]);
+  }, [memberId, demo]);
 
   return (
     <div className="space-y-6">
