@@ -54,6 +54,23 @@ const DEMO_ROOMS = (memberId: string): CollabRoom[] => [
     is_group: true, title: "Summer Block Party", owner_id: memberId, occasion_id: "demo-occ-5",
     occasion_label: "Summer Block Party", event_id: "demo-ev-block", created_at: "2026-06-20T15:00:00.000Z",
   },
+  // A collab whose invitees each ACCEPTED but aren't merged into a group yet —
+  // each is its own individual chat. Room id convention: `${occasion}-${to_id}`.
+  {
+    id: "demo-occ-6-demo-cafe", member_a: memberId, member_a_name: "You", member_b: "demo-cafe", member_b_name: "Nokku Coffee",
+    is_group: false, title: "Nokku Coffee", owner_id: memberId, occasion_id: "demo-occ-6",
+    occasion_label: "Farmers Market Booths", event_id: null, created_at: "2026-06-19T15:00:00.000Z",
+  },
+  {
+    id: "demo-occ-6-demo-muralist", member_a: memberId, member_a_name: "You", member_b: "demo-muralist", member_b_name: "Dani Cruz",
+    is_group: false, title: "Dani Cruz", owner_id: memberId, occasion_id: "demo-occ-6",
+    occasion_label: "Farmers Market Booths", event_id: null, created_at: "2026-06-19T15:00:00.000Z",
+  },
+  {
+    id: "demo-occ-6-demo-greenhouse", member_a: memberId, member_a_name: "You", member_b: "demo-greenhouse", member_b_name: "Greenhouse Project",
+    is_group: false, title: "Greenhouse Project", owner_id: memberId, occasion_id: "demo-occ-6",
+    occasion_label: "Farmers Market Booths", event_id: null, created_at: "2026-06-19T15:00:00.000Z",
+  },
 ];
 
 const DEMO_COLLABS: CollaborationSummary[] = [
@@ -82,6 +99,16 @@ const DEMO_COLLABS: CollaborationSummary[] = [
       { invite_id: "demo-m-6", to_id: "demo-greenhouse", to_name: "Greenhouse Project", status: "accepted", role: "partner" },
     ],
   },
+  // Invitees accepted individually but NOT merged into a group — each is its own
+  // 1:1 chat (no group roomId). "Add to group" combines them.
+  {
+    occasion_id: "demo-occ-6", label: "Farmers Market Booths", roomId: null, eventId: null, owned: true, acceptedCount: 3,
+    members: [
+      { invite_id: "demo-m-7", to_id: "demo-cafe", to_name: "Nokku Coffee", status: "accepted", role: "vendor" },
+      { invite_id: "demo-m-8", to_id: "demo-muralist", to_name: "Dani Cruz", status: "accepted", role: "artist" },
+      { invite_id: "demo-m-9", to_id: "demo-greenhouse", to_name: "Greenhouse Project", status: "accepted", role: "partner" },
+    ],
+  },
 ];
 
 // Per-room participants (with agreement state) + a short transcript, so the
@@ -101,6 +128,9 @@ const DEMO_PEOPLE: Record<string, { name: string; agreed: boolean }[]> = {
     { name: "El Tri Cantina", agreed: true },
     { name: "Greenhouse Project", agreed: true },
   ],
+  "demo-occ-6-demo-cafe": [{ name: "You", agreed: true }, { name: "Nokku Coffee", agreed: true }],
+  "demo-occ-6-demo-muralist": [{ name: "You", agreed: true }, { name: "Dani Cruz", agreed: true }],
+  "demo-occ-6-demo-greenhouse": [{ name: "You", agreed: true }, { name: "Greenhouse Project", agreed: true }],
 };
 const DEMO_TRANSCRIPT: Record<string, { mine: boolean; name: string; text: string }[]> = {
   "demo-room-1": [
@@ -125,6 +155,18 @@ const DEMO_TRANSCRIPT: Record<string, { mine: boolean; name: string; text: strin
   "demo-room-5": [
     { mine: true, name: "You", text: "Block party is a go — event's live, invite your crews!" },
     { mine: false, name: "El Tri Cantina", text: "🔥 Added it to our calendar." },
+  ],
+  "demo-occ-6-demo-cafe": [
+    { mine: true, name: "You", text: "Want a booth at the farmers market series?" },
+    { mine: false, name: "Nokku Coffee", text: "Yes — cold brew cart, count us in." },
+  ],
+  "demo-occ-6-demo-muralist": [
+    { mine: true, name: "You", text: "Booth + a live sketch corner?" },
+    { mine: false, name: "Dani Cruz", text: "Accepted! I'll bring prints too." },
+  ],
+  "demo-occ-6-demo-greenhouse": [
+    { mine: true, name: "You", text: "Seedling booth for the market?" },
+    { mine: false, name: "Greenhouse Project", text: "In! We'll do a kids' pot-painting table." },
   ],
 };
 
@@ -280,20 +322,23 @@ export function NetworkManager({
         />
       )}
 
-      {modal && (
-        <InviteModal
-          memberId={memberId}
-          isAdmin={isAdmin}
-          outgoing={outgoing}
-          occasion={modal.occasion}
-          onClose={() => setModal(null)}
-          onInvited={() => {
-            loadInvites();
-            loadRooms();
-            loadCollabs();
-          }}
-        />
-      )}
+      {modal &&
+        (preview ? (
+          <DemoInviteModal occasion={modal.occasion} onClose={() => setModal(null)} />
+        ) : (
+          <InviteModal
+            memberId={memberId}
+            isAdmin={isAdmin}
+            outgoing={outgoing}
+            occasion={modal.occasion}
+            onClose={() => setModal(null)}
+            onInvited={() => {
+              loadInvites();
+              loadRooms();
+              loadCollabs();
+            }}
+          />
+        ))}
     </div>
   );
 }
@@ -645,6 +690,68 @@ function DemoChat({ room, memberId, canOwn }: { room: CollabRoom; memberId: stri
   );
 }
 
+// Demo invite modal — the "Invite / add" and "New collaboration" flow in the
+// preview. Shows sample nearby businesses with a local "Invite" toggle; makes no
+// API calls (the real modal would 401 with no auth).
+const DEMO_CANDIDATES = [
+  { id: "demo-cafe", name: "Nokku Coffee", tag: "Café · Mission" },
+  { id: "demo-muralist", name: "Dani Cruz", tag: "Muralist · Boyle Heights" },
+  { id: "demo-cantina", name: "El Tri Cantina", tag: "Bar · Boyle Heights" },
+  { id: "demo-greenhouse", name: "Greenhouse Project", tag: "Garden · Highland Park" },
+  { id: "demo-studio", name: "Studio Nine", tag: "Art studio · Hayes Valley" },
+];
+function DemoInviteModal({
+  occasion,
+  onClose,
+}: {
+  occasion: { id: string; label: string } | null;
+  onClose: () => void;
+}) {
+  const [invited, setInvited] = useState<Set<string>>(new Set());
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-base font-semibold text-stone-900">
+              {occasion ? `Invite to ${occasion.label}` : "New collaboration"}
+            </h2>
+            <p className="text-xs text-stone-500">Nearby businesses matched for you (demo).</p>
+          </div>
+          <button onClick={onClose} aria-label="Close">
+            <X className="h-5 w-5 text-stone-400" />
+          </button>
+        </div>
+        <div className="mt-4 space-y-2">
+          {DEMO_CANDIDATES.map((c) => {
+            const isInvited = invited.has(c.id);
+            return (
+              <div key={c.id} className="flex items-center justify-between gap-2 rounded-xl border border-stone-100 px-3 py-2">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-stone-800">{c.name}</p>
+                  <p className="truncate text-[11px] text-stone-400">{c.tag}</p>
+                </div>
+                <button
+                  onClick={() => setInvited((s) => new Set(s).add(c.id))}
+                  disabled={isInvited}
+                  className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium ${
+                    isInvited
+                      ? "bg-emerald-100 text-emerald-700"
+                      : "bg-indigo-600 text-white hover:bg-indigo-700"
+                  }`}
+                >
+                  {isInvited ? "Invited ✓" : "Invite"}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+        <p className="mt-3 text-center text-[11px] text-stone-400">Demo — invites are simulated.</p>
+      </div>
+    </div>
+  );
+}
+
 function Invites({
   memberId,
   isAdmin,
@@ -822,12 +929,16 @@ function Rooms({
 
         {visible.map((c) => {
           const room = c.roomId ? roomById.get(c.roomId) : null;
-          const isGroup = c.acceptedCount >= 2;
+          const isGroup = !!room && c.acceptedCount >= 2;
           const accepted = c.members.filter((m) => m.status === "accepted");
           const pending = c.members.filter((m) => m.status !== "accepted");
           const roomLabel = isGroup ? `Group · ${c.acceptedCount + 1}` : accepted[0]?.to_name || c.label;
           // Joined collaborations always have a room to open (we're a member).
           const canOpen = !!room && (!c.owned || accepted.length > 0);
+          // No group room yet, but invitees accepted → each has an individual chat.
+          const individualChats = !room
+            ? accepted.map((m) => ({ m, r: roomById.get(`${c.occasion_id}-${m.to_id}`) })).filter((x): x is { m: typeof x.m; r: CollabRoom } => !!x.r)
+            : [];
           return (
             <div key={c.occasion_id} className="rounded-xl border border-stone-100 p-2">
               <div className="mb-1 flex items-center justify-between gap-2 px-1">
@@ -861,13 +972,39 @@ function Rooms({
                   {isGroup ? <Users className="h-3.5 w-3.5 shrink-0 text-stone-400" /> : <UserRound className="h-3.5 w-3.5 shrink-0 text-stone-400" />}
                   <span className="truncate">{roomLabel}</span>
                 </button>
+              ) : individualChats.length > 0 ? (
+                // Accepted individually — each its own chat, not yet a group.
+                <>
+                  {individualChats.map(({ m, r }) => (
+                    <button
+                      key={r.id}
+                      onClick={() => setActive(r)}
+                      className={`flex w-full items-center gap-1.5 truncate rounded-lg px-3 py-2 text-left text-sm ${
+                        active?.id === r.id ? "bg-indigo-50 font-medium text-indigo-700" : "text-stone-600 hover:bg-stone-50"
+                      }`}
+                    >
+                      <UserRound className="h-3.5 w-3.5 shrink-0 text-stone-400" />
+                      <span className="truncate">{m.to_name || "Collaborator"}</span>
+                      <span className="ml-auto shrink-0 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-emerald-700">accepted</span>
+                    </button>
+                  ))}
+                  {c.owned && canOwn && (
+                    <button
+                      onClick={() => onInvite({ id: c.occasion_id, label: c.label })}
+                      className="mt-1 flex w-full items-center gap-1.5 rounded-lg px-3 py-1.5 text-left text-xs font-medium text-indigo-700 hover:bg-indigo-50"
+                    >
+                      <Users className="h-3.5 w-3.5" /> Add to group chat
+                    </button>
+                  )}
+                </>
               ) : (
                 <p className="px-3 py-1 text-xs text-stone-400">No one has accepted yet</p>
               )}
 
               {/* Owner + Pro only: pending invitees + invite control. Basic/Free
-                  get the room to read & chat, without the invite/add machinery. */}
-              {c.owned && canOwn && (
+                  get the room to read & chat, without the invite/add machinery.
+                  Skipped for the individual-chats case (it has its own control). */}
+              {c.owned && canOwn && individualChats.length === 0 && (
                 <>
                   {pending.map((m) => (
                     <div key={m.invite_id} className="flex items-center justify-between gap-2 px-3 py-1 text-sm text-stone-400">
