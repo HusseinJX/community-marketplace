@@ -10,6 +10,78 @@ import { LINEUP_ROLES, roleDef } from "@/lib/lineup-roles";
 
 type Tab = "discover" | "invites" | "rooms";
 
+// ── Admin-demo content ──────────────────────────────────────────────────────
+// Illustrative collaborations shown in the demo (no real backend). Kept rich —
+// a couple of 1:1s plus a group you host — so the demo mirrors the real network.
+const DEMO_INCOMING = (memberId: string): CollabInvite[] => [
+  {
+    id: "demo-inv-1", from_id: "demo-cafe", from_name: "Nokku Coffee", to_id: memberId, to_name: "You",
+    message: "Want to co-host a weekend pop-up?", status: "pending", room_id: null,
+    scope_type: "collab", scope_id: null, role: "vendor", occasion_id: "demo-occ-a",
+    occasion_label: "Weekend pop-up", created_at: "2026-06-28T15:00:00.000Z",
+  },
+  {
+    id: "demo-inv-2", from_id: "demo-muralist", from_name: "Dani Cruz", to_id: memberId, to_name: "You",
+    message: "Mural + launch collab?", status: "pending", room_id: null,
+    scope_type: "collab", scope_id: null, role: "artist", occasion_id: "demo-occ-b",
+    occasion_label: "Storefront mural", created_at: "2026-06-27T15:00:00.000Z",
+  },
+];
+
+const DEMO_ROOMS = (memberId: string): CollabRoom[] => [
+  {
+    id: "demo-room-1", member_a: "demo-cafe", member_a_name: "Nokku Coffee", member_b: memberId, member_b_name: "You",
+    is_group: false, title: "Weekend pop-up", owner_id: "demo-cafe", occasion_id: "demo-occ-1",
+    occasion_label: "Weekend pop-up", event_id: null, created_at: "2026-06-28T15:00:00.000Z",
+  },
+  {
+    id: "demo-room-2", member_a: memberId, member_a_name: "You", member_b: "demo-muralist", member_b_name: "Dani Cruz",
+    is_group: true, title: "Neighborhood Night Market", owner_id: memberId, occasion_id: "demo-occ-2",
+    occasion_label: "Neighborhood Night Market", event_id: null, created_at: "2026-06-26T15:00:00.000Z",
+  },
+];
+
+const DEMO_COLLABS: CollaborationSummary[] = [
+  { occasion_id: "demo-occ-1", label: "Weekend pop-up", roomId: "demo-room-1", eventId: null, owned: false, acceptedCount: 1, members: [] },
+  {
+    occasion_id: "demo-occ-2", label: "Neighborhood Night Market", roomId: "demo-room-2", eventId: null, owned: true, acceptedCount: 3,
+    members: [
+      { invite_id: "demo-m-1", to_id: "demo-muralist", to_name: "Dani Cruz", status: "accepted", role: "artist" },
+      { invite_id: "demo-m-2", to_id: "demo-cantina", to_name: "El Tri Cantina", status: "accepted", role: "food" },
+      { invite_id: "demo-m-3", to_id: "demo-greenhouse", to_name: "Greenhouse Project", status: "accepted", role: "partner" },
+      { invite_id: "demo-m-4", to_id: "demo-studio", to_name: "Studio Nine", status: "pending", role: "vendor" },
+    ],
+  },
+];
+
+// Per-room participants (with agreement state) + a short transcript, so the
+// demo chat shows the real "I'm in" consensus bar and messages.
+const DEMO_PEOPLE: Record<string, { name: string; agreed: boolean }[]> = {
+  "demo-room-1": [
+    { name: "You", agreed: true },
+    { name: "Nokku Coffee", agreed: false },
+  ],
+  "demo-room-2": [
+    { name: "You", agreed: true },
+    { name: "Dani Cruz", agreed: true },
+    { name: "El Tri Cantina", agreed: true },
+    { name: "Greenhouse Project", agreed: false },
+  ],
+};
+const DEMO_TRANSCRIPT: Record<string, { mine: boolean; name: string; text: string }[]> = {
+  "demo-room-1": [
+    { mine: false, name: "Nokku Coffee", text: "Hey! Want to co-host a weekend pop-up at our place?" },
+    { mine: true, name: "You", text: "Love that. We could bring a merch table + tastings." },
+    { mine: false, name: "Nokku Coffee", text: "Perfect — let's lock a date and split promo." },
+  ],
+  "demo-room-2": [
+    { mine: true, name: "You", text: "Thinking a night market on Valencia — food, art, live music." },
+    { mine: false, name: "Dani Cruz", text: "I'm in! I'll do a live mural wall." },
+    { mine: false, name: "El Tri Cantina", text: "We'll run a taco + agua fresca stand 🌮" },
+    { mine: false, name: "Greenhouse Project", text: "Can we get a plant swap corner? Checking our calendar." },
+  ],
+};
+
 export function NetworkManager({
   memberId,
   isAdmin,
@@ -74,31 +146,10 @@ export function NetworkManager({
     // invites — each paired with a card that explains it's a preview and that
     // real network access needs Basic.
     if (preview) {
-      setIncoming([
-        {
-          id: "demo-inv-1", from_id: "demo-cafe", from_name: "Nokku Coffee", to_id: memberId, to_name: "You",
-          message: "Want to co-host a weekend pop-up?", status: "pending", room_id: null,
-          scope_type: "collab", scope_id: null, role: "vendor", occasion_id: "demo-occ-a",
-          occasion_label: "Weekend pop-up", created_at: "2026-06-28T15:00:00.000Z",
-        },
-        {
-          id: "demo-inv-2", from_id: "demo-muralist", from_name: "Dani Cruz", to_id: memberId, to_name: "You",
-          message: "Mural + launch collab?", status: "pending", room_id: null,
-          scope_type: "collab", scope_id: null, role: "artist", occasion_id: "demo-occ-b",
-          occasion_label: "Storefront mural", created_at: "2026-06-27T15:00:00.000Z",
-        },
-      ]);
+      setIncoming(DEMO_INCOMING(memberId));
       setOutgoing([]);
-      setRooms([
-        {
-          id: "demo-room-1", member_a: "demo-cafe", member_a_name: "Nokku Coffee", member_b: memberId, member_b_name: "You",
-          is_group: false, title: "Demo collaboration", owner_id: "demo-cafe", occasion_id: "demo-occ",
-          occasion_label: "Demo collaboration", event_id: null, created_at: "2026-06-28T15:00:00.000Z",
-        },
-      ]);
-      setCollabs([
-        { occasion_id: "demo-occ", label: "Demo collaboration", roomId: "demo-room-1", eventId: null, owned: false, acceptedCount: 1, members: [] },
-      ]);
+      setRooms(DEMO_ROOMS(memberId));
+      setCollabs(DEMO_COLLABS);
       return;
     }
     loadInvites();
@@ -399,23 +450,65 @@ function NetworkNoticeCard({ title, body }: { title: string; body: string }) {
   );
 }
 
-// Static, non-functional demo chat shown on Free so the collaboration room has
-// something to look at. No API calls, no send — purely illustrative.
-function DemoChat() {
-  const msgs = [
-    { mine: false, name: "Nokku Coffee", text: "Hey! Want to co-host a weekend pop-up at our place?" },
-    { mine: true, name: "You", text: "Love that. We could bring a merch table + tastings." },
-    { mine: false, name: "Nokku Coffee", text: "Perfect — let's lock a date and split promo." },
+// Demo collaboration chat — mirrors the real room (header, the "I'm in"
+// consensus bar with participants, transcript, and a message box) but runs
+// entirely locally: no API calls. Used in the Free preview + the Admin demo.
+function DemoChat({ room }: { room: CollabRoom }) {
+  const otherName = room.member_a_name === "You" ? room.member_b_name : room.member_a_name;
+  const title = (room.is_group ? room.title : otherName) || room.title || "Collaboration";
+  const people = DEMO_PEOPLE[room.id] ?? [
+    { name: "You", agreed: true },
+    { name: otherName || "Collaborator", agreed: false },
   ];
+  const [msgs, setMsgs] = useState(() => DEMO_TRANSCRIPT[room.id] ?? []);
+  const [text, setText] = useState("");
+  const [meIn, setMeIn] = useState(people.find((p) => p.name === "You")?.agreed ?? false);
+
+  function send() {
+    const t = text.trim();
+    if (!t) return;
+    setText("");
+    setMsgs((m) => [...m, { mine: true, name: "You", text: t }]);
+  }
+
   return (
     <div className="card-soft flex h-[460px] flex-col">
+      {/* Header */}
       <div className="flex items-center justify-between gap-2 border-b border-stone-100 px-4 py-2.5">
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-stone-800">Nokku Coffee</p>
-          <p className="truncate text-[11px] text-stone-400">Demo conversation</p>
+          <p className="truncate text-sm font-medium text-stone-800">{title}</p>
+          <p className="truncate text-[11px] text-stone-400">
+            {room.is_group ? `Group · ${people.length}` : "Direct collaboration"}
+          </p>
         </div>
         <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-700">Demo</span>
       </div>
+
+      {/* Consensus bar — who's in, with the "I'm in" toggle */}
+      <div className="flex flex-wrap items-center gap-1.5 border-b border-stone-100 px-4 py-2">
+        {people.map((p) => {
+          const inn = p.name === "You" ? meIn : p.agreed;
+          return (
+            <span
+              key={p.name}
+              className={`rounded-full px-2 py-0.5 text-xs ${inn ? "bg-emerald-100 text-emerald-700" : "bg-stone-100 text-stone-500"}`}
+            >
+              {inn ? "👍 " : "• "}
+              {p.name}
+            </span>
+          );
+        })}
+        <button
+          onClick={() => setMeIn((v) => !v)}
+          className={`ml-auto rounded-lg px-3 py-1 text-xs font-medium ${
+            meIn ? "bg-emerald-600 text-white hover:bg-emerald-700" : "border border-emerald-300 bg-white text-emerald-700 hover:bg-emerald-50"
+          }`}
+        >
+          {meIn ? "✓ You're in" : "I'm in 👍"}
+        </button>
+      </div>
+
+      {/* Messages */}
       <div className="flex-1 space-y-2 overflow-y-auto p-4">
         {msgs.map((m, i) => (
           <div key={i} className={`flex ${m.mine ? "justify-end" : "justify-start"}`}>
@@ -426,13 +519,17 @@ function DemoChat() {
           </div>
         ))}
       </div>
+
+      {/* Message box — works locally in the demo */}
       <div className="flex items-center gap-2 border-t border-stone-100 p-3">
         <input
-          disabled
-          placeholder="Upgrade to Basic to message collaborators…"
-          className="flex-1 cursor-not-allowed rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-400"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && send()}
+          placeholder="Message your collaborators…"
+          className="flex-1 rounded-lg border border-stone-200 px-3 py-2 text-sm focus:border-stone-400 focus:outline-none"
         />
-        <button disabled className="cursor-not-allowed rounded-lg bg-stone-200 p-2 text-stone-400">
+        <button onClick={send} className="rounded-lg bg-indigo-600 p-2 text-white hover:bg-indigo-700">
           <Send className="h-4 w-4" />
         </button>
       </div>
@@ -686,7 +783,7 @@ function Rooms({
       {active ? (
         <div className="min-w-0">
           {inert ? (
-            <DemoChat />
+            <DemoChat key={active.id} room={active} />
           ) : (
             <Chat key={active.id} room={active} memberId={memberId} isAdmin={isAdmin} canOwn={canOwn} />
           )}
