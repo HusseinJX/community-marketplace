@@ -260,8 +260,7 @@ export function NetworkManager({
             <Users className="h-6 w-6 text-indigo-500" /> Your network
           </h1>
           <p className="mt-1 text-sm text-stone-500">
-            Find nearby vendors, artists, and community orgs to collaborate with — send an invite, and
-            when they accept you get a shared room to plan it.
+            Find local collaborators, invite them, and plan together in a shared room.
           </p>
         </div>
       </div>
