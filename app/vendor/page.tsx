@@ -47,33 +47,16 @@ export default async function VendorDashboard() {
   const memberId = profile?.member_id ?? (demo ? await demoMemberId() : null);
   const profileUrl = memberId ? `${SITE_URL}/members/${memberId}` : null;
 
-  // Business name + about details — live on the member record, not vendor_profiles.
+  // Business name — lives on the member record, not vendor_profiles. (The full
+  // "about" details are edited on their own page at /vendor/about.)
   let businessName = user?.firstName || "your business";
-  let about: {
-    bio?: string; category?: string; city?: string; neighborhood?: string;
-    instagram?: string; website?: string;
-  } | null = null;
   if (memberId) {
     try {
       const m = await getMember(memberId);
       const p = (m as {
-        member?: {
-          profile?: {
-            businessName?: string; name?: string; businessDescription?: string; bio?: string;
-            category?: string; city?: string; neighborhood?: string;
-            instagramHandle?: string; websiteUrl?: string;
-          };
-        };
+        member?: { profile?: { businessName?: string; name?: string } };
       })?.member?.profile;
       businessName = p?.businessName || p?.name || businessName;
-      about = {
-        bio: p?.businessDescription || p?.bio || undefined,
-        category: p?.category || undefined,
-        city: p?.city || undefined,
-        neighborhood: p?.neighborhood || undefined,
-        instagram: p?.instagramHandle || undefined,
-        website: p?.websiteUrl || undefined,
-      };
     } catch {
       /* connector slow/unavailable → keep the fallback name */
     }
@@ -129,7 +112,7 @@ export default async function VendorDashboard() {
         </div>
       )}
 
-      <VendorHome orderCount={orderCount} plan={plan} planLabel={planLabel} about={about} memberId={memberId} />
+      <VendorHome orderCount={orderCount} plan={plan} planLabel={planLabel} />
     </div>
   );
 }
