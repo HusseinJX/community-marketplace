@@ -19,7 +19,7 @@ export function PlanSwitch({
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-sm font-medium text-stone-900">Plan</p>
-          <p className="text-xs text-stone-500">{caption}</p>
+          <p className="hidden text-xs text-stone-500 sm:block">{caption}</p>
         </div>
         <div className="inline-flex rounded-lg bg-stone-100 p-1">
           {TIERS.map((t) => (

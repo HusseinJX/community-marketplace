@@ -527,17 +527,19 @@ function InviteModal({
 // network) alongside the demo content, with an upgrade CTA.
 function NetworkNoticeCard({ title, body }: { title: string; body: string }) {
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100">
-        <Lock className="h-4 w-4 text-amber-600" />
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-amber-900">{title}</p>
-        <p className="mt-0.5 text-xs text-amber-700">{body}</p>
+    <div className="flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 sm:flex-row sm:items-center">
+      <div className="flex min-w-0 flex-1 items-start gap-3">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100">
+          <Lock className="h-4 w-4 text-amber-600" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-amber-900">{title}</p>
+          <p className="mt-0.5 text-xs text-amber-700">{body}</p>
+        </div>
       </div>
       <Link
         href="/vendor/billing"
-        className="shrink-0 rounded-lg bg-amber-900 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-800"
+        className="shrink-0 self-start rounded-lg bg-amber-900 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-800 sm:self-auto"
       >
         Upgrade to Basic
       </Link>

@@ -48,14 +48,15 @@ export function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
 }
 
 // Brand + mobile-friendly styling for every Clerk surface (the shopper/vendor
-// sign-in modal especially). 16px base font stops iOS from zooming on focus;
-// taller inputs/buttons give proper touch targets; the card goes full-width with
-// safe side margins on small screens instead of a cramped fixed box.
+// sign-in modal especially). We keep Clerk's default base font size — overriding
+// the `fontSize` variable scales the ENTIRE modal (which read as "too zoomed in").
+// iOS input-zoom is instead prevented per-field via `formFieldInput`'s `text-base`
+// (16px). Taller inputs/buttons give proper touch targets; the card goes
+// full-width with safe side margins on small screens instead of a cramped box.
 const CLERK_APPEARANCE = {
   variables: {
     colorPrimary: "#7c3aed", // violet-600, matches the app accent
     borderRadius: "0.85rem",
-    fontSize: "16px",
   },
   elements: {
     modalContent: "mx-3 sm:mx-auto",

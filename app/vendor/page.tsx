@@ -8,6 +8,7 @@ import { getEntitlements, PLAN_META } from "@/lib/entitlements";
 import { SITE_URL } from "@/lib/seo";
 import { VendorHome } from "@/components/vendor/VendorHome";
 import { TitleQrButton } from "@/components/vendor/TitleQrButton";
+import { VendorSignOut } from "@/components/vendor/VendorSignOut";
 
 export default async function VendorDashboard() {
   const { userId } = await auth()
@@ -80,8 +81,6 @@ export default async function VendorDashboard() {
 
   return (
     <div className="space-y-8">
-      <div className="h-2 w-full rounded-full bg-gradient-to-r from-indigo-400 to-violet-400" />
-
       {/* Welcome */}
       <div>
         <div className="flex items-center gap-2.5">
@@ -89,6 +88,11 @@ export default async function VendorDashboard() {
             Welcome, {businessName}
           </h1>
           {profileUrl && <TitleQrButton url={profileUrl} businessName={businessName} />}
+          {!demo && (
+            <div className="ml-auto shrink-0">
+              <VendorSignOut />
+            </div>
+          )}
         </div>
         {user?.email && <p className="mt-1 text-sm text-stone-500">{user.email}</p>}
       </div>

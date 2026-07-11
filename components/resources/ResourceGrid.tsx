@@ -5,9 +5,24 @@ import { Search } from 'lucide-react'
 import { CATEGORY_META, type Resource, type ResourceCategory } from '@/lib/resources'
 import { ResourceCard } from './ResourceCard'
 
-export function ResourceGrid({ resources }: { resources: Resource[] }) {
+export function ResourceGrid({
+  resources,
+  recommended = [],
+}: {
+  resources: Resource[]
+  // Resources to rank first (with a "why this fits" reason badge). Order matters —
+  // earlier entries sort higher.
+  recommended?: { id: string; reasons: string[] }[]
+}) {
   const [query, setQuery] = useState('')
   const [active, setActive] = useState<ResourceCategory | 'all'>('all')
+
+  // id -> { rank, reasons }. Rank pins recommended cards to the top of the list.
+  const recMap = useMemo(() => {
+    const m = new Map<string, { rank: number; reasons: string[] }>()
+    recommended.forEach((r, i) => m.set(r.id, { rank: i, reasons: r.reasons }))
+    return m
+  }, [recommended])
 
   // Only show category chips that actually have resources.
   const categories = useMemo(() => {
@@ -17,13 +32,23 @@ export function ResourceGrid({ resources }: { resources: Resource[] }) {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return resources.filter((r) => {
+    const matches = resources.filter((r) => {
       if (active !== 'all' && r.category !== active) return false
       if (!q) return true
       const hay = `${r.title} ${r.org} ${r.summary} ${r.description} ${r.tags.join(' ')} ${CATEGORY_META[r.category].label}`.toLowerCase()
       return hay.includes(q)
     })
-  }, [resources, query, active])
+    // Stable sort: recommended first (in recommendation order), rest keep their
+    // original catalog order.
+    return matches
+      .map((r, i) => ({ r, i }))
+      .sort((a, b) => {
+        const ra = recMap.get(a.r.id)?.rank ?? Infinity
+        const rb = recMap.get(b.r.id)?.rank ?? Infinity
+        return ra - rb || a.i - b.i
+      })
+      .map((x) => x.r)
+  }, [resources, query, active, recMap])
 
   return (
     <div>
@@ -51,7 +76,7 @@ export function ResourceGrid({ resources }: { resources: Resource[] }) {
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((r) => (
-            <ResourceCard key={r.id} resource={r} />
+            <ResourceCard key={r.id} resource={r} reasons={recMap.get(r.id)?.reasons} />
           ))}
         </div>
       )}

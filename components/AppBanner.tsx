@@ -2,6 +2,7 @@
 
 import { Apple, X } from "lucide-react";
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 
 // Replace with the real App Store listing once published.
 const APP_STORE_URL = "https://apps.apple.com/app/whatslocal";
@@ -11,7 +12,12 @@ const APP_STORE_URL = "https://apps.apple.com/app/whatslocal";
 // every reload (no persistence).
 export function AppBanner() {
   const [hidden, setHidden] = useState(false);
+  const pathname = usePathname();
 
+  // The Messages conversation view is full-screen (input pinned above the bottom
+  // nav) — the promo banner would push the chat header down. Hide it there, same
+  // as the footer.
+  if (pathname?.startsWith("/messages")) return null;
   if (hidden) return null;
 
   return (

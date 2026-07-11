@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import {
-  Package, ShoppingCart, Calendar, ArrowRight, Lock,
+  Package, ShoppingCart, Calendar, ArrowRight, ChevronDown,
   MessageCircle, Heart, CreditCard, Info, MapPin, Tag, AtSign, Globe, ExternalLink,
   Pencil, Check, X, Radio,
 } from 'lucide-react'
@@ -152,23 +152,6 @@ function Chip({ Icon, label }: { Icon: typeof Package; label: string }) {
 // Free / Basic / Pro gate the dashboard sections (replaces the old commerce
 // toggle). The switch shares state with the collab page via PLAN_KEY.
 
-function LockedTile({ Icon, label, note = 'Locked' }: { Icon: typeof Package; label: string; note?: string }) {
-  return (
-    <div
-      title={`Upgrade to ${note} to unlock`}
-      className="card-soft flex cursor-not-allowed items-center justify-between p-5 opacity-60"
-    >
-      <span className="flex items-center gap-3">
-        <Icon className="h-5 w-5 text-stone-300" />
-        <span className="text-sm font-semibold text-stone-400">{label}</span>
-      </span>
-      <span className="inline-flex items-center gap-1 text-xs font-medium text-stone-400">
-        <Lock className="h-3.5 w-3.5" /> {note}
-      </span>
-    </div>
-  )
-}
-
 function Tile({ href, Icon, label, desc }: { href: string; Icon: typeof Package; label: string; desc?: string }) {
   return (
     <Link href={href} className="card-soft card-hover flex items-center justify-between p-5">
@@ -189,6 +172,7 @@ export function VendorHome({
 }: { orderCount: number; plan: string; planLabel: string; about?: VendorAbout | null; memberId?: string | null }) {
   const initial: Tier = plan === 'member' ? 'member' : plan === 'free' ? 'free' : 'pro'
   const [tier, setTier] = useState<Tier>(initial)
+  const [showAbout, setShowAbout] = useState(false)
 
   useEffect(() => {
     const v = localStorage.getItem(PLAN_KEY)
@@ -219,30 +203,13 @@ export function VendorHome({
       {/* Plan switch — gates everything below (shared with the collab page) */}
       <PlanSwitch tier={tier} onPick={pick} caption="Preview each tier — gates the features below." />
 
-      {/* About — the business bio + details (from the member profile) */}
-      <AboutSection about={about} memberId={memberId} />
-
-      {/* Quick access */}
+      {/* Quick access — cards the current tier can't access are hidden entirely
+          (not shown greyed out). */}
       <div>
         <p className="section-label mb-3">Quick access</p>
         <div className="grid grid-cols-3 gap-2">
-          {metrics.map((card) => {
+          {metrics.filter((card) => !card.locked).map((card) => {
             const Icon = card.icon
-            if (card.locked) {
-              return (
-                <div
-                  key={card.label}
-                  title={`Upgrade to ${card.note} to unlock`}
-                  className="card-soft flex cursor-not-allowed flex-col items-center gap-1 p-3 text-center opacity-60"
-                >
-                  <Icon className="h-5 w-5 text-stone-300" />
-                  <span className="text-[11px] font-medium leading-tight text-stone-400">{card.label}</span>
-                  <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-stone-400">
-                    <Lock className="h-3 w-3" /> {card.note}
-                  </span>
-                </div>
-              )
-            }
             return (
               <Link key={card.label} href={card.href} className="card-soft card-hover flex flex-col items-center gap-1 p-3 text-center">
                 <Icon className="h-5 w-5 text-indigo-500" />
@@ -254,9 +221,9 @@ export function VendorHome({
         </div>
       </div>
 
-      {/* Manage */}
+      {/* Manage — tiles the current tier can't access are hidden entirely. */}
       <div className="grid gap-3 sm:grid-cols-2">
-        {needsPro ? <LockedTile Icon={Package} label="My Products" note="Pro" /> : <Tile href="/vendor/products" Icon={Package} label="My Products" />}
+        {!needsPro && <Tile href="/vendor/products" Icon={Package} label="My Products" />}
         <Tile href="/vendor/events" Icon={Calendar} label="My Events" desc="Host events + collect RSVPs" />
         <Tile href="/share?vendor=1" Icon={Radio} label="Post / Go live" desc="Share an update or broadcast live" />
       </div>
@@ -265,12 +232,35 @@ export function VendorHome({
       <div>
         <p className="section-label mb-3">Tools</p>
         <div className="grid gap-3 sm:grid-cols-2">
-          {needsBasic
-            ? <LockedTile Icon={MessageCircle} label="Your agent" note="Basic" />
-            : <Tile href="/vendor/assistant" Icon={MessageCircle} label="Your agent" desc="Train your customer-service AI" />}
+          {!needsBasic && <Tile href="/vendor/assistant" Icon={MessageCircle} label="Your agent" desc="Train your customer-service AI" />}
           <Tile href="/vendor/giving" Icon={Heart} label="Giving" desc="Log community contributions" />
           <Tile href="/vendor/billing" Icon={CreditCard} label="Plan & billing" desc={`Current plan: ${planLabel}`} />
         </div>
+      </div>
+
+      {/* About — the business bio + details (from the member profile). Tucked
+          behind a button at the very bottom, opened on demand. */}
+      <div>
+        <button
+          type="button"
+          onClick={() => setShowAbout((s) => !s)}
+          aria-expanded={showAbout}
+          className="card-soft card-hover flex w-full items-center justify-between p-5"
+        >
+          <span className="flex items-center gap-3">
+            <Info className="h-5 w-5 text-indigo-500" />
+            <span>
+              <span className="block text-sm font-semibold text-stone-900">About your business</span>
+              <span className="block text-xs text-stone-500">Bio, category, location & links shoppers see</span>
+            </span>
+          </span>
+          <ChevronDown className={'h-4 w-4 text-stone-400 transition-transform ' + (showAbout ? 'rotate-180' : '')} />
+        </button>
+        {showAbout && (
+          <div className="mt-3">
+            <AboutSection about={about} memberId={memberId} />
+          </div>
+        )}
       </div>
     </>
   )

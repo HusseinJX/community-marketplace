@@ -1,9 +1,7 @@
 import { auth } from '@clerk/nextjs/server'
-import { Sparkles } from 'lucide-react'
 import { getVendorProfile } from '@/lib/vendor-connect'
 import { buildBusinessContext } from '@/lib/business-context'
 import { recommendResources, RESOURCES } from '@/lib/resources'
-import { ResourceCard } from '@/components/resources/ResourceCard'
 import { ResourceGrid } from '@/components/resources/ResourceGrid'
 import { ResourceChat } from '@/components/resources/ResourceChat'
 
@@ -27,6 +25,14 @@ export default async function ResourcesPage() {
     recommendations = recommendResources(ctx, { limit: 4 })
   }
 
+  // Recommended resources are surfaced as the top-ranked cards inside the single
+  // "All resources" list (with their reason badges) rather than in a separate
+  // section above — so there's one list, best matches first.
+  const recommended = recommendations.map((rec) => ({
+    id: rec.resource.id,
+    reasons: rec.reasons,
+  }))
+
   return (
     <div className="space-y-10">
       <div>
@@ -37,23 +43,9 @@ export default async function ResourcesPage() {
         </p>
       </div>
 
-      {recommendations.length > 0 && (
-        <section>
-          <div className="mb-4 flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-violet-500" />
-            <p className="section-label">Recommended for {businessName}</p>
-          </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {recommendations.map((rec) => (
-              <ResourceCard key={rec.resource.id} resource={rec.resource} reasons={rec.reasons} />
-            ))}
-          </div>
-        </section>
-      )}
-
       <section>
         <p className="section-label mb-4">All resources</p>
-        <ResourceGrid resources={RESOURCES} />
+        <ResourceGrid resources={RESOURCES} recommended={recommended} />
       </section>
 
       {/* Floating guide — sticky circle button bottom-right that expands the chat. */}

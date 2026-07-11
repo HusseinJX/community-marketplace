@@ -1,10 +1,9 @@
-import { auth, currentUser } from '@clerk/nextjs/server'
+import { auth } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
 import { isDemoActive } from '@/lib/demo-server'
 import { VendorNav } from '@/components/vendor/VendorNav'
 import { VendorBackBar } from '@/components/vendor/VendorBackBar'
-import { VendorSignOut } from '@/components/vendor/VendorSignOut'
 
 export default async function VendorLayout({ children }: { children: React.ReactNode }) {
   const { userId } = await auth()
@@ -20,23 +19,11 @@ export default async function VendorLayout({ children }: { children: React.React
   const demo = !userId && (await isDemoActive())
   if (!userId && !demo) redirect('/vendor/sign-in')
 
-  let email = ''
-  if (userId) {
-    const user = await currentUser()
-    email = user?.emailAddresses?.[0]?.emailAddress ?? ''
-  }
-
   return (
     <div className="min-h-screen bg-stone-50">
       <header className="border-b border-stone-200 bg-white px-3 py-3 sm:px-6 sm:py-4">
         <div className="mx-auto flex max-w-5xl items-center gap-2">
           <VendorNav />
-          {!demo && (
-            <div className="flex shrink-0 items-center gap-3">
-              <span className="hidden text-sm text-stone-500 md:inline">{email}</span>
-              <VendorSignOut />
-            </div>
-          )}
         </div>
       </header>
       <main className="mx-auto max-w-5xl px-6 py-10">
