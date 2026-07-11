@@ -14,13 +14,20 @@ export function NetworkManager({
   memberId,
   isAdmin,
   demo = false,
+  adminDemo = false,
   plan,
 }: {
   memberId: string;
   isAdmin: boolean;
   demo?: boolean;
+  // The vendor Admin demo has no real backend, so seed illustrative data for
+  // every tier (Basic/Pro too) — not just Free. Interactions stay inert.
+  adminDemo?: boolean;
   plan?: "free" | "member" | "pro";
 }) {
+  // No real backend → seed demo data + keep interactions inert. True on Free
+  // (the real-app preview) and anywhere in the Admin demo.
+  const preview = demo || adminDemo;
   const [tab, setTab] = useState<Tab>("rooms");
   const [incoming, setIncoming] = useState<CollabInvite[]>([]);
   const [outgoing, setOutgoing] = useState<CollabInvite[]>([]);
@@ -66,7 +73,7 @@ export function NetworkManager({
     // illustrative demo data only — one demo collaboration + a couple demo
     // invites — each paired with a card that explains it's a preview and that
     // real network access needs Basic.
-    if (demo) {
+    if (preview) {
       setIncoming([
         {
           id: "demo-inv-1", from_id: "demo-cafe", from_name: "Nokku Coffee", to_id: memberId, to_name: "You",
@@ -98,7 +105,7 @@ export function NetworkManager({
     loadRooms();
     loadCollabs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [qp, demo]);
+  }, [qp, preview]);
 
   const pendingIn = incoming.filter((i) => i.status === "pending").length;
 
@@ -145,6 +152,7 @@ export function NetworkManager({
           memberId={memberId}
           isAdmin={isAdmin}
           demo={demo}
+          inert={preview}
           incoming={incoming}
           onChange={() => {
             loadInvites();
@@ -159,6 +167,7 @@ export function NetworkManager({
           memberId={memberId}
           isAdmin={isAdmin}
           demo={demo}
+          inert={preview}
           rooms={rooms}
           collabs={collabs}
           focusRoomId={focusRoomId}
@@ -435,6 +444,7 @@ function Invites({
   memberId,
   isAdmin,
   demo,
+  inert,
   incoming,
   onChange,
   openRoom,
@@ -442,6 +452,7 @@ function Invites({
   memberId: string;
   isAdmin: boolean;
   demo?: boolean;
+  inert?: boolean;
   incoming: CollabInvite[];
   onChange: () => void;
   openRoom: (roomId?: string) => void;
@@ -500,17 +511,17 @@ function Invites({
                 </div>
                 <div className="flex shrink-0 gap-2">
                   <button
-                    onClick={() => !demo && respond(i.id, "accepted")}
-                    disabled={demo}
-                    title={demo ? "Upgrade to Basic to join the network" : undefined}
+                    onClick={() => !inert && respond(i.id, "accepted")}
+                    disabled={inert}
+                    title={inert ? "Demo invite" : undefined}
                     className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-stone-200 disabled:text-stone-400 disabled:hover:bg-stone-200"
                   >
                     <Check className="h-3.5 w-3.5" /> Accept
                   </button>
                   <button
-                    onClick={() => !demo && respond(i.id, "declined")}
-                    disabled={demo}
-                    title={demo ? "Upgrade to Basic to join the network" : undefined}
+                    onClick={() => !inert && respond(i.id, "declined")}
+                    disabled={inert}
+                    title={inert ? "Demo invite" : undefined}
                     className="inline-flex items-center gap-1 rounded-lg bg-stone-100 px-3 py-1.5 text-xs font-medium text-stone-600 hover:bg-stone-200 disabled:cursor-not-allowed disabled:text-stone-300 disabled:hover:bg-stone-100"
                   >
                     <X className="h-3.5 w-3.5" /> Decline
@@ -547,6 +558,7 @@ function Rooms({
   memberId,
   isAdmin,
   demo,
+  inert,
   rooms,
   collabs,
   focusRoomId,
@@ -557,6 +569,7 @@ function Rooms({
   memberId: string;
   isAdmin: boolean;
   demo?: boolean;
+  inert?: boolean;
   rooms: CollabRoom[];
   collabs: CollaborationSummary[];
   focusRoomId: string | null;
@@ -672,7 +685,7 @@ function Rooms({
 
       {active ? (
         <div className="min-w-0">
-          {demo ? (
+          {inert ? (
             <DemoChat />
           ) : (
             <Chat key={active.id} room={active} memberId={memberId} isAdmin={isAdmin} canOwn={canOwn} />

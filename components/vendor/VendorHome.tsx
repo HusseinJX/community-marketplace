@@ -5,7 +5,7 @@ import Link from 'next/link'
 import {
   Package, ShoppingCart, Calendar, ArrowRight, Lock,
   MessageCircle, Heart, CreditCard, Info, MapPin, Tag, AtSign, Globe, ExternalLink,
-  Pencil, Check, X,
+  Pencil, Check, X, Radio,
 } from 'lucide-react'
 import { PlanSwitch, PLAN_KEY, type Tier } from '@/components/vendor/PlanSwitch'
 
@@ -258,6 +258,7 @@ export function VendorHome({
       <div className="grid gap-3 sm:grid-cols-2">
         {needsPro ? <LockedTile Icon={Package} label="My Products" note="Pro" /> : <Tile href="/vendor/products" Icon={Package} label="My Products" />}
         <Tile href="/vendor/events" Icon={Calendar} label="My Events" desc="Host events + collect RSVPs" />
+        <Tile href="/share?vendor=1" Icon={Radio} label="Post / Go live" desc="Share an update or broadcast live" />
       </div>
 
       {/* Tools (QR moved to the title button; Collabs/Resources live in the top nav) */}

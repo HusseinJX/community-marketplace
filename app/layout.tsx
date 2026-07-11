@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { ClerkProvider } from "@clerk/nextjs";
+import { ClerkAuthProvider } from "@/components/auth/ClerkAuthProvider";
 import { TopNav } from "@/components/TopNav";
 import { BottomNav } from "@/components/BottomNav";
 import { AppBanner } from "@/components/AppBanner";
@@ -10,6 +10,7 @@ import { LocationProvider } from "@/lib/location";
 import { PostHogProvider } from "@/lib/posthog-provider";
 import { FeedbackWidget } from "@/components/FeedbackWidget";
 import { PushInit } from "@/components/PushInit";
+import { DemoExitWatcher } from "@/components/DemoExitWatcher";
 import { SITE_NAME, SITE_URL } from "@/lib/seo";
 import "./globals.css";
 
@@ -55,7 +56,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <ClerkProvider>
+    <ClerkAuthProvider>
       <html lang="en" className="h-full antialiased">
         <body className="flex min-h-full flex-col overflow-x-hidden bg-stone-50 text-stone-900">
           <PostHogProvider>
@@ -85,12 +86,13 @@ export default function RootLayout({
             <BottomNav />
             <FeedbackWidget />
             <PushInit />
+            <DemoExitWatcher />
           </StoreProvider>
           </LocationProvider>
           </SWRProvider>
           </PostHogProvider>
         </body>
       </html>
-    </ClerkProvider>
+    </ClerkAuthProvider>
   );
 }

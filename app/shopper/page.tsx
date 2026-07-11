@@ -1,15 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { Show, SignInButton, UserButton, useUser } from "@clerk/nextjs";
-import { Heart, ShoppingBag, Receipt, Users, ArrowRight, PenLine } from "lucide-react";
+import { Show, UserButton, useUser } from "@clerk/nextjs";
+import { Heart, ShoppingBag, Receipt, Users, ArrowRight, PenLine, Store } from "lucide-react";
 import { PushTestButton } from "@/components/PushTestButton";
 import { DeleteAccountButton } from "@/components/account/DeleteAccountButton";
+import { useOpenLogin } from "@/components/auth/ClerkAuthProvider";
 
 // Demo shopper admin — the shopper's personal space (parallel to the vendor
 // portal). Public/no-auth for demo so it's quickly testable and refinable.
 export default function ShopperAdmin() {
   const { user } = useUser();
+  const openLogin = useOpenLogin();
 
   const cards = [
     { label: "Saved", value: "—", href: "/favorites", icon: Heart },
@@ -21,16 +23,23 @@ export default function ShopperAdmin() {
     <div className="mx-auto max-w-3xl space-y-8 px-4 py-10 md:px-8">
       <div className="h-2 w-full rounded-full bg-gradient-to-r from-teal-400 to-sky-400" />
 
-      {/* Header row: title on the left, account on the right */}
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold text-stone-900">Your space</h1>
-          <p className="mt-1 text-sm text-stone-500">Everything you&apos;ve saved, ordered, and discovered nearby.</p>
-        </div>
+      {/* Top utility row (above the title). Signed out: choose which side to
+          enter — "Vendor" (the vendor login/onboarding) or "Log in" as a
+          shopper. Signed in as a shopper: only the account control (no vendor
+          jump — shopper and vendor are separate accounts). */}
+      <div className="flex items-center justify-between gap-2">
+        <Show when="signed-out">
+          <Link
+            href="/join"
+            className="inline-flex items-center gap-1.5 rounded-full border border-stone-300 px-4 py-2 text-sm font-semibold text-stone-800 transition hover:bg-stone-50"
+          >
+            <Store className="h-4 w-4 text-violet-600" /> Vendor login
+          </Link>
+        </Show>
         <Show
           when="signed-out"
           fallback={
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="ml-auto flex shrink-0 items-center gap-2">
               <span className="max-w-[8rem] truncate text-sm font-medium text-stone-700">
                 {user?.firstName || user?.fullName || user?.primaryEmailAddress?.emailAddress}
               </span>
@@ -38,12 +47,19 @@ export default function ShopperAdmin() {
             </div>
           }
         >
-          <SignInButton mode="modal">
-            <button className="shrink-0 rounded-full bg-stone-900 px-5 py-2 text-sm font-semibold text-white transition hover:bg-stone-800">
-              Sign in
-            </button>
-          </SignInButton>
+          <button
+            onClick={() => openLogin("shopper")}
+            className="shrink-0 rounded-full bg-stone-900 px-5 py-2 text-sm font-semibold text-white transition hover:bg-stone-800"
+          >
+            Shopper login
+          </button>
         </Show>
+      </div>
+
+      {/* Title */}
+      <div>
+        <h1 className="text-2xl font-semibold text-stone-900">Your space</h1>
+        <p className="mt-1 text-sm text-stone-500">Everything you&apos;ve saved, ordered, and discovered nearby.</p>
       </div>
 
       {/* Quick access — compact metric grid */}

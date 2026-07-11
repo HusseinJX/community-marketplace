@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useClerk, useAuth } from "@clerk/nextjs";
-import { Store, Users, Mic, Search, Loader2, Check, ArrowRight } from "lucide-react";
+import { VendorPhoneLogin } from "@/components/auth/VendorPhoneLogin";
+import { Store, Users, Mic, Search, Loader2, Check, ArrowRight, LogOut, LogIn } from "lucide-react";
 import { JoinInterview } from "@/components/join/JoinInterview";
 import type { BriefInput } from "@/lib/onboard";
 
@@ -27,8 +28,22 @@ interface Place { placeId: string; name: string; address: string }
 
 export function JoinFlow() {
   const router = useRouter();
-  const { isSignedIn } = useAuth();
+  const { isLoaded, isSignedIn } = useAuth();
   const clerk = useClerk();
+  const [loginOpen, setLoginOpen] = useState(false);
+
+  // Onboarding creates a *vendor* account and must start from a logged-out
+  // state — shopper and vendor are separate accounts you sign into separately.
+  // So if anyone lands here already signed in, they log out first (below).
+  const [signingOut, setSigningOut] = useState(false);
+  async function logOutThenJoin() {
+    setSigningOut(true);
+    try {
+      await clerk.signOut({ redirectUrl: "/join" });
+    } catch {
+      setSigningOut(false);
+    }
+  }
 
   const [step, setStep] = useState<Step>("type");
   const [kind, setKind] = useState<Kind>("vendor");
@@ -283,6 +298,40 @@ export function JoinFlow() {
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────
+  // Wait for Clerk to resolve the session before deciding what to show.
+  if (!isLoaded) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-violet-600" />
+      </div>
+    );
+  }
+
+  // Already signed in (as a shopper or a vendor)? Onboarding needs a clean,
+  // logged-out start — log out first, then this same page shows the flow.
+  if (isSignedIn) {
+    return (
+      <div className="mx-auto max-w-md px-4 py-16 text-center">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-stone-100">
+          <LogOut className="h-6 w-6 text-stone-600" />
+        </div>
+        <h1 className="mt-4 text-2xl font-bold text-stone-900">Log out first</h1>
+        <p className="mt-2 text-sm text-stone-500">
+          You&apos;re already signed in. Setting up a business, org, or artist page uses its own
+          account, so log out here and we&apos;ll start you fresh.
+        </p>
+        <button
+          onClick={logOutThenJoin}
+          disabled={signingOut}
+          className="mt-5 inline-flex items-center justify-center gap-2 rounded-full bg-stone-900 px-6 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+        >
+          {signingOut ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
+          Log out &amp; continue
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-md px-4 py-10">
       {step !== "type" && step !== "done" && step !== "interview" && (
@@ -309,6 +358,19 @@ export function JoinFlow() {
             ))}
           </div>
           <p className="pt-1 text-xs text-stone-400">Business &amp; org prove an anchor. Artists are people — self-owned.</p>
+
+          {/* Already have a vendor account (e.g. onboarded on another device)?
+              Open the login modal — on success it goes straight to the dashboard
+              (forceRedirectUrl), so it never lands back on this onboarding page. */}
+          <div className="mt-4 border-t border-stone-100 pt-4 text-center">
+            <p className="text-sm text-stone-500">Already set up your page?</p>
+            <button
+              onClick={() => setLoginOpen(true)}
+              className="mt-2 inline-flex items-center justify-center gap-2 rounded-full border border-stone-300 px-5 py-2.5 text-sm font-semibold text-stone-800 hover:bg-stone-50"
+            >
+              <LogIn className="h-4 w-4" /> Log in
+            </button>
+          </div>
         </div>
       )}
 
@@ -402,11 +464,18 @@ export function JoinFlow() {
             <a href="/vendor/billing" className="block rounded-xl border border-stone-200 p-4 hover:bg-stone-50"><b className="text-stone-900">Member</b> — AI agent + collab invites <span className="float-right text-stone-500">$10/mo</span></a>
             <a href="/vendor/billing" className="block rounded-xl border-2 border-violet-400 p-4 hover:bg-violet-50"><b className="text-stone-900">Pro</b> — matching, events, booking agent, sell <span className="float-right text-stone-500">$30/mo</span></a>
           </div>
-          <button onClick={() => router.push(`/members/${memberId}`)} className="mt-2 inline-flex items-center gap-2 rounded-full bg-stone-900 px-5 py-2.5 text-sm font-semibold text-white">
-            See my page <ArrowRight className="h-4 w-4" />
+          <button onClick={() => router.push("/vendor")} className="mt-2 inline-flex items-center gap-2 rounded-full bg-stone-900 px-5 py-2.5 text-sm font-semibold text-white">
+            Go to your dashboard <ArrowRight className="h-4 w-4" />
           </button>
+          <div>
+            <button onClick={() => router.push(`/members/${memberId}`)} className="text-sm font-medium text-stone-500 underline hover:text-stone-800">
+              or see your public page
+            </button>
+          </div>
         </div>
       )}
+
+      {loginOpen && <VendorPhoneLogin onClose={() => setLoginOpen(false)} redirectUrl="/vendor" />}
     </div>
   );
 }

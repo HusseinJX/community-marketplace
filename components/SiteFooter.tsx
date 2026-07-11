@@ -4,6 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Mail } from "lucide-react";
 import { FeedbackLink } from "@/components/FeedbackWidget";
+import { writeDemoCookies } from "@/lib/demo-admin";
+
+// Enter the admin demo directly — set the demo cookie (default: vendor) and go
+// straight to the portal, skipping the /demo type-picker page.
+function openAdminDemo() {
+  writeDemoCookies("vendor", "");
+  window.location.href = "/vendor";
+}
 
 // Marketing footer. Hidden on full-screen app views (the conversation view)
 // where a footer below the chat would be out of place.
@@ -31,7 +39,7 @@ export function SiteFooter() {
             <ul className="mt-3 space-y-2 text-sm text-stone-600">
               <li><Link href="/browse" className="hover:text-indigo-700">Atlas</Link></li>
               <li><Link href="/vendor/organize" className="hover:text-indigo-700">Community events</Link></li>
-              <li><Link href="/vendor" className="hover:text-indigo-700">Admin demo</Link></li>
+              <li><button type="button" onClick={openAdminDemo} className="hover:text-indigo-700">Admin demo</button></li>
               <li><Link href="/city" className="hover:text-indigo-700">Places</Link></li>
             </ul>
           </div>

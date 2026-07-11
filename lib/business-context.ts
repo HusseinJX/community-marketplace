@@ -1,5 +1,6 @@
 import { getMember, listEvents } from './api'
 import { getProductsByMember, getVendorSettings, getBusinessKnowledge, getVendorEventsByMember } from './vendor-connect'
+import { getDemoMember } from './demo-members'
 import type { MemberProfile } from './types'
 
 export interface BusinessContext {
@@ -34,6 +35,13 @@ export async function buildBusinessContext(memberId: string): Promise<BusinessCo
     profile = res.member.profile ?? {}
   } catch {
     profile = {}
+  }
+  // Demo members (Admin demo) aren't in the connector, so fall back to their
+  // local profile — this grounds the demo account's customer-service AI in a
+  // real-feeling business instead of "no information available".
+  if (!profile || Object.keys(profile).length === 0) {
+    const demo = getDemoMember(memberId)
+    if (demo?.profile) profile = demo.profile
   }
 
   const [products, connectorEvents, vendorEvents, settings, knowledge] = await Promise.all([
@@ -98,9 +106,15 @@ export async function buildBusinessContext(memberId: string): Promise<BusinessCo
     lines.push('## Delivery\nOn-demand local delivery is available at checkout (Uber Direct).')
   }
 
-  // ── Owner-authored knowledge / FAQs
-  if (knowledge.length) {
-    lines.push('## Owner notes & FAQs\n' + knowledge.map((k) => `- ${k.content}`).join('\n'))
+  // ── Owner-authored knowledge / FAQs. Demo members have none stored, so seed
+  // a few plausible FAQs from their profile so the demo agent feels trained.
+  const faqs = knowledge.length
+    ? knowledge.map((k) => k.content)
+    : getDemoMember(memberId)
+      ? demoFaqs(businessName, profile)
+      : []
+  if (faqs.length) {
+    lines.push('## Owner notes & FAQs\n' + faqs.map((f) => `- ${f}`).join('\n'))
   }
 
   return {
@@ -110,6 +124,20 @@ export async function buildBusinessContext(memberId: string): Promise<BusinessCo
     persona: settings?.assistant_persona ?? null,
     knowledgeBlob: lines.join('\n\n') || 'No additional information is available for this business yet.',
   }
+}
+
+// A few FAQ lines derived from a demo member's profile so the demo account's
+// agent reads like it was trained. Grounded in real profile facts (hours,
+// location, offerings) — no invented prices or policies.
+function demoFaqs(name: string, p: MemberProfile): string[] {
+  const out: string[] = []
+  if (p.businessHours) out.push(`Hours: ${name} is open ${p.businessHours as string}.`)
+  if (p.businessAddress) out.push(`Location: find us at ${p.businessAddress as string}.`)
+  const services = p.services as string[] | undefined
+  if (services?.length) out.push(`What we offer: ${services.join(', ')}.`)
+  if (p.vibe) out.push(`The vibe: ${p.vibe as string}`)
+  out.push("To book, ask about a group visit, or get a callback, share your name and number and we'll follow up.")
+  return out
 }
 
 // System prompt for the customer-service assistant, grounded in one business.

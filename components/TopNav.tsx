@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Plus, ShoppingBag } from "lucide-react";
 import { useStore } from "@/lib/store";
 
@@ -8,14 +9,23 @@ import { useStore } from "@/lib/store";
 // (links home; the feed now lives on the home scroll), right cart + profile.
 export function TopNav() {
   const { cart } = useStore();
+  const pathname = usePathname();
+
+  // On the admin surfaces (the vendor portal or the /demo launcher) the "+"
+  // opens the vendor post composer (Go Live) instead of the shopper share page.
+  // Demo mode exits when you leave these for the shopper side (DemoExitWatcher),
+  // so pathname alone is the right signal — no lingering cookie to consult.
+  const adminContext =
+    (pathname?.startsWith("/vendor") || pathname?.startsWith("/demo")) ?? false;
+  const shareHref = adminContext ? "/share?vendor=1" : "/share";
 
   return (
     <div className="relative grid h-14 grid-cols-3 items-center px-4">
       {/* Left — post/share */}
       <div className="flex justify-start">
         <Link
-          href="/share"
-          aria-label="Share a post"
+          href={shareHref}
+          aria-label={adminContext ? "Post as your business" : "Share a post"}
           className="inline-flex h-9 w-9 items-center justify-center rounded-full text-stone-800 transition hover:bg-stone-100"
         >
           <Plus className="h-6 w-6" />

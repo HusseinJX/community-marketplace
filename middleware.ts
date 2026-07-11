@@ -1,15 +1,14 @@
-import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
+import { clerkMiddleware } from '@clerk/nextjs/server'
+import { NextResponse } from 'next/server'
 
-const isVendorRoute = createRouteMatcher(['/vendor((?!/sign-in).*)'])
-
-// Demo mode lets the vendor portal be previewed without auth (gated by env).
-// When on, skip route protection so the layout's demo bypass can render.
-const demoMode = process.env.NEXT_PUBLIC_DEMO_MODE === '1'
-
-export default clerkMiddleware(async (auth, req) => {
-  if (!demoMode && isVendorRoute(req)) {
-    await auth.protect()
-  }
+// The vendor portal is gated in `app/vendor/layout.tsx` (redirect to the
+// public /vendor/sign-in landing) rather than here, so the sign-in page — a
+// public modal-login landing modeled on /shopper — renders without looping.
+// We forward the request path so the layout knows when it's on that page.
+export default clerkMiddleware(async (_auth, req) => {
+  const headers = new Headers(req.headers)
+  headers.set('x-pathname', req.nextUrl.pathname)
+  return NextResponse.next({ request: { headers } })
 })
 
 export const config = {

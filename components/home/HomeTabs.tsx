@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronRight, Newspaper, CalendarDays, Store, ArrowRight, Trophy, MapPin } from "lucide-react";
+import { Newspaper, CalendarDays, Store, ArrowRight, Trophy, MapPin } from "lucide-react";
 import { LiveFeed } from "@/components/live/LiveFeed";
 import { CommunityEventsLive } from "@/components/live/CommunityEventsLive";
 import { LocalDirectory } from "@/components/home/LocalDirectory";
@@ -48,35 +48,35 @@ export function HomeTabs() {
     <>
       {/* Small hero — one-line "what this is" so first-time visitors get oriented. */}
       <div className="mx-auto max-w-6xl px-4 pt-4 md:px-8">
-        <div className="rounded-2xl bg-gradient-to-br from-purple-700 to-pink-600 px-5 py-4 text-white sm:px-6 sm:py-5">
-          <h1 className="text-lg font-semibold tracking-tight sm:text-xl">
+        <div className="rounded-2xl bg-gradient-to-br from-purple-700 to-pink-600 px-5 py-5 text-white sm:px-6">
+          <h1 className="text-xl font-semibold tracking-tight">
             Your neighborhood, all in one place.
           </h1>
-          <p className="mt-1 max-w-2xl text-sm leading-snug text-white/85 sm:text-[0.95rem]">
+          <p className="mt-1.5 max-w-2xl text-sm leading-snug text-white/85">
             Discover your local ecosystem, engage in it, and see who&apos;s giving back to the
             neighborhood.
           </p>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
+          <div className="mt-4 flex flex-wrap items-center gap-2">
             <Link
               href="/world-cup"
-              className="inline-flex items-center gap-1.5 rounded-full bg-white px-3.5 py-1.5 text-xs font-semibold text-purple-700 transition hover:bg-white/90"
+              className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-semibold text-purple-700 transition hover:bg-white/90"
             >
-              <Trophy className="h-3.5 w-3.5" />
+              <Trophy className="h-4 w-4" />
               World Cup 2026
             </Link>
             <Link
               href="/sf"
-              className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3.5 py-1.5 text-xs font-semibold transition hover:bg-white/25"
+              className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-4 py-2 text-sm font-semibold transition hover:bg-white/25"
             >
-              <MapPin className="h-3.5 w-3.5" />
+              <MapPin className="h-4 w-4" />
               SF
             </Link>
             <Link
               href="/about"
-              className="inline-flex items-center gap-1 rounded-full bg-white/15 px-3.5 py-1.5 text-xs font-semibold transition hover:bg-white/25"
+              className="inline-flex items-center gap-1 rounded-full bg-white/15 px-4 py-2 text-sm font-semibold transition hover:bg-white/25"
             >
               What&apos;s this about?
-              <ArrowRight className="h-3.5 w-3.5" />
+              <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
         </div>
@@ -88,10 +88,10 @@ export function HomeTabs() {
 
       {/* Sticky selector — sits directly beneath the app header. */}
       <div
-        className="sticky z-20 border-b border-stone-100 bg-stone-50/85 backdrop-blur"
+        className="sticky z-20 mt-4 border-b border-stone-100 bg-stone-50/85 backdrop-blur"
         style={{ top: "calc(3.5rem + env(safe-area-inset-top))" }}
       >
-        <div className="mx-auto flex max-w-6xl justify-center px-4 py-2.5 md:px-8">
+        <div className="mx-auto flex max-w-6xl justify-center px-4 py-2 md:px-8">
           <div className="inline-flex rounded-full bg-stone-100 p-1">
             {TABS.map(({ id, label, icon: Icon }) => {
               const active = tab === id;
@@ -120,14 +120,10 @@ export function HomeTabs() {
       {tab === "feed" && (
         <>
           <LiveFeed />
-          <section className="mx-auto max-w-6xl border-t border-stone-100 px-4 pb-24 pt-8 md:px-8">
-            <Link
-              href="/events"
-              className="group mb-5 inline-flex items-center gap-1 text-xl font-semibold tracking-tight text-stone-900 transition hover:text-stone-600"
-            >
+          <section className="mx-auto max-w-6xl border-t border-stone-100 px-4 pb-24 pt-4 md:px-8">
+            <h2 className="mb-5 text-xl font-semibold tracking-tight text-stone-900">
               From the community
-              <ChevronRight className="h-5 w-5 text-stone-400 transition group-hover:translate-x-0.5 group-hover:text-stone-600" />
-            </Link>
+            </h2>
             <CommunityFeed layout="feed" />
           </section>
         </>

@@ -2,8 +2,7 @@ import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 import { getVendorProfile, getVendorEventById, type VendorEvent } from "@/lib/vendor-connect";
 import { isAdmin } from "@/lib/admin";
-import { isDemoMode } from "@/lib/demo-admin";
-import { demoMemberId } from "@/lib/demo-server";
+import { demoMemberId, isDemoActive } from "@/lib/demo-server";
 import { demoEvents, isDemoEventId } from "@/lib/demo-organize";
 import { emailConfigured } from "@/lib/email";
 import { EventManager } from "./EventManager";
@@ -17,7 +16,7 @@ export default async function VendorEventManagePage({
   const { userId } = await auth();
   const profile = userId ? await getVendorProfile(userId) : null;
   const admin = isAdmin(userId);
-  const demo = !userId && isDemoMode();
+  const demo = !userId && (await isDemoActive());
 
   let memberId = profile?.member_id ?? null;
   if (!memberId && demo) memberId = await demoMemberId();

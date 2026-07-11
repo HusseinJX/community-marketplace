@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import { ImagePlus, Video, QrCode, X, Radio, Store, CalendarDays, Loader2, MapPin } from "lucide-react";
+import { ImagePlus, Video, QrCode, X, Radio, Store, CalendarDays, Loader2, MapPin, Tag, Check, Plus } from "lucide-react";
 import type { IScannerControls } from "@zxing/browser";
 import { listMembers, listEvents } from "@/lib/api";
+import { getUserPosition } from "@/lib/native-geo";
 import type { Member, EventSuggestion } from "@/lib/types";
 import { eventEmoji, eventLabel } from "@/lib/live-events";
 import { partitionFixtures, getFixtures, startsInLabel, type Fixture } from "@/lib/live-fixtures";
@@ -14,6 +15,8 @@ interface Media {
   url: string;
   kind: "image" | "video";
 }
+type TagItem = { kind: "business" | "event"; id: string; label: string };
+type TagSlot = { query: string; tag: TagItem | null };
 
 export function ShareComposer() {
   const [body, setBody] = useState("");
@@ -22,13 +25,16 @@ export function ShareComposer() {
   const [uploading, setUploading] = useState(false);
   const [livestreamUrl, setLivestreamUrl] = useState("");
   const [location, setLocation] = useState("");
+  const [locating, setLocating] = useState(false);
+  const [locError, setLocError] = useState<string | null>(null);
 
   const [members, setMembers] = useState<Member[]>([]);
   const [events, setEvents] = useState<EventSuggestion[]>([]);
-  const [bizQuery, setBizQuery] = useState("");
-  const [eventQuery, setEventQuery] = useState("");
-  const [taggedBiz, setTaggedBiz] = useState<{ id: string; name: string } | null>(null);
-  const [taggedEvent, setTaggedEvent] = useState<{ id: string; title: string } | null>(null);
+
+  // Combined tagging (same in shopper + vendor mode): one "business / event" bar
+  // per row; the "+" adds another row. Each slot holds its query + picked tag.
+  const [slots, setSlots] = useState<TagSlot[]>([{ query: "", tag: null }]);
+  const [scanSlot, setScanSlot] = useState<number | null>(null);
 
   const [scannerOpen, setScannerOpen] = useState(false);
   const [posting, setPosting] = useState(false);
@@ -49,7 +55,11 @@ export function ShareComposer() {
   const [fixtures, setFixtures] = useState<Fixture[]>(() => getFixtures());
 
   useEffect(() => {
-    setVendorMode(localStorage.getItem(VENDOR_MODE_KEY) === "1");
+    // Vendor mode (Go Live) is on ONLY when arriving from the vendor portal
+    // (?vendor=1). It is not persisted — a shopper opening /share from the top
+    // nav never sees it. Clear any legacy stored flag so it stops sticking.
+    localStorage.removeItem(VENDOR_MODE_KEY);
+    setVendorMode(new URLSearchParams(window.location.search).get("vendor") === "1");
     setNowTs(Date.now());
     const t = setInterval(() => setNowTs(Date.now()), 60_000);
     return () => clearInterval(t);
@@ -75,15 +85,6 @@ export function ShareComposer() {
       clearInterval(t);
     };
   }, []);
-
-  function toggleVendorMode() {
-    setVendorMode((v) => {
-      const next = !v;
-      localStorage.setItem(VENDOR_MODE_KEY, next ? "1" : "0");
-      if (!next) setGoLive(false);
-      return next;
-    });
-  }
 
   const { live: liveFixtures, upcoming: upcomingFixtures } = partitionFixtures(fixtures, nowTs || Date.now());
 
@@ -137,30 +138,51 @@ export function ShareComposer() {
   }, []);
 
   // Pre-tag from the URL (e.g. "Post a memory" from an event page:
-  // /share?event=<id>&eventTitle=<name>).
+  // /share?event=<id>&eventTitle=<name>) → seeds the combined tag rows.
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
     const ev = p.get("event");
-    if (ev) setTaggedEvent({ id: ev, title: p.get("eventTitle") || "this event" });
     const biz = p.get("business");
-    if (biz) setTaggedBiz({ id: biz, name: p.get("businessName") || "this business" });
+    const pre: TagSlot[] = [];
+    if (biz) pre.push({ query: "", tag: { kind: "business", id: biz, label: p.get("businessName") || "this business" } });
+    if (ev) pre.push({ query: "", tag: { kind: "event", id: ev, label: p.get("eventTitle") || "this event" } });
+    if (pre.length) setSlots(pre);
   }, []);
 
-  const bizResults = useMemo(() => {
-    const q = bizQuery.trim().toLowerCase();
-    if (!q) return [];
-    return members
-      .filter((m) => (m.profile?.name ?? "").toLowerCase().includes(q))
-      .slice(0, 6);
-  }, [bizQuery, members]);
+  // Combined search over businesses + events for a single tag bar.
+  function searchTags(q: string): TagItem[] {
+    const s = q.trim().toLowerCase();
+    if (!s) return [];
+    const biz: TagItem[] = members
+      .filter((m) => (m.profile?.name ?? "").toLowerCase().includes(s))
+      .slice(0, 5)
+      .map((m) => ({ kind: "business", id: m.id, label: m.profile?.name ?? "Business" }));
+    const evt: TagItem[] = events
+      .filter((e) => (e.title ?? "").toLowerCase().includes(s))
+      .slice(0, 5)
+      .map((e) => ({ kind: "event", id: e.id, label: e.title ?? "Event" }));
+    return [...biz, ...evt].slice(0, 8);
+  }
 
-  const eventResults = useMemo(() => {
-    const q = eventQuery.trim().toLowerCase();
-    if (!q) return [];
-    return events
-      .filter((e) => (e.title ?? "").toLowerCase().includes(q))
-      .slice(0, 6);
-  }, [eventQuery, events]);
+  const setSlotQuery = (i: number, q: string) =>
+    setSlots((arr) => arr.map((sl, j) => (j === i ? { ...sl, query: q } : sl)));
+  const selectSlotTag = (i: number, tag: TagItem) =>
+    setSlots((arr) => arr.map((sl, j) => (j === i ? { query: "", tag } : sl)));
+  const clearSlotTag = (i: number) =>
+    setSlots((arr) => arr.map((sl, j) => (j === i ? { query: "", tag: null } : sl)));
+  const addSlot = (i: number) =>
+    setSlots((arr) => {
+      const c = [...arr];
+      c.splice(i + 1, 0, { query: "", tag: null });
+      return c;
+    });
+  const removeSlot = (i: number) =>
+    setSlots((arr) => (arr.length > 1 ? arr.filter((_, j) => j !== i) : arr));
+
+  // First business / event tag across the rows (the post + broadcast schemas each
+  // carry one of each).
+  const bizTag = slots.find((s) => s.tag?.kind === "business")?.tag ?? null;
+  const evTag = slots.find((s) => s.tag?.kind === "event")?.tag ?? null;
 
   async function handleFiles(files: FileList | null) {
     if (!files?.length) return;
@@ -182,30 +204,54 @@ export function ShareComposer() {
     if (fileRef.current) fileRef.current.value = "";
   }
 
+  async function useCurrentLocation() {
+    setLocating(true);
+    setLocError(null);
+    try {
+      const [lat, lng] = await getUserPosition();
+      // Reverse-geocode to a readable neighborhood label; fall back to coords.
+      let label = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+      try {
+        const res = await fetch(`/api/places/reverse?lat=${lat}&lng=${lng}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.label) label = data.label;
+        }
+      } catch {
+        /* keep coords fallback */
+      }
+      setLocation(label);
+    } catch {
+      setLocError("Couldn't get your location. Check location permissions.");
+    }
+    setLocating(false);
+  }
+
   function onScan(kind: "business" | "event", id: string) {
-    if (kind === "event") {
-      const e = events.find((x) => x.id === id);
-      setTaggedEvent({ id, title: e?.title ?? "Event" });
-    } else {
-      const m = members.find((x) => x.id === id);
-      setTaggedBiz({ id, name: m?.profile?.name ?? "Business" });
+    const label =
+      kind === "event"
+        ? events.find((x) => x.id === id)?.title ?? "Event"
+        : members.find((x) => x.id === id)?.profile?.name ?? "Business";
+    if (scanSlot != null) {
+      selectSlotTag(scanSlot, { kind, id, label });
+      setScanSlot(null);
     }
     setScannerOpen(false);
   }
 
   async function goLiveSubmit() {
-    if (!taggedBiz) {
+    if (!bizTag) {
       setError("Tag your venue to go live for it.");
       return;
     }
     setPosting(true);
     setError(null);
     try {
-      const res = await fetch(`/api/broadcasts/${taggedBiz.id}`, {
+      const res = await fetch(`/api/broadcasts/${bizTag.id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          memberName: taggedBiz.name,
+          memberName: bizTag.label,
           event_slug: eventSlug,
           whats_on: whatsOn.trim() || null,
           note: body.trim() || null,
@@ -227,6 +273,7 @@ export function ShareComposer() {
         setSupportsTeam("");
         setPickedFixture(null);
         setGoLive(false);
+        setSlots([{ query: "", tag: null }]);
         setPosted(true);
       } else {
         const data = await res.json().catch(() => ({}));
@@ -250,10 +297,10 @@ export function ShareComposer() {
           body,
           imageUrls: media.filter((m) => m.kind === "image").map((m) => m.url),
           videoUrls: media.filter((m) => m.kind === "video").map((m) => m.url),
-          taggedMemberId: taggedBiz?.id ?? null,
-          taggedMemberName: taggedBiz?.name ?? null,
-          taggedEventId: taggedEvent?.id ?? null,
-          taggedEventTitle: taggedEvent?.title ?? null,
+          taggedMemberId: bizTag?.id ?? null,
+          taggedMemberName: bizTag?.label ?? null,
+          taggedEventId: evTag?.id ?? null,
+          taggedEventTitle: evTag?.label ?? null,
           livestreamUrl: livestreamUrl.trim() || null,
           location: location.trim() || null,
         }),
@@ -264,8 +311,8 @@ export function ShareComposer() {
         setMedia([]);
         setLivestreamUrl("");
         setLocation("");
-        setTaggedBiz(null);
-        setTaggedEvent(null);
+        setLocError(null);
+        setSlots([{ query: "", tag: null }]);
         setPosted(true);
       } else {
         setError(data.error ?? "Failed to post");
@@ -277,26 +324,13 @@ export function ShareComposer() {
   }
 
   const canPost = goLive
-    ? !!taggedBiz && !!eventSlug
+    ? !!bizTag && !!eventSlug
     : body.trim() || media.length > 0 || livestreamUrl.trim();
 
   return (
     <div className="mx-auto max-w-lg space-y-4 px-4 py-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold text-stone-900">Share</h1>
-        {/* Vendor dev toggle */}
-        <button
-          type="button"
-          onClick={toggleVendorMode}
-          className={
-            "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition " +
-            (vendorMode
-              ? "border-rose-300 bg-rose-50 text-rose-700"
-              : "border-stone-200 bg-white text-stone-500 hover:bg-stone-50")
-          }
-        >
-          <Store className="h-3.5 w-3.5" /> Vendor mode {vendorMode ? "on" : "off"}
-        </button>
       </div>
 
       {posted && (
@@ -422,26 +456,9 @@ export function ShareComposer() {
                 </div>
               )}
 
-              {/* Ends automatically when the match ends. */}
-              {pickedGame && (
-                <p className="text-xs text-stone-500">
-                  Ends when the match ends
-                  {(() => {
-                    const mins = Math.round((Date.parse(pickedGame.ends_at) - (nowTs || Date.now())) / 60000);
-                    if (!Number.isFinite(mins) || mins <= 0) return "";
-                    const h = Math.floor(mins / 60);
-                    const m = mins % 60;
-                    return ` — about ${h ? `${h}h ` : ""}${m}m from now`;
-                  })()}
-                  .
-                </p>
+              {bizTag && (
+                <p className="text-xs text-stone-500">Going live as {bizTag.label}.</p>
               )}
-
-              <p className="text-xs text-stone-500">
-                {taggedBiz
-                  ? `Going live as ${taggedBiz.name}.`
-                  : "Tag your venue below to go live for it."}
-              </p>
             </div>
           )}
         </div>
@@ -490,11 +507,6 @@ export function ShareComposer() {
         />
         <ToolButton onClick={() => fileRef.current?.click()} icon={ImagePlus} label="Photo" />
         <ToolButton onClick={() => fileRef.current?.click()} icon={Video} label="Video" />
-        {/* Toolbar QR scan — hidden in vendor mode (the business/event Tag
-            fields below keep their own Scan buttons). */}
-        {!vendorMode && (
-          <ToolButton onClick={() => setScannerOpen(true)} icon={QrCode} label="Scan QR" />
-        )}
         {uploading && <Loader2 className="h-4 w-4 animate-spin text-stone-400" />}
       </div>
 
@@ -509,61 +521,63 @@ export function ShareComposer() {
         />
       </label>
 
-      {/* Location tag — users only. A vendor's broadcast location is their
-          tagged venue, not a typed one. */}
+      {/* Location — users only (a vendor's broadcast location is their tagged
+          venue). Tap to capture the device's current spot; no typing. */}
       {!vendorMode && (
-        <label className="flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3">
-          <MapPin className="h-4 w-4 shrink-0 text-emerald-500" />
-          <input
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-            placeholder="Add location (e.g. Mission District, SF)"
-            className="w-full bg-transparent py-2.5 text-base text-stone-900 placeholder-stone-400 focus:outline-none"
-          />
-        </label>
+        <div>
+          {location ? (
+            <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5">
+              <Check className="h-4 w-4 shrink-0 text-emerald-600" />
+              <span className="flex-1 truncate text-sm font-medium text-emerald-800">
+                Location set · {location}
+              </span>
+              <button
+                type="button"
+                onClick={() => setLocation("")}
+                aria-label="Clear location"
+                className="text-emerald-500 hover:text-emerald-700"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={useCurrentLocation}
+              disabled={locating}
+              className="flex w-full items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-left text-base text-stone-700 transition hover:bg-stone-50 disabled:opacity-60"
+            >
+              {locating ? (
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin text-emerald-500" />
+              ) : (
+                <MapPin className="h-4 w-4 shrink-0 text-emerald-500" />
+              )}
+              {locating ? "Getting your location…" : "Use current location"}
+            </button>
+          )}
+          {locError && <p className="mt-1 text-xs text-rose-600">{locError}</p>}
+        </div>
       )}
 
-      {/* Tag a business */}
-      <TagField
-        icon={Store}
-        placeholder="Tag a business"
-        query={bizQuery}
-        setQuery={setBizQuery}
-        tagged={taggedBiz?.name}
-        onClear={() => setTaggedBiz(null)}
-        results={bizResults.map((m) => ({ id: m.id, label: m.profile?.name ?? "Business" }))}
-        onSelect={(r) => { setTaggedBiz({ id: r.id, name: r.label }); setBizQuery(""); }}
-        extra={
-          <button
-            type="button"
-            onClick={() => setScannerOpen(true)}
-            className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-stone-200 px-2 py-1 text-xs text-stone-600 hover:bg-stone-50"
-          >
-            <QrCode className="h-3.5 w-3.5" /> Scan
-          </button>
-        }
-      />
-
-      {/* Tag an event */}
-      <TagField
-        icon={CalendarDays}
-        placeholder="Tag an event"
-        query={eventQuery}
-        setQuery={setEventQuery}
-        tagged={taggedEvent?.title}
-        onClear={() => setTaggedEvent(null)}
-        results={eventResults.map((e) => ({ id: e.id, label: e.title ?? "Event" }))}
-        onSelect={(r) => { setTaggedEvent({ id: r.id, title: r.label }); setEventQuery(""); }}
-        extra={
-          <button
-            type="button"
-            onClick={() => setScannerOpen(true)}
-            className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-stone-200 px-2 py-1 text-xs text-stone-600 hover:bg-stone-50"
-          >
-            <QrCode className="h-3.5 w-3.5" /> Scan
-          </button>
-        }
-      />
+      {/* Combined "business / event" tag bars — same in shopper + vendor mode.
+          Each row has a QR button; the "+" adds another row below. In vendor
+          mode the first business tag is the venue you go live as. */}
+      <div className="space-y-2">
+        {slots.map((slot, i) => (
+          <TagRow
+            key={i}
+            slot={slot}
+            results={searchTags(slot.query)}
+            isLast={i === slots.length - 1}
+            onQuery={(q) => setSlotQuery(i, q)}
+            onSelect={(t) => selectSlotTag(i, t)}
+            onClear={() => clearSlotTag(i)}
+            onScan={() => { setScanSlot(i); setScannerOpen(true); }}
+            onAdd={() => addSlot(i)}
+            onRemove={slots.length > 1 ? () => removeSlot(i) : undefined}
+          />
+        ))}
+      </div>
 
       {error && <p className="text-sm text-rose-600">{error}</p>}
 
@@ -576,7 +590,12 @@ export function ShareComposer() {
         {posting ? (goLive ? "Going live…" : "Sharing…") : goLive ? "Go live" : "Share"}
       </button>
 
-      {scannerOpen && <ScannerModal onScan={onScan} onClose={() => setScannerOpen(false)} />}
+      {scannerOpen && (
+        <ScannerModal
+          onScan={onScan}
+          onClose={() => { setScannerOpen(false); setScanSlot(null); }}
+        />
+      )}
     </div>
   );
 }
@@ -616,67 +635,111 @@ function FixtureChip({
   );
 }
 
-function ToolButton({ onClick, icon: Icon, label }: { onClick: () => void; icon: typeof ImagePlus; label: string }) {
+function ToolButton({
+  onClick, icon: Icon, label, active,
+}: { onClick: () => void; icon: typeof ImagePlus; label: string; active?: boolean }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-700 transition hover:bg-stone-50"
+      aria-pressed={active}
+      className={
+        "inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-sm font-medium transition " +
+        (active
+          ? "border-stone-900 bg-stone-900 text-white"
+          : "border-stone-200 bg-white text-stone-700 hover:bg-stone-50")
+      }
     >
       <Icon className="h-4 w-4" /> {label}
     </button>
   );
 }
 
-function TagField({
-  icon: Icon, placeholder, query, setQuery, tagged, onClear, results, onSelect, extra,
+// One combined "business / event" tag row: search bar (or picked-tag chip) plus
+// a QR scan button and, on the last row, a "+" that appends another row.
+function TagRow({
+  slot, results, isLast, onQuery, onSelect, onClear, onScan, onAdd, onRemove,
 }: {
-  icon: typeof Store;
-  placeholder: string;
-  query: string;
-  setQuery: (v: string) => void;
-  tagged?: string;
+  slot: TagSlot;
+  results: TagItem[];
+  isLast: boolean;
+  onQuery: (v: string) => void;
+  onSelect: (t: TagItem) => void;
   onClear: () => void;
-  results: { id: string; label: string }[];
-  onSelect: (r: { id: string; label: string }) => void;
-  extra?: React.ReactNode;
+  onScan: () => void;
+  onAdd: () => void;
+  onRemove?: () => void;
 }) {
-  if (tagged) {
-    return (
-      <div className="flex items-center gap-2 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5">
-        <Icon className="h-4 w-4 text-indigo-500" />
-        <span className="flex-1 truncate text-sm font-medium text-stone-800">{tagged}</span>
-        <button type="button" onClick={onClear} aria-label="Remove tag" className="text-stone-400 hover:text-stone-700">
-          <X className="h-4 w-4" />
-        </button>
-      </div>
-    );
-  }
+  const squareBtn =
+    "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-stone-200 bg-white text-stone-600 transition hover:bg-stone-50";
   return (
-    <div className="relative">
-      <div className="flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3">
-        <Icon className="h-4 w-4 shrink-0 text-stone-400" />
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder={placeholder}
-          className="w-full bg-transparent py-2.5 text-base text-stone-900 placeholder-stone-400 focus:outline-none"
-        />
-        {extra}
-      </div>
-      {results.length > 0 && (
-        <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-xl border border-stone-200 bg-white shadow-lg">
-          {results.map((r) => (
-            <button
-              key={r.id}
-              type="button"
-              onClick={() => onSelect(r)}
-              className="block w-full truncate px-3 py-2 text-left text-sm text-stone-800 hover:bg-stone-100"
-            >
-              {r.label}
+    <div className="flex items-start gap-2">
+      <div className="relative flex-1">
+        {slot.tag ? (
+          <div className="flex items-center gap-2 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5">
+            {slot.tag.kind === "event" ? (
+              <CalendarDays className="h-4 w-4 shrink-0 text-indigo-500" />
+            ) : (
+              <Store className="h-4 w-4 shrink-0 text-indigo-500" />
+            )}
+            <span className="flex-1 truncate text-sm font-medium text-stone-800">{slot.tag.label}</span>
+            <button type="button" onClick={onClear} aria-label="Remove tag" className="text-stone-400 hover:text-stone-700">
+              <X className="h-4 w-4" />
             </button>
-          ))}
-        </div>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3">
+              <Tag className="h-4 w-4 shrink-0 text-stone-400" />
+              <input
+                value={slot.query}
+                onChange={(e) => onQuery(e.target.value)}
+                placeholder="Tag business / event"
+                className="w-full bg-transparent py-2.5 text-base text-stone-900 placeholder-stone-400 focus:outline-none"
+              />
+            </div>
+            {results.length > 0 && (
+              <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-xl border border-stone-200 bg-white shadow-lg">
+                {results.map((r) => (
+                  <button
+                    key={`${r.kind}-${r.id}`}
+                    type="button"
+                    onClick={() => onSelect(r)}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-stone-800 hover:bg-stone-100"
+                  >
+                    {r.kind === "event" ? (
+                      <CalendarDays className="h-4 w-4 shrink-0 text-stone-400" />
+                    ) : (
+                      <Store className="h-4 w-4 shrink-0 text-stone-400" />
+                    )}
+                    <span className="flex-1 truncate">{r.label}</span>
+                    <span className="text-[11px] uppercase tracking-wide text-stone-400">
+                      {r.kind === "event" ? "Event" : "Business"}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      <button type="button" onClick={onScan} aria-label="Scan QR to tag" className={squareBtn}>
+        <QrCode className="h-5 w-5" />
+      </button>
+      {isLast ? (
+        <button type="button" onClick={onAdd} aria-label="Add another tag" className={squareBtn}>
+          <Plus className="h-5 w-5" />
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={onRemove}
+          aria-label="Remove this tag row"
+          className={squareBtn + " text-stone-400 hover:text-stone-700"}
+        >
+          <X className="h-5 w-5" />
+        </button>
       )}
     </div>
   );

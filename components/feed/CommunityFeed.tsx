@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useMemo, useState } from "react";
+import { Rows3, LayoutGrid } from "lucide-react";
 import { type FeedItem, type EventFeedItem, type SharePostFeedItem } from "@/lib/demo-feed";
 import { EventFeedCard } from "@/components/feed/EventFeedCard";
 import { VendorPostCard } from "@/components/feed/VendorPostCard";
@@ -23,11 +24,11 @@ function relativeTime(iso: string): string {
   return `${days}d ago`;
 }
 
-type Filter = "all" | "event" | "post";
+type Filter = "all" | "shopper" | "vendor";
 const TABS: { id: Filter; label: string }[] = [
   { id: "all", label: "All" },
-  { id: "event", label: "Events" },
-  { id: "post", label: "Vendor Posts" },
+  { id: "shopper", label: "Shoppers" },
+  { id: "vendor", label: "Vendors" },
 ];
 
 // The social community feed — events + vendor posts + featured merch/events.
@@ -40,8 +41,11 @@ export function CommunityFeed({
   eventsOnly?: boolean;
   layout?: "feed" | "rail";
 }) {
-  const [filter, setFilter] = useState<Filter>(eventsOnly ? "event" : "all");
+  const [filter, setFilter] = useState<Filter>("all");
   const [visible, setVisible] = useState(5);
+  // "list" = a single narrow column (more vertical); "board" = a Pinterest-style
+  // masonry (up to 3 columns on desktop).
+  const [view, setView] = useState<"list" | "board">("list");
 
   // Shared, cached datasets — the /api/events/feed and /api/posts keys are the
   // same ones CommunityEventsLive / the Home feed use, so a single Home visit
@@ -102,14 +106,15 @@ export function CommunityFeed({
     [eventsOnly, rawPosts]
   );
 
-  const effectiveFilter: Filter = eventsOnly ? "event" : filter;
   const filtered: FeedItem[] = useMemo(() => {
     const sorted: FeedItem[] = [...realPosts, ...realEvents].sort((a, b) => a.postedAtOrder - b.postedAtOrder);
-    if (effectiveFilter === "all") return sorted;
-    // "Posts" spans both demo vendor posts and real community share posts.
-    if (effectiveFilter === "post") return sorted.filter((i) => i.kind === "post" || i.kind === "share");
-    return sorted.filter((i) => i.kind === effectiveFilter);
-  }, [effectiveFilter, realEvents, realPosts]);
+    if (eventsOnly) return sorted.filter((i) => i.kind === "event");
+    // Shoppers = community share posts; Vendors = business content (events +
+    // vendor posts). "All" shows everything.
+    if (filter === "shopper") return sorted.filter((i) => i.kind === "share");
+    if (filter === "vendor") return sorted.filter((i) => i.kind === "event" || i.kind === "post");
+    return sorted;
+  }, [eventsOnly, filter, realEvents, realPosts]);
 
   const shown = filtered.slice(0, visible);
   const hasMore = visible < filtered.length;
@@ -133,30 +138,66 @@ export function CommunityFeed({
     );
   }
 
+  const boardView = view === "board";
+
   return (
     <div>
       {!eventsOnly && (
-        <div className="mb-6 -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
-          {TABS.map((t) => {
-            const active = filter === t.id;
-            return (
-              <button
-                key={t.id}
-                onClick={() => { setFilter(t.id); setVisible(5); }}
-                className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition ${
-                  active
-                    ? "bg-indigo-600 text-white"
-                    : "border border-stone-200 bg-white text-stone-700 hover:border-stone-300"
-                }`}
-              >
-                {t.label}
-              </button>
-            );
-          })}
+        <div className="mb-6 flex items-center justify-between gap-3">
+          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
+            {TABS.map((t) => {
+              const active = filter === t.id;
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => { setFilter(t.id); setVisible(5); }}
+                  className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition ${
+                    active
+                      ? "bg-indigo-600 text-white"
+                      : "border border-stone-200 bg-white text-stone-700 hover:border-stone-300"
+                  }`}
+                >
+                  {t.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* List / board (masonry) toggle — a board is nicer on wide desktops. */}
+          <div className="flex shrink-0 items-center gap-0.5 rounded-full border border-stone-200 bg-white p-0.5">
+            <button
+              type="button"
+              onClick={() => setView("list")}
+              aria-label="List view"
+              aria-pressed={!boardView}
+              className={`inline-flex h-8 w-8 items-center justify-center rounded-full transition ${
+                !boardView ? "bg-stone-900 text-white" : "text-stone-500 hover:text-stone-800"
+              }`}
+            >
+              <Rows3 className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setView("board")}
+              aria-label="Board view"
+              aria-pressed={boardView}
+              className={`inline-flex h-8 w-8 items-center justify-center rounded-full transition ${
+                boardView ? "bg-stone-900 text-white" : "text-stone-500 hover:text-stone-800"
+              }`}
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       )}
 
-      <div className="space-y-4">
+      <div
+        className={
+          boardView
+            ? "gap-4 [column-fill:_balance] columns-1 sm:columns-2 lg:columns-3 [&>*]:mb-4 [&>*]:break-inside-avoid"
+            : "mx-auto max-w-2xl space-y-4"
+        }
+      >
         {shown.map((item, i) => (
           <Fragment key={item.id}>
             {item.kind === "event" ? (

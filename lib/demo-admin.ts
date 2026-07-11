@@ -35,3 +35,10 @@ export function writeDemoCookies(type: DemoMemberType, subtype?: string): void {
     document.cookie = `${DEMO_SUBTYPE_COOKIE}=${encodeURIComponent(subtype)}; path=/; max-age=31536000`
   }
 }
+
+// Client-only: end the admin demo. Called when leaving the admin surfaces for
+// the shopper side so the preview cookie doesn't linger for a year.
+export function clearDemoCookies(): void {
+  document.cookie = `${DEMO_COOKIE}=; path=/; max-age=0`
+  document.cookie = `${DEMO_SUBTYPE_COOKIE}=; path=/; max-age=0`
+}

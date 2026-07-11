@@ -2,8 +2,7 @@ import { auth, currentUser } from '@clerk/nextjs/server'
 import Link from "next/link";
 import { getVendorProfile, getVendorConnectAccount, getOrdersByMember } from "@/lib/vendor-connect";
 import { stripe } from "@/lib/stripe-server";
-import { isDemoMode } from "@/lib/demo-admin";
-import { demoMemberId } from "@/lib/demo-server";
+import { demoMemberId, isDemoActive } from "@/lib/demo-server";
 import { getMember } from "@/lib/api";
 import { getEntitlements, PLAN_META } from "@/lib/entitlements";
 import { SITE_URL } from "@/lib/seo";
@@ -12,7 +11,7 @@ import { TitleQrButton } from "@/components/vendor/TitleQrButton";
 
 export default async function VendorDashboard() {
   const { userId } = await auth()
-  const demo = !userId && isDemoMode()
+  const demo = !userId && (await isDemoActive())
   const clerkUser = userId ? await currentUser() : null
   const user = clerkUser
     ? {

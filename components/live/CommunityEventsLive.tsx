@@ -17,32 +17,18 @@ function parseEventDayMs(s: string): number {
   const t = Date.parse(s);
   if (Number.isNaN(t)) return NaN;
   const d = new Date(t);
+  // Human date strings often omit the year (e.g. "Friday, Jul 25"), and JS then
+  // defaults it to 2001 — which would wrongly classify upcoming events as past.
+  // When the string has no explicit 4-digit year, assume the current year, and
+  // roll to next year if that day is already well behind us (Dec→Jan wrap).
+  if (!/\d{4}/.test(s)) {
+    const now = new Date();
+    const todayMid = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    let year = now.getFullYear();
+    if (new Date(year, d.getMonth(), d.getDate()).getTime() < todayMid - 180 * 86_400_000) year += 1;
+    return new Date(year, d.getMonth(), d.getDate()).getTime();
+  }
   return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-}
-
-// Demo events with dates floating relative to now: a couple today (happening
-// now) + several upcoming, so both sections populate before real data exists.
-function buildDemoEvents(now: number): FeedEvent[] {
-  const day = 86_400_000;
-  const iso = (ms: number) => {
-    const d = new Date(ms);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  };
-  const pretty = (ms: number, time: string) =>
-    `${new Date(ms).toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" })} · ${time}`;
-  const seed: Array<{ d: number; t: string; e: Omit<FeedEvent, "date" | "eventDate"> }> = [
-    { d: 0, t: "10am – 4pm", e: { eventId: "demo-ev-1", title: "Mission Night Market", location: "Valencia St", city: "San Francisco", neighborhood: "Mission", description: "", image: "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=800", memberId: "", memberName: "SF Markets Co" } },
-    { d: 0, t: "6pm – 9pm", e: { eventId: "demo-ev-2", title: "Rooftop Sound Session", location: "SoMa", city: "San Francisco", neighborhood: "SoMa", description: "", image: "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=800", memberId: "", memberName: "Bayview Collective" } },
-    { d: 2, t: "11am – 2pm", e: { eventId: "demo-ev-3", title: "Maker's Craft Fair", location: "Oakland", city: "Oakland", neighborhood: "Temescal", description: "", image: "https://images.unsplash.com/photo-1556761175-b413da4baf72?w=800", memberId: "", memberName: "East Bay Makers" } },
-    { d: 5, t: "5pm – 8pm", e: { eventId: "demo-ev-4", title: "Community Garden Potluck", location: "Berkeley", city: "Berkeley", neighborhood: "", description: "", image: "https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?w=800", memberId: "", memberName: "Greenhouse Project" } },
-    { d: 9, t: "7pm – 10pm", e: { eventId: "demo-ev-5", title: "Local Film Premiere", location: "Mission", city: "San Francisco", neighborhood: "Mission", description: "", image: "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=800", memberId: "", memberName: "Indie SF" } },
-    { d: 6, t: "1pm – 4pm", e: { eventId: "demo-ev-6", title: "Watercolor Workshop", location: "Hayes Valley", city: "San Francisco", neighborhood: "Hayes Valley", description: "Beginner-friendly painting class", image: "https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=800", memberId: "", memberName: "Studio Nine" } },
-    { d: 11, t: "12pm – 6pm", e: { eventId: "demo-ev-7", title: "Taco & Wine Tasting", location: "Napa", city: "Napa", neighborhood: "", description: "Food and drink pairing afternoon", image: "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=800", memberId: "", memberName: "Valley Eats" } },
-  ];
-  return seed.map(({ d, t, e }) => {
-    const ms = now + d * day;
-    return { ...e, eventDate: iso(ms), date: pretty(ms, t) };
-  });
 }
 
 // Community events split into Happening now and Upcoming. Both render as
@@ -53,16 +39,11 @@ export function CommunityEventsLive({ only }: { only?: "now" | "upcoming" } = {}
   useEffect(() => { setNowTs(Date.now()); }, []);
 
   // Shared, cached feed (same key as CommunityFeed — deduped, survives nav).
-  const { events: realEvents, loading: feedLoading } = useEventsFeed();
+  const { events, loading: feedLoading } = useEventsFeed();
 
-  // Fall back to demo events (floating relative to now) so the section looks
-  // alive before any real vendor_events exist. Wait for both the feed and the
-  // client clock so demo dates render relative to the right "now".
+  // Real events only — no demo filler. When there's nothing (or nothing
+  // upcoming), the relevant section simply doesn't render (see below).
   const loading = feedLoading || nowTs === 0;
-  const events: FeedEvent[] = useMemo(
-    () => (realEvents.length ? realEvents : nowTs ? buildDemoEvents(nowTs) : []),
-    [realEvents, nowTs]
-  );
 
   // Classify by calendar day: today = happening now, future = upcoming, past
   // dropped. Unparseable dates fall into upcoming so nothing useful disappears.

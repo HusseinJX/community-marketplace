@@ -2,8 +2,7 @@ import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 import { getVendorProfile } from "@/lib/vendor-connect";
 import { isAdmin } from "@/lib/admin";
-import { isDemoMode } from "@/lib/demo-admin";
-import { demoMemberId } from "@/lib/demo-server";
+import { demoMemberId, isDemoActive } from "@/lib/demo-server";
 import { getEntitlements } from "@/lib/entitlements";
 import { CollabsGate } from "@/components/vendor/CollabsGate";
 import { NetworkManager } from "./NetworkManager";
@@ -18,7 +17,8 @@ export default async function VendorNetworkPage({
   const profile = userId ? await getVendorProfile(userId) : null;
   const admin = isAdmin(userId);
   let memberId = admin && requested ? requested : profile?.member_id;
-  if (!memberId && !userId && isDemoMode()) memberId = await demoMemberId();
+  const adminDemo = !userId && (await isDemoActive());
+  if (!memberId && adminDemo) memberId = await demoMemberId();
 
   if (!memberId) {
     return (
@@ -40,7 +40,7 @@ export default async function VendorNetworkPage({
   const { plan } = await getEntitlements(memberId);
 
   return (
-    <CollabsGate plan={plan}>
+    <CollabsGate plan={plan} adminDemo={adminDemo}>
       <NetworkManager memberId={memberId} isAdmin={admin} />
     </CollabsGate>
   );

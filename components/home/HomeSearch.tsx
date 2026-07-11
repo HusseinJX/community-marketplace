@@ -37,7 +37,7 @@ export function HomeSearch() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 md:px-8">
-      <form onSubmit={submit} className="mb-8">
+      <form onSubmit={submit}>
         <div className="flex items-center gap-2">
           <div className="relative flex flex-1 items-center">
             <Search className="pointer-events-none absolute left-4 h-5 w-5 text-stone-400" />

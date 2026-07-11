@@ -8,7 +8,15 @@ import { PlanSwitch, PLAN_KEY, type Tier } from '@/components/vendor/PlanSwitch'
 // cards (in NetworkManager) explain what's demo. The tier switch shares state
 // with the dashboard (same localStorage key).
 
-export function CollabsGate({ plan, children }: { plan: string; children: React.ReactNode }) {
+export function CollabsGate({
+  plan,
+  adminDemo = false,
+  children,
+}: {
+  plan: string
+  adminDemo?: boolean
+  children: React.ReactNode
+}) {
   const initial: Tier = plan === 'member' ? 'member' : plan === 'free' ? 'free' : 'pro'
   const [tier, setTier] = useState<Tier>(initial)
 
@@ -27,8 +35,8 @@ export function CollabsGate({ plan, children }: { plan: string; children: React.
   // gates owning collaborations (Pro only) without its own separate toggle.
   const content = isValidElement(children)
     ? cloneElement(
-        children as React.ReactElement<{ demo?: boolean; plan?: Tier }>,
-        { demo: isFree, plan: tier },
+        children as React.ReactElement<{ demo?: boolean; adminDemo?: boolean; plan?: Tier }>,
+        { demo: isFree, adminDemo, plan: tier },
       )
     : children
 

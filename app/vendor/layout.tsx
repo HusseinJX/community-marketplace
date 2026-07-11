@@ -1,6 +1,7 @@
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
-import { isDemoMode } from '@/lib/demo-admin'
+import { headers } from 'next/headers'
+import { isDemoActive } from '@/lib/demo-server'
 import { VendorNav } from '@/components/vendor/VendorNav'
 import { VendorBackBar } from '@/components/vendor/VendorBackBar'
 import { VendorSignOut } from '@/components/vendor/VendorSignOut'
@@ -8,9 +9,15 @@ import { VendorSignOut } from '@/components/vendor/VendorSignOut'
 export default async function VendorLayout({ children }: { children: React.ReactNode }) {
   const { userId } = await auth()
 
+  // The sign-in page is a public, self-contained landing (shopper-style modal
+  // login) — render it bare, without the portal chrome or the auth gate, so it
+  // never redirects to itself.
+  const pathname = (await headers()).get('x-pathname') ?? ''
+  if (pathname === '/vendor/sign-in') return <>{children}</>
+
   // Demo mode lets the portal be previewed without auth. Gated by
   // NEXT_PUBLIC_DEMO_MODE — off = full protection.
-  const demo = !userId && isDemoMode()
+  const demo = !userId && (await isDemoActive())
   if (!userId && !demo) redirect('/vendor/sign-in')
 
   let email = ''

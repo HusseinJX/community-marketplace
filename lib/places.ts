@@ -47,6 +47,32 @@ export async function placesSearch(query: string): Promise<PlaceCandidate[]> {
   }
 }
 
+/** Reverse-geocode lat/lng → a short human label ("Mission District, SF"). */
+export async function reverseGeocode(lat: number, lng: number): Promise<string | null> {
+  const key = KEY()
+  if (!key || !Number.isFinite(lat) || !Number.isFinite(lng)) return null
+  try {
+    const res = await fetch(
+      `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&result_type=neighborhood|sublocality|locality&key=${key}`,
+      { signal: AbortSignal.timeout(10000) }
+    )
+    if (!res.ok) return null
+    const data = await res.json()
+    const first = data.results?.[0]
+    if (!first) return null
+    const comp = (type: string): string | null =>
+      first.address_components?.find((c: { types: string[]; short_name: string; long_name: string }) =>
+        c.types.includes(type)
+      )?.long_name ?? null
+    const area = comp('neighborhood') ?? comp('sublocality') ?? comp('locality')
+    const city = comp('locality')
+    if (area && city && area !== city) return `${area}, ${city}`
+    return area ?? city ?? (first.formatted_address as string) ?? null
+  } catch {
+    return null
+  }
+}
+
 /** Full details for one listing → normalized, ready to auto-fill the create form. */
 export async function placeDetails(placeId: string): Promise<PlaceDetails | null> {
   const key = KEY()
