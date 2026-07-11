@@ -35,16 +35,38 @@ const DEMO_ROOMS = (memberId: string): CollabRoom[] => [
     occasion_label: "Weekend pop-up", event_id: null, created_at: "2026-06-28T15:00:00.000Z",
   },
   {
-    id: "demo-room-2", member_a: memberId, member_a_name: "You", member_b: "demo-muralist", member_b_name: "Dani Cruz",
-    is_group: true, title: "Neighborhood Night Market", owner_id: memberId, occasion_id: "demo-occ-2",
-    occasion_label: "Neighborhood Night Market", event_id: null, created_at: "2026-06-26T15:00:00.000Z",
+    id: "demo-room-2", member_a: "demo-muralist", member_a_name: "Dani Cruz", member_b: memberId, member_b_name: "You",
+    is_group: false, title: "Storefront mural", owner_id: "demo-muralist", occasion_id: "demo-occ-2",
+    occasion_label: "Storefront mural", event_id: null, created_at: "2026-06-27T15:00:00.000Z",
+  },
+  {
+    id: "demo-room-3", member_a: memberId, member_a_name: "You", member_b: "demo-cafe", member_b_name: "Nokku Coffee",
+    is_group: false, title: "Coffee + pastry pairing", owner_id: memberId, occasion_id: "demo-occ-3",
+    occasion_label: "Coffee + pastry pairing", event_id: null, created_at: "2026-06-25T15:00:00.000Z",
+  },
+  {
+    id: "demo-room-4", member_a: memberId, member_a_name: "You", member_b: "demo-muralist", member_b_name: "Dani Cruz",
+    is_group: true, title: "Neighborhood Night Market", owner_id: memberId, occasion_id: "demo-occ-4",
+    occasion_label: "Neighborhood Night Market", event_id: null, created_at: "2026-06-24T15:00:00.000Z",
+  },
+  {
+    id: "demo-room-5", member_a: memberId, member_a_name: "You", member_b: "demo-cantina", member_b_name: "El Tri Cantina",
+    is_group: true, title: "Summer Block Party", owner_id: memberId, occasion_id: "demo-occ-5",
+    occasion_label: "Summer Block Party", event_id: "demo-ev-block", created_at: "2026-06-20T15:00:00.000Z",
   },
 ];
 
 const DEMO_COLLABS: CollaborationSummary[] = [
+  // Individual (1:1) chats — a couple you were invited to, one you started.
   { occasion_id: "demo-occ-1", label: "Weekend pop-up", roomId: "demo-room-1", eventId: null, owned: false, acceptedCount: 1, members: [] },
+  { occasion_id: "demo-occ-2", label: "Storefront mural", roomId: "demo-room-2", eventId: null, owned: false, acceptedCount: 1, members: [] },
   {
-    occasion_id: "demo-occ-2", label: "Neighborhood Night Market", roomId: "demo-room-2", eventId: null, owned: true, acceptedCount: 3,
+    occasion_id: "demo-occ-3", label: "Coffee + pastry pairing", roomId: "demo-room-3", eventId: null, owned: true, acceptedCount: 1,
+    members: [{ invite_id: "demo-m-0", to_id: "demo-cafe", to_name: "Nokku Coffee", status: "accepted", role: "vendor" }],
+  },
+  // Group you host — members accepted + one still pending (the "add to group" flow).
+  {
+    occasion_id: "demo-occ-4", label: "Neighborhood Night Market", roomId: "demo-room-4", eventId: null, owned: true, acceptedCount: 3,
     members: [
       { invite_id: "demo-m-1", to_id: "demo-muralist", to_name: "Dani Cruz", status: "accepted", role: "artist" },
       { invite_id: "demo-m-2", to_id: "demo-cantina", to_name: "El Tri Cantina", status: "accepted", role: "food" },
@@ -52,20 +74,32 @@ const DEMO_COLLABS: CollaborationSummary[] = [
       { invite_id: "demo-m-4", to_id: "demo-studio", to_name: "Studio Nine", status: "pending", role: "vendor" },
     ],
   },
+  // Group you host with an event already created (shows the "Event" link).
+  {
+    occasion_id: "demo-occ-5", label: "Summer Block Party", roomId: "demo-room-5", eventId: "demo-ev-block", owned: true, acceptedCount: 2,
+    members: [
+      { invite_id: "demo-m-5", to_id: "demo-cantina", to_name: "El Tri Cantina", status: "accepted", role: "food" },
+      { invite_id: "demo-m-6", to_id: "demo-greenhouse", to_name: "Greenhouse Project", status: "accepted", role: "partner" },
+    ],
+  },
 ];
 
 // Per-room participants (with agreement state) + a short transcript, so the
 // demo chat shows the real "I'm in" consensus bar and messages.
 const DEMO_PEOPLE: Record<string, { name: string; agreed: boolean }[]> = {
-  "demo-room-1": [
-    { name: "You", agreed: true },
-    { name: "Nokku Coffee", agreed: false },
-  ],
-  "demo-room-2": [
+  "demo-room-1": [{ name: "You", agreed: true }, { name: "Nokku Coffee", agreed: false }],
+  "demo-room-2": [{ name: "You", agreed: false }, { name: "Dani Cruz", agreed: true }],
+  "demo-room-3": [{ name: "You", agreed: true }, { name: "Nokku Coffee", agreed: true }],
+  "demo-room-4": [
     { name: "You", agreed: true },
     { name: "Dani Cruz", agreed: true },
     { name: "El Tri Cantina", agreed: true },
     { name: "Greenhouse Project", agreed: false },
+  ],
+  "demo-room-5": [
+    { name: "You", agreed: true },
+    { name: "El Tri Cantina", agreed: true },
+    { name: "Greenhouse Project", agreed: true },
   ],
 };
 const DEMO_TRANSCRIPT: Record<string, { mine: boolean; name: string; text: string }[]> = {
@@ -75,11 +109,29 @@ const DEMO_TRANSCRIPT: Record<string, { mine: boolean; name: string; text: strin
     { mine: false, name: "Nokku Coffee", text: "Perfect — let's lock a date and split promo." },
   ],
   "demo-room-2": [
+    { mine: false, name: "Dani Cruz", text: "Could paint a mural on your storefront for the launch." },
+    { mine: true, name: "You", text: "Yes! Let's talk colors + timeline." },
+  ],
+  "demo-room-3": [
+    { mine: true, name: "You", text: "Want to run a coffee + pastry pairing pop-up?" },
+    { mine: false, name: "Nokku Coffee", text: "In. We'll bring the espresso bar." },
+  ],
+  "demo-room-4": [
     { mine: true, name: "You", text: "Thinking a night market on Valencia — food, art, live music." },
     { mine: false, name: "Dani Cruz", text: "I'm in! I'll do a live mural wall." },
     { mine: false, name: "El Tri Cantina", text: "We'll run a taco + agua fresca stand 🌮" },
     { mine: false, name: "Greenhouse Project", text: "Can we get a plant swap corner? Checking our calendar." },
   ],
+  "demo-room-5": [
+    { mine: true, name: "You", text: "Block party is a go — event's live, invite your crews!" },
+    { mine: false, name: "El Tri Cantina", text: "🔥 Added it to our calendar." },
+  ],
+};
+
+// Rooms with an event already created → the chat shows an "Event" link instead
+// of the Create-event button.
+const DEMO_EVENT_BY_ROOM: Record<string, { id: string; title: string }> = {
+  "demo-room-5": { id: "demo-ev-block", title: "Summer Block Party" },
 };
 
 export function NetworkManager({
@@ -450,12 +502,13 @@ function NetworkNoticeCard({ title, body }: { title: string; body: string }) {
   );
 }
 
-// Demo collaboration chat — mirrors the real room (header, the "I'm in"
-// consensus bar with participants, transcript, and a message box) but runs
-// entirely locally: no API calls. Used in the Free preview + the Admin demo.
-function DemoChat({ room }: { room: CollabRoom }) {
+// Demo collaboration chat — mirrors the real room (header + Create-event, the
+// "I'm in" consensus bar with participants, transcript, and a message box) but
+// runs entirely locally: no API calls. Used in the Free preview + Admin demo.
+function DemoChat({ room, memberId, canOwn }: { room: CollabRoom; memberId: string; canOwn?: boolean }) {
   const otherName = room.member_a_name === "You" ? room.member_b_name : room.member_a_name;
   const title = (room.is_group ? room.title : otherName) || room.title || "Collaboration";
+  const owned = room.owner_id === memberId;
   const people = DEMO_PEOPLE[room.id] ?? [
     { name: "You", agreed: true },
     { name: otherName || "Collaborator", agreed: false },
@@ -463,6 +516,13 @@ function DemoChat({ room }: { room: CollabRoom }) {
   const [msgs, setMsgs] = useState(() => DEMO_TRANSCRIPT[room.id] ?? []);
   const [text, setText] = useState("");
   const [meIn, setMeIn] = useState(people.find((p) => p.name === "You")?.agreed ?? false);
+  const [planning, setPlanning] = useState(false);
+  const [planForm, setPlanForm] = useState({ title: room.title ?? "", date: "", location: "" });
+  // An event may already exist for this room, or you create one here (demo).
+  const [createdEvent, setCreatedEvent] = useState<{ id: string; title: string } | null>(
+    DEMO_EVENT_BY_ROOM[room.id] ?? null
+  );
+  const canCreateEvent = canOwn && owned && !createdEvent;
 
   function send() {
     const t = text.trim();
@@ -473,16 +533,64 @@ function DemoChat({ room }: { room: CollabRoom }) {
 
   return (
     <div className="card-soft flex h-[460px] flex-col">
-      {/* Header */}
+      {/* Header — collaborator/group name + event control */}
       <div className="flex items-center justify-between gap-2 border-b border-stone-100 px-4 py-2.5">
         <div className="min-w-0">
           <p className="truncate text-sm font-medium text-stone-800">{title}</p>
           <p className="truncate text-[11px] text-stone-400">
-            {room.is_group ? `Group · ${people.length}` : "Direct collaboration"}
+            {owned ? "Arranged by you" : room.is_group ? `Group · ${people.length}` : "Direct collaboration"}
           </p>
         </div>
-        <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-700">Demo</span>
+        {createdEvent ? (
+          DEMO_EVENT_BY_ROOM[room.id] ? (
+            <Link
+              href={`/events/${createdEvent.id}`}
+              className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
+            >
+              <CalendarPlus className="h-3.5 w-3.5" /> Event
+            </Link>
+          ) : (
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700">
+              <Check className="h-3.5 w-3.5" /> Event created
+            </span>
+          )
+        ) : canCreateEvent ? (
+          <button
+            onClick={() => setPlanning((p) => !p)}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-indigo-200 bg-white px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-50"
+          >
+            <CalendarPlus className="h-3.5 w-3.5" /> Create event
+          </button>
+        ) : (
+          <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-700">Demo</span>
+        )}
       </div>
+
+      {/* Create-event panel (demo) */}
+      {planning && (
+        <div className="space-y-2 border-b border-stone-100 bg-indigo-50/40 p-3">
+          <p className="text-xs text-stone-500">
+            Creates an event you host; everyone who&apos;s <strong>in (👍)</strong> joins the lineup.
+          </p>
+          <input
+            value={planForm.title}
+            onChange={(e) => setPlanForm((f) => ({ ...f, title: e.target.value }))}
+            placeholder="Event title"
+            className="w-full rounded-lg border border-stone-200 px-3 py-1.5 text-sm"
+          />
+          <div className="flex gap-2">
+            <input value={planForm.date} onChange={(e) => setPlanForm((f) => ({ ...f, date: e.target.value }))} placeholder="Date" className="w-1/2 rounded-lg border border-stone-200 px-3 py-1.5 text-sm" />
+            <input value={planForm.location} onChange={(e) => setPlanForm((f) => ({ ...f, location: e.target.value }))} placeholder="Location" className="w-1/2 rounded-lg border border-stone-200 px-3 py-1.5 text-sm" />
+          </div>
+          <button
+            onClick={() => { setCreatedEvent({ id: "demo-new-event", title: planForm.title || room.title || "Event" }); setPlanning(false); }}
+            disabled={!planForm.title.trim()}
+            className="rounded-lg bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+          >
+            Create event
+          </button>
+        </div>
+      )}
 
       {/* Consensus bar — who's in, with the "I'm in" toggle */}
       <div className="flex flex-wrap items-center gap-1.5 border-b border-stone-100 px-4 py-2">
@@ -783,7 +891,7 @@ function Rooms({
       {active ? (
         <div className="min-w-0">
           {inert ? (
-            <DemoChat key={active.id} room={active} />
+            <DemoChat key={active.id} room={active} memberId={memberId} canOwn={canOwn} />
           ) : (
             <Chat key={active.id} room={active} memberId={memberId} isAdmin={isAdmin} canOwn={canOwn} />
           )}
