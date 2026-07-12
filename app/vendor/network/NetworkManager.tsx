@@ -960,7 +960,7 @@ function Rooms({
           // only sees the one chat they were invited to, since they can't invite.
           const individualChats = canOwn ? allIndividual : allIndividual.slice(0, 1);
           return (
-            <div key={c.occasion_id} className="rounded-xl border border-stone-100 p-2">
+            <div key={c.occasion_id} className="card-soft space-y-0.5 p-3">
               <div className="mb-1 flex items-center justify-between gap-2 px-1">
                 <span className="flex min-w-0 items-center gap-1.5">
                   <p className="min-w-0 truncate text-xs font-semibold uppercase tracking-wide text-stone-500">{c.label}</p>
@@ -986,8 +986,10 @@ function Rooms({
               {canOpen && room && (
                 <button
                   onClick={() => setActive(room)}
-                  className={`flex w-full items-center gap-1.5 truncate rounded-lg px-3 py-2 text-left text-sm ${
-                    active?.id === room.id ? "bg-indigo-50 font-medium text-indigo-700" : "text-stone-600 hover:bg-stone-50"
+                  className={`flex w-full items-center gap-1.5 truncate rounded-xl px-3 py-2.5 text-left text-sm ring-1 transition ${
+                    active?.id === room.id
+                      ? "bg-indigo-50 font-medium text-indigo-700 ring-indigo-200"
+                      : "bg-stone-50 text-stone-700 ring-transparent hover:bg-white hover:shadow-sm hover:ring-stone-200"
                   }`}
                 >
                   {isGroup ? <Users className="h-3.5 w-3.5 shrink-0 text-stone-400" /> : <UserRound className="h-3.5 w-3.5 shrink-0 text-stone-400" />}
@@ -1000,8 +1002,10 @@ function Rooms({
                 <button
                   key={r.id}
                   onClick={() => setActive(r)}
-                  className={`flex w-full items-center gap-1.5 truncate rounded-lg px-3 py-2 text-left text-sm ${
-                    active?.id === r.id ? "bg-indigo-50 font-medium text-indigo-700" : "text-stone-600 hover:bg-stone-50"
+                  className={`flex w-full items-center gap-1.5 truncate rounded-xl px-3 py-2.5 text-left text-sm ring-1 transition ${
+                    active?.id === r.id
+                      ? "bg-indigo-50 font-medium text-indigo-700 ring-indigo-200"
+                      : "bg-stone-50 text-stone-700 ring-transparent hover:bg-white hover:shadow-sm hover:ring-stone-200"
                   }`}
                 >
                   <UserRound className="h-3.5 w-3.5 shrink-0 text-stone-400" />
