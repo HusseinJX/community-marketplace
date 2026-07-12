@@ -20,7 +20,7 @@ export default async function VendorLivePage({
 
   if (!memberId) {
     return (
-      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
         <p className="text-sm font-medium text-amber-900">Link your member profile first</p>
         <p className="mt-1 text-sm text-amber-700">
           Connect your store profile to broadcast what you&apos;re showing live.

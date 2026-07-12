@@ -132,7 +132,7 @@ export default async function CityPage({ params }: Props) {
           </p>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {city.narrative.people.map((person) => (
-              <div key={person.title} className="rounded-xl border border-border p-5">
+              <div key={person.title} className="rounded-xl border border-border p-4">
                 <span className="text-3xl">{person.emoji}</span>
                 <p className="mt-3 font-semibold text-foreground">{person.title}</p>
                 <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{person.body}</p>
@@ -162,7 +162,7 @@ export default async function CityPage({ params }: Props) {
           <p className="mb-6 text-xs font-semibold uppercase tracking-widest text-muted-foreground">The Food</p>
           <div className="grid gap-4 sm:grid-cols-2">
             {city.narrative.foods.map((f) => (
-              <div key={f.name} className="rounded-xl border border-border p-5">
+              <div key={f.name} className="rounded-xl border border-border p-4">
                 <p className="font-semibold text-foreground">{f.name}</p>
                 <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{f.body}</p>
               </div>
@@ -176,7 +176,7 @@ export default async function CityPage({ params }: Props) {
         <p className="mb-6 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Where the culture lives</p>
         <div className="grid gap-4 sm:grid-cols-2">
           {city.neighborhoods.map((n) => (
-            <div key={n.name} className="rounded-xl border border-border p-5">
+            <div key={n.name} className="rounded-xl border border-border p-4">
               <p className="font-semibold text-foreground">{n.name}</p>
               <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{n.note}</p>
             </div>

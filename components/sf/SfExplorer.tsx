@@ -54,7 +54,7 @@ function Stories() {
                 </p>
               </div>
             </div>
-            <div className="flex flex-1 flex-col p-5">
+            <div className="flex flex-1 flex-col p-4">
               <h2 className="text-base font-semibold leading-snug text-stone-900">{s.title}</h2>
               <p className="mt-1.5 text-sm text-stone-600">{s.summary}</p>
               <span className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-indigo-600">
@@ -76,7 +76,7 @@ function Endorsed() {
       </p>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {SF_ENDORSEMENTS.map((e: SfEndorsement) => (
-          <article key={e.id} className="card-soft flex flex-col p-5">
+          <article key={e.id} className="card-soft flex flex-col p-4">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <h2 className="text-base font-semibold leading-snug text-stone-900">{e.business}</h2>

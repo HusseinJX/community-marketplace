@@ -78,7 +78,7 @@ export function AboutSection({
         )}
       </div>
 
-      <div className="card-soft space-y-3 p-5">
+      <div className="card-soft space-y-3 p-4">
         {editing ? (
           <>
             <textarea

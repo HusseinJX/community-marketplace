@@ -13,7 +13,7 @@ import { PlanSwitch, PLAN_KEY, type Tier } from '@/components/vendor/PlanSwitch'
 
 function Tile({ href, Icon, label, desc }: { href: string; Icon: typeof Package; label: string; desc?: string }) {
   return (
-    <Link href={href} className="card-soft card-hover flex items-center justify-between p-5">
+    <Link href={href} className="card-soft card-hover flex items-center justify-between p-4">
       <span className="flex items-center gap-3">
         <Icon className="h-5 w-5 text-indigo-500" />
         <span>

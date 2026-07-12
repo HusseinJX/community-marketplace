@@ -76,7 +76,7 @@ export default function MissionPage() {
 
 function Pillar({ icon, title, body }: { icon: React.ReactNode; title: string; body: string }) {
   return (
-    <div className="rounded-2xl border border-stone-200 bg-white p-5">
+    <div className="rounded-2xl border border-stone-200 bg-white p-4">
       <div className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-r from-pink-500 to-purple-600 text-white">
         {icon}
       </div>

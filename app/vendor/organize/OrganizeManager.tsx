@@ -94,7 +94,7 @@ export function OrganizeManager({
       </div>
 
       {events.length === 0 ? (
-        <div className="card-soft p-6 text-center text-sm text-stone-400">
+        <div className="card-soft p-4 text-center text-sm text-stone-400">
           No events yet.{" "}
           <Link href="/vendor/events" className="font-medium text-indigo-600 hover:underline">
             Create your first event

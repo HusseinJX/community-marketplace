@@ -344,7 +344,7 @@ export default function ShopPage() {
           {/* Sidebar filters */}
           <aside className="hidden w-60 shrink-0 flex-col gap-6 lg:flex">
             {/* Category */}
-            <div className="card-soft p-5">
+            <div className="card-soft p-4">
               <p className="section-label mb-3">Category</p>
               <div className="flex flex-col gap-1">
                 {(["All", ...CATEGORIES] as (Category | "All")[]).map((cat) => (
@@ -364,7 +364,7 @@ export default function ShopPage() {
             </div>
 
             {/* Price range */}
-            <div className="card-soft p-5">
+            <div className="card-soft p-4">
               <p className="section-label mb-3">Price range</p>
               <div className="flex items-center justify-between text-xs text-stone-500 mb-2">
                 <span>$0</span>
@@ -381,7 +381,7 @@ export default function ShopPage() {
             </div>
 
             {/* Availability */}
-            <div className="card-soft p-5">
+            <div className="card-soft p-4">
               <p className="section-label mb-3">Availability</p>
               <div className="flex flex-col gap-2">
                 {["In stock", "On sale", "New arrivals"].map((opt) => (
@@ -394,7 +394,7 @@ export default function ShopPage() {
             </div>
 
             {/* Color swatches */}
-            <div className="card-soft p-5">
+            <div className="card-soft p-4">
               <p className="section-label mb-3">Color</p>
               <div className="flex flex-wrap gap-2">
                 {SIDEBAR_COLORS.map((c) => (
@@ -472,7 +472,7 @@ export default function ShopPage() {
               body: "30-day hassle-free returns. No questions asked.",
             },
           ].map((t) => (
-            <div key={t.title} className="card-soft flex items-start gap-4 p-5">
+            <div key={t.title} className="card-soft flex items-start gap-4 p-4">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-stone-100">
                 {t.icon}
               </div>

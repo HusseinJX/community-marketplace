@@ -135,7 +135,7 @@ export default function CartPage() {
             })}
           </div>
 
-          <div className="mt-6 rounded-2xl bg-indigo-50 p-6">
+          <div className="mt-6 rounded-2xl bg-indigo-50 p-4">
             <div className="flex items-center justify-between text-stone-800">
               <span className="text-sm font-medium">
                 Subtotal <span className="text-stone-500">· {totalItems} item{totalItems === 1 ? "" : "s"}</span>

@@ -235,7 +235,7 @@ export function LiveManager({
       </div>
 
       {/* Composer */}
-      <div className="card-soft space-y-4 p-5">
+      <div className="card-soft space-y-4 p-4">
         {/* Pick a real game that's on right now (or coming up). This is the
             primary path — tapping one fills the matchup, sport, and time. */}
         <div>

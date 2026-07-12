@@ -10,7 +10,7 @@ import { Mail } from "lucide-react";
 export function CalendlyEmbed({ url }: { url: string | null }) {
   if (!url) {
     return (
-      <div className="rounded-2xl border border-stone-200 bg-stone-50 p-6 text-center">
+      <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4 text-center">
         <p className="text-sm font-semibold text-stone-900">Booking opens soon</p>
         <p className="mt-1 text-sm text-stone-500">
           Want in now? Email us and we&apos;ll set up a time.

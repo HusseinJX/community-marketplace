@@ -133,7 +133,7 @@ export function EventsManager({
       </div>
 
       {showAdd && (
-        <div className="card-soft space-y-3 p-5">
+        <div className="card-soft space-y-3 p-4">
           <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Event title" className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm" />
           <div className="flex gap-2">
             <input value={form.event_date} onChange={(e) => setForm({ ...form, event_date: e.target.value })} placeholder="Date" className="w-1/2 rounded-lg border border-stone-200 px-3 py-2 text-sm" />

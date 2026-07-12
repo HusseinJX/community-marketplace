@@ -542,7 +542,7 @@ export default async function MemberProfilePage({
         {/* Sidebar */}
         <aside className="space-y-6">
           {memberType === "organizer" && (
-            <div className="card-soft p-5">
+            <div className="card-soft p-4">
               <div className="section-label">Events</div>
               <ul className="mt-3 space-y-3">
                 {events.map((e) => ({
@@ -573,7 +573,7 @@ export default async function MemberProfilePage({
           )}
 
           {hasBusiness && (
-            <div className="card-soft p-5">
+            <div className="card-soft p-4">
               <div className="section-label">Business</div>
               {p.businessName && (
                 <div className="mt-2 text-base font-semibold text-stone-900">{p.businessName as string}</div>
@@ -619,7 +619,7 @@ export default async function MemberProfilePage({
           )}
 
           {hasSocials && (
-            <div className="card-soft p-5">
+            <div className="card-soft p-4">
               <div className="section-label">Find them online</div>
               <ul className="mt-3 space-y-2 text-sm">
                 {p.instagramHandle && <li><SocialLink href={`https://instagram.com/${p.instagramHandle}`} label={`@${p.instagramHandle}`} icon={<InstagramIcon className="h-4 w-4" />} /></li>}
@@ -665,7 +665,7 @@ export default async function MemberProfilePage({
 
       {/* Unclaimed profile banner — placed at the bottom so it doesn't dominate the page */}
       {member.status === 'unclaimed' && (
-        <div className="mt-12 rounded-2xl border border-amber-200 bg-amber-50 p-5">
+        <div className="mt-12 rounded-2xl border border-amber-200 bg-amber-50 p-4">
           <p className="font-semibold text-amber-900">Is this your business?</p>
           <p className="mt-1 text-sm text-amber-700">Claim this profile to manage it, receive payments, and connect with customers.</p>
           <Link href={`/claim/${member.id}`} className="mt-3 inline-block rounded-lg bg-amber-900 px-4 py-2 text-xs font-medium text-white hover:bg-amber-800">

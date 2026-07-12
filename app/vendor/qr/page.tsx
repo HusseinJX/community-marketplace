@@ -24,7 +24,7 @@ export default async function VendorQrPage() {
           <h1 className="text-2xl font-semibold text-stone-900">Your QR code</h1>
           <p className="mt-1 text-sm text-stone-500">A QR code that sends customers straight to your profile.</p>
         </div>
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
           <p className="text-sm font-medium text-amber-900">Link your business first</p>
           <p className="mt-1 text-sm text-amber-700">
             Connect your profile and we&apos;ll generate a QR code that points to it.

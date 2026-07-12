@@ -60,7 +60,7 @@ export function HomeTabs() {
           Dismissible; the choice persists in localStorage. */}
       {!heroDismissed && (
       <div className="mx-auto max-w-6xl px-4 pt-4 md:px-8">
-        <div className="relative rounded-2xl bg-gradient-to-br from-purple-700 to-pink-600 px-5 py-5 text-white sm:px-6">
+        <div className="relative rounded-2xl bg-gradient-to-br from-purple-700 to-pink-600 px-4 py-4 text-white sm:px-5">
           <button
             type="button"
             onClick={dismissHero}
@@ -79,21 +79,21 @@ export function HomeTabs() {
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <Link
               href="/world-cup"
-              className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-semibold text-purple-700 transition hover:bg-white/90"
+              className="inline-flex items-center gap-1.5 rounded-full bg-white px-3.5 py-1.5 text-[13px] font-semibold text-purple-700 transition hover:bg-white/90"
             >
               <Trophy className="h-4 w-4" />
               World Cup 2026
             </Link>
             <Link
               href="/sf"
-              className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-4 py-2 text-sm font-semibold transition hover:bg-white/25"
+              className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3.5 py-1.5 text-[13px] font-semibold transition hover:bg-white/25"
             >
               <MapPin className="h-4 w-4" />
               SF
             </Link>
             <Link
               href="/about"
-              className="inline-flex items-center gap-1 rounded-full bg-white/15 px-4 py-2 text-sm font-semibold transition hover:bg-white/25"
+              className="inline-flex items-center gap-1 rounded-full bg-white/15 px-3.5 py-1.5 text-[13px] font-semibold transition hover:bg-white/25"
             >
               What&apos;s this about?
               <ArrowRight className="h-4 w-4" />
@@ -122,13 +122,13 @@ export function HomeTabs() {
                   onClick={() => pick(id)}
                   aria-pressed={active}
                   className={
-                    "inline-flex items-center gap-1.5 rounded-full px-5 py-2 text-sm font-semibold transition " +
+                    "inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-[13px] font-semibold transition " +
                     (active
                       ? "bg-white text-stone-900 shadow-sm"
                       : "text-stone-500 hover:text-stone-800")
                   }
                 >
-                  <Icon className="h-4 w-4" />
+                  <Icon className="h-3.5 w-3.5" />
                   {label}
                 </button>
               );

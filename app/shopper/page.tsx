@@ -21,7 +21,6 @@ export default function ShopperAdmin() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-8 px-4 py-10 md:px-8">
-      <div className="h-2 w-full rounded-full bg-gradient-to-r from-teal-400 to-sky-400" />
 
       {/* Top utility row (above the title). Signed out: choose which side to
           enter — "Vendor" (the vendor login/onboarding) or "Log in" as a
@@ -88,7 +87,7 @@ export default function ShopperAdmin() {
         <p className="section-label mb-1">Community resources for you</p>
         <Link
           href="/resources"
-          className="card-soft card-hover flex items-center justify-between p-5"
+          className="card-soft card-hover flex items-center justify-between p-4"
         >
           <span className="flex items-center gap-3">
             <Users className="h-5 w-5 text-teal-500" />
@@ -104,7 +103,7 @@ export default function ShopperAdmin() {
         </Link>
         <Link
           href="/petitions"
-          className="card-soft card-hover flex items-center justify-between p-5"
+          className="card-soft card-hover flex items-center justify-between p-4"
         >
           <span className="flex items-center gap-3">
             <PenLine className="h-5 w-5 text-teal-500" />

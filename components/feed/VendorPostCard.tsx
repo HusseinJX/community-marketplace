@@ -13,7 +13,7 @@ export function VendorPostCard({ item }: { item: VendorPostFeedItem }) {
   return (
     <article className="relative overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm">
       <div className="absolute inset-y-0 left-0 w-1 bg-indigo-400" />
-      <div className="p-5 pl-6 sm:p-6 sm:pl-7">
+      <div className="p-4 pl-6 sm:p-4 sm:pl-7">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-stone-500">
           <span
             className="inline-flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold text-white"

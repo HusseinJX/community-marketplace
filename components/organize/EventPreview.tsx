@@ -73,7 +73,7 @@ export function EventPreview({ event, isAdmin, memberId }: { event: VendorEvent;
           <div className={`aspect-[16/7] w-full bg-gradient-to-br ${gradientFor(event.title)}`} />
         )}
 
-        <div className="space-y-5 p-5 sm:p-6">
+        <div className="space-y-5 p-4 sm:p-4">
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-full bg-stone-900 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">Event</span>
             <span className="rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">Open to all</span>

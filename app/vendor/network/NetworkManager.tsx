@@ -724,7 +724,7 @@ function DemoInviteModal({
   const [invited, setInvited] = useState<Set<string>>(new Set());
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+      <div className="w-full max-w-md rounded-2xl bg-white p-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-base font-semibold text-stone-900">
@@ -1075,7 +1075,7 @@ function Rooms({
         </div>
       ) : (
         /* Placeholder — desktop only; on mobile the list is the full view. */
-        <div className="card-soft hidden min-w-0 items-center justify-center p-6 text-sm text-stone-400 md:flex">
+        <div className="card-soft hidden min-w-0 items-center justify-center p-4 text-sm text-stone-400 md:flex">
           {canOwn ? "Pick a chat to open, or start a collaboration." : "Pick a chat to open."}
         </div>
       )}

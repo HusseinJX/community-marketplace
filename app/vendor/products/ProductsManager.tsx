@@ -137,7 +137,7 @@ export function ProductsManager({
       )}
 
       {showAdd && (
-        <div className="card-soft space-y-3 p-5">
+        <div className="card-soft space-y-3 p-4">
           <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Product name" className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm" />
           <input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Description" className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm" />
           <div className="flex items-center gap-2">

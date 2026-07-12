@@ -301,7 +301,7 @@ function ScanPanel({ onDecoded }: { onDecoded: (raw: string) => void }) {
       <div className="relative aspect-square bg-stone-900">
         <video ref={videoRef} className="h-full w-full object-cover" playsInline muted />
         {error && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center text-sm text-stone-200">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-4 text-center text-sm text-stone-200">
             <CameraOff className="h-8 w-8 text-stone-400" />
             {error}
             {nativeScanAvailable() && (

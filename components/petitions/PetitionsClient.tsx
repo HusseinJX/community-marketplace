@@ -86,7 +86,7 @@ function PetitionCard({ p, signed, onSign }: { p: Petition; signed: boolean; onS
         </div>
       )}
 
-      <div className="flex flex-1 flex-col p-5">
+      <div className="flex flex-1 flex-col p-4">
         <h2 className="text-base font-semibold leading-snug text-stone-900">{p.title}</h2>
         <p className="mt-1 text-sm text-stone-600">{p.summary}</p>
 

@@ -53,7 +53,7 @@ export default function WatchWorldCupPage() {
                   <MapPin className="h-3.5 w-3.5" /> {w.neighborhood}
                 </div>
               </div>
-              <div className="flex flex-1 flex-col p-5">
+              <div className="flex flex-1 flex-col p-4">
                 <h2 className="text-base font-semibold leading-snug text-stone-900">{w.name}</h2>
                 <p className="mt-1.5 text-sm text-stone-600">{w.note}</p>
                 <div className="mt-3 flex flex-wrap gap-1.5">

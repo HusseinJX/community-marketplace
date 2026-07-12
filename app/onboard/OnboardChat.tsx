@@ -76,7 +76,7 @@ export function OnboardChat({ eventId, eventName }: { eventId: string | null; ev
 
   if (created) {
     return (
-      <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-6 text-center">
+      <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-center">
         <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500">
           <Check className="h-5 w-5 text-white" />
         </div>

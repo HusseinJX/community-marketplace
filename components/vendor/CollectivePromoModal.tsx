@@ -41,7 +41,7 @@ export function CollectivePromoModal() {
 
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-6"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-4"
           style={{ paddingTop: "calc(env(safe-area-inset-top) + 0.75rem)" }}
           onClick={close}
         >

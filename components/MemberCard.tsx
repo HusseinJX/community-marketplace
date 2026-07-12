@@ -65,7 +65,7 @@ export function MemberCard({ member, matchedOn }: { member: Member; matchedOn?: 
           alt={name}
         />
       )}
-      <div className="flex flex-1 flex-col gap-3 p-5">
+      <div className="flex flex-1 flex-col gap-3 p-4">
         <div className="flex items-start justify-between gap-3">
           <h3 className="text-lg font-semibold leading-tight text-stone-900 transition group-hover:text-indigo-700">
             {name}
@@ -124,7 +124,7 @@ export function MemberCardSkeleton() {
   return (
     <div className="card-soft flex animate-pulse flex-col overflow-hidden">
       <div className="aspect-[16/10] w-full bg-stone-200" />
-      <div className="space-y-3 p-5">
+      <div className="space-y-3 p-4">
         <div className="h-5 w-2/3 rounded bg-stone-200" />
         <div className="h-3 w-1/2 rounded bg-stone-200" />
         <div className="h-3 w-1/3 rounded bg-stone-200" />

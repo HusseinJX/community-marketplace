@@ -22,7 +22,6 @@ export default function VendorSignInPage() {
 
   return (
     <div className="mx-auto min-h-screen max-w-md space-y-8 px-4 py-10 md:px-8">
-      <div className="h-2 w-full rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500" />
 
       {/* Top utility row (above the title): cross to the shopper side on the
           left, log in on the right. */}
@@ -53,7 +52,7 @@ export default function VendorSignInPage() {
       {/* New here → onboarding */}
       <Link
         href="/join"
-        className="flex items-center justify-between rounded-2xl border border-stone-200 bg-white p-5 transition hover:bg-stone-50"
+        className="flex items-center justify-between rounded-2xl border border-stone-200 bg-white p-4 transition hover:bg-stone-50"
       >
         <span className="flex items-center gap-3">
           <Store className="h-5 w-5 text-violet-600" />

@@ -45,7 +45,7 @@ export default async function VendorEventManagePage({
 
 function NotFound() {
   return (
-    <div className="rounded-2xl border border-stone-200 bg-white p-6 text-center">
+    <div className="rounded-2xl border border-stone-200 bg-white p-4 text-center">
       <p className="text-sm text-stone-500">Event not found, or you don&apos;t manage it.</p>
       <Link href="/vendor/events" className="mt-3 inline-block text-sm font-medium text-indigo-600 hover:underline">
         Back to events

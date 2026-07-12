@@ -92,7 +92,7 @@ export default function AboutPage() {
       </div>
 
       {/* Mission card — the "why" behind everything else. */}
-      <section className="mt-8 overflow-hidden rounded-2xl border border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50 p-6 shadow-sm sm:p-8">
+      <section className="mt-8 overflow-hidden rounded-2xl border border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50 p-4 shadow-sm sm:p-8">
         <div className="flex items-start gap-4">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-purple-600 to-pink-600 text-white">
             <Waypoints className="h-5 w-5" />
@@ -123,7 +123,7 @@ export default function AboutPage() {
         {SECTIONS.map(({ icon: Icon, eyebrow, title, body, href, cta, accent }, i) => (
           <section
             key={eyebrow}
-            className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm sm:p-7"
+            className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm sm:p-7"
           >
             <div className="flex items-start gap-4">
               <div
@@ -158,7 +158,7 @@ export default function AboutPage() {
       </div>
 
       {/* Footer CTA */}
-      <div className="mt-8 rounded-2xl border border-stone-200 bg-stone-100 p-6 text-center sm:p-8">
+      <div className="mt-8 rounded-2xl border border-stone-200 bg-stone-100 p-4 text-center sm:p-8">
         <h2 className="text-lg font-semibold tracking-tight text-stone-900">
           Ready to dig in?
         </h2>
@@ -200,7 +200,7 @@ export default function AboutPage() {
         </div>
 
         {/* The insight: life is in the middle; we work at the roots. */}
-        <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 sm:p-6">
+        <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 sm:p-4">
           <p className="text-sm leading-relaxed text-stone-700 sm:text-[0.95rem]">
             In a rainforest, most of the life — the color, the flowers, the animals, the everyday
             beauty — lives in the <span className="font-semibold text-emerald-800">understory and

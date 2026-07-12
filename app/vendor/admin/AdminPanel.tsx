@@ -185,7 +185,7 @@ function CreateProfile({ ownerMemberId }: { ownerMemberId: string }) {
   if (created) return <CreatedCard created={created} onReset={reset} resetLabel="Create another" />;
 
   return (
-    <div className="card-soft space-y-3 p-5">
+    <div className="card-soft space-y-3 p-4">
       {/* Find them on Google → auto-fill (no typing) */}
       <div className="relative">
         <p className="section-label">Find them on Google</p>
@@ -267,7 +267,7 @@ function CreateProfile({ ownerMemberId }: { ownerMemberId: string }) {
 
 function CreatedCard({ created, onReset, resetLabel }: { created: { name: string; memberId: string; claimUrl: string }; onReset: () => void; resetLabel: string }) {
   return (
-    <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-6 text-center">
+    <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-center">
       <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500">
         <Check className="h-5 w-5 text-white" />
       </div>
@@ -391,7 +391,7 @@ function ActOnBehalf() {
     return (
       <div className="space-y-4">
         <button onClick={backToSearch} className="text-sm text-stone-500 hover:text-stone-800">← Back to search</button>
-        <div className="card-soft p-5">
+        <div className="card-soft p-4">
           <p className="text-sm font-semibold text-stone-900">{picked.name}</p>
           {(picked.type || picked.city) && (
             <p className="text-xs text-stone-500">{[picked.type, picked.city].filter(Boolean).join(" · ")}</p>
@@ -538,7 +538,7 @@ function AddPost() {
 
   if (done) {
     return (
-      <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-6 text-center">
+      <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-center">
         <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500">
           <Check className="h-5 w-5 text-white" />
         </div>
@@ -554,7 +554,7 @@ function AddPost() {
   }
 
   return (
-    <div className="card-soft space-y-3 p-5">
+    <div className="card-soft space-y-3 p-4">
       <p className="section-label">New post</p>
 
       {/* Tag a business */}

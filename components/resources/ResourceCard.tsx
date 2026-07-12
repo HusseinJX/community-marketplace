@@ -28,7 +28,7 @@ export function ResourceCard({
   const verified = Boolean(resource.url)
 
   return (
-    <div className={`card-soft card-hover flex flex-col ${compact ? 'p-4' : 'p-5'}`}>
+    <div className={`card-soft card-hover flex flex-col ${compact ? 'p-4' : 'p-4'}`}>
       <div className="flex items-start justify-between gap-3">
         <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-[11px] font-medium text-indigo-700">
           {CATEGORY_META[resource.category].label}

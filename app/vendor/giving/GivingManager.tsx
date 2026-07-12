@@ -132,7 +132,7 @@ export function GivingManager({
       </div>
 
       {/* Log a gift */}
-      <section className="card-soft p-5">
+      <section className="card-soft p-4">
         <p className="section-label mb-3">Log a gift</p>
 
         {/* Org picker */}
@@ -236,7 +236,7 @@ export function GivingManager({
 
       {/* Org inbox — gifts to confirm */}
       {incoming.length > 0 && (
-        <section className="card-soft p-5">
+        <section className="card-soft p-4">
           <p className="section-label mb-3">Gifts to confirm ({incoming.length})</p>
           <p className="mb-3 text-xs text-stone-500">
             Businesses say they gave to your org. Confirm so they earn public credit.
@@ -272,7 +272,7 @@ export function GivingManager({
       )}
 
       {/* Your giving */}
-      <section className="card-soft p-5">
+      <section className="card-soft p-4">
         <p className="section-label mb-3">Your giving</p>
         {outgoing.length === 0 ? (
           <p className="text-sm text-stone-400">No gifts logged yet.</p>

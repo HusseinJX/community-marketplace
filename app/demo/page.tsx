@@ -26,7 +26,7 @@ export default function DemoLauncher() {
       </div>
       <p className="mt-2 text-stone-500">Preview the business portal as any member type.</p>
 
-      <div className="mt-8 rounded-2xl border border-stone-200 bg-white p-6">
+      <div className="mt-8 rounded-2xl border border-stone-200 bg-white p-4">
         <label className="block text-xs font-medium text-stone-600">Member type</label>
         <div className="mt-1.5 flex flex-wrap gap-1.5">
           {DEMO_TYPES.map((t) => (

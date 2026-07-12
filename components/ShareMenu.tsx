@@ -124,7 +124,7 @@ function QrModal({ url, title, onClose }: { url: string; title?: string; onClose
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center" onClick={(e) => e.stopPropagation()}>
+      <div className="w-full max-w-sm rounded-2xl bg-white p-4 text-center" onClick={(e) => e.stopPropagation()}>
         <div className="mb-4 flex items-center justify-between">
           <p className="text-sm font-semibold text-stone-900">{title ? `Scan for ${title}` : "Scan to open"}</p>
           <button onClick={onClose} aria-label="Close" className="rounded-full p-1 text-stone-400 hover:bg-stone-100 hover:text-stone-700">

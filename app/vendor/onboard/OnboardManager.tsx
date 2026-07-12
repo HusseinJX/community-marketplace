@@ -101,7 +101,7 @@ export function OnboardManager({ memberId, isAdmin }: { memberId: string; isAdmi
 
   if (created) {
     return (
-      <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-6 text-center">
+      <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-center">
         <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500">
           <Check className="h-5 w-5 text-white" />
         </div>
@@ -133,7 +133,7 @@ export function OnboardManager({ memberId, isAdmin }: { memberId: string; isAdmi
       </div>
 
       {!profile ? (
-        <div className="card-soft space-y-3 p-5">
+        <div className="card-soft space-y-3 p-4">
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
@@ -149,7 +149,7 @@ export function OnboardManager({ memberId, isAdmin }: { memberId: string; isAdmi
           </div>
         </div>
       ) : (
-        <div className="card-soft space-y-3 p-5">
+        <div className="card-soft space-y-3 p-4">
           <p className="section-label">Review &amp; edit</p>
           <Field label="Name"><input value={profile.name ?? ""} onChange={(e) => up("name", e.target.value)} className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm" /></Field>
           <div className="flex gap-2">
@@ -259,7 +259,7 @@ function TagGroups({ memberId, events }: { memberId: string; events: VendorEvent
   if (groups.length === 0) return null;
 
   return (
-    <section className="card-soft p-5">
+    <section className="card-soft p-4">
       <p className="section-label mb-3">Your tagged groups</p>
       <div className="space-y-4">
         {groups.map((g) => (

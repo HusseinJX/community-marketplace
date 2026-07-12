@@ -27,7 +27,7 @@ export function GivesBackBadges({ memberId }: { memberId: string; memberName?: s
   if (items.length === 0) return null;
 
   return (
-    <section className="rounded-2xl border border-rose-100 bg-rose-50/50 p-5">
+    <section className="rounded-2xl border border-rose-100 bg-rose-50/50 p-4">
       <p className="section-label mb-3 flex items-center gap-1.5 text-rose-700">
         <Heart className="h-3.5 w-3.5 fill-rose-500 text-rose-500" /> Gives back
       </p>

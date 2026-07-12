@@ -102,7 +102,6 @@ export default function VendorOrdersPage() {
 
   return (
     <div className="space-y-8">
-      <div className="h-2 w-full rounded-full bg-gradient-to-r from-indigo-400 to-violet-400" />
 
       <div className="flex items-center gap-3">
         <ShoppingCart className="h-6 w-6 text-indigo-500" />
@@ -121,7 +120,7 @@ export default function VendorOrdersPage() {
           {orders.map(order => {
             const cfg = STATUS_CONFIG[order.status] ?? STATUS_CONFIG.paid
             return (
-              <div key={order.id} className="card-soft p-6 space-y-4">
+              <div key={order.id} className="card-soft p-4 space-y-4">
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <div className="flex items-center gap-2">

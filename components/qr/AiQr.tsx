@@ -59,7 +59,7 @@ export function AiQr({ businessName }: { businessName: string }) {
   }
 
   return (
-    <div className="card-soft p-6">
+    <div className="card-soft p-4">
       <div className="mb-4 flex items-center gap-2">
         <Sparkles className="h-4 w-4 text-violet-500" />
         <p className="section-label">Stylized with AI</p>

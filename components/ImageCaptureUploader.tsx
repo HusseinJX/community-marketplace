@@ -152,7 +152,7 @@ export function ImageCaptureUploader({
   const hasDrafts = productDrafts.length > 0 || eventDrafts.length > 0;
 
   return (
-    <div className="rounded-2xl border border-dashed border-indigo-200 bg-indigo-50/40 p-5">
+    <div className="rounded-2xl border border-dashed border-indigo-200 bg-indigo-50/40 p-4">
       <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={onFile} className="hidden" />
 
       <div className="flex items-center gap-2">

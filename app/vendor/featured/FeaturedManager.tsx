@@ -96,7 +96,7 @@ export function FeaturedManager() {
       </div>
 
       {showAdd && (
-        <div className="card-soft space-y-3 p-5">
+        <div className="card-soft space-y-3 p-4">
           <input
             value={form.title}
             onChange={(e) => setForm({ ...form, title: e.target.value })}

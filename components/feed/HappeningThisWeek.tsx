@@ -54,7 +54,7 @@ export function HappeningThisWeek() {
       </div>
 
       {scoped && shown.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-stone-300 bg-white/60 p-5 text-sm text-stone-500">
+        <div className="rounded-2xl border border-dashed border-stone-300 bg-white/60 p-4 text-sm text-stone-500">
           Nothing in {placeLabel(place)} this week yet.{" "}
           <Link href="/vendor/organize" className="font-medium text-indigo-700 hover:underline">Host the first one</Link>, or switch your area above.
         </div>

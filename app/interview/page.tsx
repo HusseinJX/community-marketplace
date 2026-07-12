@@ -83,7 +83,7 @@ export default function InterviewPage() {
       </p>
 
       {/* Interview arc to prepare for */}
-      <div className="mt-8 rounded-2xl border border-stone-200 bg-stone-50 p-5">
+      <div className="mt-8 rounded-2xl border border-stone-200 bg-stone-50 p-4">
         <h2 className="text-sm font-semibold text-stone-900">What we&apos;ll chat about</h2>
         <p className="mt-1 text-xs text-stone-500">
           No prep required — but here&apos;s the flow, so you can think it over. We&apos;ll walk through it
@@ -108,7 +108,7 @@ export default function InterviewPage() {
       </div>
 
       {/* Optional longer-form interview */}
-      <div className="mt-4 rounded-2xl border border-dashed border-stone-300 p-5">
+      <div className="mt-4 rounded-2xl border border-dashed border-stone-300 p-4">
         <div className="flex items-center gap-2">
           <span className="rounded-full bg-stone-900 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
             Optional

@@ -35,7 +35,7 @@ export function WorldCupCityCard({ city, size = "default" }: Props) {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-black/10" />
 
-        <div className="absolute inset-0 flex flex-col justify-end p-5">
+        <div className="absolute inset-0 flex flex-col justify-end p-4">
           <div className="flex items-end justify-between gap-2">
             <div>
               <div className="flex items-center gap-1.5">

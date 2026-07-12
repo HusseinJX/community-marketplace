@@ -63,7 +63,7 @@ export default async function VendorDashboard() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Welcome */}
       <div>
         <div className="flex items-center gap-2.5">
@@ -82,7 +82,7 @@ export default async function VendorDashboard() {
 
       {/* Profile-link banner — shown until a member profile is claimed (not in demo) */}
       {!demo && !profile && (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
           <p className="text-sm font-medium text-amber-900">Link your member profile</p>
           <p className="mt-1 text-sm text-amber-700">
             Connect your store profile to start managing products and receiving payments.
@@ -98,7 +98,7 @@ export default async function VendorDashboard() {
 
       {/* Stripe-setup banner — shown when profile linked but Stripe not finished */}
       {!demo && profile && stripeStatus === "pending" && (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
           <p className="text-sm font-medium text-amber-900">Complete your Stripe setup</p>
           <p className="mt-1 text-sm text-amber-700">
             Finish connecting your bank account to receive payments from customers.

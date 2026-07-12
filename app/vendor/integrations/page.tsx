@@ -85,7 +85,6 @@ export default function VendorIntegrationsPage() {
 
   return (
     <div className="space-y-8">
-      <div className="h-2 w-full rounded-full bg-gradient-to-r from-indigo-400 to-violet-400" />
 
       <div className="flex items-center gap-3">
         <Plug className="h-6 w-6 text-indigo-500" />
@@ -93,7 +92,7 @@ export default function VendorIntegrationsPage() {
       </div>
 
       {/* Catalog sync card */}
-      <div className="card-soft p-6 space-y-5">
+      <div className="card-soft p-4 space-y-5">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-3">
             <Store className="h-5 w-5 text-stone-400" />

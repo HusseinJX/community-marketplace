@@ -160,7 +160,7 @@ export function BillingPlans({
             <div
               key={t.plan}
               className={
-                "relative flex flex-col rounded-2xl border p-5 " +
+                "relative flex flex-col rounded-2xl border p-4 " +
                 (t.highlight
                   ? "border-violet-400 bg-white shadow-lg ring-1 ring-violet-200"
                   : "border-stone-200 bg-white")

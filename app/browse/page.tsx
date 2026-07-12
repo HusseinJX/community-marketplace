@@ -330,7 +330,7 @@ export default function BrowsePage() {
             className="relative w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="bg-gradient-to-r from-pink-500 to-purple-600 p-6 text-white">
+            <div className="bg-gradient-to-r from-pink-500 to-purple-600 p-4 text-white">
               <button
                 aria-label="Close"
                 onClick={() => setDonateOpen(false)}
@@ -344,7 +344,7 @@ export default function BrowsePage() {
                 Help us keep building local community. Choose a payment method below.
               </p>
             </div>
-            <div className="space-y-3 p-6">
+            <div className="space-y-3 p-4">
               <div className="flex items-center justify-between gap-2">
                 {[25, 50, 100].map((amt) => (
                   <button

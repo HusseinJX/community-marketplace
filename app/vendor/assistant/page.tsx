@@ -127,7 +127,7 @@ export default function VendorAssistantPage() {
       />
 
       {/* Config */}
-      <section className="card-soft space-y-4 p-6">
+      <section className="card-soft space-y-4 p-4">
         <label className="flex items-center gap-3">
           <input
             type="checkbox"

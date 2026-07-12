@@ -48,7 +48,7 @@ export function BasicQr({ url, businessName }: { url: string; businessName: stri
   }
 
   return (
-    <div className="card-soft p-6">
+    <div className="card-soft p-4">
       <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
         <div className="flex h-52 w-52 shrink-0 items-center justify-center rounded-xl border border-stone-200 bg-white p-3">
           {png ? (

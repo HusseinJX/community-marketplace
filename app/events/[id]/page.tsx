@@ -349,7 +349,7 @@ export default async function EventDetailPage({
             {/* About the host */}
             <section>
               <p className="section-label mb-4">About the host</p>
-              <div className="card-soft p-5 flex gap-4">
+              <div className="card-soft p-4 flex gap-4">
                 <div
                   className={`size-14 shrink-0 rounded-full bg-gradient-to-br ${grad} flex items-center justify-center text-white font-bold text-xl`}
                 >
@@ -419,7 +419,7 @@ export default async function EventDetailPage({
           {/* Aside */}
           <div className="space-y-4">
             {/* When & where */}
-            <div className="card-soft p-5">
+            <div className="card-soft p-4">
               <p className="section-label mb-4">When &amp; where</p>
               <div className="space-y-3 text-sm text-stone-700">
                 {event.date && (
@@ -462,7 +462,7 @@ export default async function EventDetailPage({
             </div>
 
             {/* Attendance */}
-            <div className="card-soft p-5">
+            <div className="card-soft p-4">
               <p className="section-label mb-4">Attendance</p>
               {isOrganizerEvent ? (
                 <RsvpButton eventId={event.id} />

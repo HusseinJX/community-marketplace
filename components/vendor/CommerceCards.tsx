@@ -104,7 +104,7 @@ export function CommerceCards({ orderCount }: { orderCount: number }) {
         {locked ? (
           <div
             title="Turn on Commerce to use this"
-            className="card-soft flex cursor-not-allowed items-center justify-between p-5 opacity-60"
+            className="card-soft flex cursor-not-allowed items-center justify-between p-4 opacity-60"
           >
             <span className="flex items-center gap-3">
               <Package className="h-5 w-5 text-stone-300" />
@@ -115,7 +115,7 @@ export function CommerceCards({ orderCount }: { orderCount: number }) {
             </span>
           </div>
         ) : (
-          <Link href="/vendor/products" className="card-soft card-hover flex items-center justify-between p-5">
+          <Link href="/vendor/products" className="card-soft card-hover flex items-center justify-between p-4">
             <span className="flex items-center gap-3">
               <Package className="h-5 w-5 text-indigo-500" />
               <span className="text-sm font-semibold text-stone-900">My Products</span>
@@ -123,7 +123,7 @@ export function CommerceCards({ orderCount }: { orderCount: number }) {
             <ArrowRight className="h-4 w-4 text-stone-400" />
           </Link>
         )}
-        <Link href="/vendor/events" className="card-soft card-hover flex items-center justify-between p-5">
+        <Link href="/vendor/events" className="card-soft card-hover flex items-center justify-between p-4">
           <span className="flex items-center gap-3">
             <Calendar className="h-5 w-5 text-indigo-500" />
             <span className="text-sm font-semibold text-stone-900">My Events</span>

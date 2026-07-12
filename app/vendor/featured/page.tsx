@@ -7,7 +7,7 @@ export default async function VendorFeaturedPage() {
 
   if (!isAdmin(userId)) {
     return (
-      <div className="rounded-2xl border border-stone-200 bg-white p-6">
+      <div className="rounded-2xl border border-stone-200 bg-white p-4">
         <p className="text-sm font-medium text-stone-900">Superadmin only</p>
         <p className="mt-1 text-sm text-stone-500">
           Featured home-screen lists are managed by platform admins. Add your Clerk user ID to

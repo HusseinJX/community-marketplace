@@ -170,7 +170,7 @@ function VendorCheckoutCard({ group, onVendorPaid }: VendorCheckoutCardProps) {
   }, [group])
 
   return (
-    <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
+    <div className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <h2 className="text-base font-semibold text-stone-900">
           <Link href={`/members/${group.memberId}`} className="hover:underline text-indigo-700">
@@ -323,7 +323,7 @@ export default function CheckoutPage() {
       </p>
 
       {allDone ? (
-        <div className="mt-10 rounded-2xl border border-green-200 bg-green-50 p-6 text-center">
+        <div className="mt-10 rounded-2xl border border-green-200 bg-green-50 p-4 text-center">
           <p className="text-lg font-semibold text-green-800">All payments complete!</p>
           <div className="mt-3 space-y-1">
             {Object.entries(paidVendors).map(([_, v]) => (

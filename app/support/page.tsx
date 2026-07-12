@@ -31,7 +31,7 @@ export default function SupportPage() {
       <section className="mx-auto max-w-4xl px-4 py-14 md:px-8 md:py-20">
         <div className="space-y-8">
           {/* Contact */}
-          <div className="rounded-2xl border border-stone-200 bg-white p-6">
+          <div className="rounded-2xl border border-stone-200 bg-white p-4">
             <h2 className="flex items-center gap-2 text-lg font-semibold text-stone-900">
               <Mail className="h-5 w-5 text-teal-500" /> Contact us
             </h2>
@@ -47,7 +47,7 @@ export default function SupportPage() {
           </div>
 
           {/* Common topics */}
-          <div className="rounded-2xl border border-stone-200 bg-white p-6">
+          <div className="rounded-2xl border border-stone-200 bg-white p-4">
             <h2 className="text-lg font-semibold text-stone-900">Common questions</h2>
             <dl className="mt-4 space-y-5">
               <div>
