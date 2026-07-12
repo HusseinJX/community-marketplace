@@ -70,11 +70,11 @@ export function HomeTabs() {
             <X className="h-4 w-4" />
           </button>
           <h1 className="pr-8 text-xl font-semibold tracking-tight">
-            Your neighborhood, all in one place.
+            See what&apos;s happening near you.
           </h1>
           <p className="mt-1.5 max-w-2xl text-sm leading-snug text-white/85">
-            Discover your local ecosystem, engage in it, and see who&apos;s giving back to the
-            neighborhood.
+            Live venues, pop-ups, and events from local businesses teaming up — tonight and this
+            weekend.
           </p>
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <Link

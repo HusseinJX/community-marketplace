@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import {
   Package, ShoppingCart, Calendar, ArrowRight, UserCircle,
-  MessageCircle, Heart, CreditCard, Radio,
+  MessageCircle, Heart, CreditCard, Radio, Users, CalendarPlus, Sparkles,
 } from 'lucide-react'
 import { PlanSwitch, PLAN_KEY, type Tier } from '@/components/vendor/PlanSwitch'
 
@@ -67,6 +67,37 @@ export function VendorHome({
     <>
       {/* Plan switch — gates everything below (shared with the collab page) */}
       <PlanSwitch tier={tier} onPick={pick} caption="Preview each tier — gates the features below." />
+
+      {/* ── The wedge, front and center ─────────────────────────────────────
+          Collaboration-for-events is what this app is for, so it leads the
+          dashboard instead of hiding in the Collabs tab. */}
+      <div className="rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-violet-50 p-4">
+        <div className="flex items-center gap-2 text-indigo-700">
+          <Sparkles className="h-4 w-4" />
+          <p className="text-[11px] font-semibold uppercase tracking-wide">Build your next event</p>
+        </div>
+        <p className="mt-1.5 text-[15px] font-semibold leading-snug text-stone-900">
+          Team up with complementary local businesses.
+        </p>
+        <p className="mt-1 text-[13px] leading-snug text-stone-600">
+          We match you by what you offer and need — a coffee roaster to your bakery, a muralist for
+          your launch — then help you plan it together.
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Link
+            href="/vendor/network"
+            className="inline-flex items-center gap-1.5 rounded-full bg-indigo-600 px-3.5 py-2 text-[13px] font-semibold text-white transition hover:bg-indigo-700"
+          >
+            <Users className="h-4 w-4" /> Find collaborators
+          </Link>
+          <Link
+            href="/vendor/organize"
+            className="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-white px-3.5 py-2 text-[13px] font-semibold text-indigo-700 transition hover:border-indigo-300"
+          >
+            <CalendarPlus className="h-4 w-4" /> Host an event
+          </Link>
+        </div>
+      </div>
 
       {/* Quick access — cards the current tier can't access are hidden entirely
           (not shown greyed out). */}
