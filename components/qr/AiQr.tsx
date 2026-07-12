@@ -106,7 +106,7 @@ export function AiQr({ businessName }: { businessName: string }) {
             <button
               onClick={generate}
               disabled={busy}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 px-3.5 py-2 text-[13px] font-medium text-white hover:opacity-90 disabled:opacity-60"
             >
               <Sparkles className="h-4 w-4" />
               {busy ? 'Generating…' : url ? 'Regenerate' : 'Generate'}
@@ -114,7 +114,7 @@ export function AiQr({ businessName }: { businessName: string }) {
             {url && (
               <button
                 onClick={download}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-stone-900 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-stone-800"
               >
                 <Download className="h-4 w-4" /> Download PNG
               </button>

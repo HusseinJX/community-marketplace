@@ -17,7 +17,7 @@ export default async function OnboardPage({
       <p className="text-xs font-medium uppercase tracking-wide text-indigo-600">
         {event ? "Vendor sign-up" : "Join the community"}
       </p>
-      <h1 className="mt-1 text-2xl font-semibold text-stone-900">
+      <h1 className="mt-1 text-xl font-semibold text-stone-900">
         {event ? `Join ${event.title}` : "Get your business on WhatsLocal"}
       </h1>
       <p className="mt-1 text-sm text-stone-500">

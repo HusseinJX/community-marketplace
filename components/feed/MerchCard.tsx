@@ -27,7 +27,7 @@ export function MerchCard({ className }: { className?: string }) {
         <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-black/40 px-2.5 py-1 text-[10px] font-medium uppercase tracking-wide text-white ring-1 ring-white/20 backdrop-blur">
           <Sparkles className="h-3 w-3" /> Official merch
         </span>
-        <span className="absolute bottom-3 left-4 text-2xl font-bold tracking-tight drop-shadow">
+        <span className="absolute bottom-3 left-4 text-xl font-bold tracking-tight drop-shadow">
           XEN0
         </span>
       </div>

@@ -98,7 +98,7 @@ export function FilterSidebar({
           <button onClick={onClear} disabled={active === 0} className="text-sm text-stone-500 hover:text-stone-800 disabled:opacity-40">
             Clear all
           </button>
-          <button onClick={onClose} className="ml-auto rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800">
+          <button onClick={onClose} className="ml-auto rounded-lg bg-stone-900 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-stone-800">
             Show results
           </button>
         </div>

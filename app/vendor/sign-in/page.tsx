@@ -28,7 +28,7 @@ export default function VendorSignInPage() {
       <div className="flex items-center justify-between gap-2">
         <Link
           href="/shopper"
-          className="inline-flex items-center gap-1.5 rounded-full border border-stone-300 px-4 py-2 text-sm font-semibold text-stone-800 transition hover:bg-stone-50"
+          className="inline-flex items-center gap-1.5 rounded-full border border-stone-300 px-3.5 py-2 text-[13px] font-semibold text-stone-800 transition hover:bg-stone-50"
         >
           <User className="h-4 w-4 text-teal-500" /> Shopper
         </Link>
@@ -42,7 +42,7 @@ export default function VendorSignInPage() {
 
       {/* Title */}
       <div>
-        <h1 className="text-2xl font-semibold text-stone-900">Vendor portal</h1>
+        <h1 className="text-xl font-semibold text-stone-900">Vendor portal</h1>
         <p className="mt-1 text-sm text-stone-500">
           Sign in to manage your business, org, or artist page — products, events, live, collabs,
           and your AI agent.

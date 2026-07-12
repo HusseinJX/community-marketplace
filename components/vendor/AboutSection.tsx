@@ -97,10 +97,10 @@ export function AboutSection({
             </div>
             {err && <p className="text-sm text-rose-600">{err}</p>}
             <div className="flex items-center gap-2 pt-1">
-              <button onClick={save} disabled={saving} className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50">
+              <button onClick={save} disabled={saving} className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-emerald-700 disabled:opacity-50">
                 <Check className="h-4 w-4" /> {saving ? 'Saving…' : 'Save'}
               </button>
-              <button onClick={() => { setEditing(false); setErr('') }} className="inline-flex items-center gap-1.5 rounded-lg bg-stone-100 px-4 py-2 text-sm font-medium text-stone-600 hover:bg-stone-200">
+              <button onClick={() => { setEditing(false); setErr('') }} className="inline-flex items-center gap-1.5 rounded-lg bg-stone-100 px-3.5 py-2 text-[13px] font-medium text-stone-600 hover:bg-stone-200">
                 <X className="h-4 w-4" /> Cancel
               </button>
             </div>

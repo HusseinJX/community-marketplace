@@ -105,7 +105,7 @@ export default function VendorOrdersPage() {
 
       <div className="flex items-center gap-3">
         <ShoppingCart className="h-6 w-6 text-indigo-500" />
-        <h1 className="text-2xl font-semibold text-stone-900">Orders</h1>
+        <h1 className="text-xl font-semibold text-stone-900">Orders</h1>
         <span className="ml-auto rounded-full bg-stone-100 px-3 py-0.5 text-sm font-medium text-stone-600">
           {orders.length} total
         </span>

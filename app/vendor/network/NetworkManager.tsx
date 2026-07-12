@@ -256,7 +256,7 @@ export function NetworkManager({
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-semibold text-stone-900">
+          <h1 className="flex items-center gap-2 text-xl font-semibold text-stone-900">
             <Users className="h-6 w-6 text-indigo-500" /> Your network
           </h1>
           <p className="mt-1 text-sm text-stone-500">
@@ -278,7 +278,7 @@ export function NetworkManager({
           <button
             key={k}
             onClick={() => setTab(k)}
-            className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium ${
+            className={`-mb-px border-b-2 px-3.5 py-2 text-[13px] font-medium ${
               tab === k
                 ? "border-indigo-500 text-indigo-700"
                 : "border-transparent text-stone-500 hover:text-stone-800"

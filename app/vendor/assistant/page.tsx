@@ -108,7 +108,7 @@ export default function VendorAssistantPage() {
       <div>
         <div className="flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-indigo-500" />
-          <h1 className="text-2xl font-semibold text-stone-900">Your agent</h1>
+          <h1 className="text-xl font-semibold text-stone-900">Your agent</h1>
         </div>
         <p className="mt-1 text-sm text-stone-500">
           Your storefront has an AI agent that answers customer questions using your products,
@@ -154,7 +154,7 @@ export default function VendorAssistantPage() {
         <button
           onClick={saveConfig}
           disabled={savingConfig}
-          className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
+          className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
         >
           <Save className="h-4 w-4" />
           {savingConfig ? 'Saving…' : savedAt ? 'Saved' : 'Save settings'}
@@ -196,7 +196,7 @@ export default function VendorAssistantPage() {
           <button
             onClick={addKnowledge}
             disabled={!newKnowledge.trim()}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-stone-900 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-stone-800 disabled:opacity-50"
           >
             <Plus className="h-4 w-4" /> Add
           </button>

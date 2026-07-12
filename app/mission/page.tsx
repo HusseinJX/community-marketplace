@@ -51,7 +51,7 @@ export default function MissionPage() {
         </div>
 
         <div className="rounded-3xl bg-gradient-to-r from-pink-500 to-purple-600 p-8 text-white shadow-lg md:p-10">
-          <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">
+          <h2 className="text-xl font-semibold tracking-tight md:text-3xl">
             Help surface the network.
           </h2>
           <p className="mt-2 max-w-2xl text-white/90">

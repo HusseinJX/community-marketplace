@@ -30,7 +30,7 @@ export default function ShopperAdmin() {
         <Show when="signed-out">
           <Link
             href="/join"
-            className="inline-flex items-center gap-1.5 rounded-full border border-stone-300 px-4 py-2 text-sm font-semibold text-stone-800 transition hover:bg-stone-50"
+            className="inline-flex items-center gap-1.5 rounded-full border border-stone-300 px-3.5 py-2 text-[13px] font-semibold text-stone-800 transition hover:bg-stone-50"
           >
             <Store className="h-4 w-4 text-violet-600" /> Vendor login
           </Link>
@@ -57,7 +57,7 @@ export default function ShopperAdmin() {
 
       {/* Title */}
       <div>
-        <h1 className="text-2xl font-semibold text-stone-900">Your space</h1>
+        <h1 className="text-xl font-semibold text-stone-900">Your space</h1>
         <p className="mt-1 text-sm text-stone-500">Everything you&apos;ve saved, ordered, and discovered nearby.</p>
       </div>
 

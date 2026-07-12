@@ -36,7 +36,7 @@ export default async function ResourcesPage() {
   return (
     <div className="space-y-10">
       <div>
-        <h1 className="text-2xl font-semibold text-stone-900">Small business resources</h1>
+        <h1 className="text-xl font-semibold text-stone-900">Small business resources</h1>
         <p className="mt-1 text-sm text-stone-500">
           Local help in one place — legal, accounting, energy savings, going green, accessibility,
           permits, funding, and more. Browse, search, or ask the guide what fits you.

@@ -70,7 +70,7 @@ export function ShareMenu({
     <div ref={wrapRef} className={"relative " + (className ?? "")}>
       <button
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-300 hover:text-indigo-700"
+        className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3.5 py-2 text-[13px] font-medium text-stone-700 transition hover:border-stone-300 hover:text-indigo-700"
       >
         <Share2 className="size-4" /> {label}
       </button>
@@ -143,13 +143,13 @@ function QrModal({ url, title, onClose }: { url: string; title?: string; onClose
         <div className="mt-4 flex justify-center gap-2">
           <button
             onClick={async () => download(`${slug}-qr.png`, await qrPngDataUrl(url, { size: 1024 }))}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-indigo-700"
           >
             <Download className="size-4" /> PNG
           </button>
           <button
             onClick={async () => download(`${slug}-qr.svg`, `data:image/svg+xml;charset=utf-8,${encodeURIComponent(await qrSvgString(url))}`)}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-stone-900 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-stone-800"
           >
             <Download className="size-4" /> SVG
           </button>

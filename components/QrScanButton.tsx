@@ -308,7 +308,7 @@ function ScanPanel({ onDecoded }: { onDecoded: (raw: string) => void }) {
               <button
                 type="button"
                 onClick={nativeFallback}
-                className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-medium text-stone-900 hover:bg-white/90"
+                className="inline-flex items-center gap-1.5 rounded-full bg-white px-3.5 py-2 text-[13px] font-medium text-stone-900 hover:bg-white/90"
               >
                 <ScanLine className="h-4 w-4" /> Open camera
               </button>
@@ -334,12 +334,12 @@ function ResultPanel({ result, onAgain }: { result: ShownResult; onAgain: () => 
             href={result.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-indigo-700"
           >
             Open link <ExternalLink className="h-3.5 w-3.5" />
           </a>
         )}
-        <button type="button" onClick={onAgain} className="rounded-lg px-4 py-2 text-sm font-medium text-stone-600 hover:bg-stone-100">
+        <button type="button" onClick={onAgain} className="rounded-lg px-3.5 py-2 text-[13px] font-medium text-stone-600 hover:bg-stone-100">
           Try again
         </button>
       </div>

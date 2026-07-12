@@ -113,7 +113,7 @@ export function OnboardManager({ memberId, isAdmin }: { memberId: string; isAdmi
           {created.claimUrl}
         </Link>
         <div className="mt-4">
-          <button onClick={reset} className="rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800">
+          <button onClick={reset} className="rounded-lg bg-stone-900 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-stone-800">
             Onboard another
           </button>
         </div>
@@ -124,7 +124,7 @@ export function OnboardManager({ memberId, isAdmin }: { memberId: string; isAdmi
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="flex items-center gap-2 text-2xl font-semibold text-stone-900">
+        <h1 className="flex items-center gap-2 text-xl font-semibold text-stone-900">
           <Sparkles className="h-6 w-6 text-indigo-500" /> Onboard a business
         </h1>
         <p className="mt-1 text-sm text-stone-500">
@@ -142,7 +142,7 @@ export function OnboardManager({ memberId, isAdmin }: { memberId: string; isAdmi
             className="w-full rounded-lg border border-stone-200 p-3 text-sm"
           />
           <div className="flex items-center gap-3">
-            <button onClick={extract} disabled={busy} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
+            <button onClick={extract} disabled={busy} className="rounded-lg bg-indigo-600 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
               {busy ? "Reading…" : "Extract profile"}
             </button>
             {err && <span className="text-sm text-rose-600">{err}</span>}
@@ -214,7 +214,7 @@ export function OnboardManager({ memberId, isAdmin }: { memberId: string; isAdmi
           )}
 
           <div className="flex items-center gap-3 pt-1">
-            <button onClick={create} disabled={busy} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50">
+            <button onClick={create} disabled={busy} className="rounded-lg bg-emerald-600 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-emerald-700 disabled:opacity-50">
               {busy ? "Creating…" : "Create business"}
             </button>
             <button onClick={() => setProfile(null)} className="text-sm text-stone-500 hover:text-stone-800">Back</button>

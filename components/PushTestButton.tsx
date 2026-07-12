@@ -30,7 +30,7 @@ export function PushTestButton() {
         type="button"
         onClick={send}
         disabled={busy}
-        className="inline-flex items-center gap-1.5 rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:text-stone-900 disabled:opacity-60"
+        className="inline-flex items-center gap-1.5 rounded-full border border-stone-300 bg-white px-3.5 py-2 text-[13px] font-medium text-stone-700 transition hover:border-stone-400 hover:text-stone-900 disabled:opacity-60"
       >
         <Bell className="h-4 w-4" /> {busy ? "Sending…" : "Send test notification"}
       </button>

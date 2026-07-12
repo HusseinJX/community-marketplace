@@ -184,7 +184,7 @@ export function BillingPlans({
               </div>
 
               <div className="mb-1">
-                <span className="text-2xl font-bold text-stone-900">{t.price}</span>
+                <span className="text-xl font-bold text-stone-900">{t.price}</span>
                 {t.cadence && <span className="text-sm text-stone-500">{t.cadence}</span>}
               </div>
               <p className="mb-4 text-xs font-medium text-violet-600">{t.tagline}</p>
@@ -201,7 +201,7 @@ export function BillingPlans({
               {isCurrent ? (
                 <button
                   disabled
-                  className="rounded-full bg-stone-100 px-4 py-2 text-sm font-semibold text-stone-500"
+                  className="rounded-full bg-stone-100 px-3.5 py-2 text-[13px] font-semibold text-stone-500"
                 >
                   Current plan
                 </button>
@@ -210,7 +210,7 @@ export function BillingPlans({
                   onClick={() => upgrade(t.plan as SelfServePlan)}
                   disabled={busy === t.plan}
                   className={
-                    "inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white transition disabled:opacity-60 " +
+                    "inline-flex items-center justify-center gap-2 rounded-full px-3.5 py-2 text-[13px] font-semibold text-white transition disabled:opacity-60 " +
                     (t.highlight ? "bg-violet-600 hover:bg-violet-700" : "bg-stone-900 hover:bg-stone-800")
                   }
                 >
@@ -220,7 +220,7 @@ export function BillingPlans({
               ) : t.cta === "contact" ? (
                 <a
                   href="mailto:hello@whatslocal.ai?subject=WhatsLocal%20Organizations%20plan"
-                  className="inline-flex items-center justify-center rounded-full border border-stone-300 px-4 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50"
+                  className="inline-flex items-center justify-center rounded-full border border-stone-300 px-3.5 py-2 text-[13px] font-semibold text-stone-700 hover:bg-stone-50"
                 >
                   Contact sales
                 </a>

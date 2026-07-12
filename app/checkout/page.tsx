@@ -317,7 +317,7 @@ export default function CheckoutPage() {
         &larr; Back to cart
       </Link>
 
-      <h1 className="mt-6 text-2xl font-semibold text-stone-900">Checkout</h1>
+      <h1 className="mt-6 text-xl font-semibold text-stone-900">Checkout</h1>
       <p className="mt-1 text-sm text-stone-500">
         Items are grouped by vendor. Each vendor is paid separately.
       </p>

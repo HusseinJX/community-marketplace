@@ -148,7 +148,7 @@ export default async function CityPage({ params }: Props) {
           <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">The Sound</p>
           <div className="flex flex-wrap gap-2">
             {city.narrative.sounds.map((s) => (
-              <span key={s} className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground">
+              <span key={s} className="rounded-lg border border-border px-3.5 py-2 text-[13px] font-medium text-foreground">
                 {s}
               </span>
             ))}

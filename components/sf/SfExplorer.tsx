@@ -144,7 +144,7 @@ function TabBtn({
     <button
       onClick={onClick}
       className={
-        "inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition " +
+        "inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[13px] font-medium transition " +
         (active
           ? "bg-stone-900 text-white"
           : "bg-white text-stone-600 ring-1 ring-stone-200 hover:ring-stone-300")

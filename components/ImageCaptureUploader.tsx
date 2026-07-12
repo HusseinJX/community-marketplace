@@ -277,10 +277,10 @@ function CaptureBtn({ onClick, label }: { onClick: () => void; label: string }) 
 function DraftActions({ onPublish, onDraft, onCancel, busy }: { onPublish: () => void; onDraft: () => void; onCancel: () => void; busy: boolean }) {
   return (
     <div className="flex flex-wrap gap-2">
-      <button onClick={onPublish} disabled={busy} className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60">
+      <button onClick={onPublish} disabled={busy} className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-indigo-700 disabled:opacity-60">
         <Check className="h-4 w-4" /> Publish all
       </button>
-      <button onClick={onDraft} disabled={busy} className="rounded-lg border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 disabled:opacity-60">
+      <button onClick={onDraft} disabled={busy} className="rounded-lg border border-stone-300 px-3.5 py-2 text-[13px] font-medium text-stone-700 hover:bg-stone-50 disabled:opacity-60">
         Save as drafts
       </button>
       <button onClick={onCancel} disabled={busy} className="rounded-lg px-3 py-2 text-sm text-stone-500 hover:text-stone-700">

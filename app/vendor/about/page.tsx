@@ -44,7 +44,7 @@ export default async function VendorAboutPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-stone-900">Business profile</h1>
+        <h1 className="text-xl font-semibold text-stone-900">Business profile</h1>
         <p className="mt-1 text-sm text-stone-500">
           Edit the bio, category, location, and links shoppers see on your profile.
         </p>

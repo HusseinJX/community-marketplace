@@ -325,7 +325,7 @@ export function JoinFlow() {
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-stone-100">
           <LogOut className="h-6 w-6 text-stone-600" />
         </div>
-        <h1 className="mt-4 text-2xl font-bold text-stone-900">Log out first</h1>
+        <h1 className="mt-4 text-xl font-bold text-stone-900">Log out first</h1>
         <p className="mt-2 text-sm text-stone-500">
           You&apos;re already signed in. Setting up a business, org, or artist page uses its own
           account, so log out here and we&apos;ll start you fresh.
@@ -357,11 +357,11 @@ export function JoinFlow() {
           {isArtist ? "Artist" : step === "business" || step === "code2" ? "Step 2 of 2 · the business" : "Step 1 of 2 · you"}
         </p>
       )}
-      {err && <p className="mb-4 rounded-lg bg-rose-50 px-4 py-2 text-sm text-rose-700">{err}</p>}
+      {err && <p className="mb-4 rounded-lg bg-rose-50 px-3.5 py-2 text-[13px] text-rose-700">{err}</p>}
 
       {step === "type" && (
         <div className="space-y-3">
-          <h1 className="text-2xl font-bold text-stone-900">Join WhatsLocal</h1>
+          <h1 className="text-xl font-bold text-stone-900">Join WhatsLocal</h1>
           <p className="text-sm text-stone-500">What are you setting up? This decides how we verify you.</p>
           <div className="mt-3 space-y-2">
             {TYPES.map((t) => (
@@ -394,7 +394,7 @@ export function JoinFlow() {
 
       {step === "who" && (
         <div className="space-y-4">
-          <h1 className="text-2xl font-bold text-stone-900">Tell us who you are</h1>
+          <h1 className="text-xl font-bold text-stone-900">Tell us who you are</h1>
           <p className="text-sm text-stone-500">A few quick details — no password, no email.</p>
           <div className="space-y-1.5">
             <label className="block text-xs font-medium text-stone-500">Your name</label>
@@ -427,7 +427,7 @@ export function JoinFlow() {
 
       {step === "code1" && (
         <div className="space-y-3">
-          <h1 className="text-2xl font-bold text-stone-900">Confirm your number</h1>
+          <h1 className="text-xl font-bold text-stone-900">Confirm your number</h1>
           <p className="text-sm text-stone-500">A code to sign you in — we texted {phone}.</p>
           <input value={code} onChange={(e) => setCode(e.target.value)} inputMode="numeric" placeholder="Enter the 6-digit code" className="w-full rounded-lg border border-stone-200 px-3 py-2.5 text-center text-lg tracking-widest" />
           <button onClick={confirmPhoneCode} disabled={busy} className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-stone-900 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60">
@@ -439,7 +439,7 @@ export function JoinFlow() {
 
       {step === "business" && (
         <div className="space-y-3">
-          <h1 className="text-2xl font-bold text-stone-900">Find your business on Google</h1>
+          <h1 className="text-xl font-bold text-stone-900">Find your business on Google</h1>
           <p className="text-sm text-stone-500">We verify against your real Google listing — and read the number straight from it.</p>
           <div className="flex items-center gap-2 rounded-lg border border-stone-300 px-3 py-2.5">
             <Search className="h-4 w-4 text-stone-400" />
@@ -458,7 +458,7 @@ export function JoinFlow() {
 
       {step === "code2" && (
         <div className="space-y-3">
-          <h1 className="text-2xl font-bold text-stone-900">Verify you run {bizName}</h1>
+          <h1 className="text-xl font-bold text-stone-900">Verify you run {bizName}</h1>
           <p className="text-sm text-stone-500">A different code — to the number on {bizName}&apos;s Google listing{phoneHint ? ` (${phoneHint})` : ""}, not your phone.</p>
           <input value={code} onChange={(e) => setCode(e.target.value)} inputMode="numeric" placeholder="Enter the 6-digit code" className="w-full rounded-lg border border-stone-200 px-3 py-2.5 text-center text-lg tracking-widest" />
           <button onClick={confirmOwnership} disabled={busy} className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60">
@@ -484,7 +484,7 @@ export function JoinFlow() {
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500">
             <Check className="h-6 w-6 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-stone-900">You&apos;re verified · live on WhatsLocal</h1>
+          <h1 className="text-xl font-bold text-stone-900">You&apos;re verified · live on WhatsLocal</h1>
           <p className="text-sm text-stone-500">{bizName} is set up. Pick how you want to participate — start free, upgrade anytime.</p>
           <div className="space-y-2 pt-2 text-left">
             <a href="/vendor" className="block rounded-xl border border-stone-200 p-4 hover:bg-stone-50"><b className="text-stone-900">Free</b> — your page + discovery <span className="float-right text-stone-500">$0</span></a>

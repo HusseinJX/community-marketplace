@@ -89,7 +89,7 @@ export function JoinInterview({
       <div className="space-y-4">
         <div className="flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-violet-600" />
-          <h1 className="text-2xl font-bold text-stone-900">Bring your page to life</h1>
+          <h1 className="text-xl font-bold text-stone-900">Bring your page to life</h1>
         </div>
         <p className="text-sm text-stone-500">
           A quick 2-minute interview about {bizName}. It writes your profile and powers who WhatsLocal
@@ -208,7 +208,7 @@ function VoiceInterview({
           onClose={() => onSave(msgsRef.current)}
         />
       </div>
-      {saveErr && <p className="rounded-lg bg-rose-50 px-4 py-2 text-sm text-rose-700">{saveErr}</p>}
+      {saveErr && <p className="rounded-lg bg-rose-50 px-3.5 py-2 text-[13px] text-rose-700">{saveErr}</p>}
       <p className="text-center text-xs text-stone-400">
         {heard > 0 ? "Got it — tap below when you're done." : "Allow the mic and start talking."}
       </p>
@@ -350,7 +350,7 @@ function TextInterview({
         </button>
       </div>
 
-      {saveErr && <p className="rounded-lg bg-rose-50 px-4 py-2 text-sm text-rose-700">{saveErr}</p>}
+      {saveErr && <p className="rounded-lg bg-rose-50 px-3.5 py-2 text-[13px] text-rose-700">{saveErr}</p>}
 
       <button
         onClick={() => onSave(messages)}

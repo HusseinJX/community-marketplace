@@ -59,7 +59,7 @@ export function MatchDetail({ matchKey }: { matchKey: string }) {
             <p className="text-xs font-medium text-stone-500">
               {eventEmoji(first.event_slug)} {eventLabel(first.event_slug, first.event_label)}
             </p>
-            <h1 className="text-2xl font-semibold tracking-tight text-stone-900">
+            <h1 className="text-xl font-semibold tracking-tight text-stone-900">
               {first.whats_on || eventLabel(first.event_slug, first.event_label)}
             </h1>
             <p className="mt-0.5 text-sm text-stone-500">

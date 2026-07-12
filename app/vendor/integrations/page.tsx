@@ -88,7 +88,7 @@ export default function VendorIntegrationsPage() {
 
       <div className="flex items-center gap-3">
         <Plug className="h-6 w-6 text-indigo-500" />
-        <h1 className="text-2xl font-semibold text-stone-900">Integrations</h1>
+        <h1 className="text-xl font-semibold text-stone-900">Integrations</h1>
       </div>
 
       {/* Catalog sync card */}
@@ -116,7 +116,7 @@ export default function VendorIntegrationsPage() {
             <button
               onClick={syncNow}
               disabled={syncing}
-              className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 transition"
+              className="flex items-center gap-2 rounded-lg bg-indigo-600 px-3.5 py-2 text-[13px] font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 transition"
             >
               <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
               {syncing ? 'Syncing…' : 'Sync Now'}
@@ -131,14 +131,14 @@ export default function VendorIntegrationsPage() {
               <button
                 onClick={() => setShopifyOpen(v => !v)}
                 disabled={!!connecting}
-                className="rounded-lg border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-700 hover:border-indigo-400 hover:text-indigo-700 disabled:opacity-50 transition"
+                className="rounded-lg border border-stone-200 bg-white px-3.5 py-2 text-[13px] font-medium text-stone-700 hover:border-indigo-400 hover:text-indigo-700 disabled:opacity-50 transition"
               >
                 {connecting === 'shopify' ? 'Connecting…' : 'Connect Shopify'}
               </button>
               <button
                 onClick={() => connectPlatform('square')}
                 disabled={!!connecting}
-                className="rounded-lg border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-700 hover:border-indigo-400 hover:text-indigo-700 disabled:opacity-50 transition"
+                className="rounded-lg border border-stone-200 bg-white px-3.5 py-2 text-[13px] font-medium text-stone-700 hover:border-indigo-400 hover:text-indigo-700 disabled:opacity-50 transition"
               >
                 {connecting === 'square' ? 'Connecting…' : 'Connect Square'}
               </button>

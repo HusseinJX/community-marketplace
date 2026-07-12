@@ -122,7 +122,7 @@ export function GivingManager({
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="flex items-center gap-2 text-2xl font-semibold text-stone-900">
+        <h1 className="flex items-center gap-2 text-xl font-semibold text-stone-900">
           <Heart className="h-6 w-6 text-rose-500" /> Community giving
         </h1>
         <p className="mt-1 text-sm text-stone-500">
@@ -226,7 +226,7 @@ export function GivingManager({
           <button
             onClick={submit}
             disabled={busy}
-            className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-700 disabled:opacity-50"
+            className="rounded-lg bg-rose-600 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-rose-700 disabled:opacity-50"
           >
             {busy ? "Logging…" : "Log gift"}
           </button>

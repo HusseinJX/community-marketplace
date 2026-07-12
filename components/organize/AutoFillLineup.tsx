@@ -198,7 +198,7 @@ export function AutoFillLineup({
                 <button
                   onClick={inviteAll}
                   disabled={busy || picked.size === 0}
-                  className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:bg-stone-200 disabled:text-stone-500"
+                  className="rounded-lg bg-indigo-600 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-indigo-700 disabled:bg-stone-200 disabled:text-stone-500"
                 >
                   {busy ? "Inviting…" : `Invite ${picked.size || ""}`.trim()}
                 </button>

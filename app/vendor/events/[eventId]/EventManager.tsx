@@ -34,7 +34,7 @@ export function EventManager({
       <div className="flex items-start gap-3">
         <CalendarDays className="mt-0.5 h-6 w-6 text-indigo-500" />
         <div>
-          <h1 className="text-2xl font-semibold text-stone-900">{event.title}</h1>
+          <h1 className="text-xl font-semibold text-stone-900">{event.title}</h1>
           <p className="mt-1 text-sm text-stone-500">
             {[event.event_date, event.event_time, event.location].filter(Boolean).join(" · ") || "No date set"}
             {!event.active && <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700">draft</span>}
@@ -51,7 +51,7 @@ export function EventManager({
           <button
             key={k}
             onClick={() => setTab(k)}
-            className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium ${
+            className={`-mb-px border-b-2 px-3.5 py-2 text-[13px] font-medium ${
               tab === k
                 ? "border-indigo-500 text-indigo-700"
                 : "border-transparent text-stone-500 hover:text-stone-800"

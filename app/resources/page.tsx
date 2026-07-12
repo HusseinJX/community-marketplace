@@ -21,7 +21,7 @@ export default function CommunityResourcesPage() {
   return (
     <div className="mx-auto max-w-5xl space-y-10 px-4 py-10 md:px-8">
       <div>
-        <h1 className="text-2xl font-semibold text-stone-900">Local resources</h1>
+        <h1 className="text-xl font-semibold text-stone-900">Local resources</h1>
         <p className="mt-1 text-sm text-stone-500">
           Free and low-cost help near you — food, housing, healthcare, legal aid, financial help,
           family, jobs, immigration, and community organizations. Browse, search, or ask the guide

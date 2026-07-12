@@ -37,7 +37,7 @@ export default async function EventJoinPage({
   return (
     <main className="mx-auto max-w-lg px-4 py-10">
       <p className="text-xs font-medium uppercase tracking-wide text-indigo-600">Vendor sign-up</p>
-      <h1 className="mt-1 text-2xl font-semibold text-stone-900">Join {event.title}</h1>
+      <h1 className="mt-1 text-xl font-semibold text-stone-900">Join {event.title}</h1>
       <p className="mt-1 text-sm text-stone-500">
         {[event.event_date, event.location].filter(Boolean).join(" · ") ||
           "Add your business to this event's vendor lineup."}

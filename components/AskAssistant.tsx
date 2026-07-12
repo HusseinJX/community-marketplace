@@ -164,7 +164,7 @@ export function AskAssistant({
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
                   placeholder={`Message ${memberName}…`}
-                  className="flex-1 rounded-full border border-stone-200 bg-stone-50 px-4 py-2 text-sm text-stone-800 placeholder:text-stone-400 focus:border-indigo-300 focus:bg-white focus:outline-none"
+                  className="flex-1 rounded-full border border-stone-200 bg-stone-50 px-3.5 py-2 text-[13px] text-stone-800 placeholder:text-stone-400 focus:border-indigo-300 focus:bg-white focus:outline-none"
                 />
                 <button
                   type="submit"

@@ -141,7 +141,7 @@ export default function WorldCupPage() {
         <p className="text-xs font-semibold uppercase tracking-widest text-stone-400">
           Every city has a song
         </p>
-        <p className="mt-3 text-2xl font-bold text-white md:text-3xl">
+        <p className="mt-3 text-xl font-bold text-white md:text-3xl">
           Go for the game. Stay for the place.
         </p>
         <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-stone-400">

@@ -21,7 +21,7 @@ export default async function VendorQrPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-semibold text-stone-900">Your QR code</h1>
+          <h1 className="text-xl font-semibold text-stone-900">Your QR code</h1>
           <p className="mt-1 text-sm text-stone-500">A QR code that sends customers straight to your profile.</p>
         </div>
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
@@ -46,7 +46,7 @@ export default async function VendorQrPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-stone-900">Your QR code</h1>
+        <h1 className="text-xl font-semibold text-stone-900">Your QR code</h1>
         <p className="mt-1 text-sm text-stone-500">
           Print it on flyers, your window, or a table tent. Anyone who scans it lands on your
           marketplace profile.

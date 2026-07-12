@@ -5,7 +5,7 @@ export default function CheckoutSuccessPage() {
     <div className="mx-auto max-w-2xl px-6 py-20 text-center">
       <div className="rounded-2xl border border-green-200 bg-green-50 p-10">
         <div className="mb-4 text-5xl">&#10003;</div>
-        <h1 className="text-2xl font-semibold text-green-900">Payment successful!</h1>
+        <h1 className="text-xl font-semibold text-green-900">Payment successful!</h1>
         <p className="mt-3 text-base text-green-700">
           Your order has been placed. The vendor will be in touch with next steps.
         </p>

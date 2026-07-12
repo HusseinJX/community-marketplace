@@ -22,7 +22,7 @@ export default function DemoLauncher() {
     <div className="mx-auto max-w-lg px-6 py-16">
       <div className="flex items-center gap-3">
         <LayoutDashboard className="h-7 w-7 text-violet-500" />
-        <h1 className="text-2xl font-semibold text-stone-900">Admin demo</h1>
+        <h1 className="text-xl font-semibold text-stone-900">Admin demo</h1>
       </div>
       <p className="mt-2 text-stone-500">Preview the business portal as any member type.</p>
 

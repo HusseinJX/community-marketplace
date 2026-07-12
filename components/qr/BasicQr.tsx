@@ -91,13 +91,13 @@ export function BasicQr({ url, businessName }: { url: string; businessName: stri
           <div className="flex flex-wrap gap-2">
             <button
               onClick={downloadPng}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-indigo-700"
             >
               <Download className="h-4 w-4" /> Download PNG
             </button>
             <button
               onClick={downloadSvg}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-stone-900 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-stone-800"
             >
               <Download className="h-4 w-4" /> Download SVG
             </button>

@@ -14,7 +14,7 @@ export function EventActionBar({ title, eventId }: { title: string; eventId: str
       <button
         onClick={() => setRsvped((v) => !v)}
         className={
-          "inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition " +
+          "inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[13px] font-medium transition " +
           (rsvped
             ? "bg-stone-900 text-white hover:bg-stone-800"
             : "bg-indigo-600 text-white hover:bg-indigo-700")
@@ -36,7 +36,7 @@ export function EventActionBar({ title, eventId }: { title: string; eventId: str
       <button
         onClick={() => setReminded((v) => !v)}
         className={
-          "inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition " +
+          "inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-[13px] font-medium transition " +
           (reminded
             ? "border-indigo-200 bg-indigo-50 text-indigo-700"
             : "border-stone-200 bg-white text-stone-700 hover:border-stone-300")
@@ -48,7 +48,7 @@ export function EventActionBar({ title, eventId }: { title: string; eventId: str
 
       <Link
         href={`/share?event=${eventId}&eventTitle=${encodeURIComponent(title)}`}
-        className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-indigo-300 hover:text-indigo-700"
+        className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3.5 py-2 text-[13px] font-medium text-stone-700 transition hover:border-indigo-300 hover:text-indigo-700"
       >
         <Tag className="size-4" />
         Tag

@@ -79,7 +79,7 @@ export function EventPreview({ event, isAdmin, memberId }: { event: VendorEvent;
             <span className="rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">Open to all</span>
           </div>
 
-          <h1 className="text-2xl font-bold leading-tight text-stone-900 sm:text-3xl">{event.title}</h1>
+          <h1 className="text-xl font-bold leading-tight text-stone-900 sm:text-3xl">{event.title}</h1>
 
           <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-stone-600">
             {when && (

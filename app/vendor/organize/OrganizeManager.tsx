@@ -72,7 +72,7 @@ export function OrganizeManager({
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-semibold text-stone-900">
+          <h1 className="flex items-center gap-2 text-xl font-semibold text-stone-900">
             <CalendarPlus className="h-6 w-6 text-indigo-500" />
             {eventOrganizer ? "Organize festival" : "Organize"}
             {eventOrganizer && (
@@ -87,7 +87,7 @@ export function OrganizeManager({
         </div>
         <Link
           href="/vendor/events"
-          className="shrink-0 rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800"
+          className="shrink-0 rounded-lg bg-stone-900 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-stone-800"
         >
           + New event
         </Link>
@@ -136,7 +136,7 @@ export function OrganizeManager({
                   <button
                     key={k}
                     onClick={() => setTab(k)}
-                    className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium ${
+                    className={`-mb-px border-b-2 px-3.5 py-2 text-[13px] font-medium ${
                       tab === k
                         ? "border-indigo-500 text-indigo-700"
                         : "border-transparent text-stone-500 hover:text-stone-800"
@@ -336,7 +336,7 @@ function Lineup({ event, memberId, isAdmin, demo }: { event: VendorEvent; member
           <button
             onClick={invite}
             disabled={busy || picked.size === 0}
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:bg-stone-200 disabled:text-stone-500"
+            className="rounded-lg bg-indigo-600 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-indigo-700 disabled:bg-stone-200 disabled:text-stone-500"
           >
             {busy ? "Inviting…" : `Invite ${picked.size || ""}`.trim()}
           </button>

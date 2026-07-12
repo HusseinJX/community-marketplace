@@ -85,7 +85,7 @@ export function OnboardChat({ eventId, eventName }: { eventId: string | null; ev
           {eventName ? "The organizer will confirm you on the lineup. " : ""}
           Claim your page to add photos, products, and more:
         </p>
-        <Link href={created.claimUrl} className="mt-3 inline-block rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
+        <Link href={created.claimUrl} className="mt-3 inline-block rounded-lg bg-indigo-600 px-3.5 py-2 text-[13px] font-semibold text-white hover:bg-indigo-700">
           Claim my page
         </Link>
       </div>

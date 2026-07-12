@@ -121,13 +121,13 @@ export function EventsManager({
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-stone-900">Events</h1>
+          <h1 className="text-xl font-semibold text-stone-900">Events</h1>
           <p className="mt-1 text-sm text-stone-500">
             {memberName}
             {isAdmin && <span className="ml-2 rounded-full bg-stone-900 px-2 py-0.5 text-xs text-white">admin</span>}
           </p>
         </div>
-        <button onClick={() => setShowAdd((s) => !s)} className="inline-flex items-center gap-1.5 rounded-xl bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800">
+        <button onClick={() => setShowAdd((s) => !s)} className="inline-flex items-center gap-1.5 rounded-xl bg-stone-900 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-stone-800">
           <Plus className="h-4 w-4" /> Create
         </button>
       </div>
@@ -148,7 +148,7 @@ export function EventsManager({
           </div>
           <input type="number" min="1" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} placeholder="Capacity (optional — blank = unlimited RSVPs)" className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm" />
           <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Description" rows={2} className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm" />
-          <button onClick={addManual} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">Save</button>
+          <button onClick={addManual} className="rounded-lg bg-indigo-600 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-indigo-700">Save</button>
         </div>
       )}
 

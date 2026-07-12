@@ -36,7 +36,7 @@ export function GoogleReviewButton({
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-amber-400 px-4 py-2 text-sm font-semibold text-stone-900 shadow-sm transition hover:bg-amber-300"
+      className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-amber-400 px-3.5 py-2 text-[13px] font-semibold text-stone-900 shadow-sm transition hover:bg-amber-300"
     >
       <Star className="h-4 w-4 fill-current" />
       Leave a Google review

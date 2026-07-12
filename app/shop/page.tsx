@@ -94,7 +94,7 @@ function ProductCard({ product }: { product: Product }) {
         >
           <Heart className={`h-4 w-4 ${faved ? "fill-rose-500 text-rose-500" : ""}`} />
         </button>
-        <button className="absolute inset-x-3 bottom-3 translate-y-2 rounded-full bg-stone-900 px-4 py-2 text-sm font-medium text-white opacity-0 shadow transition group-hover:translate-y-0 group-hover:opacity-100">
+        <button className="absolute inset-x-3 bottom-3 translate-y-2 rounded-full bg-stone-900 px-3.5 py-2 text-[13px] font-medium text-white opacity-0 shadow transition group-hover:translate-y-0 group-hover:opacity-100">
           Quick add
         </button>
       </div>
@@ -174,7 +174,7 @@ function ProductRow({ product }: { product: Product }) {
           >
             <Heart className={`h-4 w-4 ${faved ? "fill-rose-500 text-rose-500" : ""}`} />
           </button>
-          <button className="flex items-center gap-1.5 rounded-xl bg-stone-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-stone-700">
+          <button className="flex items-center gap-1.5 rounded-xl bg-stone-900 px-3.5 py-2 text-[13px] font-semibold text-white transition hover:bg-stone-700">
             <ShoppingBag className="h-4 w-4" />
             Add
           </button>

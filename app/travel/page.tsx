@@ -48,7 +48,7 @@ export default function TravelPage() {
         </div>
 
         <article className="rounded-3xl border border-stone-200 bg-white p-8 md:p-10">
-          <h2 className="text-2xl font-semibold tracking-tight text-stone-900">
+          <h2 className="text-xl font-semibold tracking-tight text-stone-900">
             The wild isn&rsquo;t out there. It&rsquo;s the substrate.
           </h2>
           <p className="mt-3 text-stone-700">

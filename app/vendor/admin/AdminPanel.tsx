@@ -34,7 +34,7 @@ export function AdminPanel({ ownerMemberId }: { ownerMemberId: string }) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="flex items-center gap-2 text-2xl font-semibold text-stone-900">
+        <h1 className="flex items-center gap-2 text-xl font-semibold text-stone-900">
           <Shield className="h-6 w-6 text-indigo-500" /> Super-admin
         </h1>
         <p className="mt-1 text-sm text-stone-500">
@@ -63,7 +63,7 @@ function TabButton({ active, onClick, icon: Icon, label }: { active: boolean; on
   return (
     <button
       onClick={onClick}
-      className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition ${
+      className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[13px] font-medium transition ${
         active ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-600 hover:bg-stone-200"
       }`}
     >
@@ -256,7 +256,7 @@ function CreateProfile({ ownerMemberId }: { ownerMemberId: string }) {
       <Field label="Tags (comma-separated)"><input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="farmers market, sf library" className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm" /></Field>
 
       <div className="flex items-center gap-3 pt-1">
-        <button onClick={create} disabled={busy} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50">
+        <button onClick={create} disabled={busy} className="rounded-lg bg-emerald-600 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-emerald-700 disabled:opacity-50">
           {busy ? "Creating…" : "Create profile"}
         </button>
         {err && <span className="text-sm text-rose-600">{err}</span>}
@@ -283,7 +283,7 @@ function CreatedCard({ created, onReset, resetLabel }: { created: { name: string
         Claim link: {created.claimUrl}
       </Link>
       <div className="mt-4">
-        <button onClick={onReset} className="rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800">
+        <button onClick={onReset} className="rounded-lg bg-stone-900 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-stone-800">
           {resetLabel}
         </button>
       </div>
@@ -546,7 +546,7 @@ function AddPost() {
         <p className="mt-1 text-sm text-stone-600">
           {tagged ? `Shared to ${tagged.name}'s memories and the feed.` : "Shared to the community feed."}
         </p>
-        <button onClick={() => setDone(false)} className="mt-4 rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800">
+        <button onClick={() => setDone(false)} className="mt-4 rounded-lg bg-stone-900 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-stone-800">
           Post another
         </button>
       </div>
@@ -576,7 +576,7 @@ function AddPost() {
               placeholder="Tag a business (optional)…"
               className="flex-1 rounded-lg border border-stone-200 px-3 py-2 text-sm"
             />
-            <button onClick={search} disabled={searching} className="rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-700 disabled:opacity-50">
+            <button onClick={search} disabled={searching} className="rounded-lg bg-stone-900 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-stone-700 disabled:opacity-50">
               {searching ? "…" : "Search"}
             </button>
           </div>
@@ -636,7 +636,7 @@ function AddPost() {
       </div>
 
       <div className="flex items-center gap-3 pt-1">
-        <button onClick={submit} disabled={!canPost} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50">
+        <button onClick={submit} disabled={!canPost} className="rounded-lg bg-emerald-600 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-emerald-700 disabled:opacity-50">
           {busy ? "Posting…" : "Post"}
         </button>
         {err && <span className="text-sm text-rose-600">{err}</span>}

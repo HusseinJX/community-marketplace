@@ -171,7 +171,7 @@ export function EventThread({
           <button
             onClick={send}
             disabled={busy || !text.trim()}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
           >
             <Send className="h-4 w-4" /> Send
           </button>

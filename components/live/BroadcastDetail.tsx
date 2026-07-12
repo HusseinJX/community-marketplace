@@ -149,7 +149,7 @@ export function BroadcastDetail({ id }: { id: string }) {
           </div>
           <Link
             href={`/share?event=${b.id}&eventTitle=${encodeURIComponent(b.whats_on || eventLabel(b.event_slug, b.event_label))}`}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-rose-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-rose-700"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-rose-600 px-3.5 py-2 text-[13px] font-semibold text-white transition hover:bg-rose-700"
           >
             <Camera className="h-4 w-4" /> Post your vibe
           </Link>

@@ -117,7 +117,7 @@ export function LiveFeed({ afterHero, afterFeed }: { afterHero?: React.ReactNode
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-600 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-white">
                   <Radio className="h-3 w-3" /> Where to watch
                 </span>
-                <h1 className="mt-3 text-2xl font-semibold tracking-tight text-stone-900 md:text-3xl">
+                <h1 className="mt-3 text-xl font-semibold tracking-tight text-stone-900 md:text-3xl">
                   {`Where to watch the ${eventLabel(event)} in SF`}
                 </h1>
                 <p className="mx-auto mt-2 max-w-lg text-sm text-stone-600">

@@ -42,7 +42,7 @@ export function ActionBar({
       <button
         onClick={() => setFollowing((v) => !v)}
         className={
-          "inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition " +
+          "inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[13px] font-medium transition " +
           (following
             ? "bg-stone-900 text-white hover:bg-stone-800"
             : "bg-indigo-600 text-white hover:bg-indigo-700")
@@ -55,7 +55,7 @@ export function ActionBar({
       <button
         onClick={() => setSubscribed((v) => !v)}
         className={
-          "inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition " +
+          "inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-[13px] font-medium transition " +
           (subscribed
             ? "border-indigo-200 bg-indigo-50 text-indigo-700"
             : "border-stone-200 bg-white text-stone-700 hover:border-stone-300")
@@ -69,7 +69,7 @@ export function ActionBar({
         <button
           onClick={logVisit}
           className={
-            "inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition " +
+            "inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-[13px] font-medium transition " +
             (visits > 0
               ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-300"
               : "border-stone-200 bg-white text-stone-700 hover:border-emerald-300 hover:text-emerald-700")
@@ -83,7 +83,7 @@ export function ActionBar({
 
       <button
         onClick={() => setSupportOpen(true)}
-        className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-rose-300 hover:text-rose-600"
+        className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3.5 py-2 text-[13px] font-medium text-stone-700 transition hover:border-rose-300 hover:text-rose-600"
       >
         <HandHeart className="h-4 w-4" />
         Support
@@ -92,7 +92,7 @@ export function ActionBar({
       {canInquire && (
         <button
           onClick={() => window.dispatchEvent(new CustomEvent("open-assistant"))}
-          className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-indigo-300 hover:text-indigo-700"
+          className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3.5 py-2 text-[13px] font-medium text-stone-700 transition hover:border-indigo-300 hover:text-indigo-700"
         >
           <MessageSquare className="h-4 w-4" />
           Inquire

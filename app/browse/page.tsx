@@ -308,7 +308,7 @@ export default function BrowsePage() {
             <span className="inline-flex items-center gap-1.5 rounded-full bg-stone-900 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-white">
               <MapPin className="h-3 w-3" /> Near you
             </span>
-            <h1 className="mt-3 text-2xl font-semibold tracking-tight text-stone-900 md:text-3xl">
+            <h1 className="mt-3 text-xl font-semibold tracking-tight text-stone-900 md:text-3xl">
               Who&apos;s{" "}
               <span className="bg-gradient-to-r from-teal-600 via-sky-600 to-violet-600 bg-clip-text text-transparent">
                 Local
