@@ -323,6 +323,29 @@ export async function getAcceptedLineup(eventId: string): Promise<CollabInvite[]
   return (await getEventInvites(eventId)).filter((i) => i.status === 'accepted')
 }
 
+// Batched accepted-lineup lookup for many events at once (one query, no N+1).
+// Used by the public events feed to show "N businesses teamed up" on cards —
+// makes the collaboration engine visible to shoppers. Count includes the host.
+export async function getAcceptedLineupCounts(
+  eventIds: string[]
+): Promise<Record<string, { count: number; names: string[] }>> {
+  const out: Record<string, { count: number; names: string[] }> = {}
+  if (eventIds.length === 0) return out
+  const { data, error } = await db()
+    .from('collab_invites')
+    .select('scope_id,to_name')
+    .eq('scope_type', 'event')
+    .eq('status', 'accepted')
+    .in('scope_id', eventIds)
+  if (error || !data) return out
+  for (const row of data as { scope_id: string; to_name: string | null }[]) {
+    const e = (out[row.scope_id] ??= { count: 1, names: [] }) // +1 for the host
+    e.count += 1
+    if (row.to_name) e.names.push(row.to_name)
+  }
+  return out
+}
+
 // Organizer-side approve/decline of an event lineup entry (e.g. a self-join
 // request). Scoped to the event so the host can only touch their own lineup.
 export async function setEventInviteStatus(

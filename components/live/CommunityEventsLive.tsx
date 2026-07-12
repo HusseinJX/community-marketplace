@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { CalendarDays, MapPin } from "lucide-react";
+import { CalendarDays, MapPin, Users } from "lucide-react";
 import type { FeedEvent } from "@/app/api/events/feed/route";
 import { groupEventsByTheme } from "@/lib/event-themes";
 import { useEventsFeed } from "@/lib/data-hooks";
@@ -169,7 +169,14 @@ function EventCard({ e, live = false }: { e: FeedEvent; live?: boolean }) {
             {[e.location, e.city || e.neighborhood].filter(Boolean).join(" · ")}
           </p>
         )}
-        <p className="mt-auto pt-2 text-xs text-stone-400">by {e.memberName}</p>
+        <div className="mt-auto flex items-center justify-between gap-2 pt-2">
+          <p className="truncate text-xs text-stone-400">by {e.memberName}</p>
+          {e.collaborators > 1 && (
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">
+              <Users className="h-3 w-3" /> {e.collaborators} teamed up
+            </span>
+          )}
+        </div>
       </div>
     </Link>
   );

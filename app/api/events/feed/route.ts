@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getPublicEvents } from '@/lib/vendor-connect'
+import { getAcceptedLineupCounts } from '@/lib/collab-network'
 import { listEvents } from '@/lib/api'
 
 export const runtime = 'nodejs'
@@ -17,6 +18,9 @@ export interface FeedEvent {
   image: string | null
   memberId: string
   memberName: string
+  /** How many local businesses teamed up on this event (host + accepted lineup).
+      >1 means it's a real collaboration — surfaced on the card. */
+  collaborators: number
 }
 
 // Public community-feed events: real in-app organizer/vendor events
@@ -41,10 +45,23 @@ export async function GET() {
         image: e.poster_image_url ?? null,
         memberId: e.member_id,
         memberName: e.member_name ?? 'Organizer',
+        collaborators: 1,
       })
     }
   } catch {
     /* vendor_events unavailable — fall through to connector events */
+  }
+
+  // Batched: how many businesses teamed up per (in-app) event. Best-effort —
+  // if the lineup table is unavailable, cards just don't show the collab badge.
+  try {
+    const counts = await getAcceptedLineupCounts(out.map((e) => e.eventId))
+    for (const e of out) {
+      const c = counts[e.eventId]
+      if (c && c.count > e.collaborators) e.collaborators = c.count
+    }
+  } catch {
+    /* no lineup data → leave collaborators at 1 */
   }
 
   try {
@@ -64,6 +81,7 @@ export async function GET() {
         image: null,
         memberId: e.memberId ?? '',
         memberName: e.memberName ?? 'Organizer',
+        collaborators: 1,
       })
     }
   } catch {
