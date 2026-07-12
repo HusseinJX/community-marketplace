@@ -12,7 +12,7 @@ export function BroadcastCard({ b, lean = false }: { b: LiveBroadcast; lean?: bo
   const place = [b.neighborhood, b.city].filter(Boolean).join(", ");
   const cover = b.image_urls?.[0];
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-rose-200 bg-gradient-to-br from-rose-50 to-orange-50 transition hover:border-rose-300 hover:shadow-md">
+    <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-rose-200 bg-gradient-to-br from-rose-50 to-orange-50 transition hover:border-rose-300">
       {/* Clickable header → live-event page */}
       <Link href={`/live/${b.id}`} className="block">
         {cover ? (

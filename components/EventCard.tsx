@@ -22,7 +22,7 @@ export function EventCard({ event }: { event: EventSuggestion }) {
   return (
     <Link
       href={`/events/${event.id}`}
-      className="card-soft group flex items-stretch gap-3 p-3 transition hover:shadow-md"
+      className="card-soft card-hover group flex items-stretch gap-3 p-3"
     >
       <div className={`shrink-0 self-stretch w-20 rounded-lg bg-gradient-to-br ${grad}`} />
       <div className="min-w-0 flex-1 py-0.5">

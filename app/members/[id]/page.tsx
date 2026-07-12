@@ -446,7 +446,7 @@ export default async function MemberProfilePage({
               {vendorEvents.length > 0 && (
                 <div className="mb-3 grid gap-3 sm:grid-cols-2">
                   {vendorEvents.map((ev) => (
-                    <Link key={ev.id} href={`/events/${ev.id}`} className="card-soft group flex items-stretch gap-3 p-3 transition hover:shadow-md">
+                    <Link key={ev.id} href={`/events/${ev.id}`} className="card-soft card-hover group flex items-stretch gap-3 p-3">
                       {ev.poster_image_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={ev.poster_image_url} alt={ev.title} className="w-20 shrink-0 self-stretch rounded-lg object-cover" />
@@ -483,7 +483,7 @@ export default async function MemberProfilePage({
                   const live = isLive(b);
                   const cover = b.image_urls?.[0];
                   return (
-                    <Link key={b.id} href={`/live/${b.id}`} className="card-soft group flex items-stretch gap-3 p-3 transition hover:shadow-md">
+                    <Link key={b.id} href={`/live/${b.id}`} className="card-soft card-hover group flex items-stretch gap-3 p-3">
                       {cover ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={cover} alt={b.whats_on || "broadcast"} className="w-20 shrink-0 self-stretch rounded-lg object-cover" />

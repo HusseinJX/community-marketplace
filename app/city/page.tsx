@@ -31,7 +31,7 @@ export default async function CityIndexPage() {
             <Link
               key={c.slug}
               href={`/city/${c.slug}`}
-              className="card-soft flex items-center justify-between px-4 py-3 text-stone-800 transition hover:shadow-md hover:text-indigo-700"
+              className="card-soft flex items-center justify-between px-4 py-3 text-stone-800 transition hover:text-indigo-700"
             >
               <span>{c.name}</span>
               <span className="text-xs text-stone-400">{c.count}</span>

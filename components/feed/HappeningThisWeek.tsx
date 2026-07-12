@@ -64,7 +64,7 @@ export function HappeningThisWeek() {
           <Link
             key={e.eventId}
             href={`/events/${e.eventId}`}
-            className="group w-60 shrink-0 snap-start overflow-hidden rounded-2xl border border-stone-200 bg-white transition hover:border-stone-300 hover:shadow-md"
+            className="group w-60 shrink-0 snap-start overflow-hidden rounded-2xl border border-stone-200 bg-white transition hover:border-stone-300"
           >
             {e.image ? (
               // eslint-disable-next-line @next/next/no-img-element

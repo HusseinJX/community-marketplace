@@ -80,7 +80,7 @@ function ProductCard({ product }: { product: Product }) {
   const [faved, setFaved] = useState(false);
 
   return (
-    <article className="group overflow-hidden rounded-2xl border border-stone-200 bg-white transition hover:-translate-y-0.5 hover:shadow-lg">
+    <article className="group overflow-hidden rounded-2xl border border-stone-200 bg-white transition">
       <div className={`relative aspect-[4/5] bg-gradient-to-br ${product.color}`}>
         {product.badge && (
           <div className="absolute left-3 top-3">

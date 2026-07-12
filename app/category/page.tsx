@@ -26,7 +26,7 @@ export default function CategoryIndexPage() {
           <Link
             key={c.slug}
             href={`/category/${c.slug}`}
-            className="card-soft px-4 py-3 text-stone-800 transition hover:shadow-md hover:text-indigo-700"
+            className="card-soft px-4 py-3 text-stone-800 transition hover:text-indigo-700"
           >
             {c.name}
           </Link>

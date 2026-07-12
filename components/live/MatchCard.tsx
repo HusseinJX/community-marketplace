@@ -22,7 +22,7 @@ export function MatchCard({ group }: { group: MatchGroup }) {
   return (
     <Link
       href={`/live/match/${encodeURIComponent(group.key)}`}
-      className="flex h-full w-full flex-col overflow-hidden rounded-2xl border border-rose-200 bg-gradient-to-br from-rose-50 to-orange-50 text-left transition hover:border-rose-300 hover:shadow-md"
+      className="flex h-full w-full flex-col overflow-hidden rounded-2xl border border-rose-200 bg-gradient-to-br from-rose-50 to-orange-50 text-left transition hover:border-rose-300"
     >
         {group.cover ? (
           <div className="relative aspect-[16/9] w-full overflow-hidden">
