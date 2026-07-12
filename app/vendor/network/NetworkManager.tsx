@@ -804,7 +804,7 @@ function Invites({
         <div className="mb-4">
           <NetworkNoticeCard
             title="You're not in the network yet"
-            body="In Free you can't get invites because you're not in the network. The invites below are demo data. Upgrade to Basic to be in the network and receive real invites."
+            body="These invites are demo data. Upgrade to Basic to join the network and get real ones."
           />
         </div>
       )}
@@ -921,7 +921,7 @@ function Rooms({
       {demo && (
         <NetworkNoticeCard
           title="You're not in the network yet"
-          body="In Free you're not in the network, so you can't get invites or join a collaboration. The collaboration and chat below are demo data. Upgrade to Basic to join the network."
+          body="This collaboration and chat are demo data. Upgrade to Basic to join the network."
         />
       )}
       <div className="grid gap-4 md:grid-cols-[280px_1fr]">
