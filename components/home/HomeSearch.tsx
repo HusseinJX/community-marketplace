@@ -40,13 +40,13 @@ export function HomeSearch() {
       <form onSubmit={submit}>
         <div className="flex items-center gap-2">
           <div className="relative flex flex-1 items-center">
-            <Search className="pointer-events-none absolute left-4 h-5 w-5 text-stone-400" />
+            <Search className="pointer-events-none absolute left-3.5 h-5 w-5 text-stone-400" />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Search Local"
               aria-label="Search Local"
-              className="w-full rounded-full border border-stone-200 bg-white py-3.5 pl-12 pr-4 text-base shadow-sm transition placeholder-stone-400 focus:border-stone-400 focus:outline-none focus:ring-2 focus:ring-stone-300"
+              className="w-full rounded-full border border-stone-200 bg-white py-3 pl-11 pr-4 text-base transition placeholder-stone-400 focus:border-stone-400 focus:outline-none focus:ring-2 focus:ring-stone-200"
             />
           </div>
           <button
@@ -54,7 +54,7 @@ export function HomeSearch() {
             onClick={() => setFiltersOpen(true)}
             aria-label="Filters"
             title="Filters"
-            className="relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-stone-200 bg-white text-stone-600 shadow-sm transition hover:border-stone-300 hover:text-stone-900"
+            className="relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-stone-200 bg-white text-stone-600 transition hover:border-stone-300 hover:text-stone-900"
           >
             <SlidersHorizontal className="h-5 w-5" />
             {activeCount > 0 && (

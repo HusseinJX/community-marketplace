@@ -2,25 +2,26 @@
 
 import Link from "next/link";
 import { Show, UserButton, useUser } from "@clerk/nextjs";
-import { Heart, ShoppingBag, Receipt, Users, ArrowRight, PenLine, Store } from "lucide-react";
+import { Heart, ShoppingBag, Users, ArrowRight, PenLine, Store } from "lucide-react";
 import { PushTestButton } from "@/components/PushTestButton";
 import { DeleteAccountButton } from "@/components/account/DeleteAccountButton";
 import { useOpenLogin } from "@/components/auth/ClerkAuthProvider";
+import { useStore } from "@/lib/store";
 
 // Demo shopper admin — the shopper's personal space (parallel to the vendor
 // portal). Public/no-auth for demo so it's quickly testable and refinable.
 export default function ShopperAdmin() {
   const { user } = useUser();
   const openLogin = useOpenLogin();
+  const { favorites, cart } = useStore();
 
   const cards = [
-    { label: "Saved", value: "—", href: "/favorites", icon: Heart },
-    { label: "Cart", value: "—", href: "/cart", icon: ShoppingBag },
-    { label: "Orders", value: "—", href: "/favorites", icon: Receipt },
+    { label: "Saved", value: favorites.length, href: "/favorites", icon: Heart },
+    { label: "Cart", value: cart.length, href: "/cart", icon: ShoppingBag },
   ] as const;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-8 px-4 py-10 md:px-8">
+    <div className="mx-auto max-w-3xl space-y-6 px-4 py-8 md:px-8">
 
       {/* Top utility row (above the title). Signed out: choose which side to
           enter — "Vendor" (the vendor login/onboarding) or "Log in" as a
@@ -48,7 +49,7 @@ export default function ShopperAdmin() {
         >
           <button
             onClick={() => openLogin("shopper")}
-            className="shrink-0 rounded-full bg-stone-900 px-5 py-2 text-sm font-semibold text-white transition hover:bg-stone-800"
+            className="shrink-0 rounded-full bg-stone-900 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-stone-800"
           >
             Shopper login
           </button>
@@ -64,18 +65,20 @@ export default function ShopperAdmin() {
       {/* Quick access — compact metric grid */}
       <div>
         <p className="section-label mb-3">Quick access</p>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2">
           {cards.map((card) => {
             const Icon = card.icon;
             return (
               <Link
                 key={card.label}
                 href={card.href}
-                className="card-soft card-hover flex flex-col items-center gap-1 p-3 text-center"
+                className="card-soft card-hover flex items-center gap-3 p-3.5"
               >
-                <Icon className="h-5 w-5 text-teal-500" />
-                <span className="text-[11px] font-medium leading-tight text-stone-500">{card.label}</span>
-                <span className="text-base font-semibold text-stone-900">{card.value}</span>
+                <Icon className="h-5 w-5 shrink-0 text-teal-500" />
+                <span className="min-w-0">
+                  <span className="block text-[11px] font-medium leading-tight text-stone-500">{card.label}</span>
+                  <span className="block text-lg font-semibold leading-tight text-stone-900">{card.value}</span>
+                </span>
               </Link>
             );
           })}
