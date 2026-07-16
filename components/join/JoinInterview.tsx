@@ -26,6 +26,7 @@ export function JoinInterview({
   bizName,
   kind,
   seed,
+  demo = false,
   onDone,
 }: {
   memberId: string;
@@ -34,6 +35,9 @@ export function JoinInterview({
   // What we already know client-side (Google Places pick, or the artist's name +
   // city). Sent to /api/join/research as the instant baseline for the brief.
   seed?: BriefInput;
+  // DEMO: run the real interview (grounded in the real Places brief) but skip the
+  // enrich write at the end — no profile is created or updated.
+  demo?: boolean;
   onDone: () => void;
 }) {
   const [mode, setMode] = useState<Mode>("choose");
@@ -70,6 +74,11 @@ export function JoinInterview({
   async function saveAndDone(messages: Msg[]) {
     setSaving(true);
     setSaveErr("");
+    // DEMO: nothing to persist — the interview was real, the finish is stubbed.
+    if (demo) {
+      onDone();
+      return;
+    }
     try {
       const res = await fetch("/api/join/enrich", {
         method: "POST",

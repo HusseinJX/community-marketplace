@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { interviewVoicePrompt } from '@/lib/onboard'
 import { isDemoMode } from '@/lib/demo-admin'
+import { isJoinDemoActive } from '@/lib/joindemo'
 
 export const runtime = 'nodejs'
 
@@ -19,7 +20,7 @@ const REALTIME_VOICE = process.env.OPENAI_REALTIME_VOICE || 'alloy'
 
 export async function POST(req: Request) {
   const { userId } = await auth()
-  if (!userId && !isDemoMode()) {
+  if (!userId && !isDemoMode() && !(await isJoinDemoActive())) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
   if (!process.env.OPENAI_API_KEY) {

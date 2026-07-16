@@ -3,6 +3,7 @@ import { auth } from '@clerk/nextjs/server'
 import { researchMember } from '@/lib/api'
 import { buildInterviewBrief, type BriefInput } from '@/lib/onboard'
 import { isDemoMode } from '@/lib/demo-admin'
+import { isJoinDemoActive } from '@/lib/joindemo'
 
 export const runtime = 'nodejs'
 
@@ -14,7 +15,7 @@ export const runtime = 'nodejs'
 // or failed research pass just falls back to the seed. Never blocks the flow.
 export async function POST(req: Request) {
   const { userId } = await auth()
-  if (!userId && !isDemoMode()) {
+  if (!userId && !isDemoMode() && !(await isJoinDemoActive())) {
     return NextResponse.json({ error: 'Sign in' }, { status: 401 })
   }
 
@@ -25,7 +26,12 @@ export async function POST(req: Request) {
 
   let research: string | null = null
   let enriched: Partial<BriefInput> = {}
+  // DEMO: the member id is synthetic (no connector record), so skip the connector
+  // research pass — build the brief from the real Places seed only (instant, and
+  // still grounds the interview in the real listing).
+  const isDemoMember = memberId.startsWith('demo')
   try {
+    if (isDemoMember) throw new Error('demo — seed only')
     const r = await researchMember(memberId)
     research = r.research
     // The connector may have richer structured fields than the client seed.

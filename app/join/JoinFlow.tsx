@@ -8,6 +8,15 @@ import { Store, Users, Mic, Search, Loader2, Check, ArrowRight, ArrowLeft, LogOu
 import { JoinInterview } from "@/components/join/JoinInterview";
 import type { BriefInput } from "@/lib/onboard";
 
+// Mask a real phone to "(•••) •••-1234" — the demo shows the business's actual
+// Google-listing number as the (fake) verify target, same as the real flow.
+function maskPhone(raw?: string | null): string | null {
+  if (!raw) return null;
+  const d = raw.replace(/\D/g, "");
+  if (d.length < 4) return null;
+  return `(•••) •••-${d.slice(-4)}`;
+}
+
 // Self-serve "fresh join" — matches the rep-flow mockup:
 //   pick type → who you are + phone (code #1, Clerk) → confirm →
 //   (entities) find business on Google → verify ownership (code #2, Twilio) →
@@ -26,7 +35,12 @@ const TYPES: { key: Kind; icon: typeof Store; label: string; sub: string }[] = [
 
 interface Place { placeId: string; name: string; address: string }
 
-export function JoinFlow() {
+// `demo` = the repeatable, side-effect-free run of this exact flow (only ever
+// passed by the password-gated /joindemo route). Real Google Places (search + the
+// real listing phone as the verify target), but the OTPs accept any value, no
+// member is created, and the finish is stubbed. Plain /join always passes false,
+// so the real onboarding is completely unaffected.
+export function JoinFlow({ demo = false }: { demo?: boolean }) {
   const router = useRouter();
   const { isLoaded, isSignedIn } = useAuth();
   const clerk = useClerk();
@@ -99,6 +113,12 @@ export function JoinFlow() {
     setErr("");
     const e164 = phone.startsWith("+") ? phone : `+1${phone.replace(/\D/g, "")}`;
     try {
+      // DEMO: no real Clerk sign-in — show the code screen, accept anything.
+      if (demo) {
+        setPhoneMode("signup");
+        setStep("code1");
+        return;
+      }
       // If already signed in, skip the phone step entirely.
       if (isSignedIn) {
         setStep(isArtist ? "working" : "business");
@@ -133,6 +153,13 @@ export function JoinFlow() {
     setBusy(true);
     setErr("");
     try {
+      // DEMO: any code passes; no Clerk session is created.
+      if (demo) {
+        setCode("");
+        if (isArtist) { setStep("working"); void finishArtist(); }
+        else setStep("business");
+        return;
+      }
       if (phoneMode === "signup") {
         const res = await clerk.client.signUp.attemptPhoneNumberVerification({ code: code.trim() });
         if (res.status !== "complete") throw new Error("That code didn't match.");
@@ -201,6 +228,27 @@ export function JoinFlow() {
         ownerName: name,
         ownerRole: role,
       };
+      // The interviewer's warm baseline — built from the REAL Places pick either way.
+      const listingSeed: BriefInput = {
+        name: p.name,
+        category: profile.category ?? null,
+        city: details?.city ?? null,
+        neighborhood: details?.neighborhood ?? null,
+        description: details?.summary ?? null,
+        websiteUrl: details?.website ?? null,
+      };
+
+      // DEMO: no member created, no OTP sent. Show the business's REAL Google
+      // listing number as the (fake) verify target and move on.
+      if (demo) {
+        setMemberId("demo-join");
+        setBizName(p.name);
+        setSeed(listingSeed);
+        setPhoneHint(maskPhone(details?.phone));
+        setStep("code2");
+        return;
+      }
+
       const created = await (await fetch("/api/members/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -210,14 +258,7 @@ export function JoinFlow() {
       setMemberId(created.memberId);
       setBizName(p.name);
       // Baseline the interviewer already knows (Perplexity deepens it on top).
-      setSeed({
-        name: p.name,
-        category: profile.category ?? null,
-        city: details?.city ?? null,
-        neighborhood: details?.neighborhood ?? null,
-        description: details?.summary ?? null,
-        websiteUrl: details?.website ?? null,
-      });
+      setSeed(listingSeed);
       // Send the ownership code to the listing's phone.
       const otp = await (await fetch("/api/otp", {
         method: "POST",
@@ -243,6 +284,12 @@ export function JoinFlow() {
     setBusy(true);
     setErr("");
     try {
+      // DEMO: any code passes; no claim, no profile link.
+      if (demo) {
+        setCode("");
+        setStep("interview");
+        return;
+      }
       const res = await (await fetch("/api/claim", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -268,6 +315,14 @@ export function JoinFlow() {
     setErr("");
     try {
       const igClean = igHandle.trim().replace(/^@/, "");
+      // DEMO: no member created — seed the interview from the artist form and go.
+      if (demo) {
+        setMemberId("demo-join");
+        setBizName(name);
+        setSeed({ name, city: city.trim() || null, instagramHandle: igClean || null });
+        setStep("interview");
+        return;
+      }
       const created = await (await fetch("/api/members/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -319,7 +374,8 @@ export function JoinFlow() {
 
   // Already signed in (as a shopper or a vendor)? Onboarding needs a clean,
   // logged-out start — log out first, then this same page shows the flow.
-  if (isSignedIn) {
+  // (Skipped in demo, which runs without any Clerk session.)
+  if (isSignedIn && !demo) {
     return (
       <div className="mx-auto max-w-md px-4 py-16 text-center">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-stone-100">
@@ -344,6 +400,11 @@ export function JoinFlow() {
 
   return (
     <div className="mx-auto max-w-md px-4 py-10">
+      {demo && (
+        <p className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-[11px] font-semibold text-amber-700">
+          Demo — real Google search, no real code, nothing saved
+        </p>
+      )}
       {step !== "type" && step !== "done" && (
         <button
           onClick={backToMenu}
@@ -476,7 +537,7 @@ export function JoinFlow() {
       )}
 
       {step === "interview" && (
-        <JoinInterview memberId={memberId} bizName={bizName} kind={kind} seed={seed} onDone={() => setStep("done")} />
+        <JoinInterview memberId={memberId} bizName={bizName} kind={kind} seed={seed} demo={demo} onDone={() => setStep("done")} />
       )}
 
       {step === "done" && (
