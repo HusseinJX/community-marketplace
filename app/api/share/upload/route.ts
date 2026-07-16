@@ -3,6 +3,7 @@ import { auth } from '@clerk/nextjs/server'
 import { uploadImage } from '@/lib/storage'
 import { isDemoMode } from '@/lib/demo-admin'
 import { rateLimit } from '@/lib/rate-limit'
+import { youtubeConfigured, uploadVideo } from '@/lib/youtube'
 
 export const runtime = 'nodejs'
 
@@ -28,13 +29,31 @@ export async function POST(req: Request) {
   const ext = (type.split('/')[1] || 'bin').replace('jpeg', 'jpg')
   const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
 
+  // Videos live on our central YouTube channel (unlisted), not Supabase — free
+  // hosting + transcoding, embedded via an iframe. No fallback: if YouTube isn't
+  // configured, video upload fails clearly rather than filling Storage.
+  if (type.startsWith('video')) {
+    if (!youtubeConfigured()) {
+      return NextResponse.json({ error: 'Video upload is not configured yet.' }, { status: 503 })
+    }
+    try {
+      const { videoUrl } = await uploadVideo(buf, {
+        title: `WhatsLocal — ${new Date().toISOString().slice(0, 10)}`,
+      })
+      return NextResponse.json({ url: videoUrl, kind: 'video' })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Video upload failed'
+      return NextResponse.json({ error: message }, { status: 502 })
+    }
+  }
+
   try {
     const { publicUrl } = await uploadImage(buf, {
       prefix: `shares/${userId ?? 'demo'}`,
       filename,
       contentType: type,
     })
-    return NextResponse.json({ url: publicUrl, kind: type.startsWith('video') ? 'video' : 'image' })
+    return NextResponse.json({ url: publicUrl, kind: 'image' })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Upload failed'
     return NextResponse.json({ error: message }, { status: 500 })

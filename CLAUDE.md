@@ -247,6 +247,10 @@ npm test   # vitest run
 **Perplexity (enrichment "story" — connector):**
 - `PERPLEXITY_API_KEY` — `sonar` web-search for the business story/vibe in `enrich.js`.
 
+**YouTube (video storage — `lib/youtube.ts`):** uploaded videos go to a central company YouTube channel as **unlisted** (not Supabase Storage) and are embedded via `lib/embed.ts` (`streamEmbed`/`youtubeThumb`). Both `/api/share/upload` and `/api/upload` route `video/*` → `uploadVideo`; the watch URL is stored in `posts.video_urls`. **YouTube-only, no Supabase fallback** — video upload returns 503 until configured (`youtubeConfigured()`). Images unchanged. Setup: Google Cloud project → enable **YouTube Data API v3** → OAuth client (Web) → one-time consent as the channel-owning Google account with scope `youtube.upload` → capture the refresh token.
+- `YOUTUBE_CLIENT_ID` / `YOUTUBE_CLIENT_SECRET` — OAuth client (falls back to `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`).
+- `YOUTUBE_REFRESH_TOKEN` — long-lived refresh token for the central channel (access tokens minted on demand). **Secret — never commit.**
+
 **Twilio Verify (business-ownership OTP — connector):**
 - `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_VERIFY_SERVICE_SID` — Twilio Verify (SMS + voice fallback; bypasses 10DLC). Telnyx stays for other SMS.
 

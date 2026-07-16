@@ -41,3 +41,33 @@ export function streamEmbed(url: string | null | undefined, host?: string): Stre
 
   return null;
 }
+
+// Extract a YouTube video id from a watch/embed/short/youtu.be URL, else null.
+// Used to tell YouTube-hosted post videos apart from legacy Supabase video URLs.
+export function youtubeId(url: string | null | undefined): string | null {
+  if (!url) return null;
+  let u: URL;
+  try {
+    u = new URL(url);
+  } catch {
+    return null;
+  }
+  const h = u.hostname.replace(/^www\./, "");
+  if (h === "youtube.com" || h === "m.youtube.com") {
+    const v = u.searchParams.get("v");
+    if (v) return v;
+    const m = u.pathname.match(/\/(?:live|embed|shorts)\/([\w-]+)/);
+    if (m) return m[1];
+  }
+  if (h === "youtu.be") {
+    const id = u.pathname.slice(1);
+    if (id) return id;
+  }
+  return null;
+}
+
+// Thumbnail image for a YouTube video URL (grid poster), or null if not YouTube.
+export function youtubeThumb(url: string | null | undefined): string | null {
+  const id = youtubeId(url);
+  return id ? `https://img.youtube.com/vi/${id}/hqdefault.jpg` : null;
+}

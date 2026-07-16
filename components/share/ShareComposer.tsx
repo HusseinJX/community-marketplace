@@ -8,6 +8,7 @@ import type { IScannerControls } from "@zxing/browser";
 import { listMembers, listEvents } from "@/lib/api";
 import { getUserPosition } from "@/lib/native-geo";
 import type { Member, EventSuggestion } from "@/lib/types";
+import { youtubeThumb } from "@/lib/embed";
 import { eventEmoji, eventLabel } from "@/lib/live-events";
 import { partitionFixtures, getFixtures, startsInLabel, type Fixture } from "@/lib/live-fixtures";
 
@@ -564,6 +565,14 @@ export function ShareComposer() {
             <div key={i} className="relative aspect-square overflow-hidden rounded-xl bg-stone-100">
               {m.kind === "image" ? (
                 <Image src={m.url} alt="" fill sizes="33vw" className="object-cover" />
+              ) : youtubeThumb(m.url) ? (
+                // Uploaded video now lives on YouTube — show its poster + a ▶ badge
+                // (a just-uploaded video may still be processing, so don't embed).
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={youtubeThumb(m.url)!} alt="" className="h-full w-full object-cover" />
+                  <span className="absolute inset-0 flex items-center justify-center text-2xl text-white/90">▶</span>
+                </>
               ) : (
                 <video src={m.url} className="h-full w-full object-cover" muted />
               )}

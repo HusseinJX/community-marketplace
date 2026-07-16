@@ -5,6 +5,7 @@ import Link from "next/link";
 import { X, Images, Heart } from "lucide-react";
 import { useAuth, SignInButton } from "@clerk/nextjs";
 import { useMemories } from "@/lib/data-hooks";
+import { streamEmbed, youtubeThumb } from "@/lib/embed";
 import type { Post } from "@/lib/posts";
 
 type Tile = {
@@ -90,7 +91,14 @@ export function MemoriesGrid({
             className="group relative aspect-square overflow-hidden rounded-md bg-stone-100"
           >
             {t.kind === "video" ? (
-              <video src={t.url} muted playsInline className="h-full w-full object-cover" />
+              // YouTube-hosted videos show their poster thumbnail (a raw <video>
+              // can't play a watch URL); legacy Supabase videos still use <video>.
+              youtubeThumb(t.url) ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={youtubeThumb(t.url)!} alt="" className="h-full w-full object-cover transition group-hover:scale-105" />
+              ) : (
+                <video src={t.url} muted playsInline className="h-full w-full object-cover" />
+              )
             ) : (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={t.url} alt="" className="h-full w-full object-cover transition group-hover:scale-105" />
@@ -171,9 +179,23 @@ function Lightbox({
             // eslint-disable-next-line @next/next/no-img-element
             <img key={url} src={url} alt="" className="w-full rounded-lg object-contain" />
           ))}
-          {post.video_urls.map((url) => (
-            <video key={url} src={url} controls playsInline className="w-full rounded-lg" />
-          ))}
+          {post.video_urls.map((url) => {
+            // YouTube-hosted → embed iframe; legacy Supabase video → <video>.
+            const embed = streamEmbed(url);
+            return embed ? (
+              <div key={url} className="aspect-video w-full overflow-hidden rounded-lg bg-black">
+                <iframe
+                  src={embed.src}
+                  title="Video"
+                  className="h-full w-full"
+                  allow="autoplay; fullscreen; encrypted-media"
+                  allowFullScreen
+                />
+              </div>
+            ) : (
+              <video key={url} src={url} controls playsInline className="w-full rounded-lg" />
+            );
+          })}
         </div>
 
         {/* ❤️ react — the first return trigger */}
