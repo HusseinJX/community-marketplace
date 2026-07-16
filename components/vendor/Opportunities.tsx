@@ -33,6 +33,13 @@ export function Opportunities({
   }, [memberId, isAdmin])
 
   async function ask(o: Opportunity) {
+    // Demo fixtures have no real event row — flip to "Asked" without a write so
+    // the Admin demo shows the full request-to-join flow.
+    if (o.eventId.startsWith('demo-')) {
+      setAsked((s) => new Set(s).add(o.eventId))
+      track('opportunity_ask_to_join', { eventId: o.eventId, fit: o.fit })
+      return
+    }
     setBusy(o.eventId)
     try {
       const res = await fetch('/api/events/join', {
@@ -56,7 +63,7 @@ export function Opportunities({
 
   return (
     <section className="space-y-3">
-      <h2 className="text-xl font-semibold text-stone-900">Opportunities near you</h2>
+      <h2 className="text-base font-semibold text-stone-900">Opportunities near you</h2>
 
       <div className="space-y-2">
         {items.map((o) => {
@@ -74,9 +81,19 @@ export function Opportunities({
                 <p className="mt-0.5 truncate text-xs text-stone-500">
                   {[o.date, `by ${o.hostName}`].filter(Boolean).join(' · ')}
                 </p>
-                {o.location && (
-                  <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-stone-400">
-                    <MapPin className="h-3 w-3 shrink-0" /> {o.location}
+                {(o.location || typeof o.distanceMi === 'number') && (
+                  <p className="mt-0.5 flex items-center gap-1.5 truncate text-xs text-stone-400">
+                    {o.location && (
+                      <span className="flex min-w-0 items-center gap-1">
+                        <MapPin className="h-3 w-3 shrink-0" />
+                        <span className="truncate">{o.location}</span>
+                      </span>
+                    )}
+                    {typeof o.distanceMi === 'number' && (
+                      <span className="shrink-0 rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-medium text-stone-500">
+                        {o.distanceMi < 10 ? o.distanceMi.toFixed(1) : Math.round(o.distanceMi)} mi
+                      </span>
+                    )}
                   </p>
                 )}
                 {o.fit && (

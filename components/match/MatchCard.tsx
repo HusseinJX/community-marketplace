@@ -28,6 +28,8 @@ export function MatchCard({
 }) {
   const c = candidate;
   const place = c.neighborhood || c.city;
+  const distance =
+    typeof c.distanceMi === "number" ? `${c.distanceMi < 10 ? c.distanceMi.toFixed(1) : Math.round(c.distanceMi)} mi` : null;
   return (
     <button
       type="button"
@@ -55,10 +57,19 @@ export function MatchCard({
           )}
         </span>
 
-        {place && (
-          <span className="mt-0.5 flex items-center gap-1 text-xs text-stone-400">
-            <MapPin className="h-3 w-3" />
-            {place}
+        {(place || distance) && (
+          <span className="mt-0.5 flex items-center gap-1.5 text-xs text-stone-400">
+            {place && (
+              <span className="flex items-center gap-1">
+                <MapPin className="h-3 w-3" />
+                {place}
+              </span>
+            )}
+            {distance && (
+              <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-medium text-stone-500">
+                {distance}
+              </span>
+            )}
           </span>
         )}
 

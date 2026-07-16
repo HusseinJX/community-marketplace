@@ -1,8 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
-import { Sparkles, ChevronRight, ChevronLeft, MessageSquare, User } from 'lucide-react'
+import { ChevronRight, ChevronLeft, MessageSquare, User } from 'lucide-react'
 
 interface Thread {
   id: string
@@ -107,30 +106,9 @@ export function CustomerInbox() {
 
   return (
     <div className="mx-auto w-full max-w-2xl">
-      {/* The owner's private line to their own business agent. */}
-      <Link
-        href="/vendor/messages/assistant"
-        className="flex items-center gap-3 rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 to-violet-50 p-4 transition hover:border-indigo-200"
-      >
-        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow">
-          <Sparkles className="h-6 w-6" />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-stone-900">Your AI agent</span>
-            <span className="rounded-full bg-indigo-600/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-indigo-700">
-              AI
-            </span>
-          </span>
-          <span className="mt-0.5 block truncate text-xs text-stone-500">
-            Chat with the assistant your customers talk to — test it, ask it anything.
-          </span>
-        </span>
-        <ChevronRight className="h-5 w-5 shrink-0 text-stone-400" />
-      </Link>
-
-      {/* Customer DMs — conversations customers had with the business agent. */}
-      <h2 className="mb-2 mt-8 text-sm font-semibold text-stone-700">From customers</h2>
+      {/* Customer DMs — conversations customers had with the business agent.
+          (The owner's own line to the agent moved to the Assistant tab.) */}
+      <h2 className="mb-2 text-sm font-semibold text-stone-700">From customers</h2>
       {loading ? (
         <p className="py-8 text-center text-sm text-stone-400">Loading…</p>
       ) : threads.length === 0 ? (

@@ -83,21 +83,21 @@ const FREE_CAN: Record<Capability, boolean> = {
   networkReceive: true,
 }
 
-// Member ($10, Act/Organize): everything free + SENDING invites + the "For You"
-// matcher, creating/organizing events + lineups, the lead/RSVP inbox, and blasts.
-// Still NO AI agent/voice/commerce — those are the $30 capture tools.
+// Member ($10, Act/Organize): everything free + the "For You" matcher, creating/
+// organizing events + lineups, the lead/RSVP inbox, and blasts. Still NO SENDING
+// collab invites, AI agent, voice, or commerce — those are the $30 capture tools.
 const MEMBER_CAN: Record<Capability, boolean> = {
   ...FREE_CAN,
-  networkInitiate: true,
   organizeEvents: true,
   captureLeads: true,
   automations: true,
 }
 
-// Pro ($30, Capture/Run on it): everything above + the text AI agent, voice agent,
-// commerce, and analytics.
+// Pro ($30, Capture/Run on it): everything above + SENDING collab invites, the
+// text AI agent, voice agent, commerce, and analytics.
 const PRO_CAN: Record<Capability, boolean> = {
   ...MEMBER_CAN,
+  networkInitiate: true,
   textAssistant: true,
   voiceAssistant: true,
   commerce: true,

@@ -130,6 +130,7 @@ export default async function VendorDashboard({
         memberId={memberId}
         memberName={businessName}
         isAdmin={admin}
+        demo={demo}
       />
     </div>
   );

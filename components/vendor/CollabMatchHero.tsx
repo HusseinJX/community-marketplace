@@ -90,20 +90,25 @@ export function CollabMatchHero({
 
   return (
     <section className="space-y-3">
-      {/* One line of context, then straight into the matches. */}
+      {/* One line of context, then straight into the matches. On lower tiers this
+          is a teaser — just the people who fit — so we drop the search and the
+          "all collaborations" link (they have none yet) to keep it calm. */}
       <div className="flex items-baseline justify-between gap-3">
-        <h2 className="text-xl font-semibold text-stone-900">Team up</h2>
-        <Link
-          href="/vendor/messages?tab=collabs"
-          className="shrink-0 text-[13px] font-medium text-indigo-600 hover:text-indigo-700"
-        >
-          All collaborations
-        </Link>
+        <h2 className="text-base font-semibold text-stone-900">Team up</h2>
+        {canInvite && (
+          <Link
+            href="/vendor/messages?tab=collabs"
+            className="shrink-0 text-[13px] font-medium text-indigo-600 hover:text-indigo-700"
+          >
+            All collaborations
+          </Link>
+        )}
       </div>
 
       <MatchFinder
         memberId={memberId}
         isAdmin={isAdmin}
+        searchable={canInvite}
         selected={new Set(picked.keys())}
         onToggle={toggle}
         sentIds={sent}

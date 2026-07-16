@@ -4,11 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Mail } from "lucide-react";
 import { FeedbackLink } from "@/components/FeedbackWidget";
+import { writeDemoCookies } from "@/lib/demo-admin";
 
-// NOTE: the public "Admin demo" button was removed. It set a cookie that opens
-// the vendor portal WITHOUT auth for any visitor — scaffolding, in the footer of
-// a live site — and /businesses + /organizers are now the real public demos.
-// Still reachable for you at /demo.
+// Enter the admin demo directly — set the demo cookie (default: vendor) and go
+// straight to the portal, skipping the /demo type-picker page.
+function openAdminDemo() {
+  writeDemoCookies("vendor", "");
+  window.location.href = "/vendor";
+}
 
 // Marketing footer. Hidden on full-screen app views (the conversation view)
 // where a footer below the chat would be out of place.
@@ -46,6 +49,7 @@ export function SiteFooter() {
               <li><Link href="/city" className="hover:text-indigo-700">Places</Link></li>
               <li><Link href="/category" className="hover:text-indigo-700">Categories</Link></li>
               <li><Link href="/browse" className="hover:text-indigo-700">Atlas</Link></li>
+              <li><button type="button" onClick={openAdminDemo} className="hover:text-indigo-700">Admin demo</button></li>
             </ul>
           </div>
 

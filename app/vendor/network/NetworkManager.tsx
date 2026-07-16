@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Users, Send, X, CalendarPlus, Plus, ChevronLeft, Lock } from "lucide-react";
 import { MatchFinder } from "@/components/match/MatchFinder";
+import { DemoCollabProgression } from "@/components/vendor/DemoCollabProgression";
 import type { MatchCandidate } from "@/lib/types";
 import type { CollabInvite, CollabRoom, CollabMessage, RoomMember, CollaborationSummary } from "@/lib/collab-network";
 import { track } from "@/lib/track";
@@ -182,6 +183,9 @@ export function NetworkManager({
   // ── List view ─────────────────────────────────────────────────────────────
   return (
     <div className="space-y-4">
+      {/* Admin/Free demo: watch the lifecycle play out before the static list. */}
+      {preview && <DemoCollabProgression />}
+
       {demo && (
         <p className="rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-[13px] text-stone-600">
           <Lock className="mr-1.5 inline h-3.5 w-3.5 text-stone-400" />

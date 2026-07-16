@@ -4,6 +4,7 @@ import { rateLimit } from '@/lib/rate-limit'
 import { getPublicEvents } from '@/lib/vendor-connect'
 import { getInvitesFor } from '@/lib/collab-network'
 import { matchObjective, getMember } from '@/lib/api'
+import { demoOpportunities } from '@/lib/demo-match'
 
 export const runtime = 'nodejs'
 
@@ -28,6 +29,8 @@ export interface Opportunity {
   fit: boolean
   /** Why it matched — the trust-builder, same idea as MatchCard. */
   reasons: string[]
+  /** Miles from the acting member, when known. */
+  distanceMi?: number
 }
 
 // Semantic ranking is a per-event connector call, and EVERY connector match call
@@ -76,6 +79,12 @@ export async function GET(req: Request) {
   // just without semantic "fit" badges).
   const limited = rateLimit({ req, name: 'opportunities', id: actor.memberId, limit: 20, windowMs: 60_000, ipLimit: 40 })
   if (limited) return limited
+
+  // Demo: never touch the live event feed or the paid matcher — serve curated
+  // opportunities so the Admin demo always shows the request-to-join flow alive.
+  if (actor.isDemo) {
+    return NextResponse.json({ opportunities: demoOpportunities() })
+  }
 
   let events: Awaited<ReturnType<typeof getPublicEvents>> = []
   try {

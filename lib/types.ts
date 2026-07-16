@@ -163,6 +163,7 @@ export interface MatchCandidate {
   neighborhood?: string;
   category?: string;
   score?: number; // 0..1 relevance/similarity
+  distanceMi?: number; // miles from the acting member, when known
   reasons: string[]; // matchedOn / fit breadcrumbs shown as chips
   offers?: string[];
   role?: string; // which lineup role this candidate fills (lineup mode only)

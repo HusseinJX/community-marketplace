@@ -1,24 +1,27 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Users, MessageSquare } from 'lucide-react'
+import { Users, MessageSquare, Sparkles } from 'lucide-react'
 import { CollabsGate } from '@/components/vendor/CollabsGate'
 import { NetworkManager } from '@/app/vendor/network/NetworkManager'
 import { CustomerInbox } from './CustomerInbox'
+import { AssistantConsole } from '@/components/vendor/AssistantConsole'
+import { PLAN_KEY, type Tier } from '@/components/vendor/PlanSwitch'
 
 // ONE inbox.
 //
 // Collabs and Messages used to be separate top-level tabs, which meant a
 // business with an unread message had to guess which of two inboxes it was in.
-// They're both conversations, so they're both here:
+// They're all conversations, so they're all here:
 //   Collaborations — your collaborator rooms + invites
-//   Customers      — customer DMs + your own AI agent
+//   Customers      — customer DMs the AI agent handled
+//   Assistant      — your own ChatGPT-style threads with that same AI agent
 // Discovery (who to team up with) stays on Home. Home = find, Messages = talk.
 
-type Section = 'collabs' | 'customers'
+type Section = 'collabs' | 'customers' | 'assistant'
 
 function isSection(v: string | null): v is Section {
-  return v === 'collabs' || v === 'customers'
+  return v === 'collabs' || v === 'customers' || v === 'assistant'
 }
 
 export function MessagesShell({
@@ -34,12 +37,27 @@ export function MessagesShell({
 }) {
   const [section, setSection] = useState<Section>('collabs')
 
+  // The customer-service AI agent is a Pro capability, so the Assistant tab only
+  // shows on Pro. Read the shared preview tier so the plan toggle reflects here.
+  const initialTier: Tier = plan === 'member' ? 'member' : plan === 'free' ? 'free' : 'pro'
+  const [tier, setTier] = useState<Tier>(initialTier)
+  useEffect(() => {
+    const v = localStorage.getItem(PLAN_KEY)
+    if (v === 'free' || v === 'member' || v === 'pro') setTier(v)
+  }, [])
+  const isPro = tier === 'pro'
+
   // Deep-linkable (?tab=customers), so the old /vendor/network links can land
   // straight on Collaborations.
   useEffect(() => {
     const q = new URLSearchParams(window.location.search).get('tab')
     if (isSection(q)) setSection(q)
   }, [])
+
+  // If the tier drops below Pro while on the Assistant tab, fall back.
+  useEffect(() => {
+    if (section === 'assistant' && !isPro) setSection('collabs')
+  }, [section, isPro])
 
   const pick = (next: Section) => {
     setSection(next)
@@ -52,6 +70,8 @@ export function MessagesShell({
   const tabs: { key: Section; label: string; Icon: typeof Users }[] = [
     { key: 'collabs', label: 'Collaborations', Icon: Users },
     { key: 'customers', label: 'Customers', Icon: MessageSquare },
+    // Assistant (chat with your customer-service AI agent) is Pro-only.
+    ...(isPro ? [{ key: 'assistant' as Section, label: 'Assistant', Icon: Sparkles }] : []),
   ]
 
   return (
@@ -76,13 +96,13 @@ export function MessagesShell({
         ))}
       </div>
 
-      {section === 'collabs' ? (
+      {section === 'collabs' && (
         <CollabsGate plan={plan} adminDemo={adminDemo}>
           <NetworkManager memberId={memberId} isAdmin={isAdmin} />
         </CollabsGate>
-      ) : (
-        <CustomerInbox />
       )}
+      {section === 'customers' && <CustomerInbox />}
+      {section === 'assistant' && isPro && <AssistantConsole memberId={memberId} />}
     </div>
   )
 }

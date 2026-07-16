@@ -25,6 +25,7 @@ export function MatchFinder({
   sentIds,
   excludeIds,
   showForYou = true,
+  searchable = true,
   defaultMode,
   demo = false,
   source = "unknown",
@@ -43,6 +44,9 @@ export function MatchFinder({
   // "For you" (complementary-to-self) only makes sense when the searcher is
   // looking for their own partners — hide it for organizer lineup filling.
   showForYou?: boolean;
+  // Hide natural-language Search (e.g. a compact/free teaser that only shows the
+  // complementary "For you" matches). Defaults on.
+  searchable?: boolean;
   defaultMode?: Mode;
   // Public/demo surfaces (e.g. /organizers) render the real UI on canned
   // candidates — no auth, and no paid engine call.
@@ -123,7 +127,7 @@ export function MatchFinder({
 
   const tabs: { key: Mode; label: string }[] = [
     ...(showForYou ? [{ key: "for-you" as Mode, label: "✨ For you" }] : []),
-    { key: "search", label: "🔎 Search" },
+    ...(searchable ? [{ key: "search" as Mode, label: "🔎 Search" }] : []),
     ...(similarSeed ? [{ key: "similar" as Mode, label: `Similar to ${similarSeed.name}` }] : []),
   ];
 

@@ -9,17 +9,36 @@ type Msg = { role: 'user' | 'assistant'; content: string }
 // customers reach via the profile's "Inquire" button. Lets the owner test it,
 // see how it answers, and ask it about their own business. Streams from
 // /api/chat/[memberId] (heartbeat-free token stream).
-export function VendorAgentChat({ memberId, memberName }: { memberId: string; memberName: string }) {
-  const [messages, setMessages] = useState<Msg[]>([])
+export function VendorAgentChat({
+  memberId,
+  memberName,
+  initialMessages,
+  initialConversationId = null,
+  onChange,
+}: {
+  memberId: string
+  memberName: string
+  /** Seed the thread (e.g. re-opening a saved conversation). */
+  initialMessages?: Msg[]
+  initialConversationId?: string | null
+  /** Fires when a turn completes, so a parent conversation-list can persist. */
+  onChange?: (messages: Msg[], conversationId: string | null) => void
+}) {
+  const [messages, setMessages] = useState<Msg[]>(initialMessages ?? [])
   const [draft, setDraft] = useState('')
   const [busy, setBusy] = useState(false)
-  const conversationId = useRef<string | null>(null)
+  const conversationId = useRef<string | null>(initialConversationId)
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
   }, [messages])
+
+  // Persist on turn boundaries (busy toggles), not every token — cheap for the
+  // parent's localStorage writes while still capturing the final message.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { onChange?.(messages, conversationId.current) }, [busy])
 
   async function send(input: string) {
     const text = input.trim()
