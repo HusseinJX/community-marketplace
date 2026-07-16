@@ -17,11 +17,18 @@ export function CollabMatchHero({
   memberId,
   isAdmin,
   canInvite,
+  mode,
+  onModeChange,
+  hideTabs,
 }: {
   memberId: string
   isAdmin: boolean
   /** Sending invites is a Pro capability; lower tiers see the matches as a teaser. */
   canInvite: boolean
+  /** Controlled For-you/Search mode (parent owns the tabs so they persist). */
+  mode?: 'for-you' | 'search' | 'similar'
+  onModeChange?: (m: 'for-you' | 'search' | 'similar') => void
+  hideTabs?: boolean
 }) {
   const [picked, setPicked] = useState<Map<string, MatchCandidate>>(new Map())
   const [sent, setSent] = useState<Set<string>>(new Set())
@@ -90,25 +97,16 @@ export function CollabMatchHero({
 
   return (
     <section className="space-y-3">
-      {/* One line of context, then straight into the matches. On lower tiers this
-          is a teaser — just the people who fit — so we drop the search and the
-          "all collaborations" link (they have none yet) to keep it calm. */}
-      <div className="flex items-baseline justify-between gap-3">
-        <h2 className="text-base font-semibold text-stone-900">Team up</h2>
-        {canInvite && (
-          <Link
-            href="/vendor/messages?tab=collabs"
-            className="shrink-0 text-[13px] font-medium text-indigo-600 hover:text-indigo-700"
-          >
-            All collaborations
-          </Link>
-        )}
-      </div>
-
+      {/* The For-you / Search tabs sit right at the top (the parent card owns the
+          title + People/Events toggle). On lower tiers search is dropped so it's
+          a calm teaser — just the people who fit. */}
       <MatchFinder
         memberId={memberId}
         isAdmin={isAdmin}
         searchable={canInvite}
+        mode={mode}
+        onModeChange={onModeChange}
+        hideTabs={hideTabs}
         selected={new Set(picked.keys())}
         onToggle={toggle}
         sentIds={sent}

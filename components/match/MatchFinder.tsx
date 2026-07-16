@@ -29,6 +29,9 @@ export function MatchFinder({
   defaultMode,
   demo = false,
   source = "unknown",
+  mode: controlledMode,
+  onModeChange,
+  hideTabs = false,
 }: {
   memberId: string;
   isAdmin: boolean;
@@ -54,8 +57,19 @@ export function MatchFinder({
   // Where this finder lives — so the funnel can tell dashboard matches from
   // lineup-filling ones.
   source?: string;
+  // Controlled mode — when a parent owns the For-you/Search tabs (e.g. so they
+  // persist across a People/Events toggle). `hideTabs` then suppresses the
+  // internal tab bar so the parent renders it once.
+  mode?: Mode;
+  onModeChange?: (m: Mode) => void;
+  hideTabs?: boolean;
 }) {
-  const [mode, setMode] = useState<Mode>(defaultMode ?? (showForYou ? "for-you" : "search"));
+  const [internalMode, setInternalMode] = useState<Mode>(defaultMode ?? (showForYou ? "for-you" : "search"));
+  const mode = controlledMode ?? internalMode;
+  const setMode = (m: Mode) => {
+    onModeChange?.(m);
+    if (controlledMode === undefined) setInternalMode(m);
+  };
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<MatchCandidate[]>([]);
   const [loading, setLoading] = useState(false);
@@ -133,8 +147,8 @@ export function MatchFinder({
 
   return (
     <div className="space-y-3">
-      {/* Mode tabs (hidden when there's only one) */}
-      <div className={`flex-wrap gap-1.5 ${tabs.length > 1 ? "flex" : "hidden"}`}>
+      {/* Mode tabs (hidden when there's only one, or when a parent owns them) */}
+      <div className={`flex-wrap gap-1.5 ${!hideTabs && tabs.length > 1 ? "flex" : "hidden"}`}>
         {tabs.map((t) => (
           <button
             key={t.key}

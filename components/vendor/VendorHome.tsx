@@ -80,6 +80,11 @@ export function VendorHome({
   // Sending collab invites is a Basic (Member+) capability; Pro is shop + agent.
   const canInvite = rank >= 1
 
+  // Collabs card: People (team-up matches) vs Events (opportunities to join).
+  const [collabView, setCollabView] = useState<'people' | 'events'>('people')
+  // For-you / Search mode — owned here so the tabs persist across People/Events.
+  const [matchMode, setMatchMode] = useState<'for-you' | 'search'>('for-you')
+
   // The tier toggle is demo scaffolding — show it in the admin demo, or to admins.
   const showPlanSwitch = demo || isAdmin
 
@@ -90,13 +95,59 @@ export function VendorHome({
              Stacks on mobile. ────────────────────────────────────────────── */}
       {memberId ? (
         <div className="card-soft p-4 sm:p-5">
-          <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-stone-400">Collabs</h2>
-          <div className="grid gap-6 lg:grid-cols-2">
-            <CollabMatchHero memberId={memberId} isAdmin={isAdmin} canInvite={canInvite} />
-            {/* The retention lever — events others are hosting that fit you. Not
-                tier-gated: joining someone's lineup is supply, and we don't tax it. */}
-            <Opportunities memberId={memberId} memberName={memberName} isAdmin={isAdmin} />
+          {/* Title + a People / Events radio. People = who to team up with;
+              Events = opportunities others are hosting that fit you. */}
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h2 className="text-[11px] font-semibold uppercase tracking-wide text-stone-400">Collabs</h2>
+            <div className="inline-flex rounded-full bg-stone-100 p-0.5 text-[12px] font-medium">
+              {(['people', 'events'] as const).map((v) => (
+                <button
+                  key={v}
+                  onClick={() => setCollabView(v)}
+                  className={
+                    'rounded-full px-3 py-1 capitalize transition ' +
+                    (collabView === v ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500 hover:text-stone-700')
+                  }
+                >
+                  {v}
+                </button>
+              ))}
+            </div>
           </div>
+
+          {/* For-you / Search tabs — owned here so they stay put when you flip
+              People ↔ Events (Search only on tiers that can invite). */}
+          <div className="mb-3 flex flex-wrap gap-1.5">
+            {([['for-you', '✨ For you'], ...(canInvite ? [['search', '🔎 Search'] as const] : [])] as const).map(
+              ([m, label]) => (
+                <button
+                  key={m}
+                  onClick={() => setMatchMode(m)}
+                  className={
+                    'rounded-full px-3 py-1 text-sm font-medium transition ' +
+                    (matchMode === m ? 'bg-stone-900 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200')
+                  }
+                >
+                  {label}
+                </button>
+              ),
+            )}
+          </div>
+
+          {collabView === 'people' ? (
+            <CollabMatchHero
+              memberId={memberId}
+              isAdmin={isAdmin}
+              canInvite={canInvite}
+              mode={matchMode}
+              onModeChange={(m) => m !== 'similar' && setMatchMode(m)}
+              hideTabs
+            />
+          ) : (
+            // The retention lever — events others are hosting that fit you. Not
+            // tier-gated: joining someone's lineup is supply, and we don't tax it.
+            <Opportunities memberId={memberId} memberName={memberName} isAdmin={isAdmin} />
+          )}
         </div>
       ) : (
         <div className="card-soft p-4">
@@ -113,25 +164,11 @@ export function VendorHome({
         </div>
       )}
 
-      {/* ── Everything else: two groups — the things you touch often, and the
-             tools you dip into. Tier-hidden tiles drop out; an empty group drops
-             its heading too. */}
+      {/* ── Everything else: grouped. Pro tools lead when the tier is Pro; then
+             the things you touch often; then the tools you dip into. Tier-hidden
+             tiles drop out and an empty group drops its heading too. */}
       <div className="space-y-6">
-        <Section title="Quick access">
-          <Tile href="/vendor/events" Icon={Calendar} label="My events" desc="Host events + collect RSVPs" />
-          <Tile href="/share?vendor=1" Icon={Radio} label="Post / Go live" desc="Share an update or broadcast live" />
-          <Tile href="/vendor/about" Icon={UserCircle} label="Business profile" desc="Edit your bio, category & links" />
-          <Tile href="/vendor/billing" Icon={CreditCard} label="Plan & billing" desc={`Current plan: ${planLabel}`} />
-        </Section>
-
-        <Section title="Tools">
-          <Tile href="/vendor/giving" Icon={Heart} label="Giving" desc="Log a gift to a local org" />
-          {/* Moved out of the top nav — useful, but not the wedge. */}
-          <Tile href="/vendor/resources" Icon={LifeBuoy} label="Resources" desc="Grants, permits & local programs" />
-        </Section>
-
-        {/* Pro is shop + agent — its two tools live in their own group, shown
-            only when the tier is Pro. */}
+        {/* Pro is shop + agent — its own group, shown only on Pro, above the rest. */}
         {isPro && (
           <Section title="Pro tools">
             <Tile href="/vendor/products" Icon={Package} label="Products" desc="Your shop catalog" />
@@ -144,6 +181,22 @@ export function VendorHome({
             <Tile href="/vendor/assistant" Icon={MessageCircle} label="Your agent" desc="Train your customer-service AI" />
           </Section>
         )}
+
+        <Section title="Quick access">
+          {/* Creating/hosting events is a Basic ($10/mo) capability. */}
+          {canInvite && (
+            <Tile href="/vendor/events" Icon={Calendar} label="My events" desc="Host events + collect RSVPs" />
+          )}
+          <Tile href="/share?vendor=1" Icon={Radio} label="Post / Go live" desc="Share an update or broadcast live" />
+        </Section>
+
+        <Section title="Tools">
+          <Tile href="/vendor/giving" Icon={Heart} label="Giving" desc="Log a gift to a local org" />
+          {/* Moved out of the top nav — useful, but not the wedge. */}
+          <Tile href="/vendor/resources" Icon={LifeBuoy} label="Resources" desc="Grants, permits & local programs" />
+          <Tile href="/vendor/about" Icon={UserCircle} label="Business profile" desc="Edit your bio, category & links" />
+          <Tile href="/vendor/billing" Icon={CreditCard} label="Plan & billing" desc={`Current plan: ${planLabel}`} />
+        </Section>
       </div>
 
       {/* Tier preview — pinned at the bottom (demo scaffolding). Flips what the
