@@ -80,7 +80,7 @@ export function NetworkManager({
   plan?: Tier;
 }) {
   const preview = demo || adminDemo; // no real backend → seed demo data, keep writes inert
-  const canOwn = (plan ?? "pro") === "pro"; // starting + inviting + creating events
+  const canOwn = (plan ?? "pro") !== "free"; // starting + inviting + creating events = Basic+
 
   const [collabs, setCollabs] = useState<CollaborationSummary[]>([]);
   const [rooms, setRooms] = useState<CollabRoom[]>([]);

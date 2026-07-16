@@ -4,7 +4,7 @@ import { Children, useEffect, useState } from 'react'
 import Link from 'next/link'
 import {
   Package, ShoppingCart, Calendar, ArrowRight, UserCircle,
-  MessageCircle, CreditCard, Radio, LifeBuoy,
+  MessageCircle, CreditCard, Radio, LifeBuoy, Heart,
 } from 'lucide-react'
 import { PLAN_KEY, PlanSwitch, type Tier } from '@/components/vendor/PlanSwitch'
 import { CollabMatchHero } from '@/components/vendor/CollabMatchHero'
@@ -76,10 +76,9 @@ export function VendorHome({
   }
 
   const rank = tier === 'pro' ? 2 : tier === 'member' ? 1 : 0
-  const canCommerce = rank >= 2
-  // The customer-service AI agent is a Pro capability (textAssistant).
-  const canAgent = rank >= 2
   const isPro = rank >= 2
+  // Sending collab invites is a Basic (Member+) capability; Pro is shop + agent.
+  const canInvite = rank >= 1
 
   // The tier toggle is demo scaffolding — show it in the admin demo, or to admins.
   const showPlanSwitch = demo || isAdmin
@@ -93,7 +92,7 @@ export function VendorHome({
         <div className="card-soft p-4 sm:p-5">
           <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-stone-400">Collabs</h2>
           <div className="grid gap-6 lg:grid-cols-2">
-            <CollabMatchHero memberId={memberId} isAdmin={isAdmin} canInvite={isPro} />
+            <CollabMatchHero memberId={memberId} isAdmin={isAdmin} canInvite={canInvite} />
             {/* The retention lever — events others are hosting that fit you. Not
                 tier-gated: joining someone's lineup is supply, and we don't tax it. */}
             <Opportunities memberId={memberId} memberName={memberName} isAdmin={isAdmin} />
@@ -114,37 +113,37 @@ export function VendorHome({
         </div>
       )}
 
-      {/* ── Everything else: grouped so the dashboard reads as sections, not a
-             wall of equal tiles. Rows the current tier can't use aren't shown,
-             and a group with nothing left in it drops its heading too. */}
+      {/* ── Everything else: two groups — the things you touch often, and the
+             tools you dip into. Tier-hidden tiles drop out; an empty group drops
+             its heading too. */}
       <div className="space-y-6">
-        <Section title="Run">
+        <Section title="Quick access">
           <Tile href="/vendor/events" Icon={Calendar} label="My events" desc="Host events + collect RSVPs" />
           <Tile href="/share?vendor=1" Icon={Radio} label="Post / Go live" desc="Share an update or broadcast live" />
+          <Tile href="/vendor/about" Icon={UserCircle} label="Business profile" desc="Edit your bio, category & links" />
+          <Tile href="/vendor/billing" Icon={CreditCard} label="Plan & billing" desc={`Current plan: ${planLabel}`} />
         </Section>
 
-        <Section title="Sell">
-          {canCommerce && <Tile href="/vendor/products" Icon={Package} label="Products" />}
-          {canCommerce && (
+        <Section title="Tools">
+          <Tile href="/vendor/giving" Icon={Heart} label="Giving" desc="Log a gift to a local org" />
+          {/* Moved out of the top nav — useful, but not the wedge. */}
+          <Tile href="/vendor/resources" Icon={LifeBuoy} label="Resources" desc="Grants, permits & local programs" />
+        </Section>
+
+        {/* Pro is shop + agent — its two tools live in their own group, shown
+            only when the tier is Pro. */}
+        {isPro && (
+          <Section title="Pro tools">
+            <Tile href="/vendor/products" Icon={Package} label="Products" desc="Your shop catalog" />
             <Tile
               href="/vendor/orders"
               Icon={ShoppingCart}
               label="Orders"
               desc={orderCount > 0 ? `${orderCount} to date` : 'No orders yet'}
             />
-          )}
-        </Section>
-
-        <Section title="Tools">
-          {canAgent && <Tile href="/vendor/assistant" Icon={MessageCircle} label="Your agent" desc="Train your customer-service AI" />}
-          {/* Moved out of the top nav — useful, but not the wedge. */}
-          <Tile href="/vendor/resources" Icon={LifeBuoy} label="Resources" desc="Grants, permits & local programs" />
-        </Section>
-
-        <Section title="Account">
-          <Tile href="/vendor/about" Icon={UserCircle} label="Business profile" desc="Edit your bio, category & links" />
-          <Tile href="/vendor/billing" Icon={CreditCard} label="Plan & billing" desc={`Current plan: ${planLabel}`} />
-        </Section>
+            <Tile href="/vendor/assistant" Icon={MessageCircle} label="Your agent" desc="Train your customer-service AI" />
+          </Section>
+        )}
       </div>
 
       {/* Tier preview — pinned at the bottom (demo scaffolding). Flips what the

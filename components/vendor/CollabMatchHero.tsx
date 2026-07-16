@@ -125,7 +125,7 @@ export function CollabMatchHero({
             <Lock className="h-4 w-4 text-stone-500" />
           </span>
           <p className="min-w-0 flex-1 text-[13px] leading-snug text-stone-600">
-            Anyone can see who fits. <span className="font-medium text-stone-900">Inviting is Pro.</span>
+            Anyone can see who fits. <span className="font-medium text-stone-900">Inviting starts at Basic.</span>
           </p>
           <Link
             href="/vendor/billing"
