@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Newspaper, CalendarDays, Store, ArrowRight } from "lucide-react";
+import { Newspaper, CalendarDays, Store, ArrowRight, ShoppingBag } from "lucide-react";
 import { LiveFeed } from "@/components/live/LiveFeed";
 import { CommunityEventsLive } from "@/components/live/CommunityEventsLive";
 import { LocalDirectory } from "@/components/home/LocalDirectory";
@@ -115,6 +115,21 @@ export function HomeTabs() {
 
       {tab === "shop" && (
         <div className="pb-24">
+          <div className="mx-auto max-w-6xl px-4 pt-4 md:px-8">
+            <Link
+              href="/shop"
+              className="flex items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-stone-900 to-indigo-900 px-5 py-4 text-white transition hover:opacity-95"
+            >
+              <span className="flex items-center gap-3">
+                <ShoppingBag className="h-5 w-5 shrink-0" />
+                <span>
+                  <span className="block text-sm font-semibold">Go to the marketplace</span>
+                  <span className="block text-[13px] text-white/70">Search, compare, favorite & add to cart</span>
+                </span>
+              </span>
+              <ArrowRight className="h-5 w-5 shrink-0" />
+            </Link>
+          </div>
           <LocalDirectory />
         </div>
       )}

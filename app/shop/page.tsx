@@ -6,6 +6,8 @@ import {
   ArrowLeft,
   ArrowRight,
   ChevronDown,
+  Check,
+  GitCompare,
   Heart,
   LayoutGrid,
   List,
@@ -13,7 +15,9 @@ import {
   ShoppingBag,
   Star,
   Truck,
+  X,
 } from "lucide-react";
+import { useStore, type StoredProduct } from "@/lib/store";
 
 // ─── Types & Data ──────────────────────────────────────────────────────────────
 
@@ -48,6 +52,11 @@ const products: Product[] = [
   { id: "candle-grove", name: "Grove Candle", price: 22, category: "Home", color: "from-amber-100 to-yellow-200", badge: "New", rating: 4.9, reviews: 12, colors: ["#facc15"] },
 ];
 
+// Map a shop product into the shared cart/favorites store shape (price in cents).
+function toStored(p: Product): StoredProduct {
+  return { id: p.id, name: p.name, memberId: "wl-shop", memberName: "WhatsLocal Shop", price: p.price * 100 };
+}
+
 const CATEGORIES: Category[] = ["Apparel", "Headwear", "Accessories", "Home"];
 const SORT_OPTIONS = [
   { value: "featured", label: "Featured" },
@@ -76,8 +85,18 @@ function BadgePill({ badge }: { badge: Badge }) {
 
 // ─── Product Card (grid) ───────────────────────────────────────────────────────
 
-function ProductCard({ product }: { product: Product }) {
-  const [faved, setFaved] = useState(false);
+function ProductCard({
+  product,
+  compared,
+  onToggleCompare,
+}: {
+  product: Product;
+  compared: boolean;
+  onToggleCompare: () => void;
+}) {
+  const { toggleFavorite, isFavorite, addToCart, isInCart } = useStore();
+  const faved = isFavorite(product.id);
+  const inCart = isInCart(product.id);
 
   return (
     <article className="group overflow-hidden rounded-2xl border border-stone-200 bg-white transition">
@@ -88,14 +107,27 @@ function ProductCard({ product }: { product: Product }) {
           </div>
         )}
         <button
-          onClick={() => setFaved((f) => !f)}
+          onClick={() => toggleFavorite(toStored(product))}
           className="absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-stone-700 backdrop-blur transition hover:text-rose-600"
           aria-label="Favorite"
         >
           <Heart className={`h-4 w-4 ${faved ? "fill-rose-500 text-rose-500" : ""}`} />
         </button>
-        <button className="absolute inset-x-3 bottom-3 translate-y-2 rounded-full bg-stone-900 px-3.5 py-2 text-[13px] font-medium text-white opacity-0 shadow transition group-hover:translate-y-0 group-hover:opacity-100">
-          Quick add
+        <button
+          onClick={onToggleCompare}
+          className={`absolute right-3 top-12 inline-flex h-8 w-8 items-center justify-center rounded-full backdrop-blur transition ${
+            compared ? "bg-indigo-600 text-white" : "bg-white/90 text-stone-700 hover:text-indigo-600"
+          }`}
+          aria-label="Compare"
+          title="Compare"
+        >
+          <GitCompare className="h-4 w-4" />
+        </button>
+        <button
+          onClick={() => addToCart(toStored(product))}
+          className="absolute inset-x-3 bottom-3 translate-y-2 rounded-full bg-stone-900 px-3.5 py-2 text-[13px] font-medium text-white opacity-0 shadow transition group-hover:translate-y-0 group-hover:opacity-100"
+        >
+          {inCart ? "Added ✓" : "Quick add"}
         </button>
       </div>
       <div className="p-4">
@@ -130,8 +162,18 @@ function ProductCard({ product }: { product: Product }) {
 
 // ─── Product Row (list) ────────────────────────────────────────────────────────
 
-function ProductRow({ product }: { product: Product }) {
-  const [faved, setFaved] = useState(false);
+function ProductRow({
+  product,
+  compared,
+  onToggleCompare,
+}: {
+  product: Product;
+  compared: boolean;
+  onToggleCompare: () => void;
+}) {
+  const { toggleFavorite, isFavorite, addToCart, isInCart } = useStore();
+  const faved = isFavorite(product.id);
+  const inCart = isInCart(product.id);
 
   return (
     <div className="card-soft card-hover flex items-center gap-4 p-4">
@@ -168,15 +210,28 @@ function ProductRow({ product }: { product: Product }) {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setFaved((f) => !f)}
+            onClick={() => toggleFavorite(toStored(product))}
             className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-stone-200 text-stone-500 transition hover:border-rose-200 hover:text-rose-500"
             aria-label="Favorite"
           >
             <Heart className={`h-4 w-4 ${faved ? "fill-rose-500 text-rose-500" : ""}`} />
           </button>
-          <button className="flex items-center gap-1.5 rounded-xl bg-stone-900 px-3.5 py-2 text-[13px] font-semibold text-white transition hover:bg-stone-700">
+          <button
+            onClick={onToggleCompare}
+            className={`inline-flex h-9 w-9 items-center justify-center rounded-full border transition ${
+              compared ? "border-indigo-600 bg-indigo-600 text-white" : "border-stone-200 text-stone-500 hover:border-indigo-200 hover:text-indigo-600"
+            }`}
+            aria-label="Compare"
+            title="Compare"
+          >
+            <GitCompare className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => addToCart(toStored(product))}
+            className="flex items-center gap-1.5 rounded-xl bg-stone-900 px-3.5 py-2 text-[13px] font-semibold text-white transition hover:bg-stone-700"
+          >
             <ShoppingBag className="h-4 w-4" />
-            Add
+            {inCart ? "Added" : "Add"}
           </button>
         </div>
       </div>
@@ -193,6 +248,14 @@ export default function ShopPage() {
   const [sort, setSort] = useState("featured");
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [view, setView] = useState<"grid" | "list">("grid");
+  const [showFilters, setShowFilters] = useState(false); // mobile filter drawer
+
+  // Compare — pick up to 4 products, then open a side-by-side panel.
+  const [compare, setCompare] = useState<string[]>([]);
+  const [showCompare, setShowCompare] = useState(false);
+  const toggleCompare = (id: string) =>
+    setCompare((c) => (c.includes(id) ? c.filter((x) => x !== id) : c.length >= 4 ? c : [...c, id]));
+  const compareProducts = products.filter((p) => compare.includes(p.id));
 
   // Filter + sort
   const filtered = products
@@ -316,6 +379,14 @@ export default function ShopPage() {
             )}
           </div>
 
+          {/* Filters toggle (mobile only — sidebar is always shown on lg) */}
+          <button
+            onClick={() => setShowFilters((v) => !v)}
+            className="flex h-9 items-center gap-2 rounded-xl border border-stone-200 bg-white px-4 text-sm font-medium text-stone-700 transition hover:border-stone-300 lg:hidden"
+          >
+            {showFilters ? "Hide filters" : "Filters"}
+          </button>
+
           {/* View toggle */}
           <div className="flex rounded-xl border border-stone-200 bg-white p-0.5">
             <button
@@ -339,10 +410,10 @@ export default function ShopPage() {
           </div>
         </div>
 
-        {/* Two-column layout */}
-        <div className="flex gap-8">
-          {/* Sidebar filters */}
-          <aside className="hidden w-60 shrink-0 flex-col gap-6 lg:flex">
+        {/* Two-column layout (stacks on mobile; filters collapse into a drawer) */}
+        <div className="flex flex-col gap-6 lg:flex-row lg:gap-8">
+          {/* Sidebar filters — hidden on mobile until the Filters button opens it */}
+          <aside className={`${showFilters ? "flex" : "hidden"} w-full shrink-0 flex-col gap-6 lg:flex lg:w-60`}>
             {/* Category */}
             <div className="card-soft p-4">
               <p className="section-label mb-3">Category</p>
@@ -419,13 +490,23 @@ export default function ShopPage() {
             ) : view === "grid" ? (
               <div className="grid grid-cols-2 gap-4 xl:grid-cols-3">
                 {filtered.map((p) => (
-                  <ProductCard key={p.id} product={p} />
+                  <ProductCard
+                    key={p.id}
+                    product={p}
+                    compared={compare.includes(p.id)}
+                    onToggleCompare={() => toggleCompare(p.id)}
+                  />
                 ))}
               </div>
             ) : (
               <div className="flex flex-col gap-3">
                 {filtered.map((p) => (
-                  <ProductRow key={p.id} product={p} />
+                  <ProductRow
+                    key={p.id}
+                    product={p}
+                    compared={compare.includes(p.id)}
+                    onToggleCompare={() => toggleCompare(p.id)}
+                  />
                 ))}
               </div>
             )}
@@ -484,6 +565,85 @@ export default function ShopPage() {
           ))}
         </div>
       </div>
+
+      {/* Compare bar — floats once you pick products */}
+      {compare.length > 0 && !showCompare && (
+        <div className="fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-40 flex justify-center px-4">
+          <div className="flex items-center gap-3 rounded-full border border-stone-200 bg-white px-4 py-2.5 shadow-lg">
+            <GitCompare className="h-4 w-4 text-indigo-600" />
+            <span className="text-sm font-medium text-stone-800">{compare.length} to compare</span>
+            <button
+              onClick={() => setShowCompare(true)}
+              disabled={compare.length < 2}
+              className="rounded-full bg-stone-900 px-3.5 py-1.5 text-[13px] font-semibold text-white transition hover:bg-stone-700 disabled:opacity-40"
+            >
+              Compare
+            </button>
+            <button onClick={() => setCompare([])} className="text-xs text-stone-500 hover:text-stone-800">
+              Clear
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Compare modal — side by side */}
+      {showCompare && compareProducts.length > 0 && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4" onClick={() => setShowCompare(false)}>
+          <div
+            className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-t-2xl bg-white sm:rounded-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-stone-100 px-4 py-3">
+              <p className="text-sm font-semibold text-stone-900">Compare ({compareProducts.length})</p>
+              <button onClick={() => setShowCompare(false)} className="rounded-full p-1.5 text-stone-400 hover:bg-stone-100">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="overflow-x-auto p-4">
+              <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${compareProducts.length}, minmax(140px, 1fr))` }}>
+                {compareProducts.map((p) => (
+                  <CompareColumn key={p.id} product={p} onRemove={() => toggleCompare(p.id)} />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// One column of the compare panel.
+function CompareColumn({ product, onRemove }: { product: Product; onRemove: () => void }) {
+  const { addToCart, isInCart } = useStore();
+  const rows: [string, React.ReactNode][] = [
+    ["Price", <span key="p" className="font-semibold">${product.price}{product.compareAt ? <span className="ml-1 text-xs text-stone-400 line-through">${product.compareAt}</span> : null}</span>],
+    ["Category", product.category],
+    ["Rating", `${product.rating.toFixed(1)} (${product.reviews})`],
+    ["Colors", <span key="c" className="flex gap-1">{product.colors.map((c) => <span key={c} className="h-3.5 w-3.5 rounded-full ring-1 ring-stone-200" style={{ background: c }} />)}</span>],
+  ];
+  return (
+    <div className="min-w-0">
+      <div className={`relative aspect-square rounded-xl bg-gradient-to-br ${product.color}`}>
+        <button onClick={onRemove} className="absolute right-1.5 top-1.5 inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/90 text-stone-600" aria-label="Remove">
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+      <p className="mt-2 truncate text-sm font-semibold text-stone-900">{product.name}</p>
+      <dl className="mt-2 space-y-1.5 text-[13px]">
+        {rows.map(([label, val]) => (
+          <div key={label}>
+            <dt className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">{label}</dt>
+            <dd className="text-stone-700">{val}</dd>
+          </div>
+        ))}
+      </dl>
+      <button
+        onClick={() => addToCart(toStored(product))}
+        className="mt-3 w-full rounded-lg bg-stone-900 px-3 py-1.5 text-[13px] font-semibold text-white transition hover:bg-stone-700"
+      >
+        {isInCart(product.id) ? "Added ✓" : "Add to cart"}
+      </button>
     </div>
   );
 }
