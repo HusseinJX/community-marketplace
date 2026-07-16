@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Users, Send, X, CalendarPlus, Plus, ChevronLeft, Lock } from "lucide-react";
 import { MatchFinder } from "@/components/match/MatchFinder";
 import { DemoCollabProgression } from "@/components/vendor/DemoCollabProgression";
+import { CollabRoomDemo } from "@/components/vendor/CollabRoomDemo";
 import type { MatchCandidate } from "@/lib/types";
 import type { CollabInvite, CollabRoom, CollabMessage, RoomMember, CollaborationSummary } from "@/lib/collab-network";
 import { track } from "@/lib/track";
@@ -147,7 +148,10 @@ export function NetworkManager({
           <ChevronLeft className="h-4 w-4" /> Collaborations
         </button>
 
-        {room ? (
+        {preview ? (
+          // The interactive Chat + Plan + AI-coordinator demo (local state only).
+          <CollabRoomDemo collab={open} />
+        ) : room ? (
           <Thread
             key={room.id}
             room={room}
