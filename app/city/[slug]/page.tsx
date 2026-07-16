@@ -6,6 +6,9 @@ import { CollectionJsonLd } from "@/components/JsonLd";
 import { SITE_NAME } from "@/lib/seo";
 import { citiesFrom, fetchAllMembers, membersInCity } from "@/lib/landing";
 
+// Directory-backed page: regenerate daily, not per crawler hit.
+export const revalidate = 86400;
+
 export async function generateStaticParams() {
   const cities = citiesFrom(await fetchAllMembers());
   return cities.map((c) => ({ slug: c.slug }));

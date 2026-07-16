@@ -393,12 +393,11 @@ export default function BrowsePage() {
       {/* Category bar — Airbnb-style icon tabs, directly under the search. */}
       {!aiSearchActive && (
         <section className="mb-4 mt-1">
-          {/* Jump to the home surfaces (Feed / Events / Shop) — sits beside the
-              vendor/artist/community type tabs below. */}
+          {/* The home tabs (Feed / Events / Shop) are gone — home is one surface
+              now. These point at what replaced them. */}
           <div className="-mx-1 mb-3 flex items-center gap-1.5 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <HomeTabLink href="/?tab=feed" icon={Newspaper} label="Feed" />
-            <HomeTabLink href="/?tab=events" icon={CalendarDays} label="Events" />
-            <HomeTabLink href="/?tab=shop" icon={Store} label="Shop" />
+            <HomeTabLink href="/" icon={CalendarDays} label="What's on" />
+            <HomeTabLink href="/explore" icon={Store} label="All businesses" />
           </div>
           <div className="flex items-start justify-between gap-3">
             <FilterBar

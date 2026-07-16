@@ -7,6 +7,7 @@ import { createInvite, setEventInviteStatus } from '@/lib/collab-network'
 import { addTags } from '@/lib/member-tags'
 import { isDemoMode } from '@/lib/demo-admin'
 import type { MemberProfile } from '@/lib/types'
+import { invalidateMembers } from '@/lib/cache'
 
 export const runtime = 'nodejs'
 
@@ -96,5 +97,7 @@ export async function POST(req: Request) {
     }
   }
 
+  // New business → make it searchable immediately (busts the 24h directory snapshot).
+  invalidateMembers()
   return NextResponse.json({ memberId: member.id, claimUrl: `/claim/${member.id}` })
 }

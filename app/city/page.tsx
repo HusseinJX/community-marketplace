@@ -3,6 +3,9 @@ import Link from "next/link";
 import { SITE_NAME } from "@/lib/seo";
 import { citiesFrom, fetchAllMembers } from "@/lib/landing";
 
+// Directory-backed page: regenerate daily, not per crawler hit.
+export const revalidate = 86400;
+
 export const metadata: Metadata = {
   title: "Browse by place",
   description: `Explore local businesses, makers, and organizers by city on ${SITE_NAME}.`,

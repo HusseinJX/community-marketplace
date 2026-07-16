@@ -1,35 +1,27 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Plus, ShoppingBag } from "lucide-react";
+import { ShoppingBag } from "lucide-react";
 import { useStore } from "@/lib/store";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
-// Instagram-style top bar: left "+" (post/share), center "WhatsLocal" wordmark
-// (links home; the feed now lives on the home scroll), right cart + profile.
+// Top bar: theme toggle left, wordmark centered, cart right (only when it has
+// something in it).
 export function TopNav() {
   const { cart } = useStore();
-  const pathname = usePathname();
-
-  // On the admin surfaces (the vendor portal or the /demo launcher) the "+"
-  // opens the vendor post composer (Go Live) instead of the shopper share page.
-  // Demo mode exits when you leave these for the shopper side (DemoExitWatcher),
-  // so pathname alone is the right signal — no lingering cookie to consult.
-  const adminContext =
-    (pathname?.startsWith("/vendor") || pathname?.startsWith("/demo")) ?? false;
-  const shareHref = adminContext ? "/share?vendor=1" : "/share";
 
   return (
     <div className="relative grid h-14 grid-cols-3 items-center px-4">
-      {/* Left — post/share */}
+      {/* Left — the theme toggle, in the slot the "+" vacated.
+
+          (The global "+" (share) is gone: a post's only home is the memories wall
+          of the business/event it's tagged to, so a composer opened from nowhere
+          left people asking "where does this even go?" — and an untagged post
+          went nowhere at all. Posting now happens IN CONTEXT: "Post a photo" on a
+          business profile, "Were you there?" on an event, and the same on a live
+          broadcast. Vendors post/go live from the dashboard tile.) */}
       <div className="flex justify-start">
-        <Link
-          href={shareHref}
-          aria-label={adminContext ? "Post as your business" : "Share a post"}
-          className="inline-flex h-9 w-9 items-center justify-center rounded-full text-stone-800 transition hover:bg-stone-100"
-        >
-          <Plus className="h-6 w-6" />
-        </Link>
+        <ThemeToggle />
       </div>
 
       {/* Center — brand lockup (mark + wordmark, links home) */}
@@ -44,20 +36,21 @@ export function TopNav() {
         </Link>
       </div>
 
-      {/* Right — cart */}
+      {/* Right — cart, ONLY when it has something in it. Commerce is supporting
+          cast here; an always-empty bag was a dead control on the front door. */}
       <div className="flex justify-end">
-        <Link
-          href="/cart"
-          aria-label="Cart"
-          className="relative inline-flex h-9 w-9 items-center justify-center rounded-full text-stone-800 transition hover:bg-stone-100"
-        >
-          <ShoppingBag className="h-6 w-6" />
-          {cart.length > 0 && (
+        {cart.length > 0 && (
+          <Link
+            href="/cart"
+            aria-label={`Cart (${cart.length})`}
+            className="relative inline-flex h-9 w-9 items-center justify-center rounded-full text-stone-800 transition hover:bg-stone-100"
+          >
+            <ShoppingBag className="h-6 w-6" />
             <span className="absolute -right-0.5 -top-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-indigo-600 px-1 text-[10px] font-semibold text-white">
               {cart.length}
             </span>
-          )}
-        </Link>
+          </Link>
+        )}
       </div>
     </div>
   );

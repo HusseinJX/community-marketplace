@@ -69,7 +69,7 @@ export async function POST(req: Request) {
     void notifyMemberSafe(toId, {
       title: 'New collab invite',
       body: fromName ? `${fromName} wants to collaborate` : 'You have a new collaboration invite',
-      url: '/vendor/network',
+      url: '/vendor/messages?tab=collabs',
     })
     // Email as a third channel — only reaches claimed members with an on-file
     // account email (getMemberContacts → vendor_profiles). Never emails
@@ -80,7 +80,7 @@ export async function POST(req: Request) {
           to: c?.email ?? null,
           fromName,
           message: body.message ? String(body.message).trim() : null,
-          ctaUrl: `${SITE_URL}/vendor/network`,
+          ctaUrl: `${SITE_URL}/vendor/messages?tab=collabs`,
         })
       )
       .catch(() => {})

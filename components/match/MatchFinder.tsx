@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Search, Sparkles, Loader2 } from "lucide-react";
 import type { MatchCandidate } from "@/lib/types";
+import { demoMatches } from "@/lib/demo-match";
+import { track } from "@/lib/track";
 import { MatchCard } from "./MatchCard";
 
 type Mode = "for-you" | "search" | "similar";
@@ -24,6 +26,8 @@ export function MatchFinder({
   excludeIds,
   showForYou = true,
   defaultMode,
+  demo = false,
+  source = "unknown",
 }: {
   memberId: string;
   isAdmin: boolean;
@@ -40,6 +44,12 @@ export function MatchFinder({
   // looking for their own partners — hide it for organizer lineup filling.
   showForYou?: boolean;
   defaultMode?: Mode;
+  // Public/demo surfaces (e.g. /organizers) render the real UI on canned
+  // candidates — no auth, and no paid engine call.
+  demo?: boolean;
+  // Where this finder lives — so the funnel can tell dashboard matches from
+  // lineup-filling ones.
+  source?: string;
 }) {
   const [mode, setMode] = useState<Mode>(defaultMode ?? (showForYou ? "for-you" : "search"));
   const [query, setQuery] = useState("");
@@ -53,6 +63,12 @@ export function MatchFinder({
       const mine = ++reqId.current;
       setLoading(true);
       setError(null);
+      if (demo) {
+        const q = body.mode === "semantic" ? String(body.query ?? "") : undefined;
+        setResults(demoMatches(q));
+        setLoading(false);
+        return;
+      }
       try {
         const res = await fetch("/api/vendor/match", {
           method: "POST",
@@ -66,7 +82,9 @@ export function MatchFinder({
           setResults([]);
           return;
         }
-        setResults(d.candidates ?? []);
+        const found: MatchCandidate[] = d.candidates ?? [];
+        setResults(found);
+        track("matches_shown", { count: found.length, mode: body.mode, source });
       } catch {
         if (mine !== reqId.current) return;
         setError("Couldn’t reach the matcher. Try again.");
@@ -75,7 +93,7 @@ export function MatchFinder({
         if (mine === reqId.current) setLoading(false);
       }
     },
-    [isAdmin, memberId],
+    [isAdmin, memberId, demo, source],
   );
 
   // "For you" (complementary) and "Similar" load automatically on tab switch.

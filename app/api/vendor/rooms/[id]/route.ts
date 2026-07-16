@@ -56,7 +56,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             notifyMemberSafe(m.member_id, {
               title: senderName ? `Message from ${senderName}` : 'New message',
               body: text.length > 120 ? `${text.slice(0, 117)}…` : text,
-              url: '/vendor/network',
+              url: '/vendor/messages?tab=collabs',
             })
           )
       )

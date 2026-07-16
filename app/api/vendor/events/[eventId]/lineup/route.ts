@@ -79,7 +79,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ eventId
       void notifyMemberSafe(inv.to_id, {
         title: 'Event lineup invite',
         body: `${hostName} invited you to "${event.title}"`,
-        url: '/vendor/network',
+        url: '/vendor/messages?tab=collabs',
       })
     }
   }

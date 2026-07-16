@@ -27,3 +27,13 @@ export async function demoMemberId(): Promise<string> {
   const type = isDemoType(c) ? c : 'vendor'
   return DEMO_MEMBER_BY_TYPE[type] ?? DEMO_MEMBER_BY_TYPE.vendor
 }
+
+// The demo member ids above are fabricated, so they have no vectors in the
+// connector's matching index — anything semantic seeded from them comes back
+// empty. Read-only demo surfaces (the collaborator matcher, opportunities) seed
+// from a REAL member instead, so the demo shows real matches.
+const DEFAULT_DEMO_SEED = '89516919-256f-4a95-96df-fc9d285f664a' // Xeno (SF)
+
+export async function demoSeedMemberId(): Promise<string> {
+  return process.env.DEMO_SEED_MEMBER_ID || DEFAULT_DEMO_SEED
+}

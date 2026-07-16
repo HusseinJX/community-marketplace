@@ -11,6 +11,9 @@ import {
   membersInCategory,
 } from "@/lib/landing";
 
+// Directory-backed page: regenerate daily, not per crawler hit.
+export const revalidate = 86400;
+
 export function generateStaticParams() {
   return CATEGORIES.map((c) => ({ slug: c.slug }));
 }

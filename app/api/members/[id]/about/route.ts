@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { resolveActor } from '@/lib/admin'
 import { patchMember } from '@/lib/api'
 import type { MemberProfile } from '@/lib/types'
+import { invalidateMembers } from '@/lib/cache'
 
 // PATCH — edit a member's public "about" fields (bio + basic details). Owner or
 // admin only. Body: { bio?, category?, city?, neighborhood?, instagram?, website? }
@@ -29,6 +30,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   try {
     await patchMember(id, fields)
+    // Profile edits change what the directory shows + matches on.
+    invalidateMembers()
     return NextResponse.json({ ok: true, fields })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to update'

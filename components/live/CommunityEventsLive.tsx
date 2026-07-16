@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { CalendarDays, MapPin, Users } from "lucide-react";
+import { CalendarDays, MapPin } from "lucide-react";
 import type { FeedEvent } from "@/app/api/events/feed/route";
 import { groupEventsByTheme } from "@/lib/event-themes";
 import { useEventsFeed } from "@/lib/data-hooks";
@@ -169,15 +169,49 @@ function EventCard({ e, live = false }: { e: FeedEvent; live?: boolean }) {
             {[e.location, e.city || e.neighborhood].filter(Boolean).join(" · ")}
           </p>
         )}
-        <div className="mt-auto flex items-center justify-between gap-2 pt-2">
-          <p className="truncate text-xs text-stone-400">by {e.memberName}</p>
-          {e.collaborators > 1 && (
-            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">
-              <Users className="h-3 w-3" /> {e.collaborators} teamed up
-            </span>
+        <div className="mt-auto pt-2">
+          {e.collaborators > 1 ? (
+            <CollaboratorStack list={e.collaboratorList} count={e.collaborators} />
+          ) : (
+            <p className="truncate text-xs text-stone-400">by {e.memberName}</p>
           )}
         </div>
       </div>
     </Link>
+  );
+}
+
+// Makes the collaboration visible to shoppers: overlapping initials for the host
+// + accepted lineup, then "N teamed up". Not links — the whole card is already
+// an anchor, and nesting anchors is invalid.
+function CollaboratorStack({
+  list,
+  count,
+}: {
+  list: FeedEvent["collaboratorList"];
+  count: number;
+}) {
+  const shown = list.slice(0, 4);
+  const overflow = count - shown.length;
+  return (
+    <div className="flex items-center gap-2">
+      <span className="flex -space-x-1.5">
+        {shown.map((m, i) => (
+          <span
+            key={`${m.id}-${i}`}
+            title={m.name ?? undefined}
+            className="grid h-6 w-6 place-items-center rounded-full border border-white bg-stone-100 text-[10px] font-semibold uppercase text-stone-600"
+          >
+            {(m.name ?? "?").trim().charAt(0)}
+          </span>
+        ))}
+        {overflow > 0 && (
+          <span className="grid h-6 w-6 place-items-center rounded-full border border-white bg-stone-100 text-[10px] font-semibold text-stone-500">
+            +{overflow}
+          </span>
+        )}
+      </span>
+      <span className="truncate text-xs text-stone-500">{count} teamed up</span>
+    </div>
   );
 }

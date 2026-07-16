@@ -3,11 +3,15 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
+// Two tabs, two jobs:
+//   Home     = find — the matcher + opportunities near you.
+//   Messages = talk — ONE inbox: Collaborations + Customers (incl. your AI agent).
+// Collabs and Messages were separate tabs, which meant two inboxes and no way to
+// know which one held your unread message. Everything else (Resources, billing,
+// products…) lives on the dashboard list, not in primary nav.
 const NAV = [
   { href: '/vendor', label: 'Home' },
-  { href: '/vendor/messages', label: 'Messages' }, // customer DMs + your AI agent
-  { href: '/vendor/network', label: 'Collabs' }, // find & invite collaborators + rooms
-  { href: '/vendor/resources', label: 'Resources' },
+  { href: '/vendor/messages', label: 'Messages' },
 ]
 
 export function VendorNav() {

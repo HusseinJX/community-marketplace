@@ -1,3 +1,5 @@
+import { unstable_cache } from "next/cache";
+import { MEMBERS_TAG } from "./cache";
 import type { Member } from "./types";
 import { listMembers } from "./api";
 import { TAXONOMY } from "./taxonomy";
@@ -16,7 +18,13 @@ export function slugify(s: string): string {
 
 // Walk the connector with the same timestamp-cursor pagination the browse page
 // uses, de-duping by id. Capped so a runaway dataset can't stall a render.
-export async function fetchAllMembers(cap = 1000): Promise<Member[]> {
+//
+// COST WARNING: every page of this walk is a Firestore query on the connector,
+// so a full walk reads the whole member collection (~440 docs and climbing).
+// The callers are the SEO surfaces (sitemap, /city, /category) — i.e. the pages
+// crawlers hammer — so this must NEVER run per-request. Use fetchAllMembersCached
+// below; it's the only thing the landing pages should touch.
+async function fetchAllMembersUncached(cap = 1000): Promise<Member[]> {
   const out: Member[] = [];
   const seen = new Set<string>();
   let cursor: string | undefined;
@@ -44,6 +52,24 @@ export async function fetchAllMembers(cap = 1000): Promise<Member[]> {
     cursor = String(oldest);
   }
   return out;
+}
+
+// The whole directory, cached for 24h across ALL callers and requests. The
+// member list changes rarely (a new business a day at most), while crawlers hit
+// the SEO pages constantly — so the walk should happen about once a day, not
+// once per request. One shared cache entry serves sitemap + every city and
+// category page.
+// Tagged so member writes can bust it immediately (lib/cache.ts
+// invalidateMembers) — otherwise a business onboarded at an event wouldn't be
+// searchable for up to a day.
+const fetchAllMembersCached = unstable_cache(
+  async () => fetchAllMembersUncached(1000),
+  ["all-members-v1"],
+  { revalidate: 86400, tags: [MEMBERS_TAG] },
+);
+
+export async function fetchAllMembers(): Promise<Member[]> {
+  return fetchAllMembersCached();
 }
 
 // ---- Categories (static, from the taxonomy) ----

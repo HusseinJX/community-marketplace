@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
+import { invalidateMembers } from '@/lib/cache'
 
 // POST { memberId, method, value }
 // Proxies verify + claim-profile calls to the connector agent.
@@ -57,5 +58,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: err || 'Claim failed' }, { status: claimRes.status })
   }
 
+  // Claiming flips status (and indexability) — refresh the directory snapshot.
+  invalidateMembers()
   return NextResponse.json({ verified: true, claimed: true, method: verifyResult.method })
 }

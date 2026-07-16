@@ -2,13 +2,17 @@ import { createClient } from '@supabase/supabase-js'
 import { isDemoMode } from '@/lib/demo-admin'
 import { getDemoMember } from '@/lib/demo-members'
 
-// The single source of truth for what each subscription plan unlocks. Plans:
-//   free       — unclaimed directory listing only (no editing, no tools)
-//   member $10 — claimed/verified/network-visible profile + text AI agent, posts,
-//                discovery, and RECEIVING collab/event opportunities
-//   pro   $30  — everything + commerce (shop/menu/catalog), CREATING invites,
-//                organizing events, lead capture, analytics, automations, and the
-//                VOICE agent (metered)
+// The single source of truth for what each subscription plan unlocks. Plans
+// (the "re-cut": payment follows proof, supply/liquidity isn't taxed):
+//   free  Participate — claimed/verified/network-visible profile, posts, discovery,
+//                and RECEIVING collab/event invites (join events + lineups). Don't
+//                tax being in the network.
+//   member $10 Act   — everything free + SENDING invites + the "For You" matcher,
+//                creating/organizing events + lineups, lead/RSVP inbox, and
+//                SMS/email blasts. The organizer tier.
+//   pro   $30 Capture — everything above + the text AI customer-service agent,
+//                the VOICE agent (metered), commerce (shop/menu/catalog/Stripe/Uber),
+//                and analytics. The "run on the network" tier.
 //   enterprise — Pro + higher limits, granted manually (contact sales)
 //
 // Capabilities + numeric limits live here (not the DB) so they can change without
@@ -68,35 +72,36 @@ const NONE: Record<Capability, boolean> = {
   automations: false,
 }
 
-// Free: post to the community, be discoverable, use community support/resources.
-// No AI agent, no invites — those start at Member.
+// Free (Participate): claimed profile, posts, discovery, and RECEIVING invites —
+// joining the network and being available to collaborate is free. No AI agent,
+// no SENDING invites/organizing — those start at Member.
 const FREE_CAN: Record<Capability, boolean> = {
   ...NONE,
+  claimedProfile: true,
   posts: true,
   discovery: true,
+  networkReceive: true,
 }
 
-// Member ($10): everything free + the text AI agent + RECEIVING collab/event invites.
+// Member ($10, Act/Organize): everything free + SENDING invites + the "For You"
+// matcher, creating/organizing events + lineups, the lead/RSVP inbox, and blasts.
+// Still NO AI agent/voice/commerce — those are the $30 capture tools.
 const MEMBER_CAN: Record<Capability, boolean> = {
   ...FREE_CAN,
-  claimedProfile: true,
-  textAssistant: true,
-  networkReceive: true,
+  networkInitiate: true,
+  organizeEvents: true,
+  captureLeads: true,
+  automations: true,
 }
 
+// Pro ($30, Capture/Run on it): everything above + the text AI agent, voice agent,
+// commerce, and analytics.
 const PRO_CAN: Record<Capability, boolean> = {
-  claimedProfile: true,
+  ...MEMBER_CAN,
   textAssistant: true,
-  posts: true,
-  discovery: true,
-  networkReceive: true,
-  commerce: true,
   voiceAssistant: true,
-  organizeEvents: true,
-  networkInitiate: true,
-  captureLeads: true,
+  commerce: true,
   analytics: true,
-  automations: true,
 }
 
 export const PLANS: Record<Plan, { can: Record<Capability, boolean>; limits: Limits }> = {
@@ -122,9 +127,9 @@ export const PLAN_META: Record<
   Plan,
   { label: string; price: string; tagline: string; priceEnv?: string; selfServe: boolean }
 > = {
-  free: { label: 'Free Listing', price: '$0', tagline: 'Be found. Not fully claimed.', selfServe: false },
-  member: { label: 'Member', price: '$10/mo', tagline: 'Join the network.', priceEnv: 'STRIPE_PRICE_MEMBER', selfServe: true },
-  pro: { label: 'Pro / Organizer', price: '$30/mo', tagline: 'Activate the network.', priceEnv: 'STRIPE_PRICE_PRO', selfServe: true },
+  free: { label: 'Participate', price: '$0', tagline: 'Get in the network.', selfServe: false },
+  member: { label: 'Organizer', price: '$10/mo', tagline: 'Act — send invites & host events.', priceEnv: 'STRIPE_PRICE_MEMBER', selfServe: true },
+  pro: { label: 'Pro', price: '$30/mo', tagline: 'Capture — run on the network.', priceEnv: 'STRIPE_PRICE_PRO', selfServe: true },
   enterprise: { label: 'Organizations', price: 'Contact sales', tagline: 'Power collective impact.', selfServe: false },
 }
 

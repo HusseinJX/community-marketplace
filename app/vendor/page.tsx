@@ -1,6 +1,7 @@
 import { auth, currentUser } from '@clerk/nextjs/server'
 import Link from "next/link";
 import { getVendorProfile, getVendorConnectAccount, getOrdersByMember } from "@/lib/vendor-connect";
+import { isAdmin } from "@/lib/admin";
 import { stripe } from "@/lib/stripe-server";
 import { demoMemberId, isDemoActive } from "@/lib/demo-server";
 import { getMember } from "@/lib/api";
@@ -10,8 +11,13 @@ import { VendorHome } from "@/components/vendor/VendorHome";
 import { TitleQrButton } from "@/components/vendor/TitleQrButton";
 import { VendorSignOut } from "@/components/vendor/VendorSignOut";
 
-export default async function VendorDashboard() {
+export default async function VendorDashboard({
+  searchParams,
+}: {
+  searchParams: Promise<{ memberId?: string }>;
+}) {
   const { userId } = await auth()
+  const { memberId: requested } = await searchParams
   const demo = !userId && (await isDemoActive())
   const clerkUser = userId ? await currentUser() : null
   const user = clerkUser
@@ -23,6 +29,7 @@ export default async function VendorDashboard() {
     : null
 
   const profile = user ? await getVendorProfile(user.id) : null;
+  const admin = isAdmin(userId);
 
   let stripeStatus: "none" | "pending" | "active" = "none";
   let orderCount = 0;
@@ -40,11 +47,15 @@ export default async function VendorDashboard() {
   // (Network lives under Collabs; Organize lives under My Events; Onboard hidden.)
   // Super-admin + Featured are intentionally NOT listed — the super-admin dash is
   // reachable only via its direct URL (/vendor/admin).
-  const entitlements = profile ? await getEntitlements(profile.member_id) : null;
+  // Admins can act on behalf of any member (?memberId=), same as the other
+  // vendor pages — otherwise it's their own linked profile.
+  const memberId =
+    (admin && requested) || profile?.member_id || (demo ? await demoMemberId() : null);
+
+  const entitlements = memberId ? await getEntitlements(memberId) : null;
   const plan = entitlements?.plan ?? (demo ? "pro" : "free");
   const planLabel = PLAN_META[plan].label;
 
-  const memberId = profile?.member_id ?? (demo ? await demoMemberId() : null);
   const profileUrl = memberId ? `${SITE_URL}/members/${memberId}` : null;
 
   // Business name — lives on the member record, not vendor_profiles. (The full
@@ -112,7 +123,14 @@ export default async function VendorDashboard() {
         </div>
       )}
 
-      <VendorHome orderCount={orderCount} plan={plan} planLabel={planLabel} />
+      <VendorHome
+        orderCount={orderCount}
+        plan={plan}
+        planLabel={planLabel}
+        memberId={memberId}
+        memberName={businessName}
+        isAdmin={admin}
+      />
     </div>
   );
 }

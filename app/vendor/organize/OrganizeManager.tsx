@@ -85,12 +85,14 @@ export function OrganizeManager({
               : "Build a vendor lineup and keep everyone in the loop — in-app, SMS, and email."}
           </p>
         </div>
-        <Link
-          href="/vendor/events"
-          className="shrink-0 rounded-lg bg-stone-900 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-stone-800"
-        >
-          + New event
-        </Link>
+        {!demo && (
+          <Link
+            href="/vendor/events"
+            className="shrink-0 rounded-lg bg-stone-900 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-stone-800"
+          >
+            + New event
+          </Link>
+        )}
       </div>
 
       {events.length === 0 ? (
@@ -176,7 +178,21 @@ function demoLineup(eventId: string): CollabInvite[] {
     { ...base, id: "demo-l-1", to_name: "Nokku Coffee", role: "vendor" },
     { ...base, id: "demo-l-2", to_name: "Dani Cruz", role: "performer" },
     { ...base, id: "demo-l-3", to_name: "El Tri Cantina", role: "food" },
-    { ...base, id: "demo-l-4", to_name: "Studio Nine", role: "vendor", status: "pending" },
+    { ...base, id: "demo-l-4", to_name: "Greenhouse Project", role: "partner" },
+    { ...base, id: "demo-l-5", to_name: "Rosa's Tamales", role: "food" },
+    { ...base, id: "demo-l-6", to_name: "Bayview Bike Co-op", role: "volunteer" },
+    // A self-join (from_id === to_id) awaiting the organizer's approval — the
+    // QR-at-the-booth flow, which is the bit organizers care about.
+    { ...base, id: "demo-l-7", to_name: "Studio Nine", role: "vendor", status: "pending", from_id: "x", to_id: "x" },
+  ];
+}
+
+// Businesses that scanned the join QR but aren't in the directory yet.
+function demoRequests(eventId: string): JoinRequest[] {
+  const base = { event_id: eventId, status: "pending" as const, created_at: "2026-07-02T15:00:00.000Z" };
+  return [
+    { ...base, id: "demo-r-1", name: "Auntie's Lumpia Cart", category: "Food", contact: "(415) 555-0173", note: "Been at the market 3 years, first time on the app." },
+    { ...base, id: "demo-r-2", name: "Kite & String Ceramics", category: "Maker", contact: "hello@kiteandstring.example", note: null },
   ];
 }
 
@@ -191,7 +207,7 @@ function Lineup({ event, memberId, isAdmin, demo }: { event: VendorEvent; member
   const load = () => {
     if (demo) {
       setLineup(demoLineup(event.id));
-      setRequests([]);
+      setRequests(demoRequests(event.id));
       return;
     }
     fetch(`/api/vendor/events/${event.id}/lineup`)
@@ -205,7 +221,13 @@ function Lineup({ event, memberId, isAdmin, demo }: { event: VendorEvent; member
   };
   useEffect(load, [event.id]);
 
+  // In demo, actions apply LOCALLY so the flow is real to click through — the
+  // approve/decline/invite buttons do what they'd do, they just never persist.
   async function decide(id: string, status: "accepted" | "declined") {
+    if (demo) {
+      setLineup((ls) => ls.map((l) => (l.id === id ? { ...l, status } : l)));
+      return;
+    }
     await fetch(`/api/vendor/events/${event.id}/lineup`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -214,6 +236,10 @@ function Lineup({ event, memberId, isAdmin, demo }: { event: VendorEvent; member
     load();
   }
   async function resolveRequest(id: string, status: "added" | "dismissed") {
+    if (demo) {
+      setRequests((rs) => rs.filter((r) => r.id !== id));
+      return;
+    }
     await fetch(`/api/vendor/events/${event.id}/requests`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -238,6 +264,21 @@ function Lineup({ event, memberId, isAdmin, demo }: { event: VendorEvent; member
     setBusy(true);
     setMsg("");
     const invitees = [...picked.values()].map((c) => ({ id: c.id, name: c.name, role }));
+    if (demo) {
+      setLineup((ls) => [
+        ...ls,
+        ...invitees.map((v, i) => ({
+          id: `demo-new-${v.id}-${i}`, from_id: "", from_name: "You", to_id: v.id, to_name: v.name,
+          message: null, status: "pending" as const, room_id: null, scope_type: "event" as const,
+          scope_id: event.id, occasion_id: event.id, occasion_label: null, role,
+          created_at: new Date().toISOString(),
+        })),
+      ]);
+      setMsg(`Invited ${invitees.length} — they'd get an SMS + in-app invite.`);
+      setPicked(new Map());
+      setBusy(false);
+      return;
+    }
     try {
       const res = await fetch(`/api/vendor/events/${event.id}/lineup`, {
         method: "POST",
@@ -297,20 +338,24 @@ function Lineup({ event, memberId, isAdmin, demo }: { event: VendorEvent; member
       <div>
         <div className="mb-3 flex items-center justify-between gap-2">
           <p className="section-label">Add to lineup</p>
-          <AutoFillLineup
-            eventId={event.id}
-            hint={[event.title, event.description, event.location].filter(Boolean).join(". ")}
-            memberId={memberId}
-            isAdmin={isAdmin}
-            invitedIds={invitedIds}
-            onInvited={load}
-          />
+          {/* AI auto-fill calls the live matcher (authed) — not on the public demo. */}
+          {!demo && (
+            <AutoFillLineup
+              eventId={event.id}
+              hint={[event.title, event.description, event.location].filter(Boolean).join(". ")}
+              memberId={memberId}
+              isAdmin={isAdmin}
+              invitedIds={invitedIds}
+              onInvited={load}
+            />
+          )}
         </div>
 
         <div className="max-h-96 overflow-y-auto rounded-lg border border-stone-100 p-2">
           <MatchFinder
             memberId={memberId}
             isAdmin={isAdmin}
+            demo={demo}
             showForYou={false}
             placeholder="Try “taco truck”, “muralist”, “live band”…"
             selected={new Set(picked.keys())}

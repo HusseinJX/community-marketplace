@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { onboardFromMessages } from '@/lib/api'
 import { isDemoMode } from '@/lib/demo-admin'
+import { invalidateMembers } from '@/lib/cache'
 
 export const runtime = 'nodejs'
 
@@ -46,5 +47,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Could not save — try again' }, { status: 502 })
   }
 
+  // The interview rewrites the profile the directory renders + searches on.
+  invalidateMembers()
   return NextResponse.json({ ok: true })
 }

@@ -18,7 +18,10 @@ export function LocalDirectory() {
 
   return (
     <section className="mx-auto max-w-6xl border-t border-stone-100 px-4 pb-12 pt-8 md:px-8">
-      <h2 className="mb-5 text-xl font-semibold tracking-tight text-stone-900">Who&apos;s local</h2>
+      {/* The floor, not the pitch — a plain way to browse everyone. */}
+      <h2 className="mb-5 text-xl font-semibold tracking-tight text-stone-900">
+        Browse all local businesses
+      </h2>
 
       {visible.length === 0 ? (
         <p className="text-sm text-stone-400">No one local to show yet.</p>

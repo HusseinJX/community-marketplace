@@ -3,6 +3,9 @@ import Link from "next/link";
 import { SITE_NAME } from "@/lib/seo";
 import { CATEGORIES } from "@/lib/landing";
 
+// Directory-backed page: regenerate daily, not per crawler hit.
+export const revalidate = 86400;
+
 export const metadata: Metadata = {
   title: "Browse by category",
   description: `Explore local businesses, makers, and organizers by category on ${SITE_NAME}.`,

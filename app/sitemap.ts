@@ -2,6 +2,10 @@ import type { MetadataRoute } from "next";
 import { SITE_URL, isIndexable, lastActiveMs } from "@/lib/seo";
 import { CATEGORIES, citiesFrom, fetchAllMembers, membersInCategory } from "@/lib/landing";
 
+// Regenerate at most once a day. Crawlers re-fetch the sitemap far more often
+// than the directory changes, and each regeneration walks every member.
+export const revalidate = 86400;
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
   const members = await fetchAllMembers();

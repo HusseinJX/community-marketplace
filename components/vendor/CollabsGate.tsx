@@ -1,12 +1,18 @@
 'use client'
 
 import { cloneElement, isValidElement, useEffect, useState } from 'react'
-import { PlanSwitch, PLAN_KEY, type Tier } from '@/components/vendor/PlanSwitch'
+import { PLAN_KEY, type Tier } from '@/components/vendor/PlanSwitch'
 
 // Gates the Collabs surface. On Free the member gets the SAME interactive UI as
 // Basic — they can click around, switch tabs, browse matches. The per-tab notice
-// cards (in NetworkManager) explain what's demo. The tier switch shares state
-// with the dashboard (same localStorage key).
+// cards (in NetworkManager) explain what's demo.
+//
+// The tier PREVIEW SWITCH is deliberately not rendered here. Collabs now lives
+// inside Messages — a primary nav tab — and a plan toggle is demo scaffolding,
+// not product: it has no business being the first thing a real vendor sees in
+// their inbox. This still READS the shared preview tier from localStorage, so
+// flipping tiers elsewhere (e.g. a dev/admin surface that sets PLAN_KEY) is
+// still reflected here; it just doesn't offer the control.
 
 export function CollabsGate({
   plan,
@@ -25,11 +31,6 @@ export function CollabsGate({
     if (v === 'free' || v === 'member' || v === 'pro') setTier(v)
   }, [])
 
-  function pick(t: Tier) {
-    setTier(t)
-    localStorage.setItem(PLAN_KEY, t)
-  }
-
   const isFree = tier === 'free'
   // Pass the shared tier down: demo mode on Free, and the plan so NetworkManager
   // gates owning collaborations (Pro only) without its own separate toggle.
@@ -40,10 +41,5 @@ export function CollabsGate({
       )
     : children
 
-  return (
-    <div className="space-y-6">
-      <PlanSwitch tier={tier} onPick={pick} caption="Collabs needs Basic or higher." />
-      {content}
-    </div>
-  )
+  return <div className="space-y-6">{content}</div>
 }

@@ -5,7 +5,7 @@ import { ChevronLeft } from 'lucide-react'
 
 // Top-level nav-tab destinations — no back button on these (you switch tabs
 // from the navbar). Shown only on deeper pages (organize, giving, products…).
-const TAB_PATHS = new Set(['/vendor', '/vendor/live', '/vendor/network', '/vendor/resources', '/vendor/qr'])
+const TAB_PATHS = new Set(['/vendor', '/vendor/live', '/vendor/messages', '/vendor/resources', '/vendor/qr'])
 
 // "Go back" button shown below the admin navbar on deeper pages — returns to the
 // previous screen instead of all the way Home.

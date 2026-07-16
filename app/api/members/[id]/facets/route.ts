@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { resolveActor } from '@/lib/admin'
 import { patchMember } from '@/lib/api'
 import { BUSINESS_SIZES, OWNERSHIP_TAGS } from '@/lib/business-facets'
+import { invalidateMembers } from '@/lib/cache'
 
 const SIZES = new Set(BUSINESS_SIZES.map((s) => s.key) as string[])
 const OWNERSHIP = new Set(OWNERSHIP_TAGS.map((o) => o.key) as string[])
@@ -29,6 +30,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   try {
     await patchMember(id, fields)
+    // Profile edits change what the directory shows + matches on.
+    invalidateMembers()
     return NextResponse.json({ ok: true, fields })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to update facets'

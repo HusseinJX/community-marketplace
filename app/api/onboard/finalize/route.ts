@@ -7,6 +7,7 @@ import { createInvite, setEventInviteStatus } from '@/lib/collab-network'
 import { getOpenAI, CHAT_MODEL } from '@/lib/openai'
 import { BUSINESS_SIZES, OWNERSHIP_TAGS } from '@/lib/business-facets'
 import { isDemoMode } from '@/lib/demo-admin'
+import { invalidateMembers } from '@/lib/cache'
 
 const SIZE_KEYS = BUSINESS_SIZES.map((s) => s.key)
 const OWN_KEYS = OWNERSHIP_TAGS.map((o) => o.key)
@@ -121,5 +122,7 @@ export async function POST(req: Request) {
     }
   }
 
+  // QR-onboarded at an event → must be findable now, not tomorrow.
+  invalidateMembers()
   return NextResponse.json({ memberId: member.id, name, claimUrl: `/claim/${member.id}` })
 }

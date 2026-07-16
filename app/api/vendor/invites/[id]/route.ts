@@ -25,7 +25,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         void notifyMemberSafe(invite.from_id, {
           title: 'Invite accepted',
           body: invite.to_name ? `${invite.to_name} accepted your invite` : 'Your collaboration invite was accepted',
-          url: room ? '/vendor/network' : '/vendor/organize',
+          url: room ? '/vendor/messages?tab=collabs' : '/vendor/organize',
         })
       }
       return NextResponse.json({ ok: true, room })

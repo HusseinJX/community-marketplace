@@ -1,5 +1,28 @@
 # Tasks
 
+## 2026-07-11 Collab pivot + Firestore quota (see `session-context/2026-07-11-collab-pivot-and-firestore-quota.md`)
+Everything from that session is **built but LOCAL/uncommitted in both repos** — prod is unchanged.
+
+**Blocking, in order:**
+- [ ] **⚠️ Firestore quota is REALLY exhausted** — `8 RESOURCE_EXHAUSTED` on a 2-doc read of project `whatlocal-ab06e` (Spark, 50k reads/day), reproduced from local with the same creds. **This supersedes the 2026-07-08 "false alarm" note below** — that was a different symptom (reserved `__…__` doc ids); this one is real. Every semantic surface (matcher, opportunities, search) is dark until it resets (midnight PT). Metrics can't be queried on Spark (the Monitoring API itself 403s: "requires billing") — only the Firebase console → Firestore → **Usage** tab shows them. `roles/monitoring.viewer` is already granted to the service account, so the API works the moment billing is on.
+- [ ] **Deploy BOTH repos together** — none of the read-cost fixes are live. marketplace → CapRover; connector → Netlify (⚠️ that repo has unrelated uncommitted WIP — only 6 files are ours: `lib/db.js`, `matches.js`, `admin.js`, `lib/search.js`, `lib/collabs.js`, `lib/collabActivity.js`).
+- [ ] **Verify the connector member cache** (`loadMember` 2nd read ≈0ms, `invalidateMember` → refetch). Couldn't run it: even the first read 500s right now.
+- [ ] **Then** decide on Blaze from a clean baseline (reads should cost cents once the pathological calls are gone).
+
+**Test the thesis (can't be read without these):**
+- [ ] **Fire the funnel once and confirm it lands in PostHog.** `lib/track.ts`: `matches_shown → collab_invite_sent → collab_invite_accepted → collab_agreed → collab_event_created`, plus `opportunity_ask_to_join`. The number the whole bet turns on is **`collab_started` with `collaborations_before >= 1`** = someone started a SECOND collaboration unprompted. Never observed firing yet.
+- [ ] **Feed outcomes back to the connector** (`matchLogs` / `marketplace-outcome`) — see `features/collaboration-matching.md`. Marketplace-side events exist now; the learning loop is still open.
+- [ ] Get ~10 event-native businesses in ONE district and help one real event happen.
+
+**UI / product follow-ups:**
+- [ ] **The business door isn't on the front door.** `/businesses` (public matcher demo, no login) + `/organizers` (public organizer toolkit on sample data) exist, but are only linked from the FOOTER — a cold visitor to `/` still meets the shopper feed. Decide whether supply gets an above-the-fold entry on `/`.
+- [ ] **Collab → Organize seam is silent.** When a collaboration becomes an event, nothing points at the lineup tooling. Add "Manage the lineup →" in the thread once `eventId` exists, and gate `/vendor/organize` visibility on `isEventOrganizer()` (`lib/org-focus.ts`) so a solo baker isn't shown festival tooling.
+- [ ] **Orphan shopper routes** — `/live`, `/explore`, `/sf`, `/watch-world-cup`, `/resources`, `/petitions` are unlinked from primary nav but still exist; some duplicate the home tabs. Keep or delete.
+- [ ] **Opportunities is 3 connector calls** per dashboard load; could be 1 (ask "who complements me?" once, match against events locally).
+- [ ] Hosts still can't **post an open role** ("need a food partner, Aug 15") — needs a table (`collab_invites.to_id` is NOT NULL, so it can't be faked).
+- [ ] **Pricing re-cut** (free participate / $10 act / $30 capture) — untouched; invites are still Pro.
+- [ ] `unstable_cache` is superseded by `'use cache'` in Next 16 (works here because `cacheComponents` is off) — app-wide migration someday.
+
 ## 2026-07-08 SF launch — carry-forward (see `session-context/2026-07-08-sf-launch.md`)
 The app is **LIVE** on prod (`whatslocal.ai` / CapRover). Remaining:
 - ✅ **`/join` in-app onboarding interview (voice + text)** — shipped 2026-07-08 (marketplace `e5bb715`, connector `8a08aea`, both deployed + pushed). Replaces deprecated Telnyx call-in onboarding. Both modes enrich the verified member via `marketplace-onboard` enrich-in-place (full brain + Pinecone). *Follow-up (optional): the live conversation prompts (`onboardingSystemPrompt` text, `interviewVoicePrompt` voice) are marketplace-side and can be reworded/tuned without touching the connector profiling brain.*

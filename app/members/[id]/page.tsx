@@ -526,6 +526,17 @@ export default async function MemberProfilePage({
 
           <GivesBackBadges memberId={id} memberName={name} />
 
+          {/* Posting happens IN CONTEXT — you post from the page the post lands
+              on, so "where does this go?" answers itself. (The global "+" in the
+              top nav is gone; the event + broadcast pages have the same CTA.) */}
+          <Link
+            href={`/share?business=${id}&businessName=${encodeURIComponent(name)}`}
+            className="flex items-center justify-between rounded-2xl border border-dashed border-indigo-200 bg-indigo-50/50 p-4 transition hover:border-indigo-300 hover:bg-indigo-50"
+          >
+            <span className="text-sm font-medium text-stone-800">📸 Been here? Post a photo</span>
+            <span className="text-sm font-medium text-indigo-700">Share →</span>
+          </Link>
+
           <MemoriesGrid memberId={id} title={`Tagged at ${name}`} />
 
           <ShopSection

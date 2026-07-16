@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { resolveActor } from "@/lib/admin";
+import { resolveReadActor } from "@/lib/admin";
+import { rateLimit } from "@/lib/rate-limit";
+import { demoMatches } from "@/lib/demo-match";
 import {
   searchMatches,
   similarMembers,
@@ -20,11 +22,35 @@ import {
 //   lineup        { hint }             → invent-event → per-role candidate fills
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
-  const actor = await resolveActor(body.memberId);
+  // Read-only discovery → cookie-based demo visitors are allowed through.
+  const actor = await resolveReadActor(body.memberId);
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const mode = String(body.mode ?? "");
   const limit = Math.min(Number(body.limit) || 8, 24);
+
+  // The demo entry is a self-serve cookie, so it must NOT reach the paid engine
+  // (OpenAI embed + Pinecone query + a Firestore read per hydrated result).
+  // Canned candidates instead — which also keeps the demo alive when the
+  // connector is down.
+  if (actor.isDemo) {
+    if (mode === "lineup") return NextResponse.json({ suggestion: null, demo: true });
+    return NextResponse.json({
+      candidates: demoMatches(mode === "semantic" ? String(body.query ?? "") : undefined, limit),
+      demo: true,
+    });
+  }
+
+  // Every real call costs money and Firestore reads. Cap per member and per IP.
+  const limited = rateLimit({
+    req,
+    name: "match",
+    id: actor.memberId,
+    limit: 30,
+    windowMs: 60_000,
+    ipLimit: 60,
+  });
+  if (limited) return limited;
 
   try {
     switch (mode) {

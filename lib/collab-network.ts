@@ -328,22 +328,29 @@ export async function getAcceptedLineup(eventId: string): Promise<CollabInvite[]
 // makes the collaboration engine visible to shoppers. Count includes the host.
 export async function getAcceptedLineupCounts(
   eventIds: string[]
-): Promise<Record<string, { count: number; names: string[] }>> {
-  const out: Record<string, { count: number; names: string[] }> = {}
+): Promise<Record<string, { count: number; names: string[]; members: LineupMember[] }>> {
+  const out: Record<string, { count: number; names: string[]; members: LineupMember[] }> = {}
   if (eventIds.length === 0) return out
   const { data, error } = await db()
     .from('collab_invites')
-    .select('scope_id,to_name')
+    .select('scope_id,to_id,to_name')
     .eq('scope_type', 'event')
     .eq('status', 'accepted')
     .in('scope_id', eventIds)
   if (error || !data) return out
-  for (const row of data as { scope_id: string; to_name: string | null }[]) {
-    const e = (out[row.scope_id] ??= { count: 1, names: [] }) // +1 for the host
+  for (const row of data as { scope_id: string; to_id: string; to_name: string | null }[]) {
+    const e = (out[row.scope_id] ??= { count: 1, names: [], members: [] }) // +1 for the host
     e.count += 1
     if (row.to_name) e.names.push(row.to_name)
+    e.members.push({ id: row.to_id, name: row.to_name })
   }
   return out
+}
+
+/** One collaborator on an event lineup — enough to render an avatar + link. */
+export interface LineupMember {
+  id: string
+  name: string | null
 }
 
 // Organizer-side approve/decline of an event lineup entry (e.g. a self-join

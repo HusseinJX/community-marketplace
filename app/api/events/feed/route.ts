@@ -5,6 +5,15 @@ import { listEvents } from '@/lib/api'
 
 export const runtime = 'nodejs'
 
+// Cache the whole response for 60s. GET takes no request data, so the segment is
+// cacheable (a handler that reads searchParams/headers never would be).
+//
+// Why it matters: this route calls the connector's listEvents, which is a
+// Firestore read PER REQUEST. SWR dedupes on the client, but that's per browser
+// — 100 visitors were 100 connector round-trips for data that changes a few
+// times a day. Now they share one.
+export const revalidate = 60
+
 export interface FeedEvent {
   eventId: string
   title: string
@@ -21,6 +30,8 @@ export interface FeedEvent {
   /** How many local businesses teamed up on this event (host + accepted lineup).
       >1 means it's a real collaboration — surfaced on the card. */
   collaborators: number
+  /** The host + accepted lineup, for the avatar stack on event cards. */
+  collaboratorList: { id: string; name: string | null }[]
 }
 
 // Public community-feed events: real in-app organizer/vendor events
@@ -46,6 +57,7 @@ export async function GET() {
         memberId: e.member_id,
         memberName: e.member_name ?? 'Organizer',
         collaborators: 1,
+        collaboratorList: [{ id: e.member_id, name: e.member_name ?? 'Organizer' }],
       })
     }
   } catch {
@@ -58,7 +70,10 @@ export async function GET() {
     const counts = await getAcceptedLineupCounts(out.map((e) => e.eventId))
     for (const e of out) {
       const c = counts[e.eventId]
-      if (c && c.count > e.collaborators) e.collaborators = c.count
+      if (!c) continue
+      if (c.count > e.collaborators) e.collaborators = c.count
+      // Host first, then the accepted lineup.
+      e.collaboratorList = [...e.collaboratorList, ...c.members]
     }
   } catch {
     /* no lineup data → leave collaborators at 1 */
@@ -82,6 +97,7 @@ export async function GET() {
         memberId: e.memberId ?? '',
         memberName: e.memberName ?? 'Organizer',
         collaborators: 1,
+        collaboratorList: e.memberId ? [{ id: e.memberId, name: e.memberName ?? 'Organizer' }] : [],
       })
     }
   } catch {

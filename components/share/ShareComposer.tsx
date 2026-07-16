@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { ImagePlus, Video, QrCode, X, Radio, Store, CalendarDays, Loader2, MapPin, Tag, Check, Plus } from "lucide-react";
 import type { IScannerControls } from "@zxing/browser";
 import { listMembers, listEvents } from "@/lib/api";
@@ -21,6 +22,8 @@ type TagSlot = { query: string; tag: TagItem | null };
 export function ShareComposer() {
   const [body, setBody] = useState("");
   const [posted, setPosted] = useState(false);
+  // Captured at post time so the success card can link to it (tags get cleared).
+  const [postedTo, setPostedTo] = useState<TagItem[]>([]);
   const [media, setMedia] = useState<Media[]>([]);
   const [uploading, setUploading] = useState(false);
   const [livestreamUrl, setLivestreamUrl] = useState("");
@@ -295,6 +298,7 @@ export function ShareComposer() {
         setSupportsTeam("");
         setPickedFixture(null);
         setGoLive(false);
+        setPostedTo([bizTag, evTag].filter(Boolean) as TagItem[]);
         setSlots([{ query: "", tag: null }]);
         setPosted(true);
       } else {
@@ -334,6 +338,7 @@ export function ShareComposer() {
         setLivestreamUrl("");
         setLocation("");
         setLocError(null);
+        setPostedTo([bizTag, evTag].filter(Boolean) as TagItem[]);
         setSlots([{ query: "", tag: null }]);
         setPosted(true);
       } else {
@@ -345,9 +350,15 @@ export function ShareComposer() {
     setPosting(false);
   }
 
+  // A post has to LAND somewhere. Posts render on the "memories" wall of the
+  // business/event they're tagged to — there is no standalone posts feed — so an
+  // untagged post would be invisible: written, saved, and seen by nobody. The
+  // composer therefore requires a destination and says what it is, up front.
+  const hasDestination = !!bizTag || !!evTag;
+
   const canPost = goLive
     ? !!bizTag && !!eventSlug
-    : body.trim() || media.length > 0 || livestreamUrl.trim();
+    : hasDestination && (body.trim() || media.length > 0 || livestreamUrl.trim());
 
   return (
     <div className="mx-auto max-w-lg space-y-4 px-4 py-6">
@@ -356,11 +367,63 @@ export function ShareComposer() {
       </div>
 
       {posted && (
-        <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          <span>Shared! 🎉</span>
-          <button type="button" onClick={() => setPosted(false)} className="font-medium underline">
-            Post another
-          </button>
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          <div className="flex items-center justify-between gap-3">
+            <span>Shared! 🎉</span>
+            <button type="button" onClick={() => setPosted(false)} className="font-medium underline">
+              Post another
+            </button>
+          </div>
+          {/* Where it actually went — the composer clears the tags on success, so
+              these are captured at post time. */}
+          {postedTo.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {postedTo.map((d) => (
+                <Link
+                  key={`${d.kind}-${d.id}`}
+                  href={d.kind === "business" ? `/members/${d.id}` : `/events/${d.id}`}
+                  className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200 hover:bg-emerald-100"
+                >
+                  See it on {d.label} →
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Where this lands — stated BEFORE they write, not after they post.
+          Without a tag a post has no home (there's no standalone feed), so this
+          is the first thing on the screen. */}
+      {!goLive && (
+        <div
+          className={
+            "rounded-xl border px-4 py-3 text-[13px] " +
+            (hasDestination
+              ? "border-stone-200 bg-white text-stone-600"
+              : "border-amber-200 bg-amber-50 text-amber-800")
+          }
+        >
+          {hasDestination ? (
+            <p className="flex flex-wrap items-center gap-1.5">
+              <span className="font-medium text-stone-500">Shows up on</span>
+              {[bizTag, evTag].filter(Boolean).map((t) => (
+                <span
+                  key={`${t!.kind}-${t!.id}`}
+                  className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-2 py-0.5 text-xs font-semibold text-stone-800"
+                >
+                  {t!.kind === "business" ? <Store className="h-3 w-3" /> : <CalendarDays className="h-3 w-3" />}
+                  {t!.label}
+                </span>
+              ))}
+              <span className="text-stone-400">— and anyone who visits it.</span>
+            </p>
+          ) : (
+            <p>
+              <span className="font-semibold">Where should this show up?</span> Tag the business or
+              event it&apos;s about — that&apos;s the page it appears on.
+            </p>
+          )}
         </div>
       )}
 
@@ -609,7 +672,15 @@ export function ShareComposer() {
         onClick={submit}
         className="w-full rounded-full bg-stone-900 py-3 text-sm font-semibold text-white transition hover:bg-stone-800 disabled:opacity-40"
       >
-        {posting ? (goLive ? "Going live…" : "Sharing…") : goLive ? "Go live" : "Share"}
+        {posting
+          ? goLive
+            ? "Going live…"
+            : "Sharing…"
+          : goLive
+            ? "Go live"
+            : hasDestination
+              ? "Share"
+              : "Tag where it goes"}
       </button>
 
       {scannerOpen && (
