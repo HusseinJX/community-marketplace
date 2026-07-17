@@ -70,6 +70,14 @@ export interface BriefInput {
   websiteUrl?: string | null
   instagramHandle?: string | null
   research?: string | null // raw web-search prose (Perplexity)
+  // The rest of what the Google Places pick already paid for. Most small
+  // businesses have no editorial summary, so without these the brief was often
+  // just a name — and the interviewer opened knowing nothing.
+  address?: string | null
+  rating?: number | null
+  ratingCount?: number | null
+  hours?: string | null
+  types?: string[] | null
 }
 
 export function buildInterviewBrief(input: BriefInput): string {
@@ -79,14 +87,26 @@ export function buildInterviewBrief(input: BriefInput): string {
   const cat = [input.category, input.subcategory].filter(Boolean).join(' · ')
   if (cat) lines.push(`Category: ${cat}`)
   if (place) lines.push(`Where: ${place}`)
+  if (input.address) lines.push(`Address: ${input.address}`)
   if (input.description) lines.push(`About: ${input.description}`)
   const offerings = [...(input.products || []), ...(input.services || [])].filter(Boolean)
   if (offerings.length) lines.push(`Known for: ${offerings.slice(0, 8).join(', ')}`)
+  // From the Google listing. Real, checkable facts — and often the ONLY specific
+  // thing we have, since most small businesses have no editorial summary.
+  if (input.rating) {
+    lines.push(`Google rating: ${input.rating}${input.ratingCount ? ` from ${input.ratingCount} reviews` : ''}`)
+  }
+  if (input.hours) lines.push(`Hours: ${input.hours}`)
+  const types = (input.types || []).filter((t) => !GENERIC_PLACE_TYPES.has(t))
+  if (types.length) lines.push(`Google categories: ${types.slice(0, 6).map((t) => t.replace(/_/g, ' ')).join(', ')}`)
   if (input.websiteUrl) lines.push(`Website: ${input.websiteUrl}`)
   if (input.instagramHandle) lines.push(`Instagram: @${String(input.instagramHandle).replace(/^@/, '')}`)
   if (input.research) lines.push(`Web research:\n${String(input.research).trim().slice(0, 1400)}`)
   return lines.join('\n').trim()
 }
+
+// Google tags nearly everything with these; they say nothing about a business.
+const GENERIC_PLACE_TYPES = new Set(['point_of_interest', 'establishment', 'food', 'store'])
 
 // The single most important behavior: this should feel like a warm chat, not a
 // form. One question at a time, always.

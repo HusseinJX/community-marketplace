@@ -144,6 +144,31 @@ export async function researchMember(
   return { research: d.research ?? null, profile: (d.profile ?? null) as Partial<MemberProfile> | null };
 }
 
+// The same web-search pass, for a business we haven't stored yet.
+//
+// researchMember() takes a member id and makes the connector load the record
+// just to read back a name and a city — which is all the search ever uses. When
+// the caller already HAS the name and city (a Google Places pick that hasn't
+// been written to the DB, e.g. the /joindemo walkthrough), it can say so
+// directly. Same Perplexity call on the connector; no member, nothing saved.
+export async function researchListing(l: {
+  name: string;
+  city?: string | null;
+  kind?: "business" | "artist";
+}): Promise<{ research: string | null }> {
+  const token = process.env.CONNECTOR_ADMIN_TOKEN || process.env.ADMIN_TOKEN;
+  const res = await fetch(fnUrl("enrich"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ mode: "research", name: l.name, city: l.city ?? "", kind: l.kind ?? "business" }),
+    cache: "no-store",
+    signal: AbortSignal.timeout(11000),
+  });
+  if (!res.ok) throw new Error(`research failed: ${res.status}`);
+  const d = await res.json();
+  return { research: d.research ?? null };
+}
+
 // Smart natural-language search.
 // "buzz cut under $15 in Chinatown with a TV", "family-owned jewelry maker",
 // "historic Italian restaurant in North Beach" — all valid. The backend GPT-

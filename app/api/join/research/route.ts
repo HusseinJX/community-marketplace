@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
-import { researchMember } from '@/lib/api'
+import { researchMember, researchListing } from '@/lib/api'
 import { buildInterviewBrief, type BriefInput } from '@/lib/onboard'
 import { isDemoMode } from '@/lib/demo-admin'
 import { isJoinDemoActive } from '@/lib/joindemo'
@@ -26,27 +26,39 @@ export async function POST(req: Request) {
 
   let research: string | null = null
   let enriched: Partial<BriefInput> = {}
-  // DEMO: the member id is synthetic (no connector record), so skip the connector
-  // research pass — build the brief from the real Places seed only (instant, and
-  // still grounds the interview in the real listing).
+  // DEMO: the member id is synthetic — nothing was written to the DB, so there's
+  // no record for the connector to load. It doesn't need one: the search only
+  // uses a name and a city, and the demo has both from the REAL Places pick. So
+  // research the listing directly instead of skipping the pass.
+  //
+  // (This used to `throw` here, which meant /joindemo never web-searched at all
+  // and opened the interview knowing nothing but the Places listing — and Places
+  // has no editorial summary for most small businesses, so usually just a name.)
   const isDemoMember = memberId.startsWith('demo')
   try {
-    if (isDemoMember) throw new Error('demo — seed only')
-    const r = await researchMember(memberId)
-    research = r.research
-    // The connector may have richer structured fields than the client seed.
-    if (r.profile) {
-      const p = r.profile as Record<string, unknown>
-      enriched = {
-        category: (p.category as string) ?? undefined,
-        subcategory: (p.subcategory as string) ?? undefined,
-        description: (p.businessDescription as string) ?? undefined,
-        products: (p.products as string[]) ?? undefined,
-        services: (p.services as string[]) ?? undefined,
+    if (isDemoMember) {
+      const name = (seed.name ?? '').trim()
+      if (!name) throw new Error('demo — no listing name to research')
+      const r = await researchListing({ name, city: seed.city ?? seed.neighborhood ?? null })
+      research = r.research
+    } else {
+      const r = await researchMember(memberId)
+      research = r.research
+      // The connector may have richer structured fields than the client seed.
+      if (r.profile) {
+        const p = r.profile as Record<string, unknown>
+        enriched = {
+          category: (p.category as string) ?? undefined,
+          subcategory: (p.subcategory as string) ?? undefined,
+          description: (p.businessDescription as string) ?? undefined,
+          products: (p.products as string[]) ?? undefined,
+          services: (p.services as string[]) ?? undefined,
+        }
       }
     }
   } catch {
-    // Best-effort — fall back to whatever the client seeded.
+    // Best-effort — fall back to whatever the client seeded. A slow or failed
+    // research pass must never block the interview from starting.
   }
 
   const brief = buildInterviewBrief({

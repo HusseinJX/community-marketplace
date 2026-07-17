@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useClerk, useAuth } from "@clerk/nextjs";
 import { VendorPhoneLogin } from "@/components/auth/VendorPhoneLogin";
 import { Store, Users, Mic, Search, Loader2, Check, ArrowRight, ArrowLeft, LogOut, LogIn } from "lucide-react";
 import { JoinInterview } from "@/components/join/JoinInterview";
 import type { BriefInput } from "@/lib/onboard";
+import type { PlaceCandidate } from "@/lib/places";
 
 // Mask a real phone to "(•••) •••-1234" — the demo shows the business's actual
 // Google-listing number as the (fake) verify target, same as the real flow.
@@ -33,7 +34,10 @@ const TYPES: { key: Kind; icon: typeof Store; label: string; sub: string }[] = [
   { key: "artist", icon: Mic, label: "An artist or performer", sub: "DJ, musician, creator" },
 ];
 
-interface Place { placeId: string; name: string; address: string }
+// The full candidate the search returns — rating, geometry, types and all. It's
+// all paid for by that one request, so nothing here gets thrown away: it shows
+// on the result row, fills the profile, and warms the interview brief.
+type Place = PlaceCandidate;
 
 // `demo` = the repeatable, side-effect-free run of this exact flow (only ever
 // passed by the password-gated /joindemo route). Real Google Places (search + the
@@ -71,6 +75,17 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
   const [pq, setPq] = useState("");
   const [results, setResults] = useState<Place[]>([]);
   const [searching, setSearching] = useState(false);
+  const [searched, setSearched] = useState(false); // pressed Search at least once
+
+  // Bias Google's ranking to the USER's country, taken from their device.
+  // Without a region Google biases on the requesting IP — and the request comes
+  // from our server, so a shop in Mexico City would be ranked as if searched
+  // from our datacenter. Free signal, no extra call, no prompt.
+  const region = useMemo(() => {
+    if (typeof navigator === "undefined") return "";
+    const m = /[-_]([A-Za-z]{2})$/.exec(navigator.language || "");
+    return m ? m[1].toLowerCase() : "";
+  }, []);
   const [memberId, setMemberId] = useState("");
   const [bizName, setBizName] = useState("");
   const [phoneHint, setPhoneHint] = useState<string | null>(null);
@@ -184,13 +199,21 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
   }
 
   // ── Step 4 (entities): find business on Google ─────────────────────────────
-  async function searchBiz(q: string) {
-    setPq(q);
-    if (q.trim().length < 3) return setResults([]);
+  // Runs when you press Search (or Enter) — NOT as you type. This used to fire a
+  // billed Google Text Search on every keystroke: ~12 calls to type one business
+  // name. One deliberate search costs one call, and finds the place just as well.
+  async function searchBiz() {
+    const q = pq.trim();
+    if (q.length < 3 || searching) return;
     setSearching(true);
     try {
-      const r = await fetch(`/api/places/search?q=${encodeURIComponent(q)}`);
+      // Bias ranking to where they say they are; otherwise Google ranks around
+      // OUR server's IP, and everyone abroad gets our datacenter's city.
+      const r = await fetch(
+        `/api/places/search?q=${encodeURIComponent(q)}${region ? `&region=${encodeURIComponent(region)}` : ""}`,
+      );
       setResults((await r.json()).results || []);
+      setSearched(true);
     } catch {
       setResults([]);
     } finally {
@@ -228,7 +251,12 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
         ownerName: name,
         ownerRole: role,
       };
-      // The interviewer's warm baseline — built from the REAL Places pick either way.
+      // The interviewer's warm baseline — built from the REAL Places pick either
+      // way. Everything here is already bought and paid for by the search + the
+      // one details call, so none of it is left on the floor: the rating, the
+      // hours and the categories all give the agent something true to open with,
+      // which matters most for the many small businesses Google has no editorial
+      // summary for.
       const listingSeed: BriefInput = {
         name: p.name,
         category: profile.category ?? null,
@@ -236,6 +264,11 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
         neighborhood: details?.neighborhood ?? null,
         description: details?.summary ?? null,
         websiteUrl: details?.website ?? null,
+        rating: details?.rating ?? p.rating ?? null,
+        ratingCount: details?.userRatingsTotal ?? p.userRatingsTotal ?? null,
+        hours: details?.hours ?? null,
+        types: details?.types ?? p.types ?? null,
+        address: details?.address ?? p.address ?? null,
       };
 
       // DEMO: no member created, no OTP sent. Show the business's REAL Google
@@ -502,17 +535,52 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
         <div className="space-y-3">
           <h1 className="text-xl font-bold text-stone-900">Find your business on Google</h1>
           <p className="text-sm text-stone-500">We verify against your real Google listing — and read the number straight from it.</p>
-          <div className="flex items-center gap-2 rounded-lg border border-stone-300 px-3 py-2.5">
-            <Search className="h-4 w-4 text-stone-400" />
-            <input value={pq} onChange={(e) => searchBiz(e.target.value)} placeholder="Search your business" className="w-full text-sm outline-none" />
-            {(searching || busy) && <Loader2 className="h-4 w-4 animate-spin text-stone-400" />}
+          {/* Search on submit, never on keystroke — each search is a paid Google
+              call. Include the city for a better hit ("Tartine Bakery, SF"). */}
+          <div className="flex gap-2">
+            <div className="flex flex-1 items-center gap-2 rounded-lg border border-stone-300 px-3 py-2.5">
+              <Search className="h-4 w-4 shrink-0 text-stone-400" />
+              <input
+                value={pq}
+                onChange={(e) => {
+                  setPq(e.target.value);
+                  if (searched) { setResults([]); setSearched(false); }
+                }}
+                onKeyDown={(e) => e.key === "Enter" && searchBiz()}
+                placeholder="Business name + city"
+                className="w-full text-sm outline-none"
+              />
+              {(searching || busy) && <Loader2 className="h-4 w-4 shrink-0 animate-spin text-stone-400" />}
+            </div>
+            <button
+              onClick={searchBiz}
+              disabled={pq.trim().length < 3 || searching || busy}
+              className="shrink-0 rounded-lg bg-stone-900 px-4 text-sm font-semibold text-white hover:bg-stone-800 disabled:bg-stone-200 disabled:text-stone-400"
+            >
+              Search
+            </button>
           </div>
+
           {results.map((r) => (
             <button key={r.placeId} onClick={() => useListing(r)} disabled={busy} className="flex w-full flex-col items-start rounded-lg border border-stone-200 px-3 py-2 text-left hover:bg-stone-50 disabled:opacity-50">
               <span className="text-sm font-medium text-stone-900">{r.name}</span>
               <span className="text-xs text-stone-500">{r.address}</span>
+              {/* Already paid for with the search — so show it: it's how you tell
+                  two branches of the same name apart. */}
+              {(r.rating != null || r.businessStatus === "CLOSED_PERMANENTLY") && (
+                <span className="mt-0.5 text-[11px] text-stone-400">
+                  {r.rating != null && `★ ${r.rating}${r.userRatingsTotal ? ` (${r.userRatingsTotal})` : ""}`}
+                  {r.businessStatus === "CLOSED_PERMANENTLY" && " · Permanently closed"}
+                </span>
+              )}
             </button>
           ))}
+
+          {searched && results.length === 0 && !searching && (
+            <p className="text-xs text-stone-500">
+              Nothing found. Try adding the city or neighborhood — e.g. &ldquo;Rosa&apos;s Flowers, Oakland&rdquo;.
+            </p>
+          )}
           <p className="text-xs text-stone-400">Typed numbers aren&apos;t accepted — only what Google lists.</p>
         </div>
       )}
