@@ -1,8 +1,10 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Sparkles, Trash2, Plus, Inbox, Save, FileUp } from 'lucide-react'
+import Link from 'next/link'
+import { Sparkles, Trash2, Plus, Inbox, Save, FileUp, UserCircle, MessageCircle } from 'lucide-react'
 import { AgentTuner } from '@/components/vendor/AgentTuner'
+import { AskAssistant } from '@/components/AskAssistant'
 
 interface Knowledge {
   id: string
@@ -28,11 +30,15 @@ export default function VendorAssistantPage() {
   const [uploading, setUploading] = useState(false)
   const [uploadMsg, setUploadMsg] = useState('')
   const [dragOver, setDragOver] = useState(false)
+  const [memberId, setMemberId] = useState<string | null>(null)
+  const [memberName, setMemberName] = useState('your business')
   const fileRef = useRef<HTMLInputElement>(null)
 
   async function load() {
     const d = await fetch('/api/vendor/assistant').then((r) => r.json())
     if (!d.error) {
+      setMemberId(d.memberId ?? null)
+      setMemberName(d.memberName ?? 'your business')
       setEnabled(d.enabled)
       setPersona(d.persona ?? '')
       setKnowledge(d.knowledge ?? [])
@@ -104,7 +110,9 @@ export default function VendorAssistantPage() {
   if (loading) return <p className="text-sm text-stone-500">Loading…</p>
 
   return (
-    <div className="space-y-10">
+    // pt-2 so the title clears the back bar / top nav instead of sitting right
+    // under it.
+    <div className="space-y-10 pt-2">
       <div>
         <div className="flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-indigo-500" />
@@ -114,7 +122,31 @@ export default function VendorAssistantPage() {
           Your storefront has an AI agent that answers customer questions using your products,
           hours, events, and the notes you add below.
         </p>
+
+        {/* View the public profile, or try the agent exactly as a customer would
+            (same chat the profile's "Inquire" button opens). */}
+        <div className="mt-3 flex flex-wrap gap-2">
+          {memberId && (
+            <Link
+              href={`/members/${memberId}`}
+              className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3.5 py-1.5 text-[13px] font-medium text-stone-700 transition hover:bg-stone-50"
+            >
+              <UserCircle className="h-4 w-4" /> View profile
+            </Link>
+          )}
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('open-assistant'))}
+            disabled={!memberId}
+            className="inline-flex items-center gap-1.5 rounded-full bg-indigo-600 px-3.5 py-1.5 text-[13px] font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
+          >
+            <MessageCircle className="h-4 w-4" /> Test agent
+          </button>
+        </div>
       </div>
+
+      {/* The same chat customers get on the profile. Mounted here so "Test agent"
+          opens it; it listens for the open-assistant event. */}
+      {memberId && <AskAssistant memberId={memberId} memberName={memberName} />}
 
       {/* Conversational tuner — talk or type to refine the agent. Its changes
           land in the config + notes below, so keep them in sync. */}

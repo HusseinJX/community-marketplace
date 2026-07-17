@@ -9,6 +9,8 @@ import {
   deleteBusinessKnowledge,
   getLeadsByMember,
 } from '@/lib/vendor-connect'
+import { getMember } from '@/lib/api'
+import { resolveReadActor } from '@/lib/admin'
 
 async function requireMember() {
   const { userId } = await auth()
@@ -19,14 +21,33 @@ async function requireMember() {
 }
 
 export async function GET() {
-  const m = await requireMember()
-  if (m.error) return m.error
+  // Read-only, so a demo visitor may resolve a representative member (writes
+  // below still use the strict requireMember). This is what lets the "Test
+  // agent" / "View profile" buttons appear + work in the admin demo — the demo
+  // actor is seeded from a REAL member, so the chat actually answers.
+  const actor = await resolveReadActor()
+  if (!actor) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const m = { memberId: actor.memberId }
   const [settings, knowledge, leads] = await Promise.all([
     getVendorSettings(m.memberId),
     getBusinessKnowledge(m.memberId),
     getLeadsByMember(m.memberId),
   ])
+  // memberId + name so the page can link to the public profile and mount the
+  // owner's own agent chat ("Test agent"). Name is best-effort — the chat header
+  // falls back gracefully if the connector is slow.
+  let memberName = 'your business'
+  try {
+    const mem = await getMember(m.memberId)
+    const p = (mem as { member?: { profile?: { businessName?: string; name?: string } } })?.member?.profile
+    memberName = p?.businessName || p?.name || memberName
+  } catch {
+    /* keep fallback */
+  }
+
   return NextResponse.json({
+    memberId: m.memberId,
+    memberName,
     enabled: settings?.assistant_enabled !== false,
     persona: settings?.assistant_persona ?? '',
     knowledge,
