@@ -616,9 +616,12 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
           <h1 className="text-xl font-bold text-stone-900">You&apos;re verified · live on WhatsLocal</h1>
           <p className="text-sm text-stone-500">{bizName} is set up. Pick how you want to participate — start free, upgrade anytime.</p>
           <div className="space-y-2 pt-2 text-left">
-            <a href="/vendor" className="block rounded-xl border border-stone-200 p-4 hover:bg-stone-50"><b className="text-stone-900">Free</b> — your page + discovery <span className="float-right text-stone-500">$0</span></a>
-            <a href="/vendor/billing" className="block rounded-xl border border-stone-200 p-4 hover:bg-stone-50"><b className="text-stone-900">Member</b> — AI agent + collab invites <span className="float-right text-stone-500">$10/mo</span></a>
-            <a href="/vendor/billing" className="block rounded-xl border-2 border-violet-400 p-4 hover:bg-violet-50"><b className="text-stone-900">Pro</b> — matching, events, booking agent, sell <span className="float-right text-stone-500">$30/mo</span></a>
+            {/* Must match lib/entitlements.ts (FREE_CAN / MEMBER_CAN / PRO_CAN) — these
+                sit next to live prices. Corrected 2026-07-17: Member said "AI agent",
+                but textAssistant is PRO_CAN only, so $10 never included it. */}
+            <a href="/vendor" className="block rounded-xl border border-stone-200 p-4 hover:bg-stone-50"><b className="text-stone-900">Free</b> — your page, posts + event invites <span className="float-right text-stone-500">$0</span></a>
+            <a href="/vendor/billing" className="block rounded-xl border border-stone-200 p-4 hover:bg-stone-50"><b className="text-stone-900">Organizer</b> — send invites + host events <span className="float-right text-stone-500">$10/mo</span></a>
+            <a href="/vendor/billing" className="block rounded-xl border-2 border-violet-400 p-4 hover:bg-violet-50"><b className="text-stone-900">Pro</b> — AI agent + sell online <span className="float-right text-stone-500">$30/mo</span></a>
           </div>
           <button onClick={() => router.push("/vendor")} className="mt-2 inline-flex items-center gap-2 rounded-full bg-stone-900 px-5 py-2.5 text-sm font-semibold text-white">
             Go to your dashboard <ArrowRight className="h-4 w-4" />

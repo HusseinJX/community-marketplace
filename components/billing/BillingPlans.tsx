@@ -6,6 +6,26 @@ import type { Plan } from "@/lib/entitlements";
 
 type SelfServePlan = "member" | "pro";
 
+// ⚠️ Every line below is a PROMISE ATTACHED TO A LIVE PRICE. Only list what
+// `lib/entitlements.ts` actually grants for that plan — check `FREE_CAN` /
+// `MEMBER_CAN` / `PRO_CAN` before adding a bullet, and check the feature exists
+// at all before adding it to any tier.
+//
+// This drifted badly and was corrected 2026-07-17. It had been selling:
+//   • "AI customer-service agent" on Member ($10) — `textAssistant` is PRO_CAN
+//     only, so payers were refused the thing the tagline ("Get the agent")
+//     promised.
+//   • "Analytics & insights" on Pro — `analytics` is a string in the Capability
+//     union with no page, route, or gate call behind it.
+//   • "AI voice agent with booking" on Pro — no booking/reservations system
+//     exists (no tables, routes, or components).
+// It also described Member as "Receive collaboration invites" (that's free —
+// `networkReceive` is in FREE_CAN) while omitting what $10 actually buys:
+// SENDING invites and HOSTING events.
+//
+// Labels/taglines here duplicate `PLAN_META` in lib/entitlements.ts, which is
+// how they drifted out of sync. If this drifts again, derive them from PLAN_META
+// instead of retyping them.
 const TIERS: {
   plan: Plan;
   label: string;
@@ -19,53 +39,65 @@ const TIERS: {
 }[] = [
   {
     plan: "free",
-    label: "Free",
+    label: "Participate",
     price: "$0",
-    tagline: "Join the community.",
+    tagline: "Start here.",
     icon: Search,
     cta: "free",
     features: [
-      "Post to the community",
+      // FREE_CAN: claimedProfile, posts, discovery, networkReceive.
+      // The claimed profile and event invites ARE free — the old copy omitted
+      // both and instead promised "the AI agent" one tier up, which was wrong.
+      "Claimed profile",
+      "Get invited to events",
+      "Post & be found",
       "Community support & resources",
-      "Be found in local discovery",
-      "Upgrade for the AI agent & invites",
     ],
   },
   {
     plan: "member",
-    label: "Member",
+    label: "Organizer",
     price: "$10",
     cadence: "/month",
-    tagline: "Get the agent + invites.",
+    tagline: "Send invites & host events.",
     icon: Users,
     cta: "checkout",
     features: [
+      // MEMBER_CAN adds: networkInitiate, organizeEvents, captureLeads, automations.
+      // NOT textAssistant — the agent is Pro.
       "Everything in Free",
-      "Verified, claimed profile",
-      "AI customer-service agent",
-      "Receive collaboration invites",
-      "Receive event & pop-up opportunities",
-      "Included in ecosystem recommendations",
+      "Send collaboration invites",
+      "Host & organize events",
+      "Reach the network — matching & lineups",
+      "Capture leads & RSVPs",
+      "Automations & follow-ups (SMS/email)",
     ],
   },
   {
     plan: "pro",
-    label: "Pro / Organizer",
+    label: "Pro",
     price: "$30",
     cadence: "/month",
-    tagline: "Activate the network.",
+    tagline: "Sell on the network.",
     icon: Rocket,
     highlight: true,
     cta: "checkout",
     features: [
-      "Everything in Member",
-      "Send collaboration invites",
-      "Create & organize events",
-      "Powerful AI voice agent with booking",
-      "Connect shop / menu — sell online",
+      // PRO_CAN adds: textAssistant, voiceAssistant, commerce.
+      // (Send invites / organize events moved out — they're Member, already
+      // covered by "Everything in Organizer".)
+      "Everything in Organizer",
+      "AI customer-service agent",
+      "Powerful AI voice agent",
+      // "Sell & deliver" on the promo art: selling is real, DELIVERY IS NOT
+      // AVAILABLE — the platform has no Uber Direct credentials, so the vendor
+      // toggle stays hidden (uberConfigured()). Say "sell" until it's real.
+      "Sell online — take payments, 5% per sale",
+      // Only Shopify + Square are wired (lib/composio.ts TOOL_SLUGS /
+      // AUTH_CONFIG_ENV). The promo art also lists Calendar + CRM: neither
+      // exists — no calendar/booking system, no CRM toolkit, no auth configs.
+      "Connect your POS — Shopify or Square",
       "Capture leads, RSVPs & inquiries",
-      "Analytics & insights",
-      "Automations & follow-ups (SMS/email)",
     ],
   },
   {
