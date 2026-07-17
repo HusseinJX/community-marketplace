@@ -5,6 +5,7 @@ import type { Member } from "@/lib/types";
 import type { LiveBroadcast } from "@/components/live/types";
 import type { FeedEvent } from "@/app/api/events/feed/route";
 import type { Post } from "@/lib/posts";
+import type { Activity } from "@/lib/unread";
 import { fetchLiveBroadcasts } from "@/lib/demo-live-fixtures";
 
 // Shared, cached data hooks. Every surface that needs one of these datasets
@@ -95,3 +96,20 @@ export function useMemories(memberId?: string, eventId?: string) {
   const { data } = useSWR<{ posts?: Post[] }>(qs ? `/api/posts?${qs}` : null);
   return { posts: data?.posts ?? [] };
 }
+
+/**
+ * Message activity powering the unread badges (collab rooms + customer DMs).
+ * Cached like everything else here, so returning to Messages paints the badges
+ * from cache immediately instead of popping them in after a fresh round-trip.
+ * Revalidates in the background every 30s.
+ */
+export function useVendorActivity(memberId: string, isAdmin: boolean) {
+  const { data } = useSWR<{ collab?: Activity[]; customer?: Activity[] }>(
+    memberId ? `/api/vendor/activity${isAdmin ? `?memberId=${encodeURIComponent(memberId)}` : ""}` : null,
+    { refreshInterval: 30_000 },
+  );
+  return { collab: data?.collab ?? EMPTY, customer: data?.customer ?? EMPTY, loaded: !!data };
+}
+
+// Stable identity so consumers' useMemo deps don't churn on every render.
+const EMPTY: Activity[] = [];

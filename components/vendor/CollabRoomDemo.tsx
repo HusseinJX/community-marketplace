@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import {
   MessageSquare, ListChecks, Sparkles, Send, Check, AlertTriangle, Lock,
-  CalendarPlus, Plus, Crown, PartyPopper,
+  CalendarPlus, Plus, Crown, PartyPopper, Users,
 } from 'lucide-react'
 import type { CollaborationSummary } from '@/lib/collab-network'
 import {
@@ -21,8 +21,34 @@ const nameFor = (id: string) => PARTICIPANTS.find((p) => p.id === id)?.name ?? i
 const FILLED = (v: string) => v.trim().length > 0
 const HAS_CONFLICT = (v: string) => v.includes('⚠')
 
-export function CollabRoomDemo({ collab }: { collab: CollaborationSummary }) {
-  const [tab, setTab] = useState<'chat' | 'plan'>('chat')
+export function CollabRoomDemo({
+  collab,
+  owned = true,
+  leadName = 'You',
+}: {
+  collab: CollaborationSummary
+  owned?: boolean
+  leadName?: string
+}) {
+  const [tab, setTab] = useState<'chat' | 'plan' | 'people'>('chat')
+  // Who's said "I'm in 👍". Accepting an invite only opened the room — this is
+  // the actual commitment, and it's what the event lineup is built from.
+  // The lead is in by their own doing; a joiner opts in.
+  const [inSet, setInSet] = useState<Set<string>>(() => {
+    const s = new Set(PARTICIPANTS.filter((p) => p.agreed).map((p) => p.id))
+    if (owned) s.add('you')
+    return s
+  })
+  const imIn = inSet.has('you')
+
+  function toggleIn(id: string) {
+    setInSet((s) => {
+      const n = new Set(s)
+      if (n.has(id)) n.delete(id)
+      else n.add(id)
+      return n
+    })
+  }
   const [messages, setMessages] = useState<ChatMsg[]>(SEED_CHAT)
   const [draft, setDraft] = useState('')
   const [plan, setPlan] = useState<PlanState>(SEED_PLAN)
@@ -96,19 +122,37 @@ export function CollabRoomDemo({ collab }: { collab: CollaborationSummary }) {
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-stone-900">{collab.label}</p>
           <p className="mt-0.5 flex items-center gap-1 text-[11px] text-stone-500">
-            <Crown className="h-3 w-3 text-amber-500" /> Led by You
+            <Crown className="h-3 w-3 text-amber-500" /> Led by {leadName}
           </p>
         </div>
-        <StatusPill status={status} />
+        <div className="flex shrink-0 items-center gap-2">
+          {!owned && (
+            <button
+              onClick={() => toggleIn('you')}
+              className={`rounded-full px-3 py-1.5 text-[12px] font-semibold transition ${
+                imIn
+                  ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                  : 'border border-stone-300 text-stone-700 hover:bg-stone-50'
+              }`}
+            >
+              {imIn ? "✓ You're in" : "I'm in 👍"}
+            </button>
+          )}
+          <StatusPill status={status} />
+        </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex shrink-0 gap-1 border-b border-stone-200 px-2">
-        {([['chat', 'Chat', MessageSquare], ['plan', 'Plan', ListChecks]] as const).map(([key, label, Icon]) => (
+      <div className="flex shrink-0 gap-1 overflow-x-auto border-b border-stone-200 px-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {([
+          ['chat', 'Chat', MessageSquare],
+          ['plan', 'Plan', ListChecks],
+          ['people', 'Participants', Users],
+        ] as const).map(([key, label, Icon]) => (
           <button
             key={key}
             onClick={() => setTab(key)}
-            className={`-mb-px inline-flex items-center gap-1.5 border-b-2 px-3.5 py-2 text-[13px] font-medium ${
+            className={`-mb-px inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-3.5 py-2 text-[13px] font-medium ${
               tab === key ? 'border-indigo-500 text-indigo-700' : 'border-transparent text-stone-500 hover:text-stone-800'
             }`}
           >
@@ -118,7 +162,9 @@ export function CollabRoomDemo({ collab }: { collab: CollaborationSummary }) {
         ))}
       </div>
 
-      {tab === 'chat' ? (
+      {tab === 'people' ? (
+        <PeopleTab inSet={inSet} toggleIn={toggleIn} leadName={leadName} />
+      ) : tab === 'chat' ? (
         <ChatTab
           messages={messages}
           draft={draft}
@@ -147,6 +193,8 @@ export function CollabRoomDemo({ collab }: { collab: CollaborationSummary }) {
           resetNote={resetNote}
           summary={summary}
           canCreate={canCreate}
+          owned={owned}
+          leadName={leadName}
           published={published}
           onCreate={() => setPublished(true)}
         />
@@ -161,6 +209,98 @@ function StatusPill({ status }: { status: string }) {
       : status === 'Awaiting Approval' ? 'bg-amber-50 text-amber-700'
         : 'bg-stone-100 text-stone-600'
   return <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${tone}`}>{status}</span>
+}
+
+// ── Participants tab ─────────────────────────────────────────────────────────
+// The three states, kept distinct on purpose:
+//   Invited — sent, no answer yet.
+//   Joined  — accepted, which only opened the room. NOT a commitment.
+//   In 👍   — said "I'm in" here in the chat. This is who the event is built from.
+function PeopleTab({
+  inSet,
+  toggleIn,
+  leadName,
+}: {
+  inSet: Set<string>
+  toggleIn: (id: string) => void
+  leadName: string
+}) {
+  const state = (p: (typeof PARTICIPANTS)[number]) =>
+    p.pending ? 'invited' : inSet.has(p.id) ? 'in' : 'joined'
+
+  const groups = [
+    { key: 'in', label: 'In', hint: 'Committed — these are who the event is built from.' },
+    { key: 'joined', label: 'Joined', hint: 'In the room, but haven’t said they’re in yet.' },
+    { key: 'invited', label: 'Invited', hint: 'Waiting on an answer.' },
+  ] as const
+
+  return (
+    <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-4">
+      {groups.map((g) => {
+        const rows = PARTICIPANTS.filter((p) => state(p) === g.key)
+        if (rows.length === 0) return null
+        return (
+          <div key={g.key}>
+            <p className="section-label mb-1">
+              {g.label} · {rows.length}
+            </p>
+            <p className="mb-2 text-[11px] text-stone-400">{g.hint}</p>
+            <div className="space-y-1.5">
+              {rows.map((p) => {
+                const me = p.id === 'you'
+                return (
+                  <div
+                    key={p.id}
+                    className="flex items-center gap-3 rounded-xl border border-stone-200 bg-white px-3 py-2.5"
+                  >
+                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-stone-100 text-[11px] font-semibold text-stone-500">
+                      {p.name.slice(0, 2).toUpperCase()}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-1.5">
+                        <span className="truncate text-sm font-medium text-stone-900">{p.name}</span>
+                        {p.lead && <Crown className="h-3 w-3 shrink-0 text-amber-500" />}
+                      </span>
+                      <span className="mt-0.5 block truncate text-[11px] text-stone-500">{p.role}</span>
+                    </span>
+                    {me ? (
+                      <button
+                        onClick={() => toggleIn('you')}
+                        className={
+                          'shrink-0 rounded-full px-3 py-1.5 text-[12px] font-semibold transition ' +
+                          (inSet.has('you')
+                            ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                            : 'border border-stone-300 text-stone-700 hover:bg-stone-50')
+                        }
+                      >
+                        {inSet.has('you') ? '✓ You’re in' : 'I’m in 👍'}
+                      </button>
+                    ) : (
+                      <StateChip state={state(p)} />
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })}
+
+      <p className="text-[11px] leading-snug text-stone-400">
+        {leadName === 'You' ? 'You' : leadName} created this collaboration. Only people who are{' '}
+        <span className="font-medium text-stone-500">in</span> join the event lineup when it&apos;s created.
+      </p>
+    </div>
+  )
+}
+
+function StateChip({ state }: { state: 'in' | 'joined' | 'invited' }) {
+  const map = {
+    in: { label: '👍 In', cls: 'bg-emerald-50 text-emerald-700' },
+    joined: { label: 'Joined', cls: 'bg-stone-100 text-stone-600' },
+    invited: { label: 'Invited', cls: 'bg-amber-50 text-amber-700' },
+  }[state]
+  return <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${map.cls}`}>{map.label}</span>
 }
 
 // ── Chat tab ─────────────────────────────────────────────────────────────────
@@ -241,13 +381,15 @@ function PlanTab(props: {
   resetNote: boolean
   summary: string
   canCreate: boolean
+  owned: boolean
+  leadName: string
   published: boolean
   onCreate: () => void
 }) {
   const {
     plan, setField, typeKey, pickType, requiredSet, report, currentTypeSpecifics,
     tasks, setTasks, approvals, requiredApprovers, approvedCount, allApproved,
-    toggleApprove, resetNote, summary, canCreate, published, onCreate,
+    toggleApprove, resetNote, summary, canCreate, owned, leadName, published, onCreate,
   } = props
 
   if (published) return <PublishedCard summary={summary} />
@@ -366,17 +508,24 @@ function PlanTab(props: {
         </div>
       </div>
 
-      {/* Create Event */}
-      <button
-        onClick={canCreate ? onCreate : undefined}
-        disabled={!canCreate}
-        className={`flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition ${
-          canCreate ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'cursor-not-allowed bg-stone-100 text-stone-400'
-        }`}
-      >
-        {canCreate ? <CalendarPlus className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
-        {canCreate ? 'Create Event' : 'Create Event — finish the plan & approvals'}
-      </button>
+      {/* Create Event — only the lead creates it; participants just approve. */}
+      {owned ? (
+        <button
+          onClick={canCreate ? onCreate : undefined}
+          disabled={!canCreate}
+          className={`flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition ${
+            canCreate ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'cursor-not-allowed bg-stone-100 text-stone-400'
+          }`}
+        >
+          {canCreate ? <CalendarPlus className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+          {canCreate ? 'Create Event' : 'Create Event — finish the plan & approvals'}
+        </button>
+      ) : (
+        <p className="flex items-center justify-center gap-2 rounded-xl bg-stone-50 px-4 py-3 text-[13px] text-stone-500">
+          <Lock className="h-4 w-4 shrink-0" />
+          {leadName} creates the event once everyone’s in and the plan’s approved.
+        </p>
+      )}
     </div>
   )
 }

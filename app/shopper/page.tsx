@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Show, UserButton, useUser } from "@clerk/nextjs";
-import { Heart, ShoppingBag, Users, ArrowRight, PenLine, Store } from "lucide-react";
+import { Heart, ShoppingBag, Users, ArrowRight, PenLine, Store, MessageCircle } from "lucide-react";
 import { PushTestButton } from "@/components/PushTestButton";
 import { DeleteAccountButton } from "@/components/account/DeleteAccountButton";
 import { useOpenLogin } from "@/components/auth/ClerkAuthProvider";
@@ -61,6 +61,20 @@ export default function ShopperAdmin() {
         <h1 className="text-xl font-semibold text-stone-900">Your space</h1>
         <p className="mt-1 text-sm text-stone-500">Everything you&apos;ve saved, ordered, and discovered nearby.</p>
       </div>
+
+      {/* Messages lives here, in the shopper's own space — not as a nav tab. */}
+      <Link href="/messages" className="card-soft card-hover flex items-center justify-between p-4">
+        <span className="flex items-center gap-3">
+          <MessageCircle className="h-5 w-5 shrink-0 text-teal-500" />
+          <span>
+            <span className="block text-sm font-semibold text-stone-900">Messages</span>
+            <span className="block text-xs text-stone-500">
+              Your WhatsLocal assistant and conversations with local businesses.
+            </span>
+          </span>
+        </span>
+        <ArrowRight className="h-4 w-4 shrink-0 text-stone-400" />
+      </Link>
 
       {/* Quick access — compact metric grid */}
       <div>

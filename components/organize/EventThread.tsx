@@ -119,24 +119,45 @@ export function EventThread({
 
   return (
     <div className="space-y-4">
-      <div className="space-y-2">
+      {/* Chat bubbles, like every other conversation in the app. Blasts render
+          as a centred system line — they're a log of what went out, not a turn
+          in the conversation. */}
+      <div className="space-y-2.5">
         {messages.length === 0 && (
-          <p className="text-sm text-stone-400">No messages yet. Post an update for your {audienceLabel}.</p>
+          <p className="py-8 text-center text-sm text-stone-400">
+            No messages yet. Post an update for your {audienceLabel}.
+          </p>
         )}
-        {messages.map((m) =>
-          m.channel === "chat" ? (
-            <div key={m.id} className="rounded-lg bg-stone-50 px-3 py-2 text-sm">
-              <span className="font-medium text-stone-800">{m.sender_name || "Member"}</span>{" "}
-              <span className="text-stone-700">{m.text}</span>
+        {messages.map((m) => {
+          if (m.channel !== "chat") {
+            return (
+              <div key={m.id} className="flex justify-center">
+                <span className="inline-flex max-w-[90%] items-center gap-1.5 rounded-full bg-stone-50 px-2.5 py-1 text-[11px] text-stone-400">
+                  <Megaphone className="h-3 w-3 shrink-0" />
+                  <span className="truncate">
+                    {m.channel.toUpperCase()} blast to {m.recipients ?? 0} · “{m.text}”
+                  </span>
+                </span>
+              </div>
+            );
+          }
+          const mine = m.sender_id === memberId;
+          return (
+            <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+              <div
+                className={
+                  "max-w-[85%] break-words rounded-2xl px-3 py-1.5 text-[13px] leading-snug " +
+                  (mine ? "bg-indigo-600 text-white" : "bg-stone-100 text-stone-800")
+                }
+              >
+                {!mine && (
+                  <span className="block text-[10px] font-semibold text-stone-400">{m.sender_name || "Member"}</span>
+                )}
+                {m.text}
+              </div>
             </div>
-          ) : (
-            <div key={m.id} className="flex items-center gap-2 px-1 text-xs text-stone-400">
-              <Megaphone className="h-3.5 w-3.5" />
-              {m.channel.toUpperCase()} blast to {m.recipients ?? 0} · &ldquo;{m.text.slice(0, 40)}
-              {m.text.length > 40 ? "…" : ""}&rdquo;
-            </div>
-          )
-        )}
+          );
+        })}
       </div>
 
       <div className="card-soft p-3">
@@ -147,8 +168,8 @@ export function EventThread({
           rows={2}
           className="w-full resize-none rounded-lg border border-stone-200 p-2 text-sm"
         />
-        <div className="mt-2 flex items-center justify-between">
-          <div className="flex items-center gap-3 text-xs">
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
             <span className="text-stone-400">Also send via:</span>
             <label className="flex items-center gap-1 text-stone-600">
               <input type="checkbox" checked={sms} onChange={(e) => setSms(e.target.checked)} className="accent-indigo-600" />

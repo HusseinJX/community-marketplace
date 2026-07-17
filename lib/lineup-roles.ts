@@ -20,6 +20,28 @@ export const LINEUP_ROLES: LineupRoleDef[] = [
 
 const ROLE_ORDER = new Map(LINEUP_ROLES.map((r, i) => [r.key, i]));
 
+// Infer a lineup role from who the member already IS, rather than asking the
+// organizer to classify every person they invite. A taquería is food, a muralist
+// performs, a community org partners. The organizer can still be wrong about an
+// edge case — but they're wrong about it AFTER the invite, not before it.
+export function inferRole(m: {
+  memberType?: string | null;
+  category?: string | null;
+  offers?: string[] | null;
+}): string {
+  const hay = [m.category ?? "", ...(m.offers ?? [])].join(" ").toLowerCase();
+  const type = (m.memberType ?? "").toLowerCase();
+
+  if (/food|beverage|coffee|drink|taco|taquer|bakery|bake|kitchen|cafe|café|brew|juice|restaurant/.test(hay)) {
+    return "food";
+  }
+  if (type === "artist" || /music|band|dj|perform|mural|art|design|dance|comedy/.test(hay)) {
+    return "performer";
+  }
+  if (type === "organizer" || /nonprofit|non-profit|community|charity|org\b/.test(hay)) return "partner";
+  return "vendor";
+}
+
 export function roleDef(key: string | null | undefined): LineupRoleDef {
   return LINEUP_ROLES.find((r) => r.key === key) ?? LINEUP_ROLES[0];
 }

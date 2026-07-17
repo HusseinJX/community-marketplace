@@ -58,6 +58,17 @@ function toStored(p: Product): StoredProduct {
 }
 
 const CATEGORIES: Category[] = ["Apparel", "Headwear", "Accessories", "Home"];
+
+// Quick filters — a horizontal pill row above the grid. Orthogonal to the
+// sidebar (category/price), so they compose with it rather than duplicate it.
+const QUICK_FILTERS: { label: string; test: (p: Product) => boolean }[] = [
+  { label: "All", test: () => true },
+  { label: "New arrivals", test: (p) => p.badge === "New" },
+  { label: "Bestsellers", test: (p) => p.badge === "Bestseller" },
+  { label: "On sale", test: (p) => p.badge === "Sale" || p.compareAt != null },
+  { label: "Under $30", test: (p) => p.price < 30 },
+  { label: "Top rated", test: (p) => p.rating >= 4.8 },
+];
 const SORT_OPTIONS = [
   { value: "featured", label: "Featured" },
   { value: "newest", label: "Newest" },
@@ -249,6 +260,7 @@ export default function ShopPage() {
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [view, setView] = useState<"grid" | "list">("grid");
   const [showFilters, setShowFilters] = useState(false); // mobile filter drawer
+  const [quickFilter, setQuickFilter] = useState("All");
 
   // Compare — pick up to 4 products, then open a side-by-side panel.
   const [compare, setCompare] = useState<string[]>([]);
@@ -263,6 +275,8 @@ export default function ShopPage() {
       if (selectedCategory !== "All" && p.category !== selectedCategory) return false;
       if (p.price > maxPrice) return false;
       if (search && !p.name.toLowerCase().includes(search.toLowerCase())) return false;
+      const quick = QUICK_FILTERS.find((q) => q.label === quickFilter);
+      if (quick && !quick.test(p)) return false;
       return true;
     })
     .sort((a, b) => {
@@ -272,17 +286,10 @@ export default function ShopPage() {
       return 0;
     });
 
-  const heroProducts = products.slice(0, 6);
   const sortLabel = SORT_OPTIONS.find((o) => o.value === sort)?.label ?? "Featured";
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Announcement bar */}
-      <div className="flex items-center justify-center gap-3 bg-stone-900 py-2.5 text-sm font-medium text-stone-100">
-        <Truck className="h-4 w-4 shrink-0 text-stone-400" />
-        <span>Free shipping on orders over $75 · New drop available now</span>
-      </div>
-
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         {/* Back link */}
         <Link
@@ -292,44 +299,6 @@ export default function ShopPage() {
           <ArrowLeft className="h-4 w-4" />
           Back to WhatsLocal AI
         </Link>
-
-        {/* Hero section */}
-        <section className="mb-10 overflow-hidden rounded-3xl border border-stone-200 bg-gradient-to-br from-stone-900 via-stone-800 to-indigo-900 p-8 text-white md:p-12">
-          <div className="grid items-center gap-8 md:grid-cols-2">
-            <div>
-              <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-medium backdrop-blur">
-                <ShoppingBag className="h-3.5 w-3.5" /> Xen Merch · Spring drop
-              </div>
-              <h1 className="mt-4 text-4xl font-semibold tracking-tight md:text-5xl">
-                <span className="underline decoration-pink-400 decoration-2 underline-offset-4">We ar</span>
-                <span className="text-pink-300/80">e</span>
-                <span> WhatsLocal.</span>
-              </h1>
-              <p className="mt-3 max-w-md text-stone-300">
-                Limited-run apparel and goods made with the artists, makers, and communities we work with every day.
-              </p>
-              <div className="mt-6 flex flex-wrap gap-3">
-                <button className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-stone-900 transition hover:bg-stone-100">
-                  Shop the drop <ArrowRight className="h-4 w-4" />
-                </button>
-                <button className="inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-2.5 text-sm font-medium text-white ring-1 ring-white/20 backdrop-blur transition hover:bg-white/20">
-                  Lookbook
-                </button>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-3">
-              {heroProducts.map((p, i) => (
-                <div
-                  key={p.id}
-                  className={`aspect-square rounded-2xl bg-gradient-to-br ${p.color} ${
-                    i === 1 || i === 4 ? "translate-y-4" : ""
-                  }`}
-                />
-              ))}
-            </div>
-          </div>
-        </section>
 
         {/* Toolbar */}
         <div className="mb-6 flex flex-wrap items-center gap-3">
@@ -410,6 +379,23 @@ export default function ShopPage() {
           </div>
         </div>
 
+        {/* Quick filters — one horizontal scroll row of pills */}
+        <div className="-mx-4 mb-6 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {QUICK_FILTERS.map((q) => (
+            <button
+              key={q.label}
+              onClick={() => setQuickFilter(q.label)}
+              className={`shrink-0 rounded-full border px-4 py-1.5 text-sm font-medium transition ${
+                quickFilter === q.label
+                  ? "border-stone-900 bg-stone-900 text-white"
+                  : "border-stone-200 bg-white text-stone-600 hover:border-stone-300 hover:text-stone-900"
+              }`}
+            >
+              {q.label}
+            </button>
+          ))}
+        </div>
+
         {/* Two-column layout (stacks on mobile; filters collapse into a drawer) */}
         <div className="flex flex-col gap-6 lg:flex-row lg:gap-8">
           {/* Sidebar filters — hidden on mobile until the Filters button opens it */}
@@ -478,6 +464,14 @@ export default function ShopPage() {
                 ))}
               </div>
             </div>
+
+            {/* Apply filters */}
+            <button
+              onClick={() => setShowFilters(false)}
+              className="w-full rounded-xl bg-stone-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-stone-800"
+            >
+              Apply filters
+            </button>
           </aside>
 
           {/* Product area */}

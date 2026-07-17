@@ -4,6 +4,31 @@ All notable changes to this project are documented here.
 
 ## [Unreleased] — commerce, live, social shell (branch `feat/collab-rooms`)
 
+### Added — collab composer, organizer ICP rebuild, unread badges — 2026-07-16
+- **`components/match/PeoplePicker.tsx`** — the ONE people picker: search the semantic matcher, **Clear** to fall back to just who you've picked, pick/drop animate in place (`pick-confirm`/`check-pop` + mirrored `unpick-confirm`/`check-unpop` in `globals.css`, both `prefers-reduced-motion`-aware). Shared by the collab composer, the organizer lineup, and the new-event composer. No nested scrollbox.
+- **`components/vendor/CollabComposer.tsx`** — the ONE collaboration composer (name + description + PeoplePicker + create), shared by the dashboard Create card, the new **`/vendor/collab/new`** page, and the Add-people modal. Returns `occasionId` so callers deep-link straight into the new chat (`?collab=<id>`).
+- **`/vendor/event/new`** — the event twin of `/vendor/collab/new`: progressive form (name first; description/when/where/capacity appear once named), PeoplePicker for the opening lineup, then lands you inside the event (`/vendor/organize?event=<id>`).
+- **Unread badges** — Messages tabs (Collaborations/Customers), per collaboration card, per customer thread. `app/api/vendor/activity` returns every message as `{key, at, mine}` (`getRoomActivity` + `getCustomerMessageActivity`); `lib/unread.ts` owns "last seen" in localStorage — **no read-state table**. SWR-cached via `useVendorActivity` so badges paint from cache. Demo read-state is memory-only (reload restores badges).
+- **Participants tab** in the collab room — In / Joined / Invited, your row is the "I'm in 👍" toggle. Encodes that accepting only opens the chat; "I'm in" is the commitment.
+- **Dashboard Collabs is idea-first** — "Ideas for you" built from complementary matches (deterministic, no AI cost) → tap → prefilled composer. **Join/Create** toggle (Join default) beside the title.
+- **`lib/lineup-roles.ts` `inferRole()`** — infers a lineup role from what a business already is (taquería → food, muralist → performer, community org → partner).
+- **`lib/demo-collab-store.ts`** — collabs created in the admin demo persist locally so "create → open the chat" lands somewhere real.
+
+### Changed — organizer (core ICP) rebuilt around the collab patterns — 2026-07-16
+- **Organize is list → detail**: events are a card list with a "Create new event" card on top; opening one makes the event the title with its tabs beneath. Removed auto-select + the sidebar/horizontal-pill strip.
+- **Lineup tab leads with participants**, grouped by state (In / Asked to join / Invited / Declined) like the collab Participants tab; role chips double as a **filter** (`PARTICIPANTS · 2 of 7`); **+ Add** opens its own view. The tab was ~2,818px of everything-at-once with the search buried under the whole roster.
+- **Attendees**: capacity stat + progress bar + "N spots left"; rows rebuilt (a long email used to squeeze the name out). **Messages**: real chat bubbles; SMS/email blasts render as a centred system line.
+- **Free tier is a real network participant** — entitlements already granted `networkReceive`, but `CollabsGate` forced Free into an inert "you're not in the network yet" preview. Free now receives/accepts invites and chats for real; only *initiating* is gated.
+- **Messages**: title + tab bar hide while a chat is open; **Pending** = invites received + things you asked to join (invites you *sent* live inside the collaboration you created).
+- **Share composer**: dropped the required-tag gate + amber alert card — the feed is back on home and `getPosts()` is unfiltered, so untagged posts land somewhere.
+- **Shop**: removed the shipping banner + hero; added quick-filter pills (orthogonal to the sidebar) + Apply filters; smaller marketplace button.
+- **Footer**: Explore = Add your business / Business login / Admin demo / Run an event; "Your business" section removed; directory hubs (`/city`, `/category`, `/explore`, `/browse`) moved to a quiet, **visible** "Browse" row to keep them crawlable.
+- Messages moved out of the shopper bottom nav into `/shopper`; `VendorNav` Home+Messages sit together on the left; `VendorBackBar` suppressed on pages that own a specific back affordance.
+
+### Removed — 2026-07-16
+- **"New business requests"** panel — participating means having an account, so a business not in the directory signs up rather than being hand-added by an organizer (table + API kept).
+- **"Invite as"** role picker — roles are inferred; picked people show their inferred role emoji so the inference is visible before sending.
+
 ### Added — Vendor Messages, conversational agent tuner, collab tiering — 2026-07-10
 - **Vendor Messages inbox** (`/vendor/messages`, new nav tab): (1) **customer DMs** — real conversations customers had with the business agent (`app/api/vendor/messages` + `.../[conversationId]` over `chat_conversations`/`chat_messages`, `resolveActor`-gated), transcript inline; (2) pinned **"Your AI agent"** chat (`app/vendor/messages/assistant` + `components/vendor/VendorAgentChat.tsx` streaming `/api/chat/[memberId]`).
 - **Conversational agent tuner** on `/vendor/assistant` — a **"Tune your agent"** panel (`components/vendor/AgentTuner.tsx`) that refines the customer-service agent by **chat or voice** ("make it less aggressive" → applies + confirms). `app/api/vendor/assistant/tune` = OpenAI tool-loop (`update_tone`/`add_note`/`remove_note`/`set_enabled`) editing `assistant_persona`+`business_knowledge` (the owner inputs `buildSystemPrompt` composes — never the fixed scaffold/tools/live facts). `app/api/vendor/assistant/voice` = OpenAI Realtime session grounded in the current config; the transcript is applied on hang-up (reuses `VoiceCall`). Demo actors preview without persisting.

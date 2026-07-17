@@ -459,6 +459,28 @@ export async function getRoomsFor(memberId: string): Promise<CollabRoom[]> {
   return [...byId.values()].sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
 }
 
+// Every message in the member's rooms, reduced to what an unread badge needs:
+// which room, when, and whether it was theirs. The client compares `at` against
+// its own per-room "last seen" to count what's new.
+export async function getRoomActivity(
+  memberId: string,
+): Promise<{ key: string; at: string; mine: boolean }[]> {
+  const rooms = await getRoomsFor(memberId)
+  const ids = rooms.map((r) => r.id)
+  if (ids.length === 0) return []
+  const { data } = await db()
+    .from('collab_messages')
+    .select('room_id, sender_id, created_at')
+    .in('room_id', ids)
+    .order('created_at', { ascending: false })
+    .limit(2000)
+  return ((data as { room_id: string; sender_id: string; created_at: string }[]) ?? []).map((m) => ({
+    key: m.room_id,
+    at: m.created_at,
+    mine: m.sender_id === memberId,
+  }))
+}
+
 export async function getRoom(roomId: string): Promise<CollabRoom | null> {
   const { data } = await db().from('collab_rooms').select('*').eq('id', roomId).maybeSingle()
   return (data as CollabRoom) ?? null

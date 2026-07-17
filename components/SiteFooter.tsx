@@ -22,10 +22,9 @@ export function SiteFooter() {
   return (
     <footer className="mt-16 border-t border-stone-200 bg-white">
       <div className="mx-auto max-w-7xl px-4 py-12 md:px-8">
-        {/* brand(2) + Explore + Your business + Connect = 5 columns. On
-            grid-cols-4 the brand's col-span-2 filled the row and pushed Connect
-            onto a second one. */}
-        <div className="grid gap-10 md:grid-cols-5">
+        {/* brand(2) + Explore + Connect = 4 columns. The brand spans 2, so the
+            column count has to stay one ahead of the number of link columns. */}
+        <div className="grid gap-10 md:grid-cols-4">
           <div className="md:col-span-2">
             <Link href="/" className="inline-flex items-center gap-2 text-lg font-semibold tracking-tight text-stone-900">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -37,32 +36,14 @@ export function SiteFooter() {
             </p>
           </div>
 
-          {/* Explore stays — /city and /category are the SEO landing hubs, and
-              internal links are how crawlers weight them. (The Community column —
-              SF, World Cup, resources, petitions — was removed: supporting cast.
-              Those routes are now unlinked, which is the honest signal that they
-              should either be deleted or earn their way back.) */}
+          {/* One column now — the "Your business" section was folded away. */}
           <div>
             <h4 className="text-sm font-semibold text-stone-900">Explore</h4>
             <ul className="mt-3 space-y-2 text-sm text-stone-600">
-              <li><Link href="/explore" className="hover:text-indigo-700">All businesses</Link></li>
-              <li><Link href="/city" className="hover:text-indigo-700">Places</Link></li>
-              <li><Link href="/category" className="hover:text-indigo-700">Categories</Link></li>
-              <li><Link href="/browse" className="hover:text-indigo-700">Atlas</Link></li>
-              <li><button type="button" onClick={openAdminDemo} className="hover:text-indigo-700">Admin demo</button></li>
-            </ul>
-          </div>
-
-          <div>
-            <h4 className="text-sm font-semibold text-stone-900">Your business</h4>
-            <ul className="mt-3 space-y-2 text-sm text-stone-600">
-              {/* The two public front doors for supply. (For organizers was
-                  /vendor/organize — auth-gated, so it dead-ended logged-out
-                  organizers at a sign-in wall.) */}
-              <li><Link href="/businesses" className="hover:text-indigo-700">Find collaborators</Link></li>
-              <li><Link href="/organizers" className="hover:text-indigo-700">Run an event</Link></li>
               <li><Link href="/join" className="hover:text-indigo-700">Add your business</Link></li>
               <li><Link href="/vendor" className="hover:text-indigo-700">Business login</Link></li>
+              <li><button type="button" onClick={openAdminDemo} className="hover:text-indigo-700">Admin demo</button></li>
+              <li><Link href="/organizers" className="hover:text-indigo-700">Run an event</Link></li>
             </ul>
           </div>
 
@@ -91,7 +72,18 @@ export function SiteFooter() {
           </div>
         </div>
 
-        <div className="mt-10 flex flex-col items-start justify-between gap-3 border-t border-stone-200 pt-6 text-xs text-stone-500 sm:flex-row sm:items-center">
+        {/* Directory hubs get their own quiet row. /city and /category are the
+            SEO landing pages and internal links are how crawlers weight them, so
+            these have to stay real, visible links — de-emphasised, not hidden. */}
+        <div className="mt-10 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-stone-200 pt-6 text-xs text-stone-400">
+          <span className="font-medium text-stone-500">Browse</span>
+          <Link href="/explore" className="transition hover:text-indigo-700">All businesses</Link>
+          <Link href="/city" className="transition hover:text-indigo-700">Places</Link>
+          <Link href="/category" className="transition hover:text-indigo-700">Categories</Link>
+          <Link href="/browse" className="transition hover:text-indigo-700">Atlas</Link>
+        </div>
+
+        <div className="mt-6 flex flex-col items-start justify-between gap-3 text-xs text-stone-500 sm:flex-row sm:items-center">
           <p>© {new Date().getFullYear()} WhatsLocal AI.</p>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             <Link href="/about" className="hover:text-indigo-700">About</Link>

@@ -505,6 +505,29 @@ export async function getMessagesByConversation(conversationId: string): Promise
   return data as { role: string; content: string; created_at: string }[]
 }
 
+// Customer-DM activity for this business, reduced to what an unread badge
+// needs: which conversation, when, and whether it was "ours" (the AI's reply).
+// Only the customer's own messages can be unread to the owner.
+export async function getCustomerMessageActivity(
+  memberId: string,
+): Promise<{ key: string; at: string; mine: boolean }[]> {
+  const convos = await getConversationsByMember(memberId, 50)
+  const ids = convos.map((c) => c.id)
+  if (ids.length === 0) return []
+  const { data, error } = await supabase
+    .from('chat_messages')
+    .select('conversation_id, role, created_at')
+    .in('conversation_id', ids)
+    .order('created_at', { ascending: false })
+    .limit(2000)
+  if (error || !data) return []
+  return (data as { conversation_id: string; role: string; created_at: string }[]).map((m) => ({
+    key: m.conversation_id,
+    at: m.created_at,
+    mine: m.role !== 'user',
+  }))
+}
+
 export interface VendorProfile {
   clerk_user_id: string
   member_id: string

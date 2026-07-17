@@ -77,19 +77,43 @@ export function EventAttendees({ event, emailReady, demo = false }: { event: Ven
     }
   }
 
+  const pct = capacity ? Math.min(100, Math.round((count / capacity) * 100)) : 0;
+  const left = capacity ? Math.max(0, capacity - count) : 0;
+
   return (
-    <div>
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <Users className="h-5 w-5 text-indigo-500" />
-        <p className="text-sm text-stone-700">
-          <span className="font-semibold text-stone-900">{count}</span> going
-          {capacity != null && <span className="text-stone-400"> · cap {capacity}</span>}
-        </p>
+    <div className="space-y-4">
+      {/* How full is it — the number an organizer actually opens this for. */}
+      <div className="card-soft p-4">
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <p className="section-label mb-1">Going</p>
+            <p className="text-2xl font-semibold leading-none text-stone-900">
+              {count}
+              {capacity != null && <span className="text-base font-normal text-stone-400"> / {capacity}</span>}
+            </p>
+          </div>
+          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-stone-100 px-2.5 py-1 text-[11px] font-medium text-stone-600">
+            <Users className="h-3.5 w-3.5" /> {attendees.length} {attendees.length === 1 ? "RSVP" : "RSVPs"}
+          </span>
+        </div>
+        {capacity != null && (
+          <>
+            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-stone-100">
+              <div
+                className={`h-full rounded-full transition-all ${left === 0 ? "bg-rose-500" : "bg-indigo-500"}`}
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+            <p className="mt-1.5 text-[11px] text-stone-400">
+              {left === 0 ? "Full — no spots left." : `${left} spot${left === 1 ? "" : "s"} left`}
+            </p>
+          </>
+        )}
       </div>
 
       {/* Blast attendees — custom message via SMS / email */}
       {attendees.length > 0 && (
-        <div className="card-soft mb-4 p-3">
+        <div className="card-soft p-3">
           <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-stone-500">
             <Megaphone className="h-3.5 w-3.5 text-indigo-500" /> Blast your attendees
           </div>
@@ -133,19 +157,41 @@ export function EventAttendees({ event, emailReady, demo = false }: { event: Ven
       )}
 
       {attendees.length === 0 ? (
-        <p className="text-sm text-stone-400">No RSVPs yet. Share the event link to fill it up.</p>
+        <p className="py-8 text-center text-sm text-stone-400">
+          No RSVPs yet. Share the event link to fill it up.
+        </p>
       ) : (
-        <ul className="divide-y divide-stone-100 rounded-lg border border-stone-100">
-          {attendees.map((a) => (
-            <li key={a.id} className="flex items-center justify-between px-3 py-2 text-sm">
-              <span className="text-stone-800">{a.attendee_name || "Guest"}</span>
-              <span className="text-xs text-stone-400">
-                {a.party_size > 1 ? `+${a.party_size - 1} guest${a.party_size > 2 ? "s" : ""}` : "1"}
-                {a.attendee_contact ? ` · ${a.attendee_contact}` : ""}
-              </span>
-            </li>
-          ))}
-        </ul>
+        <div>
+          <p className="section-label mb-2">Attendees</p>
+          <ul className="space-y-1.5">
+            {attendees.map((a) => {
+              const name = a.attendee_name || "Guest";
+              const extra = a.party_size > 1 ? `+${a.party_size - 1} guest${a.party_size > 2 ? "s" : ""}` : null;
+              return (
+                <li
+                  key={a.id}
+                  className="flex items-center gap-3 rounded-xl border border-stone-200 bg-white px-3 py-2.5"
+                >
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-stone-100 text-[11px] font-semibold text-stone-500">
+                    {name.slice(0, 2).toUpperCase()}
+                  </span>
+                  {/* min-w-0 + truncate: a long email used to squeeze the name out. */}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium text-stone-900">{name}</span>
+                    {a.attendee_contact && (
+                      <span className="mt-0.5 block truncate text-[11px] text-stone-500">{a.attendee_contact}</span>
+                    )}
+                  </span>
+                  {extra && (
+                    <span className="shrink-0 rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-medium text-stone-600">
+                      {extra}
+                    </span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       )}
     </div>
   );

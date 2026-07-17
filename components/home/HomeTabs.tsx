@@ -118,16 +118,11 @@ export function HomeTabs() {
           <div className="mx-auto max-w-6xl px-4 pt-4 md:px-8">
             <Link
               href="/shop"
-              className="flex items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-stone-900 to-indigo-900 px-5 py-4 text-white transition hover:opacity-95"
+              className="inline-flex items-center gap-2 rounded-full bg-stone-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-stone-800"
             >
-              <span className="flex items-center gap-3">
-                <ShoppingBag className="h-5 w-5 shrink-0" />
-                <span>
-                  <span className="block text-sm font-semibold">Go to the marketplace</span>
-                  <span className="block text-[13px] text-white/70">Search, compare, favorite & add to cart</span>
-                </span>
-              </span>
-              <ArrowRight className="h-5 w-5 shrink-0" />
+              <ShoppingBag className="h-4 w-4 shrink-0" />
+              Go to the marketplace
+              <ArrowRight className="h-4 w-4 shrink-0" />
             </Link>
           </div>
           <LocalDirectory />

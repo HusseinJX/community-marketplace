@@ -3,9 +3,20 @@
 import { usePathname, useRouter } from 'next/navigation'
 import { ChevronLeft } from 'lucide-react'
 
-// Top-level nav-tab destinations — no back button on these (you switch tabs
-// from the navbar). Shown only on deeper pages (organize, giving, products…).
-const TAB_PATHS = new Set(['/vendor', '/vendor/live', '/vendor/messages', '/vendor/resources', '/vendor/qr'])
+// Pages that DON'T get a "Go back", for one of two reasons:
+//  · top-level nav-tab destinations — you switch tabs from the navbar;
+//  · pages that own a more specific back affordance ("Events", "Collaborations")
+//    — a generic "Go back" stacked above it is just two back buttons.
+const TAB_PATHS = new Set([
+  '/vendor',
+  '/vendor/live',
+  '/vendor/messages',
+  '/vendor/resources',
+  '/vendor/qr',
+  '/vendor/organize',
+  '/vendor/event/new',
+  '/vendor/collab/new',
+])
 
 // "Go back" button shown below the admin navbar on deeper pages — returns to the
 // previous screen instead of all the way Home.

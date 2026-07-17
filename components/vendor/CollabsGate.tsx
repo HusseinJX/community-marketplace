@@ -3,9 +3,13 @@
 import { cloneElement, isValidElement, useEffect, useState } from 'react'
 import { PLAN_KEY, type Tier } from '@/components/vendor/PlanSwitch'
 
-// Gates the Collabs surface. On Free the member gets the SAME interactive UI as
-// Basic — they can click around, switch tabs, browse matches. The per-tab notice
-// cards (in NetworkManager) explain what's demo.
+// Gates the Collabs surface. Per pricing, ANYONE — including Free — can be
+// invited: Free members really receive/accept collab invites and chat in the
+// rooms they join. What Free CAN'T do is INITIATE (send invites / own a
+// collaboration / create the event) — that's gated by `plan` in NetworkManager
+// (Member+). So Free is a real, non-demo participant here, not a preview.
+//
+// Only the admin demo (`adminDemo`) runs the inert, seeded preview.
 //
 // The tier PREVIEW SWITCH is deliberately not rendered here. Collabs now lives
 // inside Messages — a primary nav tab — and a plan toggle is demo scaffolding,
@@ -31,13 +35,13 @@ export function CollabsGate({
     if (v === 'free' || v === 'member' || v === 'pro') setTier(v)
   }, [])
 
-  const isFree = tier === 'free'
-  // Pass the shared tier down: demo mode on Free, and the plan so NetworkManager
-  // gates owning collaborations (Pro only) without its own separate toggle.
+  // Pass the shared tier down as `plan` so NetworkManager gates INITIATING
+  // (send/own/create — Member+) while everyone, Free included, gets the real
+  // receive-and-chat surface. Only the admin demo runs the inert preview.
   const content = isValidElement(children)
     ? cloneElement(
         children as React.ReactElement<{ demo?: boolean; adminDemo?: boolean; plan?: Tier }>,
-        { demo: isFree, adminDemo, plan: tier },
+        { demo: false, adminDemo, plan: tier },
       )
     : children
 

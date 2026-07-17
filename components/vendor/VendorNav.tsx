@@ -20,8 +20,10 @@ export function VendorNav() {
   const isActive = (href: string) =>
     href === '/vendor' ? pathname === '/vendor' : pathname === href || pathname.startsWith(href + '/')
 
+  // Both tabs sit together on the left. (This was justify-between on mobile,
+  // which flung Messages to the far edge, away from Home.)
   return (
-    <nav className="flex min-w-0 flex-1 items-center justify-between gap-0.5 sm:justify-start sm:gap-1">
+    <nav className="flex min-w-0 flex-1 items-center justify-start gap-1">
       {NAV.map((n) => {
         const active = isActive(n.href)
         return (

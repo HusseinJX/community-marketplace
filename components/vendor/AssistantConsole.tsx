@@ -45,13 +45,20 @@ function previewFrom(messages: Msg[]): string {
 export function AssistantConsole({
   memberId,
   memberName = 'your business',
+  onChatOpenChange,
 }: {
   memberId: string
   memberName?: string
+  onChatOpenChange?: (open: boolean) => void
 }) {
   const [convos, setConvos] = useState<Convo[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
   const [loaded, setLoaded] = useState(false)
+
+  // Tell the parent when a chat thread is open vs the "All chats" list.
+  useEffect(() => {
+    onChatOpenChange?.(activeId != null)
+  }, [activeId, onChatOpenChange])
 
   // Hydrate from localStorage.
   useEffect(() => {

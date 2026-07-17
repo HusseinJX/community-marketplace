@@ -351,15 +351,9 @@ export function ShareComposer() {
     setPosting(false);
   }
 
-  // A post has to LAND somewhere. Posts render on the "memories" wall of the
-  // business/event they're tagged to — there is no standalone posts feed — so an
-  // untagged post would be invisible: written, saved, and seen by nobody. The
-  // composer therefore requires a destination and says what it is, up front.
-  const hasDestination = !!bizTag || !!evTag;
-
   const canPost = goLive
     ? !!bizTag && !!eventSlug
-    : hasDestination && (body.trim() || media.length > 0 || livestreamUrl.trim());
+    : body.trim() || media.length > 0 || livestreamUrl.trim();
 
   return (
     <div className="mx-auto max-w-lg space-y-4 px-4 py-6">
@@ -389,41 +383,6 @@ export function ShareComposer() {
                 </Link>
               ))}
             </div>
-          )}
-        </div>
-      )}
-
-      {/* Where this lands — stated BEFORE they write, not after they post.
-          Without a tag a post has no home (there's no standalone feed), so this
-          is the first thing on the screen. */}
-      {!goLive && (
-        <div
-          className={
-            "rounded-xl border px-4 py-3 text-[13px] " +
-            (hasDestination
-              ? "border-stone-200 bg-white text-stone-600"
-              : "border-amber-200 bg-amber-50 text-amber-800")
-          }
-        >
-          {hasDestination ? (
-            <p className="flex flex-wrap items-center gap-1.5">
-              <span className="font-medium text-stone-500">Shows up on</span>
-              {[bizTag, evTag].filter(Boolean).map((t) => (
-                <span
-                  key={`${t!.kind}-${t!.id}`}
-                  className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-2 py-0.5 text-xs font-semibold text-stone-800"
-                >
-                  {t!.kind === "business" ? <Store className="h-3 w-3" /> : <CalendarDays className="h-3 w-3" />}
-                  {t!.label}
-                </span>
-              ))}
-              <span className="text-stone-400">— and anyone who visits it.</span>
-            </p>
-          ) : (
-            <p>
-              <span className="font-semibold">Where should this show up?</span> Tag the business or
-              event it&apos;s about — that&apos;s the page it appears on.
-            </p>
           )}
         </div>
       )}
@@ -687,9 +646,7 @@ export function ShareComposer() {
             : "Sharing…"
           : goLive
             ? "Go live"
-            : hasDestination
-              ? "Share"
-              : "Tag where it goes"}
+            : "Share"}
       </button>
 
       {scannerOpen && (

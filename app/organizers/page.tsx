@@ -15,23 +15,32 @@ export const metadata: Metadata = {
 };
 
 export default function OrganizersPage() {
+  // The pitch rides along as `intro` so it shows on the events list and gets out
+  // of the way the moment you open an event — inside, the tool is the point.
+  const intro = (
+    <div>
+      <span className="inline-flex rounded-full bg-stone-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-stone-600">
+        Sample event — try anything
+      </span>
+      <h1 className="mt-3 text-xl font-semibold text-stone-900">
+        Run your market without the group chat.
+      </h1>
+      <p className="mt-1.5 max-w-2xl text-[13px] leading-relaxed text-stone-600">
+        Build your lineup by role, approve who joins, and text or email everyone at once.
+      </p>
+    </div>
+  );
+
   return (
     <div className="mx-auto max-w-6xl px-4 pb-24 pt-6 md:px-8">
-      <div className="mb-6">
-        <span className="inline-flex rounded-full bg-stone-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-stone-600">
-          Sample event — try anything
-        </span>
-        <h1 className="mt-3 text-xl font-semibold text-stone-900">
-          Run your market without the group chat.
-        </h1>
-        <p className="mt-1.5 max-w-2xl text-[13px] leading-relaxed text-stone-600">
-          One lineup with roles and approvals · vendors join by scanning a QR at the booth ·
-          SMS and email the whole lineup at once · free RSVPs with capacity. This is the real
-          tool, filled with a sample market — click through it. Nothing you do here saves or sends.
-        </p>
-      </div>
-
-      <OrganizeManager memberId="demo-organizer" isAdmin={false} emailReady demo eventOrganizer />
+      <OrganizeManager
+        memberId="demo-organizer"
+        isAdmin={false}
+        emailReady
+        demo
+        eventOrganizer
+        intro={intro}
+      />
     </div>
   );
 }

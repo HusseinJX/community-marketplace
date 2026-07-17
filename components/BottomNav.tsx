@@ -6,6 +6,7 @@ import { Compass, User } from "lucide-react";
 
 // Shopper tabs: a "Local" page (live now + events + directory) and Profile
 // (account, tickets, orders, cart). Buying/booking are flows off cards on Local.
+// Messages lives INSIDE the shopper space, not as its own tab.
 const ITEMS = [
   { href: "/", label: "Local", icon: Compass },
   { href: "/shopper", label: "Profile", icon: User },

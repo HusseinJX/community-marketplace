@@ -19,12 +19,19 @@ export function MatchCard({
   onToggle,
   disabled,
   disabledLabel = "Invited",
+  justSelected = false,
+  justUnselected = false,
 }: {
   candidate: MatchCandidate;
   selected: boolean;
   onToggle: () => void;
   disabled?: boolean;
   disabledLabel?: string;
+  /** Just picked — pops the checkmark so the selection registers before the
+   *  row animates away. */
+  justSelected?: boolean;
+  /** Just dropped — the mirror: the checkmark shrinks out as the row leaves. */
+  justUnselected?: boolean;
 }) {
   const c = candidate;
   const place = c.neighborhood || c.city;
@@ -90,6 +97,8 @@ export function MatchCard({
 
       <span
         className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full border text-white ${
+          justSelected ? "animate-check-pop " : justUnselected ? "animate-check-unpop " : ""
+        }${
           disabled
             ? "border-stone-300 bg-stone-300"
             : selected

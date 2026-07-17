@@ -28,7 +28,16 @@ function timeAgo(iso: string): string {
   return `${Math.floor(s / 86400)}d ago`
 }
 
-export function CustomerInbox() {
+export function CustomerInbox({
+  onChatOpenChange,
+  unreadByConvo,
+  onConvoSeen,
+}: {
+  onChatOpenChange?: (open: boolean) => void
+  // Unread counts keyed by conversation id (the shell owns read state).
+  unreadByConvo?: Record<string, number>
+  onConvoSeen?: (id: string) => void
+}) {
   const [threads, setThreads] = useState<Thread[]>([])
   const [loading, setLoading] = useState(true)
   const [active, setActive] = useState<Thread | null>(null)
@@ -43,8 +52,14 @@ export function CustomerInbox() {
       .finally(() => setLoading(false))
   }, [])
 
+  // Tell the parent when a transcript is open vs the inbox list.
+  useEffect(() => {
+    onChatOpenChange?.(active != null)
+  }, [active, onChatOpenChange])
+
   function openThread(t: Thread) {
     setActive(t)
+    onConvoSeen?.(t.id) // opening it reads it
     setLoadingTx(true)
     setTranscript([])
     fetch(`/api/vendor/messages/${t.id}`)
@@ -124,27 +139,38 @@ export function CustomerInbox() {
         </div>
       ) : (
         <div className="divide-y divide-stone-100 overflow-hidden rounded-2xl border border-stone-200 bg-white">
-          {threads.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => openThread(t)}
-              className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-stone-50"
-            >
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-stone-100 text-stone-500">
-                <User className="h-5 w-5" />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="flex items-center justify-between gap-2">
-                  <span className="truncate text-sm font-semibold text-stone-900">
-                    {t.customerName || 'Customer'}
-                  </span>
-                  <span className="shrink-0 text-[11px] text-stone-400">{timeAgo(t.lastAt)}</span>
+          {threads.map((t) => {
+            const unread = unreadByConvo?.[t.id] ?? 0
+            return (
+              <button
+                key={t.id}
+                onClick={() => openThread(t)}
+                className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-stone-50"
+              >
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-stone-100 text-stone-500">
+                  <User className="h-5 w-5" />
                 </span>
-                <span className="mt-0.5 block truncate text-xs text-stone-500">{t.preview}</span>
-              </span>
-              <ChevronRight className="h-4 w-4 shrink-0 text-stone-400" />
-            </button>
-          ))}
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="truncate text-sm font-semibold text-stone-900">
+                      {t.customerName || 'Customer'}
+                    </span>
+                    <span className="shrink-0 text-[11px] text-stone-400">{timeAgo(t.lastAt)}</span>
+                  </span>
+                  <span className="mt-0.5 block truncate text-xs text-stone-500">{t.preview}</span>
+                </span>
+                {unread > 0 && (
+                  <span
+                    aria-label={`${unread} unread`}
+                    className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-indigo-600 px-1.5 text-[11px] font-semibold tabular-nums text-white"
+                  >
+                    {unread > 9 ? '9+' : unread}
+                  </span>
+                )}
+                <ChevronRight className="h-4 w-4 shrink-0 text-stone-400" />
+              </button>
+            )
+          })}
         </div>
       )}
     </div>

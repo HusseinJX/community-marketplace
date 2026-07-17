@@ -2,11 +2,11 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Users, Send, X, CalendarPlus, Plus, ChevronLeft, Lock } from "lucide-react";
-import { MatchFinder } from "@/components/match/MatchFinder";
+import { Users, Send, X, CalendarPlus, Plus, ChevronLeft, LogIn } from "lucide-react";
+import { CollabComposer } from "@/components/vendor/CollabComposer";
+import { loadDemoCollabs, demoRoomIdFor } from "@/lib/demo-collab-store";
 import { DemoCollabProgression } from "@/components/vendor/DemoCollabProgression";
 import { CollabRoomDemo } from "@/components/vendor/CollabRoomDemo";
-import type { MatchCandidate } from "@/lib/types";
 import type { CollabInvite, CollabRoom, CollabMessage, RoomMember, CollaborationSummary } from "@/lib/collab-network";
 import { track } from "@/lib/track";
 
@@ -41,6 +41,17 @@ const DEMO_INVITES = (memberId: string): CollabInvite[] => [
   },
 ];
 
+// Only self-joins ("things you asked to join") live in the pending list. Invites
+// you SENT live inside the collaboration you created (see DEMO_COLLABS below).
+const DEMO_OUTGOING = (memberId: string): CollabInvite[] => [
+  {
+    id: "demo-out-2", from_id: memberId, from_name: "You", to_id: memberId, to_name: "You",
+    message: null, status: "pending", room_id: null,
+    scope_type: "collab", scope_id: null, role: "vendor", occasion_id: "demo-occ-6",
+    occasion_label: "Mission Art Walk", created_at: "2026-06-28T16:30:00.000Z",
+  },
+];
+
 const DEMO_COLLABS: CollaborationSummary[] = [
   {
     occasion_id: "demo-occ-4", label: "Neighborhood Night Market", roomId: "demo-room-4", eventId: null,
@@ -51,14 +62,33 @@ const DEMO_COLLABS: CollaborationSummary[] = [
       { invite_id: "demo-m-3", to_id: "demo-greenhouse", to_name: "Greenhouse Project", status: "pending", role: "partner" },
     ],
   },
+  // A collaboration you just created — you invited Rosa's Flowers, still pending.
+  {
+    occasion_id: "demo-occ-5", label: "Summer sidewalk sale", roomId: "demo-room-5", eventId: null,
+    owned: true, acceptedCount: 0,
+    members: [
+      { invite_id: "demo-m-4", to_id: "demo-flowers", to_name: "Rosa's Flowers", status: "pending", role: "vendor" },
+    ],
+  },
 ];
 
-const DEMO_ROOM = (memberId: string): CollabRoom => ({
-  id: "demo-room-4", member_a: memberId, member_a_name: "You", member_b: "demo-muralist",
-  member_b_name: "Dani Cruz", is_group: true, title: "Neighborhood Night Market", owner_id: memberId,
-  occasion_id: "demo-occ-4", occasion_label: "Neighborhood Night Market", event_id: null,
-  created_at: "2026-06-24T15:00:00.000Z",
-});
+// One room per demo collaboration. Both must exist: a collab whose room is
+// missing can't resolve its unread badge (or be marked read), so its count would
+// sit in the tab total forever with no card to clear it.
+const DEMO_ROOMS = (memberId: string): CollabRoom[] => [
+  {
+    id: "demo-room-4", member_a: memberId, member_a_name: "You", member_b: "demo-muralist",
+    member_b_name: "Dani Cruz", is_group: true, title: "Neighborhood Night Market", owner_id: memberId,
+    occasion_id: "demo-occ-4", occasion_label: "Neighborhood Night Market", event_id: null,
+    created_at: "2026-06-24T15:00:00.000Z",
+  },
+  {
+    id: "demo-room-5", member_a: memberId, member_a_name: "You", member_b: "demo-flowers",
+    member_b_name: "Rosa's Flowers", is_group: true, title: "Summer sidewalk sale", owner_id: memberId,
+    occasion_id: "demo-occ-5", occasion_label: "Summer sidewalk sale", event_id: null,
+    created_at: "2026-06-28T16:00:00.000Z",
+  },
+];
 
 const DEMO_MESSAGES = [
   { mine: true, name: "You", text: "Thinking a night market on Valencia — food, art, live music." },
@@ -72,12 +102,21 @@ export function NetworkManager({
   demo = false,
   adminDemo = false,
   plan,
+  onChatOpenChange,
+  unreadByRoom,
+  onRoomSeen,
 }: {
   memberId: string;
   isAdmin: boolean;
   demo?: boolean;
   adminDemo?: boolean;
   plan?: Tier;
+  // Reports whether a collaboration thread is open, so the parent can hide its
+  // tab bar for a full-screen chat.
+  onChatOpenChange?: (open: boolean) => void;
+  // Unread counts keyed by ROOM id (the shell owns read state — see lib/unread).
+  unreadByRoom?: Record<string, number>;
+  onRoomSeen?: (roomId: string) => void;
 }) {
   const preview = demo || adminDemo; // no real backend → seed demo data, keep writes inert
   const canOwn = (plan ?? "pro") !== "free"; // starting + inviting + creating events = Basic+
@@ -85,18 +124,77 @@ export function NetworkManager({
   const [collabs, setCollabs] = useState<CollaborationSummary[]>([]);
   const [rooms, setRooms] = useState<CollabRoom[]>([]);
   const [invites, setInvites] = useState<CollabInvite[]>([]);
+  const [outgoing, setOutgoing] = useState<CollabInvite[]>([]);
   const [openId, setOpenId] = useState<string | null>(null); // occasion_id
   const [inviteTo, setInviteTo] = useState<{ id: string; label: string } | null | undefined>(undefined);
   //  undefined = modal closed · null = new collaboration · {…} = add to this one
 
   const qp = isAdmin ? `?memberId=${memberId}` : "";
 
+  // Deep link: ?collab=<occasion_id> opens straight into that chat. Set it
+  // before the data lands — the thread renders as soon as the collab resolves.
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("collab");
+    if (id) setOpenId(id);
+  }, []);
+
+  // Tell the parent when a thread is open (occasion selected) vs the list view.
+  useEffect(() => {
+    onChatOpenChange?.(openId != null);
+  }, [openId, onChatOpenChange]);
+
+  // Opening a collaboration reads it — stamp its room as seen.
+  useEffect(() => {
+    if (!openId) return;
+    const c = collabs.find((x) => x.occasion_id === openId);
+    if (!c) return;
+    const room = rooms.find((r) => r.id === c.roomId) ?? rooms.find((r) => r.occasion_id === c.occasion_id);
+    if (room) onRoomSeen?.(room.id);
+  }, [openId, collabs, rooms, onRoomSeen]);
+
   const load = useMemo(
     () => () => {
       if (preview) {
-        setCollabs(DEMO_COLLABS);
-        setRooms([DEMO_ROOM(memberId)]);
+        // Anything created during this demo session comes first, so "create it →
+        // open its chat" actually lands somewhere real.
+        const mine = loadDemoCollabs();
+        setCollabs([
+          ...mine.map<CollaborationSummary>((c) => ({
+            occasion_id: c.occasion_id,
+            label: c.label,
+            roomId: demoRoomIdFor(c.occasion_id),
+            eventId: null,
+            owned: true,
+            acceptedCount: 0,
+            members: c.members.map((m, i) => ({
+              invite_id: `${c.occasion_id}-${i}`,
+              to_id: m.to_id,
+              to_name: m.to_name,
+              status: "pending",
+              role: m.role,
+            })),
+          })),
+          ...DEMO_COLLABS,
+        ]);
+        setRooms([
+          ...mine.map<CollabRoom>((c) => ({
+            id: demoRoomIdFor(c.occasion_id),
+            member_a: memberId,
+            member_a_name: "You",
+            member_b: c.members[0]?.to_id ?? "",
+            member_b_name: c.members[0]?.to_name ?? null,
+            is_group: true,
+            title: c.label,
+            owner_id: memberId,
+            occasion_id: c.occasion_id,
+            occasion_label: c.label,
+            event_id: null,
+            created_at: c.created_at,
+          })),
+          ...DEMO_ROOMS(memberId),
+        ]);
         setInvites(DEMO_INVITES(memberId));
+        setOutgoing(DEMO_OUTGOING(memberId));
         return;
       }
       fetch(`/api/vendor/collaborations${qp}`)
@@ -108,8 +206,11 @@ export function NetworkManager({
         .then((d) => setRooms(Array.isArray(d.rooms) ? d.rooms : []))
         .catch(() => {});
       fetch(`/api/vendor/invites${qp}`)
-        .then((r) => (r.ok ? r.json() : { incoming: [] }))
-        .then((d) => setInvites(Array.isArray(d.incoming) ? d.incoming : []))
+        .then((r) => (r.ok ? r.json() : { incoming: [], outgoing: [] }))
+        .then((d) => {
+          setInvites(Array.isArray(d.incoming) ? d.incoming : []);
+          setOutgoing(Array.isArray(d.outgoing) ? d.outgoing : []);
+        })
         .catch(() => {});
     },
     [qp, preview, memberId],
@@ -117,7 +218,13 @@ export function NetworkManager({
 
   useEffect(load, [load]);
 
-  const pending = invites.filter((i) => i.status === "pending");
+  // Pending things you still act on:
+  //  · received — someone invited YOU (from someone else)
+  //  · joinRequests — YOU asked to join something (self-join: from_id === to_id)
+  // Invites you SENT are NOT here — they live inside the collaboration you
+  // created (it shows in Collaborations with those people as pending members).
+  const pending = invites.filter((i) => i.status === "pending" && i.from_id !== memberId);
+  const joinRequests = outgoing.filter((i) => i.status === "pending" && i.to_id === memberId);
   const open = collabs.find((c) => c.occasion_id === openId) ?? null;
 
   // One collaboration → one thread. Prefer its shared room; fall back to any
@@ -126,13 +233,50 @@ export function NetworkManager({
     rooms.find((r) => r.id === c.roomId) ?? rooms.find((r) => r.occasion_id === c.occasion_id) ?? null;
 
   async function respond(id: string, status: "accepted" | "declined") {
-    if (preview) return;
+    const inv = invites.find((i) => i.id === id);
+
+    // Demo: no backend. Accepting an invite opens a collaboration chat — so
+    // simulate it locally: drop it from pending, add a collaboration for it, and
+    // open its thread (the interactive CollabRoomDemo).
+    if (preview) {
+      setInvites((arr) => arr.filter((i) => i.id !== id));
+      if (status === "accepted" && inv) {
+        const occId = inv.occasion_id || inv.id;
+        const label = inv.occasion_label || inv.message || "Collaboration";
+        setCollabs((cs) =>
+          cs.some((c) => c.occasion_id === occId)
+            ? cs
+            : [
+                {
+                  occasion_id: occId,
+                  label,
+                  roomId: `demo-room-${occId}`,
+                  eventId: null,
+                  owned: false,
+                  acceptedCount: 2,
+                  members: [
+                    { invite_id: `${id}-a`, to_id: inv.from_id, to_name: inv.from_name, status: "accepted", role: inv.role },
+                    { invite_id: `${id}-b`, to_id: memberId, to_name: "You", status: "accepted", role: inv.role },
+                  ],
+                },
+                ...cs,
+              ],
+        );
+        setOpenId(occId);
+      }
+      return;
+    }
+
     await fetch(`/api/vendor/invites/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status, memberId: isAdmin ? memberId : undefined }),
     }).catch(() => {});
-    if (status === "accepted") track("collab_invite_accepted", { inviteId: id });
+    if (status === "accepted") {
+      track("collab_invite_accepted", { inviteId: id });
+      // Accepting opens the collaboration chat — jump into its thread.
+      if (inv?.occasion_id) setOpenId(inv.occasion_id);
+    }
     load();
   }
 
@@ -150,7 +294,17 @@ export function NetworkManager({
 
         {preview ? (
           // The interactive Chat + Plan + AI-coordinator demo (local state only).
-          <CollabRoomDemo collab={open} />
+          // If YOU own it you're the lead; if you JOINED it, the lead is whoever
+          // invited you (the first non-"You" member) and you get an "I'm in".
+          <CollabRoomDemo
+            collab={open}
+            owned={open.owned}
+            leadName={
+              open.owned
+                ? "You"
+                : open.members.find((m) => m.to_name && m.to_name !== "You")?.to_name ?? "the organizer"
+            }
+          />
         ) : room ? (
           <Thread
             key={room.id}
@@ -187,88 +341,125 @@ export function NetworkManager({
   // ── List view ─────────────────────────────────────────────────────────────
   return (
     <div className="space-y-4">
-      {/* Admin/Free demo: watch the lifecycle play out before the static list. */}
+      {/* Admin demo: watch the lifecycle play out before the static list. */}
       {preview && <DemoCollabProgression />}
 
-      {demo && (
-        <p className="rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-[13px] text-stone-600">
-          <Lock className="mr-1.5 inline h-3.5 w-3.5 text-stone-400" />
-          A preview — you&apos;re not in the network yet.{" "}
-          <Link href="/vendor/billing" className="font-semibold text-stone-900 underline">
-            Upgrade to join
-          </Link>
-          .
-        </p>
-      )}
+      {/* ── Pending: invites you received + things you asked to join — grouped
+             so they're clearly separate from your active collaborations below.
+             (Invites you sent live inside the collaboration you created.) */}
+      {(pending.length > 0 || joinRequests.length > 0) && (
+        <div className="space-y-2">
+          <p className="px-1 text-[11px] font-semibold uppercase tracking-wide text-stone-400">
+            Pending
+          </p>
 
-      {/* Invites — inline, where you'll see them. Not a separate tab. */}
-      {pending.map((i) => (
-        <div key={i.id} className="card-soft flex items-center gap-3 p-4">
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-semibold text-stone-900">
-              {i.from_name || "A local business"} invited you
-            </span>
-            <span className="mt-0.5 block truncate text-xs text-stone-500">
-              {i.occasion_label || i.message || "Collaboration"}
-            </span>
-          </span>
-          <button
-            onClick={() => respond(i.id, "declined")}
-            disabled={preview}
-            className="shrink-0 rounded-full px-3 py-2 text-[13px] font-medium text-stone-500 hover:text-stone-800 disabled:opacity-40"
-          >
-            Decline
-          </button>
-          <button
-            onClick={() => respond(i.id, "accepted")}
-            disabled={preview}
-            className="shrink-0 rounded-full bg-stone-900 px-3.5 py-2 text-[13px] font-semibold text-white hover:bg-stone-800 disabled:opacity-40"
-          >
-            Join
-          </button>
+          {/* Received — you can Join or Decline. */}
+          {pending.map((i) => (
+            <div key={i.id} className="card-soft flex items-center gap-3 p-4">
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-semibold text-stone-900">
+                  {i.from_name || "A local business"} invited you
+                </span>
+                <span className="mt-0.5 block truncate text-xs text-stone-500">
+                  {i.occasion_label || i.message || "Collaboration"}
+                </span>
+              </span>
+              <button
+                onClick={() => respond(i.id, "declined")}
+                className="shrink-0 rounded-full px-3 py-2 text-[13px] font-medium text-stone-500 hover:text-stone-800"
+              >
+                Decline
+              </button>
+              <button
+                onClick={() => respond(i.id, "accepted")}
+                className="shrink-0 rounded-full bg-stone-900 px-3.5 py-2 text-[13px] font-semibold text-white hover:bg-stone-800"
+              >
+                Join
+              </button>
+            </div>
+          ))}
+
+          {/* Asked to join — you requested to join; waiting on the host's approval. */}
+          {joinRequests.map((i) => (
+            <div key={i.id} className="card-soft flex items-center gap-3 p-4">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-stone-100">
+                <LogIn className="h-4 w-4 text-stone-500" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-semibold text-stone-900">
+                  You asked to join {i.occasion_label || i.message || "a collaboration"}
+                </span>
+                <span className="mt-0.5 block truncate text-xs text-stone-500">
+                  Waiting on the host&apos;s approval
+                </span>
+              </span>
+              <span className="shrink-0 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-700">
+                Pending
+              </span>
+            </div>
+          ))}
         </div>
-      ))}
-
-      {canOwn && (
-        <button
-          onClick={() => setInviteTo(null)}
-          className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-stone-300 px-3 py-2.5 text-[13px] font-medium text-stone-600 hover:border-stone-400 hover:text-stone-900"
-        >
-          <Plus className="h-4 w-4" /> New collaboration
-        </button>
       )}
 
-      {collabs.length === 0 && pending.length === 0 && (
-        <p className="py-8 text-center text-sm text-stone-400">
-          {canOwn ? "Nothing yet — start one above." : "Nothing yet. Collaborations you join show up here."}
+      {/* ── Collaborations: the ones you're in, plus starting a new one. */}
+      <div className="space-y-2">
+        <p className="px-1 text-[11px] font-semibold uppercase tracking-wide text-stone-400">
+          Collaborations
         </p>
-      )}
 
-      {collabs.map((c) => {
-        const people = c.members.filter((m) => m.status === "accepted").length + 1; // + you
-        return (
-          <button
-            key={c.occasion_id}
-            onClick={() => setOpenId(c.occasion_id)}
-            className="card-soft card-hover flex w-full items-center gap-3 p-4 text-left"
+        {canOwn && (
+          // Opens the New collaboration PAGE — the same composer as the dashboard.
+          <Link
+            href={isAdmin ? `/vendor/collab/new?memberId=${memberId}` : "/vendor/collab/new"}
+            className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-stone-300 px-3 py-2.5 text-[13px] font-medium text-stone-600 hover:border-stone-400 hover:text-stone-900"
           >
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-stone-100">
-              <Users className="h-4 w-4 text-stone-500" />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-semibold text-stone-900">{c.label}</span>
-              <span className="mt-0.5 block truncate text-xs text-stone-500">
-                {people} {people === 1 ? "business" : "businesses"}
-              </span>
-            </span>
-            {c.eventId && (
-              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
-                <CalendarPlus className="h-3 w-3" /> Event
-              </span>
-            )}
-          </button>
-        );
-      })}
+            <Plus className="h-4 w-4" /> New collaboration
+          </Link>
+        )}
+
+        {collabs.length === 0 ? (
+          <p className="py-8 text-center text-sm text-stone-400">
+            {canOwn ? "Nothing yet — start one above." : "Nothing yet. Collaborations you join show up here."}
+          </p>
+        ) : (
+          collabs.map((c) => {
+            const people = c.members.filter((m) => m.status === "accepted").length + 1; // + you
+            const invited = c.members.filter((m) => m.status === "pending").length; // awaiting reply
+            const unread = unreadByRoom?.[roomFor(c)?.id ?? ""] ?? 0;
+            return (
+              <button
+                key={c.occasion_id}
+                onClick={() => setOpenId(c.occasion_id)}
+                className="card-soft card-hover flex w-full items-center gap-3 p-4 text-left"
+              >
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-stone-100">
+                  <Users className="h-4 w-4 text-stone-500" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold text-stone-900">{c.label}</span>
+                  <span className="mt-0.5 block truncate text-xs text-stone-500">
+                    {people} {people === 1 ? "business" : "businesses"}
+                    {invited > 0 && ` · ${invited} invited`}
+                  </span>
+                </span>
+                {unread > 0 && (
+                  <span
+                    aria-label={`${unread} unread`}
+                    className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-indigo-600 px-1.5 text-[11px] font-semibold tabular-nums text-white"
+                  >
+                    {unread > 9 ? "9+" : unread}
+                  </span>
+                )}
+                {c.eventId && (
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                    <CalendarPlus className="h-3 w-3" /> Event
+                  </span>
+                )}
+              </button>
+            );
+          })
+        )}
+      </div>
 
       {inviteTo !== undefined && (
         <InviteModal
@@ -533,7 +724,9 @@ function Thread({
   );
 }
 
-// ── Invite: pick people, name it if it's new, send ───────────────────────────
+// ── Invite modal — the SAME composer as the dashboard "Create" card. ─────────
+// New collaboration → title + description + For-you/Search people picker.
+// Add-to-existing (target set) → just the people picker under the fixed name.
 function InviteModal({
   memberId,
   isAdmin,
@@ -554,54 +747,6 @@ function InviteModal({
   onClose: () => void;
   onDone: () => void;
 }) {
-  const [picked, setPicked] = useState<Map<string, MatchCandidate>>(new Map());
-  const [name, setName] = useState("");
-  const [busy, setBusy] = useState(false);
-  const excludeIds = useMemo(() => new Set([memberId]), [memberId]);
-
-  const label = target?.label ?? name.trim();
-  const ready = picked.size > 0 && !!label;
-
-  function toggle(c: MatchCandidate) {
-    setPicked((s) => {
-      const n = new Map(s);
-      if (n.has(c.id)) n.delete(c.id);
-      else n.set(c.id, c);
-      return n;
-    });
-  }
-
-  async function send() {
-    if (!ready || preview) return onClose();
-    setBusy(true);
-    try {
-      await fetch("/api/vendor/rooms", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: label,
-          invitees: [...picked.values()].map((c) => ({ id: c.id, name: c.name })),
-          role: "vendor",
-          occasionId:
-            target?.id ??
-            (typeof crypto !== "undefined" && crypto.randomUUID
-              ? crypto.randomUUID()
-              : `occ-${Math.round(performance.now())}`),
-          occasionLabel: label,
-          memberId: isAdmin ? memberId : undefined,
-        }),
-      });
-      track("collab_invite_sent", { count: picked.size, source: target ? "add_to_collab" : "new_collab" });
-      if (!target) {
-        track("collab_started", { collaborations_before: existingCount, invited: picked.size });
-      }
-      onDone();
-      onClose();
-    } finally {
-      setBusy(false);
-    }
-  }
-
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-4" onClick={onClose}>
       <div
@@ -617,35 +762,19 @@ function InviteModal({
           </button>
         </div>
 
-        <div className="space-y-3 overflow-y-auto p-4">
-          {!target && (
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="What is it? (e.g. Summer block party)"
-              className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm"
-            />
-          )}
-          <MatchFinder
+        <div className="overflow-y-auto p-4">
+          <CollabComposer
             memberId={memberId}
             isAdmin={isAdmin}
-            selected={new Set(picked.keys())}
-            onToggle={toggle}
-            excludeIds={excludeIds}
+            demo={preview}
+            existing={target ? { occasionId: target.id, label: target.label } : undefined}
+            source={target ? "network_add" : "network"}
+            collaborationsBefore={existingCount}
+            onDone={() => {
+              onDone();
+              onClose();
+            }}
           />
-        </div>
-
-        <div className="flex items-center gap-3 border-t border-stone-100 p-4">
-          <span className="min-w-0 flex-1 truncate text-[13px] text-stone-600">
-            {picked.size > 0 ? [...picked.values()].map((c) => c.name).join(", ") : "Pick who you want in."}
-          </span>
-          <button
-            onClick={send}
-            disabled={!ready || busy}
-            className="shrink-0 rounded-full bg-stone-900 px-3.5 py-2 text-[13px] font-semibold text-white hover:bg-stone-800 disabled:opacity-40"
-          >
-            {busy ? "Inviting…" : picked.size ? `Invite ${picked.size}` : "Invite"}
-          </button>
         </div>
       </div>
     </div>

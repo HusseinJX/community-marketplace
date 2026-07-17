@@ -119,12 +119,17 @@ export interface Participant {
   lead?: boolean
   // Pending invitees aren't required approvers yet.
   pending?: boolean
+  // Said "I'm in 👍" — the real commitment, which happens IN the chat and is a
+  // step beyond merely accepting the invite (that only opened the room).
+  agreed?: boolean
 }
 
 // The Night Market cast — same as the collab list + progression teaser.
+// Deliberately covers all three states: invited (Greenhouse), joined-but-not-yet
+// committed (El Tri — chatting, hasn't hit "I'm in"), and in (Dani).
 export const PARTICIPANTS: Participant[] = [
   { id: 'you', name: 'You', role: 'Organizer', lead: true },
-  { id: 'demo-muralist', name: 'Dani Cruz', role: 'Artist' },
+  { id: 'demo-muralist', name: 'Dani Cruz', role: 'Artist', agreed: true },
   { id: 'demo-cantina', name: 'El Tri Cantina', role: 'Food' },
   { id: 'demo-greenhouse', name: 'Greenhouse Project', role: 'Partner', pending: true },
 ]
