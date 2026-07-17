@@ -190,13 +190,17 @@ export default function ClaimPage() {
             You now own <span className="font-medium text-stone-800">{displayName}</span>.
             {isPerson
               ? ' Head to your page to edit it and manage your links.'
-              : ' Set up your vendor account to start receiving payments and managing your profile.'}
+              : ' Your dashboard is ready — it walks you through the rest.'}
           </p>
+          {/* Straight to the dashboard: the claim linked this Clerk user to the
+              member, so there's nothing left to set up. This used to point at
+              /vendor/setup, where the owner searched for and re-verified the
+              business they'd just proved they owned. */}
           <button
-            onClick={() => router.push(isPerson ? `/members/${memberId}` : '/vendor/setup')}
+            onClick={() => router.push(isPerson ? `/members/${memberId}` : '/vendor')}
             className="mt-6 w-full rounded-lg bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 transition"
           >
-            {isPerson ? 'Go to your page' : 'Go to vendor setup'}
+            {isPerson ? 'Go to your page' : 'Go to your dashboard'}
           </button>
           {!isPerson && (
             <Link href={`/members/${memberId}`} className="mt-3 block text-sm text-stone-400 hover:text-stone-700">

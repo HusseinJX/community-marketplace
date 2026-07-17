@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
+import { auth, currentUser } from '@clerk/nextjs/server'
 import { invalidateMembers } from '@/lib/cache'
+import { setVendorProfile } from '@/lib/vendor-connect'
 
 // POST { memberId, method, value }
 // Proxies verify + claim-profile calls to the connector agent.
@@ -56,6 +57,22 @@ export async function POST(request: Request) {
   if (!claimRes.ok) {
     const err = await claimRes.text()
     return NextResponse.json({ error: err || 'Claim failed' }, { status: claimRes.status })
+  }
+
+  // Step 3: link the Clerk user to the member.
+  //
+  // Without this the claim proved ownership on the connector but left no local
+  // record, so resolveActor found nothing and the vendor was sent to
+  // /vendor/setup to search for and re-verify the business they'd just claimed.
+  // Same row, same shape as /api/vendor/verify writes.
+  try {
+    const clerkUser = await currentUser()
+    const email = clerkUser?.emailAddresses?.[0]?.emailAddress ?? null
+    await setVendorProfile(userId, memberId, email, 'verified', verifyResult.method, verifyResult.evidence)
+  } catch (err) {
+    // The claim itself succeeded — don't fail the request. /vendor/setup is
+    // still there as a manual path if this write didn't land.
+    console.error('claim: vendor_profiles link failed:', err)
   }
 
   // Claiming flips status (and indexability) — refresh the directory snapshot.

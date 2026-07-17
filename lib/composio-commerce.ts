@@ -60,9 +60,14 @@ export function normalizeShopifySubdomain(input?: string): string {
 }
 
 // Start a Composio OAuth connection for a vendor's storefront. Initiates a
-// connection scoped to userId=memberId, records platform + connection id on
-// vendor_settings (so the UI shows "connected" and the order push-back path can
-// gate on it), and returns the redirect the vendor opens to authorize.
+// connection scoped to userId=memberId and returns the redirect the vendor opens
+// to authorize.
+//
+// Deliberately writes NOTHING to vendor_settings: authorization hasn't happened
+// yet. This used to record platform + connection id here, so abandoning Shopify's
+// consent screen left the vendor reading "Connected · shopify" over a store that
+// would never sync — and put them in the nightly sweep, which selects on
+// composio_platform. finalizeConnection() does the write, once Composio confirms.
 export async function connectStore(
   memberId: string,
   platform: ComposioPlatform,
@@ -89,21 +94,42 @@ export async function connectStore(
     throw new Error('Composio did not return an authorization URL')
   }
 
-  // composio_connection_id doubles as the "is connected" flag the marketplace reads.
+  return { url: connRequest.redirectUrl as string, connectionId: connRequest.id }
+}
+
+// Called when Composio redirects the vendor back after the consent screen. Asks
+// Composio whether an ACTIVE connection actually exists for this member+platform
+// and only then records it — so "Connected" means connected.
+//
+// Returns false when nothing active is found (vendor bailed, or Composio is
+// still settling), leaving vendor_settings untouched.
+export async function finalizeConnection(
+  memberId: string,
+  platform: ComposioPlatform
+): Promise<boolean> {
+  const { items } = await getComposio().connectedAccounts.list({
+    userIds: [memberId],
+    toolkitSlugs: [platform],
+    statuses: ['ACTIVE'],
+  })
+
+  const active = items?.[0]
+  if (!active) return false
+
   const { error } = await db()
     .from('vendor_settings')
     .upsert(
       {
         member_id: memberId,
         composio_platform: platform,
-        composio_connection_id: connRequest.id,
+        composio_connection_id: active.id,
         updated_at: new Date().toISOString(),
       },
       { onConflict: 'member_id' }
     )
   if (error) throw new Error(`vendor_settings upsert failed: ${error.message}`)
 
-  return { url: connRequest.redirectUrl as string, connectionId: connRequest.id }
+  return true
 }
 
 // ── Catalog sync ────────────────────────────────────────────────────────────

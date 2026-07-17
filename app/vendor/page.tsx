@@ -1,6 +1,6 @@
 import { auth, currentUser } from '@clerk/nextjs/server'
 import Link from "next/link";
-import { getVendorProfile, getVendorConnectAccount, getOrdersByMember } from "@/lib/vendor-connect";
+import { getVendorProfile, getVendorConnectAccount, getOrdersByMember, getVendorSettings } from "@/lib/vendor-connect";
 import { isAdmin } from "@/lib/admin";
 import { stripe } from "@/lib/stripe-server";
 import { demoMemberId, isDemoActive } from "@/lib/demo-server";
@@ -8,6 +8,8 @@ import { getMember } from "@/lib/api";
 import { getEntitlements, PLAN_META } from "@/lib/entitlements";
 import { SITE_URL } from "@/lib/seo";
 import { VendorHome } from "@/components/vendor/VendorHome";
+import { SellChecklist, type SellStep } from "@/components/vendor/SellChecklist";
+import { uberConfigured } from "@/lib/uber-direct";
 import { TitleQrButton } from "@/components/vendor/TitleQrButton";
 import { VendorSignOut } from "@/components/vendor/VendorSignOut";
 
@@ -33,14 +35,25 @@ export default async function VendorDashboard({
 
   let stripeStatus: "none" | "pending" | "active" = "none";
   let orderCount = 0;
+  let shopConnected = false;
+  let deliveryOn = false;
   if (profile) {
     const account = await getVendorConnectAccount(profile.member_id);
     if (account) {
-      const stripeAccount = await stripe.accounts.retrieve(account.stripe_account_id);
-      stripeStatus = stripeAccount.details_submitted && stripeAccount.charges_enabled ? "active" : "pending";
+      try {
+        const stripeAccount = await stripe.accounts.retrieve(account.stripe_account_id);
+        stripeStatus = stripeAccount.details_submitted && stripeAccount.charges_enabled ? "active" : "pending";
+      } catch {
+        // Stripe unreachable — the row exists, so setup was started but we can't
+        // prove it finished. Claiming "active" here would hide the finish link.
+        stripeStatus = "pending";
+      }
     }
     const orders = await getOrdersByMember(profile.member_id);
     orderCount = orders.length;
+    const settings = await getVendorSettings(profile.member_id);
+    shopConnected = !!settings?.composio_connection_id;
+    deliveryOn = !!settings?.uber_direct_enabled;
   }
 
   // Tools that aren't in the slim top nav (Home/Live/Collabs/Resources/QR).
@@ -57,6 +70,41 @@ export default async function VendorDashboard({
   const planLabel = PLAN_META[plan].label;
 
   const profileUrl = memberId ? `${SITE_URL}/members/${memberId}` : null;
+
+  // Selling is a Pro capability, so the checklist only makes sense to someone who
+  // has it — a Free vendor gets the upgrade card in VendorHome instead of a list
+  // of steps they can't take.
+  const canSell = entitlements?.can.commerce || admin;
+  const sellSteps: SellStep[] | null = canSell
+    ? [
+        {
+          label: "Connect your shop",
+          desc: "Sync your Shopify or Square catalog",
+          href: "/vendor/integrations",
+          done: shopConnected,
+        },
+        {
+          label: "Set up payouts",
+          desc: "Add the bank account your sales pay into",
+          href: "/vendor/integrations",
+          done: stripeStatus === "active",
+        },
+        // Only offered when the platform actually has Uber credentials —
+        // otherwise it's a step the vendor can't complete. Pickup-only is a
+        // legitimate way to run a shop, so it never blocks the others either.
+        ...(uberConfigured()
+          ? [
+              {
+                label: "Turn on delivery",
+                desc: "Let customers get orders delivered by Uber",
+                href: "/vendor/integrations",
+                done: deliveryOn,
+                optional: true,
+              },
+            ]
+          : []),
+      ]
+    : null;
 
   // Business name — lives on the member record, not vendor_profiles. (The full
   // "about" details are edited on their own page at /vendor/about.)
@@ -107,21 +155,11 @@ export default async function VendorDashboard({
         </div>
       )}
 
-      {/* Stripe-setup banner — shown when profile linked but Stripe not finished */}
-      {!demo && profile && stripeStatus === "pending" && (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-          <p className="text-sm font-medium text-amber-900">Complete your Stripe setup</p>
-          <p className="mt-1 text-sm text-amber-700">
-            Finish connecting your bank account to receive payments from customers.
-          </p>
-          <a
-            href={`/members/${profile.member_id}?stripe_connect=refresh`}
-            className="mt-3 inline-block rounded-lg bg-amber-900 px-4 py-2 text-xs font-medium text-white hover:bg-amber-800"
-          >
-            Continue setup
-          </a>
-        </div>
-      )}
+      {/* The path to a first sale. Replaces a Stripe banner that could never
+          render (it needed a stripe_connect_accounts row, which only the
+          unreachable create-account route could write) and linked to a public
+          profile page that ignored the param it passed. */}
+      {!demo && profile && sellSteps && <SellChecklist steps={sellSteps} />}
 
       <VendorHome
         orderCount={orderCount}

@@ -15,6 +15,7 @@ interface Order {
   status: string
   items: OrderItem[]
   subtotal_cents: number
+  fulfillment_type: 'pickup' | 'delivery'
   delivery_requested: boolean
   delivery_fee_cents: number | null
   uber_tracking_url: string | null
@@ -24,6 +25,9 @@ interface Order {
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   paid: { label: 'Paid', color: 'bg-amber-50 text-amber-700', icon: <Clock className="h-3.5 w-3.5" /> },
   ready: { label: 'Ready', color: 'bg-blue-50 text-blue-700', icon: <PackageCheck className="h-3.5 w-3.5" /> },
+  // Pickup's terminal state. Without it, pickup orders sat at `ready` forever —
+  // the only follow-on button required `dispatched`, which a pickup never reaches.
+  collected: { label: 'Collected', color: 'bg-emerald-50 text-emerald-700', icon: <CheckCircle className="h-3.5 w-3.5" /> },
   dispatched: { label: 'Dispatched', color: 'bg-indigo-50 text-indigo-700', icon: <Truck className="h-3.5 w-3.5" /> },
   delivered: { label: 'Delivered', color: 'bg-emerald-50 text-emerald-700', icon: <CheckCircle className="h-3.5 w-3.5" /> },
   refunded: { label: 'Refunded', color: 'bg-stone-100 text-stone-500', icon: <XCircle className="h-3.5 w-3.5" /> },
@@ -41,6 +45,9 @@ export default function VendorOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState<string | null>(null)
+  // Dispatch can fail for real reasons (no pickup address, Uber unreachable) —
+  // the vendor needs to see why instead of a row that silently stays "Ready".
+  const [dispatchError, setDispatchError] = useState<{ id: string; message: string } | null>(null)
 
   const fetchOrders = useCallback(() => {
     fetch('/api/vendor/orders')
@@ -55,40 +62,55 @@ export default function VendorOrdersPage() {
     return () => clearInterval(interval)
   }, [fetchOrders])
 
+  async function setStatus(order: Order, status: string) {
+    setUpdating(order.id)
+    await fetch('/api/vendor/orders', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId: order.id, status }),
+    })
+    setOrders(prev => prev.map(o => (o.id === order.id ? { ...o, status } : o)))
+    setUpdating(null)
+  }
+
   async function markReady(order: Order) {
     setUpdating(order.id)
+    setDispatchError(null)
     await fetch('/api/vendor/orders', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ orderId: order.id, status: 'ready' }),
     })
 
-    // if delivery was requested, dispatch Uber courier
-    if (order.delivery_requested) {
-      try {
-        await fetch('/api/uber/dispatch', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderId: order.id }),
-        })
-        setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: 'dispatched' } : o))
-      } catch {
-        setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: 'ready' } : o))
-      }
-    } else {
-      setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: 'ready' } : o))
+    // Pickup stops at `ready` — the customer collects, then the vendor marks it
+    // collected. Only a delivery order calls a courier.
+    if (order.fulfillment_type !== 'delivery') {
+      setOrders(prev => prev.map(o => (o.id === order.id ? { ...o, status: 'ready' } : o)))
+      setUpdating(null)
+      return
     }
-    setUpdating(null)
-  }
 
-  async function markDelivered(order: Order) {
-    setUpdating(order.id)
-    await fetch('/api/vendor/orders', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ orderId: order.id, status: 'delivered' }),
-    })
-    setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: 'delivered' } : o))
+    try {
+      const res = await fetch('/api/uber/dispatch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: order.id }),
+      })
+      const data = await res.json().catch(() => ({}))
+      // fetch does NOT throw on 4xx/5xx, so the old catch never ran and the row
+      // flipped to "Dispatched" even when no courier had been called.
+      if (!res.ok) {
+        setDispatchError({ id: order.id, message: data.error ?? 'Could not reach a courier.' })
+        setOrders(prev => prev.map(o => (o.id === order.id ? { ...o, status: 'ready' } : o)))
+      } else {
+        setOrders(prev =>
+          prev.map(o => (o.id === order.id ? { ...o, status: 'dispatched', uber_tracking_url: data.trackingUrl ?? o.uber_tracking_url } : o))
+        )
+      }
+    } catch {
+      setDispatchError({ id: order.id, message: 'Could not reach a courier.' })
+      setOrders(prev => prev.map(o => (o.id === order.id ? { ...o, status: 'ready' } : o)))
+    }
     setUpdating(null)
   }
 
@@ -113,7 +135,7 @@ export default function VendorOrdersPage() {
 
       {orders.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-stone-300 py-20 text-center text-stone-400 text-sm">
-          No orders yet. They'll appear here once customers check out.
+          No orders yet. They&apos;ll appear here once customers check out.
         </div>
       ) : (
         <div className="space-y-4">
@@ -157,11 +179,18 @@ export default function VendorOrdersPage() {
                     <span className="text-sm font-semibold text-stone-900">
                       Total {formatCents(order.subtotal_cents)}
                     </span>
-                    {order.delivery_fee_cents != null && order.delivery_fee_cents > 0 && (
-                      <span className="text-sm text-stone-500">
-                        Delivery fee: {formatCents(order.delivery_fee_cents)}
+                    <span className="flex items-center gap-2 text-sm text-stone-500">
+                      {/* Which kind of order this is was previously only implied
+                          by which button appeared. */}
+                      <span className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-medium text-stone-600">
+                        {order.fulfillment_type === 'delivery'
+                          ? <><Truck className="h-3 w-3" /> Delivery</>
+                          : <><PackageCheck className="h-3 w-3" /> Pickup</>}
                       </span>
-                    )}
+                      {order.delivery_fee_cents != null && order.delivery_fee_cents > 0 && (
+                        <span>Delivery fee: {formatCents(order.delivery_fee_cents)}</span>
+                      )}
+                    </span>
                   </div>
 
                   <div className="flex items-center gap-3">
@@ -184,14 +213,36 @@ export default function VendorOrdersPage() {
                       >
                         {updating === order.id
                           ? 'Updating…'
-                          : order.delivery_requested
+                          : order.fulfillment_type === 'delivery'
                           ? 'Ready — Dispatch Uber'
                           : 'Mark Ready'}
                       </button>
                     )}
+                    {/* Pickup's closing move. This didn't exist, so a collected
+                        order stayed "Ready" for good. */}
+                    {order.status === 'ready' && order.fulfillment_type === 'pickup' && (
+                      <button
+                        onClick={() => setStatus(order, 'collected')}
+                        disabled={updating === order.id}
+                        className="rounded-lg bg-emerald-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 transition"
+                      >
+                        {updating === order.id ? 'Updating…' : 'Customer collected it'}
+                      </button>
+                    )}
+                    {/* A delivery that failed to dispatch is back at `ready` —
+                        let them retry rather than stranding it. */}
+                    {order.status === 'ready' && order.fulfillment_type === 'delivery' && (
+                      <button
+                        onClick={() => markReady(order)}
+                        disabled={updating === order.id}
+                        className="rounded-lg bg-indigo-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 transition"
+                      >
+                        {updating === order.id ? 'Dispatching…' : 'Retry dispatch'}
+                      </button>
+                    )}
                     {order.status === 'dispatched' && (
                       <button
-                        onClick={() => markDelivered(order)}
+                        onClick={() => setStatus(order, 'delivered')}
                         disabled={updating === order.id}
                         className="rounded-lg bg-emerald-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 transition"
                       >
@@ -199,6 +250,9 @@ export default function VendorOrdersPage() {
                       </button>
                     )}
                   </div>
+                  {dispatchError?.id === order.id && (
+                    <p className="text-xs text-rose-600">{dispatchError.message}</p>
+                  )}
                 </div>
               </div>
             )

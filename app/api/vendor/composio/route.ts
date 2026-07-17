@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { getVendorProfile } from '@/lib/vendor-connect'
-import { connectStore, syncVendorCatalog } from '@/lib/composio-commerce'
+import { connectStore, syncVendorCatalog, finalizeConnection } from '@/lib/composio-commerce'
 import { isSupportedPlatform } from '@/lib/composio'
 import { syncVendorCatalogTask } from '@/trigger/composio'
 import { gateCapability } from '@/lib/gate'
@@ -39,6 +39,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ url })
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Connect failed'
+      return NextResponse.json({ error: message }, { status: 500 })
+    }
+  }
+
+  // Called by the ?connected= callback: confirms the OAuth actually completed
+  // before we record the store as connected.
+  if (action === 'finalize') {
+    if (!isSupportedPlatform(platform)) {
+      return NextResponse.json({ error: 'platform must be shopify or square' }, { status: 400 })
+    }
+    try {
+      const connected = await finalizeConnection(memberId, platform)
+      return NextResponse.json({ connected })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Could not confirm connection'
       return NextResponse.json({ error: message }, { status: 500 })
     }
   }

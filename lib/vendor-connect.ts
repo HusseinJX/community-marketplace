@@ -251,22 +251,42 @@ export interface OrderItem {
   product_id?: string
 }
 
+export type FulfillmentType = 'pickup' | 'delivery'
+
 export interface Order {
   id: string
   order_number: string
   payment_intent_id: string
   member_id: string
   buyer_email: string | null
+  /** paid | ready | collected (pickup) | dispatched | delivered (delivery) | refunded */
   status: string
   items: OrderItem[]
   subtotal_cents: number
   platform_fee_cents: number
   vendor_amount_cents: number
+  /** Chosen by the buyer BEFORE payment, so the delivery fee can be charged. */
+  fulfillment_type: FulfillmentType
   delivery_requested: boolean
+  delivery_address?: DeliveryAddressJson | null
+  /** Latest quote (re-quoted at dispatch, since Uber quotes expire in 15 min). */
+  delivery_fee_cents?: number | null
+  /** What the buyer actually paid for delivery. Platform absorbs any delta. */
+  delivery_fee_charged_cents?: number | null
+  uber_quote_id?: string | null
   uber_delivery_id: string | null
   uber_tracking_url: string | null
   created_at: string
   updated_at: string
+}
+
+export interface DeliveryAddressJson {
+  name: string
+  street: string
+  city: string
+  state: string
+  zip: string
+  phone: string
 }
 
 export async function createOrder(order: Omit<Order, 'id' | 'created_at' | 'updated_at'>): Promise<Order> {

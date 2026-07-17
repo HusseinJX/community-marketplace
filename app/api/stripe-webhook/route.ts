@@ -47,6 +47,14 @@ export async function POST(request: Request) {
         const existing = await getOrderByPaymentIntent(pi.id)
         if (!existing) {
           const items = meta.items ? JSON.parse(meta.items) : []
+          // Must read the SAME fulfillment metadata as confirm-payment. This is
+          // the durability path (fires when the browser never called
+          // confirm-payment), so hardcoding pickup here would silently turn a
+          // delivery the buyer paid for into a pickup — with the fee collected
+          // and no courier ever dispatched.
+          const fulfillmentType = meta.fulfillment_type === 'delivery' ? 'delivery' : 'pickup'
+          const isDelivery = fulfillmentType === 'delivery'
+          const deliveryFeeCents = parseInt(meta.delivery_fee_cents ?? '0', 10) || 0
           await createOrder({
             order_number: generateOrderNumber(),
             payment_intent_id: pi.id,
@@ -57,7 +65,12 @@ export async function POST(request: Request) {
             subtotal_cents: parseInt(meta.subtotal_cents ?? '0', 10) || pi.amount,
             platform_fee_cents: parseInt(meta.platform_fee_cents ?? '0', 10),
             vendor_amount_cents: parseInt(meta.vendor_amount_cents ?? '0', 10),
-            delivery_requested: false,
+            fulfillment_type: fulfillmentType,
+            delivery_requested: isDelivery,
+            delivery_address: isDelivery && meta.delivery_address ? JSON.parse(meta.delivery_address) : null,
+            delivery_fee_cents: isDelivery ? deliveryFeeCents : null,
+            delivery_fee_charged_cents: isDelivery ? deliveryFeeCents : null,
+            uber_quote_id: isDelivery ? (meta.uber_quote_id || null) : null,
             uber_delivery_id: null,
             uber_tracking_url: null,
           })

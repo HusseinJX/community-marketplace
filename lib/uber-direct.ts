@@ -1,14 +1,64 @@
 const UBER_BASE = 'https://api.uber.com/v1'
+const UBER_AUTH_URL = 'https://auth.uber.com/oauth/v2/token'
 
-function headers() {
+// Uber Direct has no long-lived "server token" to paste into an env var. Auth is
+// OAuth client-credentials: exchange client id + secret for a Bearer token that
+// expires in 30 days, cache it, re-mint on expiry.
+// https://developer.uber.com/docs/deliveries/guides/authentication
+//
+// This module previously sent `Bearer ${UBER_DIRECT_SERVER_TOKEN}` — a credential
+// Uber doesn't issue for this API — so dispatch could never have worked, with or
+// without env vars set.
+let cachedToken: string | null = null
+let tokenExpiresAt = 0
+
+async function accessToken(): Promise<string> {
+  if (cachedToken && Date.now() < tokenExpiresAt) return cachedToken
+
+  const res = await fetch(UBER_AUTH_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: process.env.UBER_DIRECT_CLIENT_ID!,
+      client_secret: process.env.UBER_DIRECT_CLIENT_SECRET!,
+      grant_type: 'client_credentials',
+      scope: 'eats.deliveries',
+    }).toString(),
+  })
+
+  if (!res.ok) {
+    const err = await res.text().catch(() => '')
+    throw new Error(`Uber Direct auth failed: ${res.status} ${err}`)
+  }
+
+  const data = (await res.json()) as { access_token: string; expires_in: number }
+  cachedToken = data.access_token
+  // 60s safety margin so a token can't expire mid-flight.
+  tokenExpiresAt = Date.now() + (data.expires_in - 60) * 1000
+  return cachedToken
+}
+
+async function headers() {
   return {
-    Authorization: `Bearer ${process.env.UBER_DIRECT_SERVER_TOKEN}`,
+    Authorization: `Bearer ${await accessToken()}`,
     'Content-Type': 'application/json',
   }
 }
 
 function customerId() {
   return process.env.UBER_DIRECT_CUSTOMER_ID!
+}
+
+// Whether the platform has Uber credentials at all. Without this, customerId()
+// interpolates `undefined` into the request URL and every call fails with an
+// opaque Uber error — so the vendor-facing delivery toggle checks this first
+// rather than promising a delivery we can't dispatch.
+export function uberConfigured(): boolean {
+  return !!(
+    process.env.UBER_DIRECT_CUSTOMER_ID &&
+    process.env.UBER_DIRECT_CLIENT_ID &&
+    process.env.UBER_DIRECT_CLIENT_SECRET
+  )
 }
 
 export interface DeliveryAddress {
@@ -34,7 +84,7 @@ export async function quoteDelivery(
 ): Promise<DeliveryQuote> {
   const res = await fetch(`${UBER_BASE}/customers/${customerId()}/delivery_quotes`, {
     method: 'POST',
-    headers: headers(),
+    headers: await headers(),
     body: JSON.stringify({
       pickup_address: pickupAddress,
       dropoff_address: `${dropoff.street}, ${dropoff.city}, ${dropoff.state} ${dropoff.zip}`,
@@ -81,7 +131,7 @@ export async function dispatchDelivery(opts: {
 }): Promise<DispatchResult> {
   const res = await fetch(`${UBER_BASE}/customers/${customerId()}/deliveries`, {
     method: 'POST',
-    headers: headers(),
+    headers: await headers(),
     body: JSON.stringify({
       quote_id: opts.quoteId,
       pickup: {

@@ -2,15 +2,21 @@
 
 import { useEffect, useState } from 'react'
 import { Plug, RefreshCw, CheckCircle, Store } from 'lucide-react'
+import { DeliveryCard } from '@/components/vendor/DeliveryCard'
+import { StripeConnectCard, type StripeStatus } from '@/components/vendor/StripeConnectCard'
 
 interface Settings {
   composio_connection_id: string | null
   composio_platform: string | null
   uber_direct_enabled: boolean
+  uber_pickup_address: string | null
+  uber_pickup_phone: string | null
 }
 
 export default function VendorIntegrationsPage() {
   const [settings, setSettings] = useState<Settings | null>(null)
+  const [uberAvailable, setUberAvailable] = useState(false)
+  const [stripeStatus, setStripeStatus] = useState<StripeStatus>('none')
   const [loading, setLoading] = useState(true)
   const [connecting, setConnecting] = useState<string | null>(null)
   const [syncing, setSyncing] = useState(false)
@@ -23,17 +29,59 @@ export default function VendorIntegrationsPage() {
   useEffect(() => {
     fetch('/api/vendor/integrations')
       .then(r => r.json())
-      .then(d => setSettings(d.settings))
+      .then(d => {
+        setSettings(d.settings)
+        setUberAvailable(!!d.uberAvailable)
+        if (d.stripeStatus) setStripeStatus(d.stripeStatus)
+      })
       .finally(() => setLoading(false))
   }, [])
 
-  // On-connect: when Composio redirects back with ?connected=<platform>, kick
-  // off an initial catalog sync and clean the URL so a refresh doesn't re-fire.
+  // Stripe hosted onboarding returns here with ?stripe_connect=success|refresh.
+  // Note it (Stripe can take a few minutes to verify) and clean the URL.
+  const [stripeReturn, setStripeReturn] = useState<string | null>(null)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
-    if (!params.get('connected')) return
+    const sc = params.get('stripe_connect')
+    if (!sc) return
+    setStripeReturn(sc)
     window.history.replaceState({}, '', '/vendor/integrations')
-    syncNow()
+  }, [])
+
+  // On-connect: when Composio redirects back with ?connected=<platform>, confirm
+  // the OAuth actually completed, then kick off an initial catalog sync. The URL
+  // is cleaned first so a refresh doesn't re-fire.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const platform = params.get('connected')
+    if (!platform) return
+    window.history.replaceState({}, '', '/vendor/integrations')
+    ;(async () => {
+      setSyncing(true)
+      try {
+        const res = await fetch('/api/vendor/composio', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'finalize', platform }),
+        })
+        const data = await res.json()
+        if (!data.connected) {
+          setSyncing(false)
+          setSyncResult("That store didn't finish connecting — try again.")
+          return
+        }
+        // Reflect the confirmed connection without a round-trip to GET.
+        setSettings(s =>
+          s ? { ...s, composio_platform: platform, composio_connection_id: 'connected' } : s
+        )
+      } catch {
+        setSyncing(false)
+        setSyncResult('Could not confirm the connection — try again.')
+        return
+      }
+      setSyncing(false)
+      syncNow()
+    })()
   }, [])
 
   async function connectPlatform(platform: 'shopify' | 'square', subdomain?: string) {
@@ -90,6 +138,21 @@ export default function VendorIntegrationsPage() {
         <Plug className="h-6 w-6 text-indigo-500" />
         <h1 className="text-xl font-semibold text-stone-900">Integrations</h1>
       </div>
+
+      {stripeReturn === 'success' && stripeStatus !== 'active' && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <p className="text-sm font-medium text-amber-900">Stripe is still reviewing</p>
+          <p className="mt-1 text-sm text-amber-700">
+            You finished the form — Stripe can take a few minutes to verify. Refresh shortly;
+            if they need more, use the button below.
+          </p>
+        </div>
+      )}
+
+      {/* Bank first — no payouts, no selling, so it leads. Consolidated here from
+          the separate /vendor/payments page so shop, delivery, and bank are one
+          place. */}
+      <StripeConnectCard status={stripeStatus} />
 
       {/* Catalog sync card */}
       <div className="card-soft p-4 space-y-5">
@@ -180,6 +243,13 @@ export default function VendorIntegrationsPage() {
           appear in your marketplace shop automatically.
         </p>
       </div>
+
+      <DeliveryCard
+        enabled={!!settings?.uber_direct_enabled}
+        pickupAddress={settings?.uber_pickup_address ?? null}
+        pickupPhone={settings?.uber_pickup_phone ?? null}
+        available={uberAvailable}
+      />
     </div>
   )
 }
