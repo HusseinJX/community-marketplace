@@ -4,6 +4,41 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ── App chrome heights ──────────────────────────────────────────────────────
+   Named once so full-screen views (chats) can subtract them from the viewport
+   instead of each guessing. They used to guess: the vendor assistant page said
+   `calc(100dvh - 14rem)` while AssistantConsole said `18rem` for the same
+   chrome, and both were wrong — nobody had measured, so every chat was a
+   different height and none of them reached the bottom nav.
+
+   Measured, not guessed: top nav 57px, vendor nav 61px (69px at sm, where its
+   padding steps up — which is why one hardcoded rem value could never be right
+   on both breakpoints). */
+:root {
+  --top-nav: 3.5rem;
+  --bottom-nav: 3.25rem;
+  --vendor-nav: 3.8rem;
+  /* Everything between the viewport and a full-screen page's box. */
+  --app-chrome: calc(
+    var(--top-nav) + env(safe-area-inset-top) + var(--bottom-nav) + env(safe-area-inset-bottom)
+  );
+  /* The vendor portal hangs its own nav row under the top nav. */
+  --vendor-chrome: calc(var(--app-chrome) + var(--vendor-nav));
+}
+
+@media (min-width: 640px) {
+  :root {
+    --vendor-nav: 4.3rem; /* header padding steps py-3 → py-4 */
+  }
+}
+
+/* An open conversation takes the whole screen: the portal's own nav row (Home /
+   Messages) hides, leaving just the app top nav and bottom nav. The chat then
+   sizes off --app-chrome rather than --vendor-chrome. Set by MessagesShell. */
+body[data-chat-open="true"] [data-vendor-nav] {
+  display: none;
+}
+
 @theme inline {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --radius-sm: calc(var(--radius) - 4px);

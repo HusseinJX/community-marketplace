@@ -210,6 +210,10 @@ function VoiceInterview({
           memberName={bizName}
           tokenUrl="/api/onboard/voice"
           tokenBody={{ name: bizName, kind, brief }}
+          // The interviewer must open with what it researched — that recognition
+          // IS the point of this step. Without this it waits for the member to
+          // talk first and the whole beat is lost.
+          openWithGreeting
           onTranscript={(m) => {
             msgsRef.current = [...msgsRef.current, m];
             setHeard(msgsRef.current.length);
@@ -261,10 +265,14 @@ function TextInterview({
   const userTurns = messages.filter((m) => m.role === "user").length;
 
   // Once research resolves, ask the brain for a tailored opener so turn 1 already
-  // reflects what we found. Falls back to a generic greeting if it's slow/empty.
+  // reflects what we found. The fallback deliberately asks NOTHING researchable —
+  // if the opener call fails we'd rather admit we came up empty than open with
+  // "what do you sell?", which tells them nobody looked (see NEVER_ASK in
+  // lib/onboard.ts). It's the one line the brief can't rescue, so it plays honest.
   useEffect(() => {
     if (brief === undefined || openerAsked.current) return;
     openerAsked.current = true;
+    const fallback = `Hey — good to meet you. I went looking for ${bizName} and didn't turn up as much as I'd like, so I'd rather hear it from you than guess. Tell me about it in your own words.`;
     (async () => {
       setBusy(true);
       try {
@@ -274,9 +282,9 @@ function TextInterview({
           body: JSON.stringify({ messages: [], brief }),
         });
         const d = await res.json();
-        setMessages([{ role: "assistant", content: d.reply || `Nice to meet you — let's set up ${bizName}. In a sentence or two, what do you make or sell?` }]);
+        setMessages([{ role: "assistant", content: d.reply || fallback }]);
       } catch {
-        setMessages([{ role: "assistant", content: `Nice to meet you — let's set up ${bizName}. In a sentence or two, what do you make or sell?` }]);
+        setMessages([{ role: "assistant", content: fallback }]);
       } finally {
         setBusy(false);
       }
@@ -367,7 +375,7 @@ function TextInterview({
         className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
       >
         {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-        {saving ? "Saving…" : userTurns === 0 ? "Answer one question to save" : "Save my profile"}
+        {saving ? "Saving…" : userTurns === 0 ? "Reply once to save" : "Save my profile"}
       </button>
       <button onClick={onBack} disabled={saving} className="block w-full text-xs font-medium text-stone-400 hover:text-stone-600 disabled:opacity-50">
         Back

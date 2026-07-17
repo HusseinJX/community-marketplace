@@ -2,16 +2,17 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Users, CalendarPlus, CalendarClock, MapPin, ArrowRight } from 'lucide-react'
+import { Users, CalendarPlus, ArrowRight } from 'lucide-react'
 import { useCollaborations, useVendorActivity } from '@/lib/data-hooks'
-import { collabRoster, collabWhenLabel, collabWhere, collabStatus, compareCollabs, STATUS_CLASS } from '@/lib/collab-status'
+import { collabEventDay, collabStatus, compareCollabs, STATUS_CLASS } from '@/lib/collab-status'
 import { countUnread, loadSeen, type SeenMap } from '@/lib/unread'
 
-// Your collaborations, on the front door.
+// Your collaborations, on the front door — the "Upcoming" tab of the Collabs card.
 //
 // Commitments come before discovery: the things you're already in are worth more
 // than any new match — the people in them are counting on you, and they're what
-// actually becomes an event. So this sits ABOVE the find-a-collaboration card.
+// actually becomes an event. So Upcoming is the LEFTMOST tab and the default one;
+// you land on what you've already committed to, and go looking only if you want to.
 //
 // Everything you're in shows here, Planning and Active alike, soonest first. A
 // collab that hasn't got a date yet is still yours to push along; hiding it
@@ -21,17 +22,31 @@ import { countUnread, loadSeen, type SeenMap } from '@/lib/unread'
 // unanswered has no room, no thread, and nothing to open — it isn't a
 // conversation yet, so it isn't in the conversation list.
 //
-// Scrolls sideways rather than down the page: this is the glance, and the whole
-// dashboard sits below it. (Horizontal is the app's pattern for a rail — see
-// FeaturedLists. A VERTICAL scrollbox here would be a scroll inside a scroll,
-// which is the one thing we don't do on a phone.)
+// A vertical LIST, not a rail. This used to scroll sideways because it sat above
+// the whole dashboard and was only a glance; inside a tab it's the thing you came
+// for, and every card should be readable without dragging one out of view.
 //
-// Self-hiding: no collaborations → renders nothing, and the dashboard opens on
-// discovery exactly like it used to for a business that hasn't started one yet.
+// The no-scroll-inside-a-scroll rule still holds and this doesn't break it: the
+// list has no fixed height and no overflow, so it grows the page and scrolls with
+// it. A vertical SCROLLBOX is what's banned — a plain stack is not.
+//
+// Self-hiding is preserved, but it's now the CALLER's job: with no collaborations
+// there is no Upcoming tab at all, and the card opens on discovery exactly like it
+// did for a business that hasn't started one yet. Hence the exported hook — the
+// dashboard needs the count to decide, and SWR dedupes the shared key so asking
+// for it twice costs nothing.
 
-export function ActiveCollabs({ memberId, isAdmin }: { memberId: string; isAdmin: boolean }) {
+// The rows the Upcoming tab shows: chats only, soonest first (see compareCollabs).
+export function useUpcomingCollabs(memberId: string | null | undefined, isAdmin: boolean) {
   const { collaborations } = useCollaborations(memberId, isAdmin)
+  return useMemo(() => collaborations.filter((c) => c.roomId).sort(compareCollabs), [collaborations])
+}
+
+// The cards themselves, bare — no heading, no card wrapper. It renders INSIDE the
+// Collabs card's tab body, which already supplies both.
+export function UpcomingCollabs({ memberId, isAdmin }: { memberId: string; isAdmin: boolean }) {
   const { collab: activity } = useVendorActivity(memberId, isAdmin)
+  const rows = useUpcomingCollabs(memberId, isAdmin)
 
   // Read state is per-device (localStorage) — the same source the Messages
   // badges use, so a thread you just read stops showing a count here too.
@@ -39,28 +54,19 @@ export function ActiveCollabs({ memberId, isAdmin }: { memberId: string; isAdmin
   useEffect(() => setSeen(loadSeen('collab')), [])
   const unread = useMemo(() => countUnread(activity, seen), [activity, seen])
 
-  // Chats only, soonest first (see compareCollabs).
-  const rows = useMemo(() => collaborations.filter((c) => c.roomId).sort(compareCollabs), [collaborations])
-
   if (rows.length === 0) return null
 
   const qp = isAdmin ? `&memberId=${encodeURIComponent(memberId)}` : ''
 
   return (
-    <div>
-      <h2 className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wide text-stone-400">Upcoming collabs</h2>
-
-      <div className="card-soft p-4 sm:p-5">
-        {/* The rail. Negative margins let cards bleed to the card's edge so the
-            last one doesn't look clipped mid-scroll. */}
-        <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 sm:-mx-5 sm:px-5 [scrollbar-width:thin]">
+    <>
+        {/* Plain stack — no height cap, no overflow, so the page does the scrolling. */}
+        <div className="space-y-3">
           {rows.map((c) => {
             const status = collabStatus(c)
-            const when = collabWhenLabel(c)
-            const where = collabWhere(c)
             const n = unread[c.roomId ?? ''] ?? 0
             return (
-              <div key={c.occasion_id} className="w-[19rem] shrink-0 snap-start">
+              <div key={c.occasion_id}>
                 {/* The WHOLE card opens the collaboration — a stretched link over
                     the card, rather than a link around the title. Having to hit
                     the words is a miss waiting to happen on a phone. The event
@@ -78,7 +84,16 @@ export function ActiveCollabs({ memberId, isAdmin }: { memberId: string; isAdmin
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-semibold text-stone-900">{c.label}</span>
-                      <span className="mt-0.5 block truncate text-xs text-stone-500">{collabRoster(c)}</span>
+                      {/* The state sits where the roster line used to. It's the one
+                          thing worth knowing at a glance; who's in, when, and where
+                          are all one tap away inside the collaboration. */}
+                      <span className="mt-1 flex">
+                        <span
+                          className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${STATUS_CLASS[status.key]}`}
+                        >
+                          {status.label}
+                        </span>
+                      </span>
                     </span>
                     {n > 0 && (
                       <span
@@ -89,39 +104,27 @@ export function ActiveCollabs({ memberId, isAdmin }: { memberId: string; isAdmin
                       </span>
                     )}
 
-                    {/* The collaboration already became an event — straight to it. */}
+                    {/* The collaboration already became an event — straight to it.
+                        The date sits under the chip: once there's an event, WHEN
+                        is the thing you want off a glance. */}
                     {c.eventId && (
-                      <Link
-                        href={`/events/${c.eventId}`}
-                        title="Go to the event page"
-                        className="relative z-20 inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2 py-1.5 text-[11px] font-medium text-emerald-700 hover:bg-emerald-100"
-                      >
-                        <CalendarPlus className="h-3 w-3" />
-                      </Link>
+                      <span className="flex shrink-0 flex-col items-center gap-0.5">
+                        <Link
+                          href={`/events/${c.eventId}`}
+                          title="Go to the event page"
+                          className="relative z-20 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1.5 text-[11px] font-medium text-emerald-700 hover:bg-emerald-100"
+                        >
+                          <CalendarPlus className="h-3 w-3" />
+                        </Link>
+                        {collabEventDay(c) && (
+                          <span className="text-[10px] font-medium tabular-nums text-stone-400">
+                            {collabEventDay(c)}
+                          </span>
+                        )}
+                      </span>
                     )}
                   </div>
 
-                  {/* When, then where — a line each. Only once the event exists. */}
-                  {when && (
-                    <p className="mt-1.5 flex items-center gap-1 text-xs text-stone-500">
-                      <CalendarClock className="h-3 w-3 shrink-0 text-stone-400" />
-                      <span className="truncate">{when}</span>
-                    </p>
-                  )}
-                  {where && (
-                    <p className="mt-0.5 flex items-center gap-1 text-xs text-stone-500">
-                      <MapPin className="h-3 w-3 shrink-0 text-stone-400" />
-                      <span className="truncate">{where}</span>
-                    </p>
-                  )}
-
-                  <div className="mt-3 border-t border-stone-100 pt-2.5">
-                    <span
-                      className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${STATUS_CLASS[status.key]}`}
-                    >
-                      {status.label}
-                    </span>
-                  </div>
                 </div>
               </div>
             )
@@ -134,7 +137,6 @@ export function ActiveCollabs({ memberId, isAdmin }: { memberId: string; isAdmin
         >
           Open in Messages <ArrowRight className="h-3.5 w-3.5" />
         </Link>
-      </div>
-    </div>
+    </>
   )
 }

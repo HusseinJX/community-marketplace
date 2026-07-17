@@ -45,5 +45,8 @@ export function CollabsGate({
       )
     : children
 
-  return <div className="space-y-6">{content}</div>
+  // flex-1/min-h-0 are inert in the list view (the parent there is a plain block)
+  // but let an open chat inherit the shell's full-screen height through the gate
+  // — without them the height stops here and the composer floats mid-screen.
+  return <div className="flex min-h-0 flex-1 flex-col space-y-6">{content}</div>
 }

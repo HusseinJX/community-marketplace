@@ -103,3 +103,28 @@ export function collabWhere(c: CollaborationSummary): string | null {
   const v = c.eventLocation?.trim()
   return v ? v : null
 }
+
+/** "19/7" — day/month, for the date under a card's event chip.
+ *
+ *  event_date is TEXT and arrives in three shapes: the date picker's ISO
+ *  (2026-08-09), connector date strings, and free text an AI pulled off a flyer
+ *  ("next saturday"). Unparseable text gets NO date rather than a wrong one — a
+ *  chip that confidently shows the wrong day is worse than a chip with no day.
+ *
+ *  ISO is matched by hand instead of via Date.parse, which reads a date-only ISO
+ *  string as UTC midnight: `new Date(Date.parse('2026-08-09')).getDate()` is the
+ *  8th anywhere west of Greenwich, so every SF event would show a day early. */
+export function collabEventDay(c: CollaborationSummary): string | null {
+  const raw = c.eventDate?.trim()
+  if (!raw) return null
+
+  const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(raw)
+  if (iso) return `${Number(iso[3])}/${Number(iso[2])}`
+
+  // Anything else (e.g. "Aug 9, 2026") parses in LOCAL time, so the calendar
+  // fields are already the ones the member meant.
+  const t = Date.parse(raw)
+  if (Number.isNaN(t)) return null
+  const d = new Date(t)
+  return `${d.getDate()}/${d.getMonth() + 1}`
+}

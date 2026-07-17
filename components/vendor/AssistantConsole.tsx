@@ -107,17 +107,18 @@ export function AssistantConsole({
   // ── Chat view ─────────────────────────────────────────────────────────────
   if (active) {
     return (
-      <div className="mx-auto w-full max-w-2xl">
+      // Fills the shell's full-screen box rather than measuring the viewport
+      // itself — it can't see its own chrome, and `100dvh - 18rem` was a guess
+      // that disagreed with the vendor assistant page's `- 14rem` for the very
+      // same chat. The parent knows the height; this just takes what's left.
+      <div className="mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col px-6 pt-6">
         <button
           onClick={() => setActiveId(null)}
-          className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-stone-600 hover:text-stone-900"
+          className="mb-4 shrink-0 inline-flex items-center gap-1 text-sm font-medium text-stone-600 hover:text-stone-900"
         >
           <ChevronLeft className="h-4 w-4" /> All chats
         </button>
-        <div
-          className="flex w-full flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white"
-          style={{ height: 'calc(100dvh - 18rem)' }}
-        >
+        <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-t-2xl border border-b-0 border-stone-200 bg-white">
           <div className="flex shrink-0 items-center gap-3 border-b border-stone-100 px-4 py-3">
             <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 text-white">
               <Sparkles className="h-4 w-4" />

@@ -49,6 +49,44 @@ export async function POST(req: Request) {
             output: { voice: REALTIME_VOICE },
             input: { transcription: { model: 'whisper-1' } },
           },
+          // Lets the interview actually CONCLUDE. Without a way to hang up, the
+          // agent can only stop talking and wait, which is what made the call feel
+          // like it wandered on with no destination. The client hangs up when this
+          // fires (after the goodbye audio drains) and saves the profile.
+          tools: [
+            {
+              type: 'function',
+              name: 'end_call',
+              description:
+                'End the call. Call this ONLY after you have their wants and offers, said them ' +
+                'back, told them you will send recommendations and invites to look out for in ' +
+                'the app, and finished saying goodbye out loud. This hangs up and builds their ' +
+                'profile.',
+              parameters: {
+                type: 'object',
+                properties: {
+                  wants: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    description:
+                      'What they want FROM the local community, most pressing first, in their own ' +
+                      'words. Short concrete phrases, e.g. "live artists to perform on weekends", ' +
+                      '"schools to run tortilla workshops with".',
+                  },
+                  offers: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    description:
+                      'What they can give TO the community in return — ideally paired to their ' +
+                      'wants. Short concrete phrases, e.g. "a room that seats 40", "free masa for ' +
+                      'workshops", "an audience of regulars".',
+                  },
+                },
+                required: ['wants', 'offers'],
+              },
+            },
+          ],
+          tool_choice: 'auto',
         },
       }),
     })

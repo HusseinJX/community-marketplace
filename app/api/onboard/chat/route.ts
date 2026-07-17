@@ -28,9 +28,18 @@ export async function POST(req: Request) {
         })),
       ],
     })
-    const reply = completion.choices[0]?.message?.content ?? "Tell me a bit about your business!"
+    const reply = completion.choices[0]?.message?.content ?? fallbackFor(messages)
     return NextResponse.json({ reply })
   } catch {
-    return NextResponse.json({ reply: "Sorry — say that again? Tell me about your business." })
+    return NextResponse.json({ reply: fallbackFor(messages) })
   }
+}
+
+// On the OPENER turn (no messages yet) a failure must not hand back a canned
+// "tell me about your business" — that's the researchable question the whole
+// flow exists to avoid (see NEVER_ASK in lib/onboard.ts), and it's truthy, so it
+// would sail past the client's own fallback and become the first thing the
+// member reads. Return empty and let the caller own its opener.
+function fallbackFor(messages: Msg[]): string {
+  return messages.length === 0 ? '' : 'Sorry — say that again?'
 }

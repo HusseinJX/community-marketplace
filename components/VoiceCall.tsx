@@ -9,6 +9,29 @@ type CallState = "idle" | "connecting" | "live" | "ended" | "error";
 // Overridable per-env; defaults to 5 minutes.
 const MAX_CALL_SECONDS = Number(process.env.NEXT_PUBLIC_VOICE_MAX_SECONDS) || 300;
 
+// How long a transient "disconnected" gets to recover before we call it a real
+// drop. ICE consent checks run every ~5s, so this spans a couple of them —
+// long enough to ride out a blip, short enough that a truly dead call doesn't
+// leave the member listening to silence.
+const RECONNECT_GRACE_MS = 12_000;
+
+// Backstop for the agent's own hangup: we normally wait for the goodbye audio to
+// drain (output_audio_buffer.stopped), but if that event never lands we must not
+// leave the member sitting on a call the agent thinks it already ended.
+const END_CALL_MAX_WAIT_MS = 10_000;
+
+// STUN. Without this the peer connection only ever gathers HOST candidates, so
+// behind any NAT (i.e. essentially every real user) there is no valid path to
+// OpenAI's servers. The call would appear to connect, run on borrowed time, and
+// die at the first ICE consent check ~30-45s in with no candidate to fall back
+// on — silently, mid-sentence. `new RTCPeerConnection()` with no config is the
+// single most expensive default in this file.
+const STUN_URLS = (process.env.NEXT_PUBLIC_STUN_URLS ||
+  "stun:stun.l.google.com:19302,stun:stun1.l.google.com:19302")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
 function fmt(sec: number): string {
   const m = Math.floor(sec / 60);
   const s = Math.max(0, sec % 60);
@@ -25,6 +48,7 @@ export function VoiceCall({
   tokenUrl,
   tokenBody,
   onTranscript,
+  openWithGreeting = false,
 }: {
   memberId?: string;
   memberName: string;
@@ -37,6 +61,13 @@ export function VoiceCall({
   // Streams each completed transcript line (user + agent) as it lands, so a
   // parent can persist the conversation (used by the onboarding interview).
   onTranscript?: (m: { role: "user" | "assistant"; content: string }) => void;
+  // Make the AGENT talk first. Realtime generates nothing until a response is
+  // requested — with server VAD it only replies after it hears you — so without
+  // this the agent sits silent until the member speaks, and any "open with X"
+  // instruction is dead letter. The onboarding interview needs it (its whole
+  // design is the agent opening with what it researched). The business agent
+  // leaves it off: a customer who dialled in expects to talk first.
+  openWithGreeting?: boolean;
 }) {
   const [state, setState] = useState<CallState>("idle");
   const [muted, setMuted] = useState(false);
@@ -46,9 +77,28 @@ export function VoiceCall({
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const micRef = useRef<MediaStream | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  // Pending "did disconnected recover?" timer — see onconnectionstatechange.
+  const dropTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The agent asked to hang up (end_call) and we're letting its goodbye play out.
+  const endingRef = useRef(false);
+  // onClose as a ref: the data-channel handler is created once inside start(),
+  // so closing over the prop directly would pin the first render's copy.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
+
+  // The agent said goodbye and its audio has drained — end the call for real and
+  // hand off to the parent (which persists the interview). Idempotent: whichever
+  // of output_audio_buffer.stopped or the safety timer lands first wins.
+  const concludeRef = useRef<() => void>(() => {});
 
   // Tear down everything — safe to call multiple times.
   const hangUp = useCallback((next: CallState = "ended") => {
+    if (dropTimerRef.current) {
+      clearTimeout(dropTimerRef.current);
+      dropTimerRef.current = null;
+    }
     micRef.current?.getTracks().forEach((t) => t.stop());
     micRef.current = null;
     if (pcRef.current) {
@@ -61,6 +111,15 @@ export function VoiceCall({
     }
     setState((s) => (s === "error" ? s : next));
   }, []);
+
+  useEffect(() => {
+    concludeRef.current = () => {
+      if (!endingRef.current) return;
+      endingRef.current = false;
+      hangUp("ended");
+      onCloseRef.current();
+    };
+  }, [hangUp]);
 
   const start = useCallback(async () => {
     setError(null);
@@ -88,7 +147,9 @@ export function VoiceCall({
       const { client_secret, model } = await tokenRes.json();
 
       // 2. WebRTC peer connection straight to OpenAI.
-      const pc = new RTCPeerConnection();
+      // One entry per URL: Firefox is fussier than Chrome about several urls
+      // packed into a single iceServers entry.
+      const pc = new RTCPeerConnection({ iceServers: STUN_URLS.map((u) => ({ urls: u })) });
       pcRef.current = pc;
 
       // Remote audio (the agent's voice).
@@ -99,10 +160,35 @@ export function VoiceCall({
         }
       };
 
+      // "disconnected" is TRANSIENT, not terminal: it only means no packets have
+      // arrived recently — a wifi blip, a route change, or a slow ICE consent
+      // check — and connections routinely recover from it on their own. We used
+      // to tear the call down the instant we saw it, which killed healthy calls
+      // mid-sentence after ~30s and looked to the member like the agent hung up
+      // on them. Only "failed" is terminal; give "disconnected" a chance to come
+      // back, and hang up only if it doesn't.
       pc.onconnectionstatechange = () => {
         const cs = pc.connectionState;
-        if (cs === "connected") setState("live");
-        else if (cs === "failed" || cs === "disconnected") hangUp("ended");
+        if (cs === "connected") {
+          if (dropTimerRef.current) {
+            clearTimeout(dropTimerRef.current);
+            dropTimerRef.current = null;
+          }
+          setState("live");
+        } else if (cs === "failed") {
+          console.error("[VoiceCall] connection failed, ice:", pc.iceConnectionState);
+          hangUp("ended");
+        } else if (cs === "disconnected") {
+          if (dropTimerRef.current) return; // already waiting it out
+          dropTimerRef.current = setTimeout(() => {
+            dropTimerRef.current = null;
+            // Still not back — now it's a real drop.
+            if (pcRef.current && pcRef.current.connectionState !== "connected") {
+              console.error("[VoiceCall] drop didn't recover, ice:", pcRef.current.iceConnectionState);
+              hangUp("ended");
+            }
+          }, RECONNECT_GRACE_MS);
+        }
       };
 
       // 3. Mic → up.
@@ -112,32 +198,106 @@ export function VoiceCall({
 
       // Data channel — Realtime server events. Used to harvest the running
       // transcript (both sides) so the onboarding interview can be saved.
+      //
+      // The handler is attached unconditionally: when the session errors, OpenAI
+      // says so on this channel, and a swallowed error looks exactly like the
+      // agent going quiet and the call dying for no reason. Transcript harvesting
+      // is the optional part, not the listening.
       const dc = pc.createDataChannel("oai-events");
-      if (onTranscript) {
-        dc.onmessage = (e) => {
+      // Ask the agent to speak first. Nothing is generated until a response is
+      // requested, so without this the session just listens (see openWithGreeting).
+      if (openWithGreeting) {
+        dc.onopen = () => {
           try {
-            const evt = JSON.parse(e.data);
-            // The customer's speech, transcribed by whisper.
-            if (
-              evt.type === "conversation.item.input_audio_transcription.completed" &&
-              typeof evt.transcript === "string" &&
-              evt.transcript.trim()
-            ) {
-              onTranscript({ role: "user", content: evt.transcript.trim() });
-            }
-            // The agent's spoken reply, transcribed.
-            else if (
-              evt.type === "response.audio_transcript.done" &&
-              typeof evt.transcript === "string" &&
-              evt.transcript.trim()
-            ) {
-              onTranscript({ role: "assistant", content: evt.transcript.trim() });
-            }
-          } catch {
-            /* non-JSON keepalive frames — ignore */
+            dc.send(JSON.stringify({ type: "response.create" }));
+          } catch (err) {
+            console.error("[VoiceCall] couldn't request opening greeting", err);
           }
         };
       }
+      dc.onmessage = (e) => {
+        let evt: { type?: string; error?: unknown; transcript?: unknown };
+        try {
+          evt = JSON.parse(e.data);
+        } catch {
+          return; // genuinely non-JSON keepalive frame
+        }
+        // DEV ONLY: trace the session's event stream, minus the per-frame audio
+        // deltas that would drown it. An agent that answers twice and then goes
+        // quiet is doing SOMETHING here; this shows what.
+        if (process.env.NODE_ENV === "development" && evt.type && !evt.type.includes("delta")) {
+          const r = (evt as { response?: { status?: string; status_details?: unknown } }).response;
+          console.log(
+            "[VoiceCall:evt]",
+            evt.type,
+            r?.status ? `status=${r.status}` : "",
+            r?.status_details ? JSON.stringify(r.status_details) : ""
+          );
+        }
+        // The agent decided the interview is complete (see the end_call tool).
+        // Don't hang up yet — its goodbye is still playing. Mark it and wait for
+        // the audio to drain, so the call ends on a finished sentence.
+        if (
+          evt.type === "response.function_call_arguments.done" &&
+          (evt as { name?: string }).name === "end_call"
+        ) {
+          endingRef.current = true;
+          // Put the wants/offers into the transcript verbatim. The spoken summary
+          // may be paraphrased or mis-transcribed, and this pair is the whole
+          // point of the call — it's what the connector turns into the needs and
+          // offers vectors it matches on. Hand it over as text rather than hoping
+          // whisper caught it.
+          try {
+            const args = JSON.parse((evt as { arguments?: string }).arguments || "{}");
+            const wants: string[] = args.wants || [];
+            const offers: string[] = args.offers || [];
+            const lines = [
+              wants.length ? `What they WANT from the community: ${wants.join("; ")}` : "",
+              offers.length ? `What they OFFER the community: ${offers.join("; ")}` : "",
+            ].filter(Boolean);
+            if (lines.length && onTranscript) {
+              onTranscript({ role: "assistant", content: lines.join(". ") });
+            }
+          } catch {
+            /* the summary is a bonus; never block the hangup on parsing it */
+          }
+          // Safety net: if the audio-drained event never arrives, don't strand
+          // them on a dead call.
+          setTimeout(() => concludeRef.current(), END_CALL_MAX_WAIT_MS);
+        }
+        // Goodbye finished playing — now it's safe to hang up.
+        if (evt.type === "output_audio_buffer.stopped" && endingRef.current) {
+          concludeRef.current();
+        }
+        // The session told us something went wrong. Don't die quietly.
+        if (evt.type === "error" || evt.type === "response.done") {
+          const err =
+            evt.type === "error"
+              ? evt.error
+              : (evt as { response?: { status?: string; status_details?: unknown } }).response
+                  ?.status === "failed"
+              ? (evt as { response?: { status_details?: unknown } }).response?.status_details
+              : null;
+          if (err) console.error("[VoiceCall] realtime session error", err);
+        }
+        if (!onTranscript) return;
+        // The customer's speech, transcribed by whisper.
+        if (
+          evt.type === "conversation.item.input_audio_transcription.completed" &&
+          typeof evt.transcript === "string" &&
+          evt.transcript.trim()
+        ) {
+          onTranscript({ role: "user", content: evt.transcript.trim() });
+        }
+        // The agent's spoken reply, transcribed.
+        else if (
+          evt.type === "response.audio_transcript.done" &&
+          typeof evt.transcript === "string" &&
+          evt.transcript.trim()
+        ) {
+          onTranscript({ role: "assistant", content: evt.transcript.trim() });
+        }
+      };
 
       // 4. SDP offer/answer handshake with OpenAI, authed by the ephemeral key.
       const offer = await pc.createOffer();
@@ -169,7 +329,7 @@ export function VoiceCall({
       setState("error");
       hangUp("error");
     }
-  }, [memberId, tokenUrl, tokenBody, onTranscript, hangUp]);
+  }, [memberId, tokenUrl, tokenBody, onTranscript, hangUp, openWithGreeting]);
 
   // Auto-start when the panel mounts.
   useEffect(() => {

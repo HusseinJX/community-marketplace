@@ -42,6 +42,17 @@ export function MessagesShell({
   // the "Messages" title + tab bar. The open section owns its own back button.
   const [chatOpen, setChatOpen] = useState(false)
 
+  // Tell the layout's nav row to get out of the way (globals.css reads this).
+  // The vendor layout is a server component and can't see this state, and the
+  // body outlives this component, so the cleanup matters: leave the flag set and
+  // the portal nav stays hidden on every page you visit next.
+  useEffect(() => {
+    document.body.dataset.chatOpen = chatOpen ? 'true' : 'false'
+    return () => {
+      delete document.body.dataset.chatOpen
+    }
+  }, [chatOpen])
+
   // Unread badges. The shell owns this because the badge for a tab has to show
   // while you're standing in a DIFFERENT tab — the other sections aren't even
   // mounted. Activity comes from the server (SWR-cached, so returning to
@@ -103,7 +114,17 @@ export function MessagesShell({
   ]
 
   return (
-    <div className="space-y-6">
+    // A chat fills the screen between the vendor nav and the bottom nav so its
+    // composer pins just above the bottom nav — no page scroll, nothing below.
+    // The list view is an ordinary page and keeps the portal's padding, which
+    // the layout stops supplying on this route (see app/vendor/layout.tsx).
+    <div
+      className={chatOpen ? 'flex flex-col px-4 pt-4' : 'space-y-6 px-6 py-10'}
+      // An open chat hides the portal's nav row (see the body marker below), so
+      // the only chrome left is the app's top + bottom nav — --app-chrome, not
+      // --vendor-chrome.
+      style={chatOpen ? { height: 'calc(100dvh - var(--app-chrome))' } : undefined}
+    >
       {/* Title + tab bar hide while a conversation is open (full-screen chat). */}
       {!chatOpen && (
         <>
@@ -137,21 +158,27 @@ export function MessagesShell({
         </>
       )}
 
-      {section === 'collabs' && (
-        <CollabsGate plan={plan} adminDemo={adminDemo}>
-          <NetworkManager
-            memberId={memberId}
-            isAdmin={isAdmin}
-            onChatOpenChange={setChatOpen}
-            unreadByRoom={unreadByRoom}
-            onRoomSeen={markCollabSeen}
-          />
-        </CollabsGate>
-      )}
-      {section === 'customers' && (
-        <CustomerInbox onChatOpenChange={setChatOpen} unreadByConvo={unreadByConvo} onConvoSeen={markCustomerSeen} />
-      )}
-      {section === 'assistant' && <AssistantConsole memberId={memberId} onChatOpenChange={setChatOpen} />}
+      {/* With a chat open this is the only child, so it takes the whole box —
+          min-h-0 lets the chat's own scroller shrink inside the flex parent
+          instead of overflowing it (without it, flex children refuse to go below
+          their content height and the composer gets pushed off-screen). */}
+      <div className={chatOpen ? 'flex min-h-0 flex-1 flex-col' : 'contents'}>
+        {section === 'collabs' && (
+          <CollabsGate plan={plan} adminDemo={adminDemo}>
+            <NetworkManager
+              memberId={memberId}
+              isAdmin={isAdmin}
+              onChatOpenChange={setChatOpen}
+              unreadByRoom={unreadByRoom}
+              onRoomSeen={markCollabSeen}
+            />
+          </CollabsGate>
+        )}
+        {section === 'customers' && (
+          <CustomerInbox onChatOpenChange={setChatOpen} unreadByConvo={unreadByConvo} onConvoSeen={markCustomerSeen} />
+        )}
+        {section === 'assistant' && <AssistantConsole memberId={memberId} onChatOpenChange={setChatOpen} />}
+      </div>
     </div>
   )
 }

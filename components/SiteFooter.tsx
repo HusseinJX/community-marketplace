@@ -13,11 +13,16 @@ function openAdminDemo() {
   window.location.href = "/vendor";
 }
 
-// Marketing footer. Hidden on full-screen app views (the conversation view)
-// where a footer below the chat would be out of place.
+// Marketing footer. Hidden on full-screen app views (the conversation views)
+// where a footer below the chat would be out of place — a chat fills the screen
+// and pins its input above the bottom nav, so there is no "below" to put it in.
+// Both inboxes count: the vendor portal's is as much a chat surface as the
+// shopper one, and it was getting 354px of marketing under the message box.
+const FULL_SCREEN = ["/messages", "/vendor/messages"];
+
 export function SiteFooter() {
   const pathname = usePathname();
-  if (pathname?.startsWith("/messages")) return null;
+  if (FULL_SCREEN.some((p) => pathname?.startsWith(p))) return null;
 
   return (
     <footer className="mt-16 border-t border-stone-200 bg-white">

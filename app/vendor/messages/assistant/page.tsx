@@ -32,8 +32,11 @@ export default async function VendorAgentPage({
 
   return (
     <div
-      className="mx-auto flex w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white"
-      style={{ height: 'calc(100dvh - 14rem)' }}
+      className="mx-auto flex w-full max-w-2xl flex-col overflow-hidden border-x border-stone-200 bg-white"
+      // Exactly the space between the vendor nav and the bottom nav, so the
+      // composer pins just above the bottom nav. (Was `100dvh - 14rem` — a
+      // guess that left the chat floating short of the bottom.)
+      style={{ height: 'calc(100dvh - var(--vendor-chrome))' }}
     >
       <div className="flex shrink-0 items-center gap-3 border-b border-stone-100 bg-white px-4 py-3">
         <Link
