@@ -22,10 +22,10 @@ export async function GET(req: Request) {
     const minsAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString()
     return NextResponse.json({
       collab: [
-        { key: 'demo-room-4', at: minsAgo(12), mine: false },
-        { key: 'demo-room-4', at: minsAgo(10), mine: false },
-        { key: 'demo-room-4', at: minsAgo(90), mine: true },
-        { key: 'demo-room-5', at: minsAgo(40), mine: false },
+        { key: 'demo-room-group', at: minsAgo(12), mine: false },
+        { key: 'demo-room-group', at: minsAgo(10), mine: false },
+        { key: 'demo-room-group', at: minsAgo(90), mine: true },
+        { key: 'demo-room-holiday', at: minsAgo(40), mine: false },
       ],
       customer: await getCustomerMessageActivity(actor.memberId).catch(() => []),
     })

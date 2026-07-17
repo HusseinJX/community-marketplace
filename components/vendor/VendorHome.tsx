@@ -9,6 +9,7 @@ import {
 import { PLAN_KEY, PlanSwitch, type Tier } from '@/components/vendor/PlanSwitch'
 import { CollabMatchHero } from '@/components/vendor/CollabMatchHero'
 import { Opportunities } from '@/components/vendor/Opportunities'
+import { ActiveCollabs } from '@/components/vendor/ActiveCollabs'
 
 // The vendor front door: who to team up with, and what's already looking for you.
 // Everything else on this page is plumbing and sits below, in one list.
@@ -91,6 +92,12 @@ export function VendorHome({
       {/* ── The wedge, front and center. One "Collabs" section, two columns:
              people to team up with on one side, events to join on the other.
              Stacks on mobile. ────────────────────────────────────────────── */}
+      {/* Commitments first: the collaborations you're already in, the ones
+          waiting on you at the top — above finding new ones. Rendered bare (no
+          wrapper) so that when it returns null there's no empty node left
+          holding a gap open. */}
+      {memberId && <ActiveCollabs memberId={memberId} isAdmin={isAdmin} />}
+
       {memberId ? (
         <div>
           {/* Title + the Create / Join toggle, above the card. (The For-you/Search

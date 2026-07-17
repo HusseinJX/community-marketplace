@@ -23,6 +23,12 @@ export function isDemoRoomId(id: string): boolean {
   return DEMO_ROOM_IDS.has(id)
 }
 
+/** The event a demo collaboration already made, if any — what locks its lineup.
+ *  Mirrors collab_rooms.event_id in demoRooms() below. */
+export function demoRoomEventId(roomId: string): string | null {
+  return roomId === DEMO_ROOM_GROUP ? 'demo-event-market' : null
+}
+
 export function demoInvites(memberId: string): { incoming: CollabInvite[]; outgoing: CollabInvite[] } {
   const base = {
     scope_type: 'collab' as const,
@@ -184,13 +190,25 @@ export function demoMessages(roomId: string, memberId: string): CollabMessage[] 
 }
 
 export function demoCollaborations(memberId: string): CollaborationSummary[] {
-  void memberId
+  // Read consent off the same roster the room renders, so toggling "I'm in"
+  // moves the card's status too (see lib/collab-status).
+  const roster = (roomId: string) => {
+    const ms = demoRoomMembers(roomId, memberId)
+    return {
+      memberCount: ms.length,
+      agreedCount: ms.filter((m) => m.agreed).length,
+      myAgreed: ms.some((m) => m.member_id === memberId && m.agreed),
+    }
+  }
   return [
     {
       occasion_id: OCC_MARKET,
       label: 'Sat farmers-market booth',
       roomId: DEMO_ROOM_GROUP,
       eventId: 'demo-event-market',
+      eventDate: 'Aug 9, 2026',
+      eventTime: '9:00 AM – 2:00 PM',
+      eventLocation: 'Mission Community Market',
       owned: true,
       acceptedCount: 2, // group
       members: [
@@ -198,18 +216,23 @@ export function demoCollaborations(memberId: string): CollaborationSummary[] {
         { invite_id: 'demo-occ-2', to_id: 'demo-collab-mission', to_name: 'Mission Coffee Co.', status: 'accepted', role: 'food' },
         { invite_id: 'demo-occ-3', to_id: 'demo-collab-luz', to_name: 'Luz Ceramics', status: 'pending', role: 'vendor' },
       ],
+      ...roster(DEMO_ROOM_GROUP),
     },
     {
       occasion_id: OCC_HOLIDAY,
       label: 'Holiday night market',
       roomId: DEMO_ROOM_HOLIDAY,
       eventId: null,
+      eventDate: null,
+      eventTime: null,
+      eventLocation: null,
       owned: true,
       acceptedCount: 1, // 1:1
       members: [
         { invite_id: 'demo-hol-1', to_id: 'demo-collab-dani', to_name: 'Dani Cruz', status: 'accepted', role: 'performer' },
         { invite_id: 'demo-hol-2', to_id: 'demo-collab-sol', to_name: 'Sol Bakery', status: 'pending', role: 'food' },
       ],
+      ...roster(DEMO_ROOM_HOLIDAY),
     },
     {
       // We were invited into this one — no invite/manage controls.
@@ -217,9 +240,13 @@ export function demoCollaborations(memberId: string): CollaborationSummary[] {
       label: 'Downtown art walk',
       roomId: DEMO_ROOM_JOINED,
       eventId: null,
+      eventDate: null,
+      eventTime: null,
+      eventLocation: null,
       owned: false,
       acceptedCount: 2, // group (host + 2 incl. us)
       members: [],
+      ...roster(DEMO_ROOM_JOINED),
     },
   ]
 }

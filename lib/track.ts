@@ -20,6 +20,7 @@ export type TrackEvent =
   | 'collab_invite_accepted'
   | 'collab_agreed' // "I'm in 👍" — consent, the step before an event
   | 'collab_event_created' // a collaboration became a real event
+  | 'collab_lineup_requested' // asked the host to be added after the event locked
   | 'opportunity_ask_to_join' // asked to join someone else's event
 
 export function track(event: TrackEvent, props: Record<string, unknown> = {}): void {

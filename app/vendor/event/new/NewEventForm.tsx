@@ -112,11 +112,13 @@ export function NewEventForm({
           />
 
           <div className="grid gap-2 sm:grid-cols-2">
+            {/* Time stays free text below (it's a range — "6–10 PM"), but the
+                date is what the collab lists sort on, so it's a real picker. */}
             <input
+              type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              placeholder="Date — e.g. 2026-08-15"
-              className="w-full rounded-xl border border-stone-200 bg-white px-3.5 py-2.5 text-sm text-stone-900 placeholder:text-stone-400 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+              className="w-full rounded-xl border border-stone-200 bg-white px-3.5 py-2.5 text-sm text-stone-900 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-100"
             />
             <input
               value={time}

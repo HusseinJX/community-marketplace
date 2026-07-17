@@ -6,6 +6,7 @@ import type { LiveBroadcast } from "@/components/live/types";
 import type { FeedEvent } from "@/app/api/events/feed/route";
 import type { Post } from "@/lib/posts";
 import type { Activity } from "@/lib/unread";
+import type { CollaborationSummary } from "@/lib/collab-network";
 import { fetchLiveBroadcasts } from "@/lib/demo-live-fixtures";
 
 // Shared, cached data hooks. Every surface that needs one of these datasets
@@ -111,5 +112,17 @@ export function useVendorActivity(memberId: string, isAdmin: boolean) {
   return { collab: data?.collab ?? EMPTY, customer: data?.customer ?? EMPTY, loaded: !!data };
 }
 
+// The actor's collaborations. Shared key with the Messages tab, so the
+// dashboard's "Needs you" list and the Collaborations cards paint from one
+// fetch and agree on what's outstanding.
+export function useCollaborations(memberId: string | null | undefined, isAdmin: boolean) {
+  const { data } = useSWR<{ collaborations?: CollaborationSummary[] }>(
+    memberId ? `/api/vendor/collaborations${isAdmin ? `?memberId=${encodeURIComponent(memberId)}` : ""}` : null,
+    { refreshInterval: 30_000 },
+  );
+  return { collaborations: data?.collaborations ?? EMPTY_COLLABS, loaded: !!data };
+}
+
 // Stable identity so consumers' useMemo deps don't churn on every render.
 const EMPTY: Activity[] = [];
+const EMPTY_COLLABS: CollaborationSummary[] = [];

@@ -57,6 +57,46 @@ export interface RoomMember {
   created_at: string
 }
 
+/** A room member plus where they stand on the event's lineup, once the event
+ *  exists. `lineup: null` = not on it (they weren't in when it was created, or
+ *  they joined the room afterwards). */
+export interface RoomMemberView extends RoomMember {
+  lineup: InviteStatus | null
+}
+
+// The roster, plus the lineup once the event is made.
+//
+// Creating the event LOCKS the lineup: it's built from who was "in" at that
+// moment (see api/vendor/rooms/[id]/event), and the host has told people a real
+// thing is happening with a real list. So after that, `agreed` stops being the
+// question — "are you on the lineup" is. Someone who wasn't in can still get on,
+// but by asking the host (a pending self-join they approve), not by flipping
+// their own switch.
+export async function getRoomRoster(
+  roomId: string
+): Promise<{ members: RoomMemberView[]; eventId: string | null }> {
+  const [room, members] = await Promise.all([getRoom(roomId), ensureRoomMembers(roomId)])
+  const eventId = room?.event_id ?? null
+  if (!eventId) return { members: members.map((m) => ({ ...m, lineup: null })), eventId: null }
+
+  const byMember = new Map<string, InviteStatus>()
+  for (const i of await getEventInvites(eventId)) {
+    // A member can hold more than one invite row (added at creation, and/or a
+    // later self-join). Being on the lineup wins over any pending duplicate.
+    if (byMember.get(i.to_id) === 'accepted') continue
+    byMember.set(i.to_id, i.status)
+  }
+  const host = room?.owner_id ?? room?.member_a
+  return {
+    members: members.map((m) => ({
+      ...m,
+      // The host isn't on their own lineup as an invite — they ARE the event.
+      lineup: m.member_id === host ? 'accepted' : byMember.get(m.member_id) ?? null,
+    })),
+    eventId,
+  }
+}
+
 export interface CollabMessage {
   id: string
   room_id: string
@@ -190,6 +230,18 @@ export interface CollaborationSummary {
   owned: boolean // true = we created it (can invite/manage); false = we were invited
   acceptedCount: number // collaborators (not the owner) who accepted
   members: CollaborationMember[] // invitees (only populated for owned collaborations)
+  // When and where, once the event exists. All three are TEXT on vendor_events
+  // (event_date is TEXT to match connector date strings), so treat the date as a
+  // hint, not a timestamp — see collabWhen() in lib/collab-status.
+  eventDate: string | null
+  eventTime: string | null
+  eventLocation: string | null
+  // Consent state, from the room roster. Accepting an invite puts you in the
+  // room; "I'm in 👍" is the actual commitment — so these are what tell you
+  // whether a collaboration is waiting on YOU (see lib/collab-status).
+  myAgreed: boolean
+  agreedCount: number // everyone who's in, including you
+  memberCount: number // everyone in the room, agreed or not
 }
 
 export async function getCollaborationsFor(memberId: string): Promise<CollaborationSummary[]> {
@@ -209,7 +261,11 @@ export async function getCollaborationsFor(memberId: string): Promise<Collaborat
   const ensureOwned = (occ: string, label: string) => {
     if (!byOcc.has(occ)) {
       const room = roomByOcc.get(occ) || null
-      byOcc.set(occ, { occasion_id: occ, label, roomId: room?.id ?? null, eventId: room?.event_id ?? null, owned: true, acceptedCount: 0, members: [] })
+      byOcc.set(occ, {
+        occasion_id: occ, label, roomId: room?.id ?? null, eventId: room?.event_id ?? null,
+        owned: true, acceptedCount: 0, members: [], eventDate: null, eventTime: null, eventLocation: null,
+        myAgreed: false, agreedCount: 0, memberCount: 0, // filled from the roster below
+      })
     }
     return byOcc.get(occ)!
   }
@@ -229,20 +285,67 @@ export async function getCollaborationsFor(memberId: string): Promise<Collaborat
     const { data: joinedRooms } = await db().from('collab_rooms').select('*').in('id', joinedIds)
     for (const room of (joinedRooms as CollabRoom[]) ?? []) {
       if (!room.occasion_id || byOcc.has(room.occasion_id)) continue
-      const count = (await getRoomMembers(room.id)).length
       byOcc.set(room.occasion_id, {
         occasion_id: room.occasion_id,
         label: room.occasion_label || room.title || 'Collaboration',
         roomId: room.id,
         eventId: room.event_id ?? null,
         owned: false,
-        acceptedCount: Math.max(0, count - 1), // for 1:1 vs group display
+        acceptedCount: 0, // from the roster below (was a per-room query — an N+1)
         members: [],
+        eventDate: null,
+        eventTime: null,
+        eventLocation: null,
+        myAgreed: false,
+        agreedCount: 0,
+        memberCount: 0,
       })
     }
   }
 
-  return [...byOcc.values()]
+  // ── Consent state: one roster query for every room, owned or joined ──
+  const collabs = [...byOcc.values()]
+  const roomIds = collabs.map((c) => c.roomId).filter((id): id is string => !!id)
+  if (roomIds.length > 0) {
+    const { data } = await db()
+      .from('collab_room_members')
+      .select('room_id, member_id, agreed')
+      .in('room_id', roomIds)
+    const byRoom = new Map<string, { member_id: string; agreed: boolean }[]>()
+    for (const r of (data as { room_id: string; member_id: string; agreed: boolean }[]) ?? []) {
+      byRoom.set(r.room_id, [...(byRoom.get(r.room_id) ?? []), r])
+    }
+    for (const c of collabs) {
+      const roster = (c.roomId && byRoom.get(c.roomId)) || []
+      c.memberCount = roster.length
+      c.agreedCount = roster.filter((r) => r.agreed).length
+      c.myAgreed = roster.some((r) => r.member_id === memberId && r.agreed)
+      // Joined collaborations have no invite rows to count — the roster is the
+      // only source for "how many others are here".
+      if (!c.owned) c.acceptedCount = Math.max(0, roster.length - 1)
+    }
+  }
+
+  // ── When and where: one query for every collaboration that made an event.
+  // The date is what the lists sort on (soonest first); all three show on the
+  // card, so you can tell what's happening without opening anything.
+  const eventIds = collabs.map((c) => c.eventId).filter((id): id is string => !!id)
+  if (eventIds.length > 0) {
+    const { data } = await db()
+      .from('vendor_events')
+      .select('id, event_date, event_time, location')
+      .in('id', eventIds)
+    type Row = { id: string; event_date: string | null; event_time: string | null; location: string | null }
+    const byId = new Map(((data as Row[]) ?? []).map((e) => [e.id, e]))
+    for (const c of collabs) {
+      const e = c.eventId ? byId.get(c.eventId) : undefined
+      c.eventDate = e?.event_date ?? null
+      c.eventTime = e?.event_time ?? null
+      c.eventLocation = e?.location ?? null
+    }
+  }
+
+  return collabs
 }
 
 // Promote an "outing" (a set of individual invites sharing occasion_id) into a

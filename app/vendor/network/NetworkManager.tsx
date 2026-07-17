@@ -2,12 +2,14 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Users, Send, X, CalendarPlus, Plus, ChevronLeft, LogIn } from "lucide-react";
+import { Users, Send, X, CalendarPlus, CalendarClock, MapPin, Plus, ChevronLeft, LogIn } from "lucide-react";
 import { CollabComposer } from "@/components/vendor/CollabComposer";
 import { loadDemoCollabs, demoRoomIdFor } from "@/lib/demo-collab-store";
+import { demoCollaborations, demoRooms } from "@/lib/demo-collab";
 import { DemoCollabProgression } from "@/components/vendor/DemoCollabProgression";
 import { CollabRoomDemo } from "@/components/vendor/CollabRoomDemo";
-import type { CollabInvite, CollabRoom, CollabMessage, RoomMember, CollaborationSummary } from "@/lib/collab-network";
+import type { CollabInvite, CollabRoom, CollabMessage, RoomMemberView, CollaborationSummary } from "@/lib/collab-network";
+import { collabRoster, collabWhenLabel, collabWhere, collabStatus, compareCollabs, STATUS_CLASS } from "@/lib/collab-status";
 import { track } from "@/lib/track";
 
 // ── The collaboration surface ────────────────────────────────────────────────
@@ -52,43 +54,16 @@ const DEMO_OUTGOING = (memberId: string): CollabInvite[] => [
   },
 ];
 
-const DEMO_COLLABS: CollaborationSummary[] = [
-  {
-    occasion_id: "demo-occ-4", label: "Neighborhood Night Market", roomId: "demo-room-4", eventId: null,
-    owned: true, acceptedCount: 3,
-    members: [
-      { invite_id: "demo-m-1", to_id: "demo-muralist", to_name: "Dani Cruz", status: "accepted", role: "artist" },
-      { invite_id: "demo-m-2", to_id: "demo-cantina", to_name: "El Tri Cantina", status: "accepted", role: "food" },
-      { invite_id: "demo-m-3", to_id: "demo-greenhouse", to_name: "Greenhouse Project", status: "pending", role: "partner" },
-    ],
-  },
-  // A collaboration you just created — you invited Rosa's Flowers, still pending.
-  {
-    occasion_id: "demo-occ-5", label: "Summer sidewalk sale", roomId: "demo-room-5", eventId: null,
-    owned: true, acceptedCount: 0,
-    members: [
-      { invite_id: "demo-m-4", to_id: "demo-flowers", to_name: "Rosa's Flowers", status: "pending", role: "vendor" },
-    ],
-  },
-];
-
-// One room per demo collaboration. Both must exist: a collab whose room is
-// missing can't resolve its unread badge (or be marked read), so its count would
-// sit in the tab total forever with no card to clear it.
-const DEMO_ROOMS = (memberId: string): CollabRoom[] => [
-  {
-    id: "demo-room-4", member_a: memberId, member_a_name: "You", member_b: "demo-muralist",
-    member_b_name: "Dani Cruz", is_group: true, title: "Neighborhood Night Market", owner_id: memberId,
-    occasion_id: "demo-occ-4", occasion_label: "Neighborhood Night Market", event_id: null,
-    created_at: "2026-06-24T15:00:00.000Z",
-  },
-  {
-    id: "demo-room-5", member_a: memberId, member_a_name: "You", member_b: "demo-flowers",
-    member_b_name: "Rosa's Flowers", is_group: true, title: "Summer sidewalk sale", owner_id: memberId,
-    occasion_id: "demo-occ-5", occasion_label: "Summer sidewalk sale", event_id: null,
-    created_at: "2026-06-28T16:00:00.000Z",
-  },
-];
+// The demo's collaborations come from lib/demo-collab — the SAME fixtures the
+// API serves (/api/vendor/collaborations returns them for a demo actor), which
+// is what the dashboard's Upcoming collabs rail reads.
+//
+// They used to be a second, local set with different occasion ids (demo-occ-4 vs
+// demo-occasion-market). That meant the demo's home and Messages listed entirely
+// different collaborations, and — worse — deep-linking from a home card
+// (?collab=demo-occasion-market) matched nothing here, so it silently fell back
+// to the list. Clicking a collaboration appeared to "just open Messages".
+// One source of truth, and the link lands.
 
 const DEMO_MESSAGES = [
   { mine: true, name: "You", text: "Thinking a night market on Valencia — food, art, live music." },
@@ -164,8 +139,15 @@ export function NetworkManager({
             label: c.label,
             roomId: demoRoomIdFor(c.occasion_id),
             eventId: null,
+            eventDate: null,
+            eventTime: null,
+            eventLocation: null,
             owned: true,
             acceptedCount: 0,
+            // You started it, so you're in; nobody's replied yet.
+            myAgreed: true,
+            agreedCount: 1,
+            memberCount: 1,
             members: c.members.map((m, i) => ({
               invite_id: `${c.occasion_id}-${i}`,
               to_id: m.to_id,
@@ -174,7 +156,7 @@ export function NetworkManager({
               role: m.role,
             })),
           })),
-          ...DEMO_COLLABS,
+          ...demoCollaborations(memberId),
         ]);
         setRooms([
           ...mine.map<CollabRoom>((c) => ({
@@ -191,7 +173,7 @@ export function NetworkManager({
             event_id: null,
             created_at: c.created_at,
           })),
-          ...DEMO_ROOMS(memberId),
+          ...demoRooms(memberId),
         ]);
         setInvites(DEMO_INVITES(memberId));
         setOutgoing(DEMO_OUTGOING(memberId));
@@ -252,8 +234,16 @@ export function NetworkManager({
                   label,
                   roomId: `demo-room-${occId}`,
                   eventId: null,
+                  eventDate: null,
+                  eventTime: null,
+                  eventLocation: null,
                   owned: false,
                   acceptedCount: 2,
+                  // Accepting put you in the room — "I'm in 👍" is still owed,
+                  // so this shows as "Confirm you're in".
+                  myAgreed: false,
+                  agreedCount: 1,
+                  memberCount: 2,
                   members: [
                     { invite_id: `${id}-a`, to_id: inv.from_id, to_name: inv.from_name, status: "accepted", role: inv.role },
                     { invite_id: `${id}-b`, to_id: memberId, to_name: "You", status: "accepted", role: inv.role },
@@ -422,40 +412,77 @@ export function NetworkManager({
             {canOwn ? "Nothing yet — start one above." : "Nothing yet. Collaborations you join show up here."}
           </p>
         ) : (
-          collabs.map((c) => {
-            const people = c.members.filter((m) => m.status === "accepted").length + 1; // + you
-            const invited = c.members.filter((m) => m.status === "pending").length; // awaiting reply
+          // Soonest first, then Active above Planning — the same order the
+          // dashboard's Active collabs card uses (see compareCollabs).
+          [...collabs].sort(compareCollabs).map((c) => {
             const unread = unreadByRoom?.[roomFor(c)?.id ?? ""] ?? 0;
+            const status = collabStatus(c);
             return (
-              <button
-                key={c.occasion_id}
-                onClick={() => setOpenId(c.occasion_id)}
-                className="card-soft card-hover flex w-full items-center gap-3 p-4 text-left"
-              >
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-stone-100">
-                  <Users className="h-4 w-4 text-stone-500" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-semibold text-stone-900">{c.label}</span>
-                  <span className="mt-0.5 block truncate text-xs text-stone-500">
-                    {people} {people === 1 ? "business" : "businesses"}
-                    {invited > 0 && ` · ${invited} invited`}
+              // The WHOLE card opens the collaboration — a stretched button over
+              // the card, rather than a button around the title. Having to hit
+              // the words is a miss waiting to happen on a phone. The event chip
+              // is the one exception, and sits above it (z-20).
+              <div key={c.occasion_id} className="card-soft card-hover relative w-full p-4">
+                <button
+                  onClick={() => setOpenId(c.occasion_id)}
+                  aria-label={`Open ${c.label}`}
+                  className="absolute inset-0 z-10 rounded-2xl"
+                />
+
+                <div className="flex items-center gap-2">
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-stone-100">
+                    <Users className="h-4 w-4 text-stone-500" />
                   </span>
-                </span>
-                {unread > 0 && (
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold text-stone-900">{c.label}</span>
+                    <span className="mt-0.5 block truncate text-xs text-stone-500">{collabRoster(c)}</span>
+                  </span>
+                  {unread > 0 && (
+                    <span
+                      aria-label={`${unread} unread`}
+                      className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-indigo-600 px-1.5 text-[11px] font-semibold tabular-nums text-white"
+                    >
+                      {unread > 9 ? "9+" : unread}
+                    </span>
+                  )}
+
+                  {/* Straight to the public event page — no need to open the chat. */}
+                  {c.eventId && (
+                    <Link
+                      href={`/events/${c.eventId}`}
+                      title="Go to the event page"
+                      className="relative z-20 inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1.5 text-[11px] font-medium text-emerald-700 hover:bg-emerald-100"
+                    >
+                      <CalendarPlus className="h-3 w-3" /> Event
+                    </Link>
+                  )}
+                </div>
+
+                {/* When, then where — a line each. Only once the event exists. */}
+                {collabWhenLabel(c) && (
+                  <p className="mt-1.5 flex items-center gap-1 text-xs text-stone-500">
+                    <CalendarClock className="h-3 w-3 shrink-0 text-stone-400" />
+                    <span className="truncate">{collabWhenLabel(c)}</span>
+                  </p>
+                )}
+                {collabWhere(c) && (
+                  <p className="mt-0.5 flex items-center gap-1 text-xs text-stone-500">
+                    <MapPin className="h-3 w-3 shrink-0 text-stone-400" />
+                    <span className="truncate">{collabWhere(c)}</span>
+                  </p>
+                )}
+
+                {/* Status gets its own row. Sharing the title's line meant the
+                    name truncated to make space for the chip on a phone — the
+                    name is the thing you're scanning for. */}
+                <div className="mt-3 border-t border-stone-100 pt-2.5">
                   <span
-                    aria-label={`${unread} unread`}
-                    className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-indigo-600 px-1.5 text-[11px] font-semibold tabular-nums text-white"
+                    className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${STATUS_CLASS[status.key]}`}
                   >
-                    {unread > 9 ? "9+" : unread}
+                    {status.label}
                   </span>
-                )}
-                {c.eventId && (
-                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
-                    <CalendarPlus className="h-3 w-3" /> Event
-                  </span>
-                )}
-              </button>
+                </div>
+              </div>
             );
           })
         )}
@@ -497,7 +524,7 @@ function Thread({
   onChanged: () => void;
 }) {
   const [messages, setMessages] = useState<CollabMessage[]>([]);
-  const [people, setPeople] = useState<RoomMember[]>([]);
+  const [people, setPeople] = useState<RoomMemberView[]>([]);
   const [text, setText] = useState("");
   const [planning, setPlanning] = useState(false);
   const [form, setForm] = useState({ title: collab.label, event_date: "", event_time: "", location: "" });
@@ -516,7 +543,12 @@ function Thread({
         .catch(() => {});
       fetch(`/api/vendor/rooms/${room.id}/members${qp}`)
         .then((r) => (r.ok ? r.json() : { members: [] }))
-        .then((d) => setPeople(Array.isArray(d.members) ? d.members : []))
+        .then((d) => {
+          setPeople(Array.isArray(d.members) ? d.members : []);
+          // The room is the source of truth for whether the event exists — the
+          // host may have created it from another device while this is open.
+          if (d.eventId) setEventId(d.eventId);
+        })
         .catch(() => {});
     },
     [room.id, qp, preview],
@@ -535,14 +567,21 @@ function Thread({
   }, [messages, demoMsgs]);
 
   const iStartedIt = (room.owner_id ?? room.member_a) === memberId;
-  const meIn = people.find((p) => p.member_id === memberId)?.agreed ?? false;
+  const me = people.find((p) => p.member_id === memberId);
+  const meIn = me?.agreed ?? false;
   const othersIn = people.filter((p) => p.member_id !== memberId && p.agreed).length;
   // ONE rule, for every collaboration: you started it, and at least one other
   // person is in. (Before: different thresholds for 1:1 vs group.)
   const canCreateEvent = canOwn && iStartedIt && !eventId && othersIn >= 1;
 
+  // Once the event exists the lineup is locked (the server refuses the flip
+  // too — see api/vendor/rooms/[id]/members). From then on the question isn't
+  // "are you in", it's "are you ON it" — and if you're not, you ask the host.
+  const locked = !!eventId;
+  const myLineup = me?.lineup ?? null;
+
   async function toggleIn() {
-    if (preview) return;
+    if (preview || locked) return;
     setPeople((ps) => ps.map((p) => (p.member_id === memberId ? { ...p, agreed: !meIn } : p)));
     await fetch(`/api/vendor/rooms/${room.id}/members`, {
       method: "PATCH",
@@ -551,6 +590,36 @@ function Thread({
     }).catch(() => {});
     track("collab_agreed", { roomId: room.id, agreed: !meIn });
     load();
+  }
+
+  // You weren't in when the event was made, and you want in now. This is the
+  // SAME pending self-join the public event link creates (from_id === to_id), so
+  // it lands in the host's Lineup tab with the Approve/Decline they already use.
+  // No new table, no second approval UI, no re-invite round-trip through the host.
+  async function requestToJoin() {
+    if (!eventId || busy) return;
+    setBusy(true);
+    try {
+      if (preview || eventId.startsWith("demo-")) {
+        setPeople((ps) => ps.map((p) => (p.member_id === memberId ? { ...p, lineup: "pending" } : p)));
+        track("collab_lineup_requested", { roomId: room.id, eventId, demo: true });
+        return;
+      }
+      const res = await fetch("/api/events/join", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventId, memberId, memberName: me?.member_name ?? null }),
+      });
+      if (res.ok) {
+        setPeople((ps) => ps.map((p) => (p.member_id === memberId ? { ...p, lineup: "pending" } : p)));
+        track("collab_lineup_requested", { roomId: room.id, eventId });
+        load();
+      }
+    } catch {
+      /* leave the button as-is so they can retry */
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function send() {
@@ -595,9 +664,20 @@ function Thread({
     ? demoMsgs
     : messages.map((m) => ({ mine: m.sender_id === memberId, name: m.sender_name || "Them", text: m.text }));
 
+  // Before the event: 👍 = said they're in. After it: 👍 = ON the lineup, which
+  // is the only sense in which "in" still means anything. Someone who asked to
+  // be added shows as waiting, so the room can see the host owes them an answer.
   const roster = preview
-    ? [{ name: "You", agreed: true }, { name: "Dani Cruz", agreed: true }, { name: "El Tri Cantina", agreed: true }]
-    : people.map((p) => ({ name: p.member_id === memberId ? "You" : p.member_name || "Member", agreed: p.agreed }));
+    ? [
+        { name: "You", in: true, waiting: false },
+        { name: "Dani Cruz", in: true, waiting: false },
+        { name: "El Tri Cantina", in: true, waiting: false },
+      ]
+    : people.map((p) => ({
+        name: p.member_id === memberId ? "You" : p.member_name || "Member",
+        in: locked ? p.lineup === "accepted" : p.agreed,
+        waiting: locked && p.lineup === "pending",
+      }));
 
   return (
     <div className="card-soft flex h-[70vh] flex-col md:h-[520px]">
@@ -614,11 +694,12 @@ function Thread({
             </button>
           )}
           {eventId ? (
+            // The collaboration made it — this is the thing it became.
             <Link
               href={`/events/${eventId}`}
               className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1.5 text-[13px] font-semibold text-emerald-700 hover:bg-emerald-100"
             >
-              <CalendarPlus className="h-3.5 w-3.5" /> Event
+              <CalendarPlus className="h-3.5 w-3.5" /> Go to event page
             </Link>
           ) : (
             canOwn &&
@@ -642,21 +723,53 @@ function Thread({
           <span
             key={p.name}
             className={`rounded-full px-2 py-0.5 text-xs ${
-              p.agreed ? "bg-emerald-50 text-emerald-700" : "bg-stone-100 text-stone-500"
+              p.in
+                ? "bg-emerald-50 text-emerald-700"
+                : p.waiting
+                  ? "bg-amber-50 text-amber-700"
+                  : "bg-stone-100 text-stone-500"
             }`}
           >
-            {p.agreed ? "👍 " : "· "}
+            {p.in ? "👍 " : p.waiting ? "🕓 " : "· "}
             {p.name}
           </span>
         ))}
-        <button
-          onClick={toggleIn}
-          className={`ml-auto rounded-full px-3 py-1 text-xs font-semibold ${
-            meIn ? "bg-emerald-600 text-white hover:bg-emerald-700" : "border border-stone-300 text-stone-700 hover:bg-stone-50"
-          }`}
-        >
-          {meIn ? "✓ You're in" : "I'm in 👍"}
-        </button>
+
+        {/* The one switch. It changes meaning the moment the event is real:
+            before, you flip yourself in; after, you ask the host. */}
+        {!locked ? (
+          <button
+            onClick={toggleIn}
+            className={`ml-auto rounded-full px-3 py-1 text-xs font-semibold ${
+              meIn ? "bg-emerald-600 text-white hover:bg-emerald-700" : "border border-stone-300 text-stone-700 hover:bg-stone-50"
+            }`}
+          >
+            {meIn ? "✓ You're in" : "I'm in 👍"}
+          </button>
+        ) : myLineup === "accepted" ? (
+          <span
+            title="The event is scheduled and you're on the lineup"
+            className="ml-auto rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold text-white"
+          >
+            ✓ On the lineup
+          </span>
+        ) : myLineup === "pending" ? (
+          <span
+            title="The host has your request"
+            className="ml-auto rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700"
+          >
+            🕓 Requested
+          </span>
+        ) : (
+          <button
+            onClick={requestToJoin}
+            disabled={busy}
+            title="The event was created without you — the host can still add you"
+            className="ml-auto rounded-full border border-stone-300 px-3 py-1 text-xs font-semibold text-stone-700 hover:bg-stone-50 disabled:opacity-50"
+          >
+            {busy ? "Requesting…" : "Request to join"}
+          </button>
+        )}
       </div>
 
       {planning && (
@@ -669,11 +782,14 @@ function Thread({
             className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm"
           />
           <div className="flex gap-2">
+            {/* A real date, not a typed string: this is what both collab lists
+                sort on ("what's about to happen"), and a free-text box gave us
+                "next saturday", which sorts nowhere. */}
             <input
+              type="date"
               value={form.event_date}
               onChange={(e) => setForm((f) => ({ ...f, event_date: e.target.value }))}
-              placeholder="Date"
-              className="w-1/2 rounded-lg border border-stone-200 px-3 py-2 text-sm"
+              className="w-1/2 rounded-lg border border-stone-200 px-3 py-2 text-sm text-stone-900"
             />
             <input
               value={form.location}

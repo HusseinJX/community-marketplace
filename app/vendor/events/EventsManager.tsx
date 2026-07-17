@@ -136,8 +136,8 @@ export function EventsManager({
         <div className="card-soft space-y-3 p-4">
           <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Event title" className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm" />
           <div className="flex gap-2">
-            <input value={form.event_date} onChange={(e) => setForm({ ...form, event_date: e.target.value })} placeholder="Date" className="w-1/2 rounded-lg border border-stone-200 px-3 py-2 text-sm" />
-            <input value={form.event_time} onChange={(e) => setForm({ ...form, event_time: e.target.value })} placeholder="Time" className="w-1/2 rounded-lg border border-stone-200 px-3 py-2 text-sm" />
+            <input type="date" value={form.event_date} onChange={(e) => setForm({ ...form, event_date: e.target.value })} className="w-1/2 rounded-lg border border-stone-200 px-3 py-2 text-sm text-stone-900" />
+            <input type="time" value={form.event_time} onChange={(e) => setForm({ ...form, event_time: e.target.value })} className="w-1/2 rounded-lg border border-stone-200 px-3 py-2 text-sm text-stone-900" />
           </div>
           <input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder="Location name (e.g. Dolores Park)" className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm" />
           <div>
