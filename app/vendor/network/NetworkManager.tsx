@@ -2,14 +2,17 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Users, Send, X, CalendarPlus, CalendarClock, MapPin, Plus, ChevronLeft, LogIn } from "lucide-react";
+import { Users, Send, X, CalendarPlus, Plus, ChevronLeft, LogIn, MessageSquare, Calendar, Ticket } from "lucide-react";
 import { CollabComposer } from "@/components/vendor/CollabComposer";
+import { CollabEventTab } from "@/components/vendor/CollabEventTab";
+import { EventAttendees } from "@/components/organize/EventAttendees";
+import type { VendorEvent } from "@/lib/vendor-connect";
 import { loadDemoCollabs, demoRoomIdFor } from "@/lib/demo-collab-store";
 import { demoCollaborations, demoRooms } from "@/lib/demo-collab";
 import { DemoCollabProgression } from "@/components/vendor/DemoCollabProgression";
 import { CollabRoomDemo } from "@/components/vendor/CollabRoomDemo";
 import type { CollabInvite, CollabRoom, CollabMessage, RoomMemberView, CollaborationSummary } from "@/lib/collab-network";
-import { collabRoster, collabWhenLabel, collabWhere, collabStatus, compareCollabs, STATUS_CLASS } from "@/lib/collab-status";
+import { collabEventDay, collabStatus, compareCollabs, STATUS_CLASS } from "@/lib/collab-status";
 import { track } from "@/lib/track";
 
 // ── The collaboration surface ────────────────────────────────────────────────
@@ -101,6 +104,9 @@ export function NetworkManager({
   const [invites, setInvites] = useState<CollabInvite[]>([]);
   const [outgoing, setOutgoing] = useState<CollabInvite[]>([]);
   const [openId, setOpenId] = useState<string | null>(null); // occasion_id
+  // Active = what you're in; Pending = what wants an answer from you. Active
+  // leads: your commitments matter more than a stranger's unanswered invite.
+  const [listTab, setListTab] = useState<"active" | "pending">("active");
   const [inviteTo, setInviteTo] = useState<{ id: string; label: string } | null | undefined>(undefined);
   //  undefined = modal closed · null = new collaboration · {…} = add to this one
 
@@ -274,10 +280,10 @@ export function NetworkManager({
   if (open) {
     const room = roomFor(open);
     return (
-      <div className="space-y-3">
+      <div className="flex min-h-0 flex-1 flex-col gap-3">
         <button
           onClick={() => setOpenId(null)}
-          className="inline-flex items-center gap-1 text-sm font-medium text-stone-600 hover:text-stone-900"
+          className="inline-flex shrink-0 items-center gap-1 self-start text-sm font-medium text-stone-600 hover:text-stone-900"
         >
           <ChevronLeft className="h-4 w-4" /> Collaborations
         </button>
@@ -329,19 +335,42 @@ export function NetworkManager({
   }
 
   // ── List view ─────────────────────────────────────────────────────────────
+  const pendingCount = pending.length + joinRequests.length
+
   return (
     <div className="space-y-4">
       {/* Admin demo: watch the lifecycle play out before the static list. */}
       {preview && <DemoCollabProgression />}
 
-      {/* ── Pending: invites you received + things you asked to join — grouped
-             so they're clearly separate from your active collaborations below.
-             (Invites you sent live inside the collaboration you created.) */}
-      {(pending.length > 0 || joinRequests.length > 0) && (
+      {/* ── Active | Pending. These used to be two sections stacked on one page,
+             which meant your real collaborations got pushed below a pile of
+             invites you hadn't answered. They're different jobs — "what am I in"
+             vs "what wants an answer from me" — so they're tabs, and Active leads. */}
+      <div className="inline-flex rounded-full bg-stone-100 p-0.5 text-[12px] font-medium">
+        {(['active', 'pending'] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => setListTab(t)}
+            className={
+              'inline-flex items-center gap-1.5 rounded-full px-3 py-1 capitalize transition ' +
+              (listTab === t ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500 hover:text-stone-700')
+            }
+          >
+            {t}
+            {t === 'pending' && pendingCount > 0 && (
+              <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-indigo-600 px-1 text-[10px] font-semibold tabular-nums text-white">
+                {pendingCount > 9 ? '9+' : pendingCount}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {listTab === 'pending' && (
         <div className="space-y-2">
-          <p className="px-1 text-[11px] font-semibold uppercase tracking-wide text-stone-400">
-            Pending
-          </p>
+          {pendingCount === 0 && (
+            <p className="py-8 text-center text-sm text-stone-400">Nothing waiting on you.</p>
+          )}
 
           {/* Received — you can Join or Decline. */}
           {pending.map((i) => (
@@ -391,12 +420,9 @@ export function NetworkManager({
         </div>
       )}
 
-      {/* ── Collaborations: the ones you're in, plus starting a new one. */}
+      {/* ── Active: the ones you're in, plus starting a new one. */}
+      {listTab === 'active' && (
       <div className="space-y-2">
-        <p className="px-1 text-[11px] font-semibold uppercase tracking-wide text-stone-400">
-          Collaborations
-        </p>
-
         {canOwn && (
           // Opens the New collaboration PAGE — the same composer as the dashboard.
           <Link
@@ -435,7 +461,15 @@ export function NetworkManager({
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-semibold text-stone-900">{c.label}</span>
-                    <span className="mt-0.5 block truncate text-xs text-stone-500">{collabRoster(c)}</span>
+                    {/* The state sits where the roster line used to — same card as
+                        the dashboard's Upcoming tab, so the two can't drift. */}
+                    <span className="mt-1 flex">
+                      <span
+                        className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${STATUS_CLASS[status.key]}`}
+                      >
+                        {status.label}
+                      </span>
+                    </span>
                   </span>
                   {unread > 0 && (
                     <span
@@ -446,47 +480,32 @@ export function NetworkManager({
                     </span>
                   )}
 
-                  {/* Straight to the public event page — no need to open the chat. */}
+                  {/* Straight to the public event page — no need to open the chat.
+                      The date sits under the chip, same as the dashboard card. */}
                   {c.eventId && (
-                    <Link
-                      href={`/events/${c.eventId}`}
-                      title="Go to the event page"
-                      className="relative z-20 inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1.5 text-[11px] font-medium text-emerald-700 hover:bg-emerald-100"
-                    >
-                      <CalendarPlus className="h-3 w-3" /> Event
-                    </Link>
+                    <span className="flex shrink-0 flex-col items-center gap-0.5">
+                      <Link
+                        href={`/events/${c.eventId}`}
+                        title="Go to the event page"
+                        className="relative z-20 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1.5 text-[11px] font-medium text-emerald-700 hover:bg-emerald-100"
+                      >
+                        <CalendarPlus className="h-3 w-3" /> Event
+                      </Link>
+                      {collabEventDay(c) && (
+                        <span className="text-[10px] font-medium tabular-nums text-stone-400">
+                          {collabEventDay(c)}
+                        </span>
+                      )}
+                    </span>
                   )}
                 </div>
 
-                {/* When, then where — a line each. Only once the event exists. */}
-                {collabWhenLabel(c) && (
-                  <p className="mt-1.5 flex items-center gap-1 text-xs text-stone-500">
-                    <CalendarClock className="h-3 w-3 shrink-0 text-stone-400" />
-                    <span className="truncate">{collabWhenLabel(c)}</span>
-                  </p>
-                )}
-                {collabWhere(c) && (
-                  <p className="mt-0.5 flex items-center gap-1 text-xs text-stone-500">
-                    <MapPin className="h-3 w-3 shrink-0 text-stone-400" />
-                    <span className="truncate">{collabWhere(c)}</span>
-                  </p>
-                )}
-
-                {/* Status gets its own row. Sharing the title's line meant the
-                    name truncated to make space for the chip on a phone — the
-                    name is the thing you're scanning for. */}
-                <div className="mt-3 border-t border-stone-100 pt-2.5">
-                  <span
-                    className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${STATUS_CLASS[status.key]}`}
-                  >
-                    {status.label}
-                  </span>
-                </div>
               </div>
             );
           })
         )}
       </div>
+      )}
 
       {inviteTo !== undefined && (
         <InviteModal
@@ -498,6 +517,92 @@ export function NetworkManager({
           onClose={() => setInviteTo(undefined)}
           onDone={load}
         />
+      )}
+    </div>
+  );
+}
+
+// ── Roster once the lineup is locked ─────────────────────────────────────────
+// Splits the room into the committed lineup and anyone asking to get on now.
+// The host can approve/decline the askers right here (same action as Organize →
+// Lineup), so a request doesn't have to bounce them to another screen.
+function LockedRoster({
+  people,
+  me,
+  isHost,
+  onApprove,
+  onDecline,
+}: {
+  people: RoomMemberView[];
+  me: string;
+  isHost: boolean;
+  onApprove: (inviteId: string) => void;
+  onDecline: (inviteId: string) => void;
+}) {
+  const onLineup = people.filter((p) => p.lineup === "accepted");
+  const asking = people.filter((p) => p.lineup === "pending");
+  const nameOf = (p: RoomMemberView) => (p.member_id === me ? "You" : p.member_name || "Member");
+
+  return (
+    <div className="space-y-5">
+      <section>
+        <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-stone-400">
+          On the lineup · {onLineup.length}
+        </p>
+        <div className="space-y-1.5">
+          {onLineup.map((p) => (
+            <div
+              key={p.id}
+              className="flex items-center justify-between rounded-lg border border-emerald-100 bg-emerald-50/50 px-3 py-2 text-sm"
+            >
+              <span className="text-stone-800">{nameOf(p)}</span>
+              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                Locked in
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Only rendered when someone's actually asking — no empty "requests" box. */}
+      {asking.length > 0 && (
+        <section>
+          <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-amber-500">
+            Asking to join · {asking.length}
+          </p>
+          <div className="space-y-1.5">
+            {asking.map((p) => (
+              <div
+                key={p.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-100 bg-amber-50/60 px-3 py-2 text-sm"
+              >
+                <span className="text-stone-800">
+                  {nameOf(p)} <span className="text-xs text-amber-600">wants on the lineup</span>
+                </span>
+                {isHost && p.lineupInviteId ? (
+                  <span className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => onApprove(p.lineupInviteId!)}
+                      className="rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-700"
+                    >
+                      Add
+                    </button>
+                    <button
+                      onClick={() => onDecline(p.lineupInviteId!)}
+                      className="rounded-full border border-stone-300 px-3 py-1 text-xs font-medium text-stone-600 hover:bg-stone-50"
+                    >
+                      Not now
+                    </button>
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                    Waiting on the host
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
       )}
     </div>
   );
@@ -531,6 +636,9 @@ function Thread({
   const [busy, setBusy] = useState(false);
   const [eventId, setEventId] = useState<string | null>(collab.eventId);
   const [demoMsgs, setDemoMsgs] = useState(DEMO_MESSAGES);
+  // Chat by default; Events + Attendees only appear once the event exists.
+  const [tab, setTab] = useState<"chat" | "people" | "event" | "attendees">("chat");
+  const [event, setEvent] = useState<VendorEvent | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const qp = isAdmin ? `?memberId=${memberId}` : "";
 
@@ -565,6 +673,19 @@ function Thread({
     const el = listRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages, demoMsgs]);
+
+  // Load the event once it exists, for the Events + Attendees tabs.
+  useEffect(() => {
+    if (!eventId || preview) return;
+    fetch(`/api/vendor/events/${eventId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d?.event && setEvent(d.event))
+      .catch(() => {});
+  }, [eventId, preview]);
+
+  // Event/Attendees exist only once the event does. Derive the shown tab rather
+  // than correcting state in an effect, so we never park on a vanished pane.
+  const activeTab = !eventId && (tab === "event" || tab === "attendees") ? "chat" : tab;
 
   const iStartedIt = (room.owner_id ?? room.member_a) === memberId;
   const me = people.find((p) => p.member_id === memberId);
@@ -620,6 +741,21 @@ function Thread({
     } finally {
       setBusy(false);
     }
+  }
+
+  // Host approves/declines someone who asked to join AFTER the lineup locked.
+  // Reuses the same endpoint the Organize → Lineup tab uses.
+  async function decideJoin(inviteId: string, status: "accepted" | "declined") {
+    if (preview || !eventId) return;
+    setPeople((ps) =>
+      ps.map((p) => (p.lineupInviteId === inviteId ? { ...p, lineup: status === "accepted" ? "accepted" : null } : p)),
+    );
+    await fetch(`/api/vendor/events/${eventId}/lineup`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: inviteId, status }),
+    }).catch(() => {});
+    load();
   }
 
   async function send() {
@@ -680,7 +816,9 @@ function Thread({
       }));
 
   return (
-    <div className="card-soft flex h-[70vh] flex-col md:h-[520px]">
+    // Fills the shell's full-screen box (was a fixed h-[70vh] md:h-[520px], which
+    // is why the composer sat mid-screen instead of above the bottom nav).
+    <div className="card-soft flex min-h-0 flex-1 flex-col">
       {/* Header — name, and the event (or the button that makes one) */}
       <div className="flex items-center justify-between gap-2 border-b border-stone-100 px-4 py-3">
         <p className="min-w-0 truncate text-sm font-semibold text-stone-900">{collab.label}</p>
@@ -717,26 +855,13 @@ function Thread({
         </div>
       </div>
 
-      {/* Who's in — consent, in one line */}
-      <div className="flex flex-wrap items-center gap-1.5 border-b border-stone-100 px-4 py-2">
-        {roster.map((p) => (
-          <span
-            key={p.name}
-            className={`rounded-full px-2 py-0.5 text-xs ${
-              p.in
-                ? "bg-emerald-50 text-emerald-700"
-                : p.waiting
-                  ? "bg-amber-50 text-amber-700"
-                  : "bg-stone-100 text-stone-500"
-            }`}
-          >
-            {p.in ? "👍 " : p.waiting ? "🕓 " : "· "}
-            {p.name}
-          </span>
-        ))}
-
-        {/* The one switch. It changes meaning the moment the event is real:
-            before, you flip yourself in; after, you ask the host. */}
+      {/* Consent, always visible — the heartbeat of the room. Changes meaning
+          the moment the event is real: before, you flip yourself in; after, you
+          ask the host. Sits above the tabs so it's reachable from any of them. */}
+      <div className="flex items-center gap-1.5 border-b border-stone-100 px-4 py-2">
+        <span className="text-xs text-stone-500">
+          {locked ? "Event scheduled" : `${roster.filter((p) => p.in).length} in`}
+        </span>
         {!locked ? (
           <button
             onClick={toggleIn}
@@ -772,7 +897,28 @@ function Thread({
         )}
       </div>
 
-      {planning && (
+      {/* Tabs. Events + Attendees appear only once the event exists — before
+          that there's nothing to show or edit. */}
+      <div className="flex shrink-0 gap-1 overflow-x-auto border-b border-stone-200 px-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {([
+          ["chat", "Chat", MessageSquare],
+          ["people", "Participants", Users],
+          ...(eventId ? ([["event", "Event", Calendar], ["attendees", "Attendees", Ticket]] as const) : []),
+        ] as const).map(([key, label, Icon]) => (
+          <button
+            key={key}
+            onClick={() => setTab(key)}
+            className={`-mb-px inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-3.5 py-2 text-[13px] font-medium ${
+              tab === key ? "border-indigo-500 text-indigo-700" : "border-transparent text-stone-500 hover:text-stone-800"
+            }`}
+          >
+            <Icon className="h-3.5 w-3.5" />
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {planning && activeTab === "chat" && (
         <div className="space-y-2 border-b border-stone-100 bg-stone-50 p-3">
           <p className="text-xs text-stone-500">Everyone who&apos;s in (👍) joins the lineup.</p>
           <input
@@ -808,34 +954,102 @@ function Thread({
         </div>
       )}
 
-      <div ref={listRef} className="flex-1 space-y-2 overflow-y-auto p-4">
-        {shown.length === 0 && <p className="text-sm text-stone-400">Say hello 👋</p>}
-        {shown.map((m, i) => (
-          <div key={i} className={`flex ${m.mine ? "justify-end" : "justify-start"}`}>
-            <div
-              className={`max-w-[75%] break-words rounded-2xl px-3 py-1.5 text-sm ${
-                m.mine ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-800"
-              }`}
-            >
-              {!m.mine && <p className="text-[10px] font-medium opacity-70">{m.name}</p>}
-              {m.text}
+      {/* ── Participants ── */}
+      {activeTab === "people" && (
+        <div className="flex-1 overflow-y-auto p-4">
+          {locked ? (
+            // After the event is created the lineup is LOCKED: the roster stops
+            // being one "in / not in" list and splits into who's committed vs
+            // who's asking to get on now. Same people, different question.
+            <LockedRoster
+              people={people}
+              me={memberId}
+              isHost={iStartedIt}
+              onApprove={(id) => decideJoin(id, "accepted")}
+              onDecline={(id) => decideJoin(id, "declined")}
+            />
+          ) : (
+            <div className="space-y-1.5">
+              {roster.map((p) => (
+                <div
+                  key={p.name}
+                  className="flex items-center justify-between rounded-lg border border-stone-100 px-3 py-2 text-sm"
+                >
+                  <span className="text-stone-800">{p.name}</span>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs ${
+                      p.in ? "bg-emerald-50 text-emerald-700" : "bg-stone-100 text-stone-500"
+                    }`}
+                  >
+                    {p.in ? "In 👍" : "Not in yet"}
+                  </span>
+                </div>
+              ))}
             </div>
-          </div>
-        ))}
-      </div>
+          )}
+        </div>
+      )}
 
-      <div className="flex items-center gap-2 border-t border-stone-100 p-3">
-        <input
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && send()}
-          placeholder="Message…"
-          className="flex-1 rounded-full border border-stone-200 px-3.5 py-2 text-sm focus:border-stone-400 focus:outline-none"
-        />
-        <button onClick={send} className="rounded-full bg-stone-900 p-2 text-white hover:bg-stone-800">
-          <Send className="h-4 w-4" />
-        </button>
-      </div>
+      {/* ── Event (the public card, editable by the host) ── */}
+      {activeTab === "event" && (
+        <div className="flex-1 overflow-y-auto">
+          {event ? (
+            <CollabEventTab
+              event={event}
+              hostMemberId={iStartedIt ? memberId : (room.owner_id ?? room.member_a)}
+              canEdit={canOwn && iStartedIt}
+              onSaved={(e) => setEvent(e)}
+            />
+          ) : (
+            <p className="p-4 text-sm text-stone-400">Loading the event…</p>
+          )}
+        </div>
+      )}
+
+      {/* ── Attendees (RSVPs to the event) ── */}
+      {activeTab === "attendees" && (
+        <div className="flex-1 overflow-y-auto">
+          {event ? (
+            <EventAttendees event={event} emailReady={false} />
+          ) : (
+            <p className="p-4 text-sm text-stone-400">Loading attendees…</p>
+          )}
+        </div>
+      )}
+
+      {/* ── Chat ── */}
+      {activeTab === "chat" && (
+        <>
+          <div ref={listRef} className="flex-1 space-y-2 overflow-y-auto p-4">
+            {shown.length === 0 && <p className="text-sm text-stone-400">Say hello 👋</p>}
+            {shown.map((m, i) => (
+              <div key={i} className={`flex ${m.mine ? "justify-end" : "justify-start"}`}>
+                <div
+                  className={`max-w-[75%] break-words rounded-2xl px-3 py-1.5 text-sm ${
+                    m.mine ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-800"
+                  }`}
+                >
+                  {!m.mine && <p className="text-[10px] font-medium opacity-70">{m.name}</p>}
+                  {m.text}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2 border-t border-stone-100 p-3">
+            <input
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && send()}
+              placeholder="Message…"
+              className="flex-1 rounded-full border border-stone-200 px-3.5 py-2 text-sm focus:border-stone-400 focus:outline-none"
+            />
+            <button onClick={send} className="rounded-full bg-stone-900 p-2 text-white hover:bg-stone-800">
+              <Send className="h-4 w-4" />
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

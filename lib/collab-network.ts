@@ -62,6 +62,9 @@ export interface RoomMember {
  *  they joined the room afterwards). */
 export interface RoomMemberView extends RoomMember {
   lineup: InviteStatus | null
+  // The event-invite row behind `lineup`, so the host can approve/decline a
+  // pending self-join straight from the room (PATCH …/lineup needs this id).
+  lineupInviteId?: string | null
 }
 
 // The roster, plus the lineup once the event is made.
@@ -79,20 +82,24 @@ export async function getRoomRoster(
   const eventId = room?.event_id ?? null
   if (!eventId) return { members: members.map((m) => ({ ...m, lineup: null })), eventId: null }
 
-  const byMember = new Map<string, InviteStatus>()
+  const byMember = new Map<string, { status: InviteStatus; inviteId: string }>()
   for (const i of await getEventInvites(eventId)) {
     // A member can hold more than one invite row (added at creation, and/or a
     // later self-join). Being on the lineup wins over any pending duplicate.
-    if (byMember.get(i.to_id) === 'accepted') continue
-    byMember.set(i.to_id, i.status)
+    if (byMember.get(i.to_id)?.status === 'accepted') continue
+    byMember.set(i.to_id, { status: i.status, inviteId: i.id })
   }
   const host = room?.owner_id ?? room?.member_a
   return {
-    members: members.map((m) => ({
-      ...m,
-      // The host isn't on their own lineup as an invite — they ARE the event.
-      lineup: m.member_id === host ? 'accepted' : byMember.get(m.member_id) ?? null,
-    })),
+    members: members.map((m) => {
+      const entry = m.member_id === host ? null : byMember.get(m.member_id)
+      return {
+        ...m,
+        // The host isn't on their own lineup as an invite — they ARE the event.
+        lineup: m.member_id === host ? 'accepted' : entry?.status ?? null,
+        lineupInviteId: entry?.inviteId ?? null,
+      }
+    }),
     eventId,
   }
 }

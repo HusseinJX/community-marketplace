@@ -3,9 +3,12 @@
 import { useMemo, useState } from 'react'
 import {
   MessageSquare, ListChecks, Sparkles, Send, Check, AlertTriangle, Lock,
-  CalendarPlus, Plus, Crown, PartyPopper, Users,
+  CalendarPlus, Plus, Crown, PartyPopper, Users, Calendar, Ticket,
 } from 'lucide-react'
 import type { CollaborationSummary } from '@/lib/collab-network'
+import type { VendorEvent } from '@/lib/vendor-connect'
+import { CollabEventTab } from '@/components/vendor/CollabEventTab'
+import { EventAttendees } from '@/components/organize/EventAttendees'
 import {
   PLAN_FIELDS, COLLAB_TYPES, PARTICIPANTS, SEED_CHAT, SEED_PLAN, SEED_TASKS,
   PULLED_FROM_CHAT, APPROVAL_RESETTING_FIELDS, coordinatorReport,
@@ -30,7 +33,7 @@ export function CollabRoomDemo({
   owned?: boolean
   leadName?: string
 }) {
-  const [tab, setTab] = useState<'chat' | 'plan' | 'people'>('chat')
+  const [tab, setTab] = useState<'chat' | 'plan' | 'people' | 'event' | 'attendees'>('chat')
   // Who's said "I'm in 👍". Accepting an invite only opened the room — this is
   // the actual commitment, and it's what the event lineup is built from.
   // The lead is in by their own doing; a joiner opts in.
@@ -57,7 +60,11 @@ export function CollabRoomDemo({
   const [tasks, setTasks] = useState<DemoTask[]>(SEED_TASKS)
   const [approvals, setApprovals] = useState<Record<string, boolean>>({})
   const [resetNote, setResetNote] = useState(false)
-  const [published, setPublished] = useState(false)
+  // If the collaboration already has an event (the fixture carries an eventId),
+  // the room opens on the "published" state — otherwise the list said "Active ·
+  // Event 9/8" while the room still showed "Planning" and hid the Event/Attendees
+  // tabs. Once published it stays published for the session.
+  const [published, setPublished] = useState(!!collab.eventId)
 
   const requiredApprovers = PARTICIPANTS.filter((p) => !p.pending)
   const approvedCount = requiredApprovers.filter((p) => approvals[p.id]).length
@@ -69,6 +76,37 @@ export function CollabRoomDemo({
   const canCreate = report.complete && allApproved && !!typeKey
 
   const status = published ? 'Published' : report.complete && !!typeKey ? 'Awaiting Approval' : 'Planning'
+
+  // Once "published", the plan becomes an event card — the same shape a real
+  // collab event takes, so the demo's Event + Attendees tabs match production.
+  const demoEvent = useMemo<VendorEvent>(
+    () => ({
+      id: 'demo-event',
+      member_id: 'demo',
+      member_name: leadName === 'You' ? 'Your collab' : leadName,
+      title: collab.label,
+      description: plan.goal || null,
+      // Prefer the collaboration's real event details (the fixture / summary);
+      // fall back to whatever the plan holds.
+      event_date: collab.eventDate || plan.date || null,
+      event_time: collab.eventTime || null,
+      location: collab.eventLocation || plan.venue || null,
+      city: null,
+      neighborhood: null,
+      lat: null,
+      lng: null,
+      poster_image_url: null,
+      capacity: null,
+      source: 'collab',
+      active: true,
+      created_at: '2026-07-01T00:00:00.000Z',
+    }),
+    [plan, collab.label, leadName],
+  )
+
+  // Never render a tab that isn't available (Event/Attendees exist only once
+  // published) — derived, not a setState-in-render.
+  const activeTab = !published && (tab === 'event' || tab === 'attendees') ? 'chat' : tab
 
   // Clear approvals when an "important" field changes (spec: major changes reset).
   function resetApprovalsIfNeeded(key: PlanFieldKey) {
@@ -116,7 +154,10 @@ export function CollabRoomDemo({
   ].filter(Boolean).join(' ')
 
   return (
-    <div className="card-soft flex h-[74vh] flex-col overflow-hidden md:h-[600px]">
+    // Fills whatever the shell gives it. (Was `h-[74vh] md:h-[600px]` — a fixed
+    // card that ignored its parent, so the composer landed wherever 600px fell
+    // and left dead space under it.)
+    <div className="card-soft flex min-h-0 flex-1 flex-col overflow-hidden">
       {/* Header — name, status, lead */}
       <div className="flex shrink-0 items-center justify-between gap-3 border-b border-stone-100 px-4 py-3">
         <div className="min-w-0">
@@ -148,12 +189,14 @@ export function CollabRoomDemo({
           ['chat', 'Chat', MessageSquare],
           ['plan', 'Plan', ListChecks],
           ['people', 'Participants', Users],
+          // Event + Attendees only once the collab has become a real event.
+          ...(published ? ([['event', 'Event', Calendar], ['attendees', 'Attendees', Ticket]] as const) : []),
         ] as const).map(([key, label, Icon]) => (
           <button
             key={key}
             onClick={() => setTab(key)}
             className={`-mb-px inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-3.5 py-2 text-[13px] font-medium ${
-              tab === key ? 'border-indigo-500 text-indigo-700' : 'border-transparent text-stone-500 hover:text-stone-800'
+              activeTab === key ? 'border-indigo-500 text-indigo-700' : 'border-transparent text-stone-500 hover:text-stone-800'
             }`}
           >
             <Icon className="h-3.5 w-3.5" />
@@ -162,9 +205,17 @@ export function CollabRoomDemo({
         ))}
       </div>
 
-      {tab === 'people' ? (
-        <PeopleTab inSet={inSet} toggleIn={toggleIn} leadName={leadName} />
-      ) : tab === 'chat' ? (
+      {activeTab === 'event' ? (
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <CollabEventTab event={demoEvent} hostMemberId="demo" canEdit={owned} demo onSaved={() => {}} />
+        </div>
+      ) : activeTab === 'attendees' ? (
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <EventAttendees event={demoEvent} emailReady={false} demo />
+        </div>
+      ) : activeTab === 'people' ? (
+        <PeopleTab inSet={inSet} toggleIn={toggleIn} leadName={leadName} locked={published} owned={owned} />
+      ) : activeTab === 'chat' ? (
         <ChatTab
           messages={messages}
           draft={draft}
@@ -220,13 +271,104 @@ function PeopleTab({
   inSet,
   toggleIn,
   leadName,
+  locked = false,
+  owned = true,
 }: {
   inSet: Set<string>
   toggleIn: (id: string) => void
   leadName: string
+  // Once the event is created the lineup locks — the roster switches from
+  // "in / joined / invited" to "who's locked in vs who's asking to get on now".
+  locked?: boolean
+  owned?: boolean
 }) {
   const state = (p: (typeof PARTICIPANTS)[number]) =>
     p.pending ? 'invited' : inSet.has(p.id) ? 'in' : 'joined'
+
+  // A demo request that arrived AFTER the lineup locked, so the "Asking to join"
+  // section has something to show. Host (owned) can Add / Not now.
+  const [askers, setAskers] = useState<{ id: string; name: string; role: string }[]>([
+    { id: 'ask-1', name: 'Taquería La Luz', role: 'Food vendor' },
+  ])
+
+  if (locked) {
+    const lineup = PARTICIPANTS.filter((p) => state(p) === 'in')
+    return (
+      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-4">
+        <div>
+          <p className="section-label mb-1">On the lineup · {lineup.length}</p>
+          <p className="mb-2 text-[11px] text-stone-400">Locked in when the event was created.</p>
+          <div className="space-y-1.5">
+            {lineup.map((p) => (
+              <div
+                key={p.id}
+                className="flex items-center gap-3 rounded-xl border border-emerald-100 bg-emerald-50/50 px-3 py-2.5"
+              >
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white text-[11px] font-semibold text-stone-500">
+                  {p.name.slice(0, 2).toUpperCase()}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-1.5">
+                    <span className="truncate text-sm font-medium text-stone-900">{p.id === 'you' ? 'You' : p.name}</span>
+                    {p.lead && <Crown className="h-3 w-3 shrink-0 text-amber-500" />}
+                  </span>
+                  <span className="mt-0.5 block truncate text-[11px] text-stone-500">{p.role}</span>
+                </span>
+                <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                  Locked in
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {askers.length > 0 && (
+          <div>
+            <p className="section-label mb-1 text-amber-500">Asking to join · {askers.length}</p>
+            <p className="mb-2 text-[11px] text-stone-400">
+              Requested a spot after the lineup locked — {owned ? 'you decide' : 'the host decides'}.
+            </p>
+            <div className="space-y-1.5">
+              {askers.map((a) => (
+                <div
+                  key={a.id}
+                  className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-100 bg-amber-50/60 px-3 py-2.5"
+                >
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white text-[11px] font-semibold text-stone-500">
+                    {a.name.slice(0, 2).toUpperCase()}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="truncate text-sm font-medium text-stone-900">{a.name}</span>
+                    <span className="mt-0.5 block truncate text-[11px] text-stone-500">{a.role}</span>
+                  </span>
+                  {owned ? (
+                    <span className="flex shrink-0 items-center gap-1.5">
+                      <button
+                        onClick={() => setAskers((xs) => xs.filter((x) => x.id !== a.id))}
+                        className="rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-700"
+                      >
+                        Add
+                      </button>
+                      <button
+                        onClick={() => setAskers((xs) => xs.filter((x) => x.id !== a.id))}
+                        className="rounded-full border border-stone-300 px-3 py-1 text-xs font-medium text-stone-600 hover:bg-stone-50"
+                      >
+                        Not now
+                      </button>
+                    </span>
+                  ) : (
+                    <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                      Waiting on the host
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
 
   const groups = [
     { key: 'in', label: 'In', hint: 'Committed — these are who the event is built from.' },
