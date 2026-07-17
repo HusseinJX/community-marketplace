@@ -4,6 +4,23 @@ All notable changes to this project are documented here.
 
 ## [Unreleased] — commerce, live, social shell (branch `feat/collab-rooms`)
 
+### Added — sell path made real, fulfillment, collab Event/Attendees tabs — 2026-07-17
+- **Stripe Connect has a UI entry point** — new `StripeConnectCard` ("Set up payouts") calling the previously-orphaned `create-account`, plus a **"Start selling" checklist** (`components/vendor/SellChecklist.tsx`) on the dashboard: connect shop → set up payouts → (delivery only when `uberConfigured()`). Replaced a dead Stripe banner that could never render.
+- **Order fulfillment: pickup vs delivery** (migration `20260717120000` — `orders.fulfillment_type`, a `collected` status, `delivery_fee_charged_cents`; **applied to prod**). Fulfillment is chosen **before payment** (`components/checkout/FulfillmentPicker.tsx` + `GET /api/checkout/fulfillment/[memberId]`), so the courier fee actually goes into the PaymentIntent (`amount = items + fee`, `application_fee = 5%(items) + fee` → the fee lands with the **platform**, who pays Uber; 5% is on items only). Buyer sees the pickup address on checkout + success; pickup orders close via "Customer collected it".
+- **Uber Direct OAuth** (`lib/uber-direct.ts`) — client-credentials token mint + 30-day cache (the old `UBER_DIRECT_SERVER_TOKEN` was a credential Uber doesn't issue). `/api/uber/dispatch` **re-quotes** (quotes expire in 15 min) and absorbs+logs the fee delta. Only the three `UBER_DIRECT_*` credentials remain before delivery works.
+- **One "Integrations" hub** (`/vendor/integrations`) — Bank account (Stripe) + Store Catalog (Shopify/Square) + Delivery on one page; a single dashboard tile (after "Your agent"). `/vendor/payments` redirects here.
+- **Collab room Event + Attendees tabs** (`components/vendor/CollabEventTab.tsx`, `EventAttendees`) — appear once the event exists. Real `Thread` (NetworkManager) is now tabbed (Chat · Participants · Event · Attendees); demo mirrors it. New public `GET /api/vendor/events/[eventId]`.
+- **`/vendor/assistant`: "View profile" + "Test agent" buttons** — Test agent opens the same `AskAssistant` chat the profile's Inquire button uses.
+
+### Changed — pricing honesty, locked-lineup roster, Composio/claim wiring — 2026-07-17
+- **Pricing only sells what exists.** Removed "AI voice agent **with booking**", "Analytics & insights" (no such feature), and the **$10 "AI customer-service agent"** (the agent is `PRO_CAN` only — Member payers were refused it). $10 now reads "send invites & host events" (its real grants). Promo-art Calendar/CRM/Deliver claims dropped from copy. Rule recorded in `BillingPlans.tsx`.
+- **Participants tab splits once the lineup locks** — "On the lineup" (locked in) vs "Asking to join" (requested after lock); the host gets inline **Add / Not now** wired to the lineup approve/decline endpoint (exposed `lineupInviteId` via `getRoomRoster`).
+- **Claim writes `vendor_profiles`** so it lands on the dashboard, not a second search+verify at `/vendor/setup` (three screens removed).
+- **Composio "Connected" only after OAuth confirms** — `finalizeConnection()` checks for an ACTIVE connection at the `?connected=` callback instead of writing at initiate (which left a false "Connected" + a nightly-sync entry on abandoned consent).
+
+### Security — 2026-07-17
+- **Stripe Connect + Uber routes gated.** `create-account`/`create-account-link`/`account-status` took `memberId`/`email` from the body with no auth (anyone could open a Connect account against any business); now `resolveActor`-gated, email from Clerk. `/api/uber/quote` + `save-delivery` had no auth and looked orders up by a body `orderId` — quote is rekeyed on `memberId` (no order to hijack) + rate-limited; `save-delivery` deleted; dispatch uses `resolveActor`. All enforce the vendor's `uber_direct_enabled` on the paid path.
+
 ### Added — collab composer, organizer ICP rebuild, unread badges — 2026-07-16
 - **`components/match/PeoplePicker.tsx`** — the ONE people picker: search the semantic matcher, **Clear** to fall back to just who you've picked, pick/drop animate in place (`pick-confirm`/`check-pop` + mirrored `unpick-confirm`/`check-unpop` in `globals.css`, both `prefers-reduced-motion`-aware). Shared by the collab composer, the organizer lineup, and the new-event composer. No nested scrollbox.
 - **`components/vendor/CollabComposer.tsx`** — the ONE collaboration composer (name + description + PeoplePicker + create), shared by the dashboard Create card, the new **`/vendor/collab/new`** page, and the Add-people modal. Returns `occasionId` so callers deep-link straight into the new chat (`?collab=<id>`).
