@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { rateLimit } from '@/lib/rate-limit'
 import { getOpenAI, CHAT_MODEL } from '@/lib/openai'
 import { onboardingSystemPrompt } from '@/lib/onboard'
 
@@ -12,6 +13,9 @@ interface Msg {
 // POST { messages, eventName? } — one turn of the onboarding conversation.
 // Public (the person hasn't signed in yet); creation later requires sign-in.
 export async function POST(req: Request) {
+  const limited = rateLimit({ req, name: 'onboard-chat', id: null, limit: 20, windowMs: 60_000, ipLimit: 20 })
+  if (limited) return limited
+
   const body = await req.json().catch(() => ({}))
   const messages: Msg[] = Array.isArray(body.messages) ? body.messages.slice(-20) : []
   const eventName = body.eventName ? String(body.eventName) : undefined

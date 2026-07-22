@@ -1,3 +1,4 @@
+import { rateLimit } from '@/lib/rate-limit'
 import { getOpenAI, CHAT_MODEL } from '@/lib/openai'
 import { buildBusinessContext, buildSystemPrompt } from '@/lib/business-context'
 import { getEntitlements } from '@/lib/entitlements'
@@ -82,6 +83,11 @@ type ClientMessage = { role: 'user' | 'assistant'; content: string }
 
 export async function POST(req: Request, ctx: { params: Promise<{ memberId: string }> }) {
   const { memberId } = await ctx.params
+
+  // Public + unauthenticated + billable (OpenAI tool loop) — per-IP guard so it
+  // can't be scripted into an unbounded bill.
+  const limited = rateLimit({ req, name: 'chat-business', id: memberId, limit: 15, windowMs: 60_000, ipLimit: 30 })
+  if (limited) return limited
 
   let body: { messages?: ClientMessage[]; conversationId?: string }
   try {

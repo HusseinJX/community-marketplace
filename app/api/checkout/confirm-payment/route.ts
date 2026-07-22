@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe-server'
 import { createOrder, getOrderByPaymentIntent } from '@/lib/vendor-connect'
+import { rateLimit } from '@/lib/rate-limit'
 
 function generateOrderNumber() {
   return `ORD-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`
@@ -8,6 +9,11 @@ function generateOrderNumber() {
 
 export async function POST(request: Request) {
   try {
+    // Guest checkout — per-IP guard. The order is built from server-set PI
+    // metadata and is idempotent, so this just caps enumeration/abuse.
+    const limited = rateLimit({ req: request, name: 'checkout-confirm', id: null, limit: 30, windowMs: 60_000, ipLimit: 30 })
+    if (limited) return limited
+
     const body = await request.json()
     const { paymentIntentId }: { paymentIntentId: string } = body
 

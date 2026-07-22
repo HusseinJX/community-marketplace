@@ -1,3 +1,4 @@
+import { rateLimit } from '@/lib/rate-limit'
 import { getOpenAI, CHAT_MODEL } from '@/lib/openai'
 import { communityResourcesForPrompt, getCommunityResource } from '@/lib/community-resources'
 import type OpenAI from 'openai'
@@ -50,6 +51,9 @@ function systemPrompt(): string {
 type ClientMessage = { role: 'user' | 'assistant'; content: string }
 
 export async function POST(req: Request) {
+  const limited = rateLimit({ req, name: 'resources-chat', id: null, limit: 20, windowMs: 60_000, ipLimit: 20 })
+  if (limited) return limited
+
   let body: { messages?: ClientMessage[] }
   try {
     body = await req.json()

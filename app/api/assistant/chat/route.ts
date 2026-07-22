@@ -1,3 +1,4 @@
+import { rateLimit } from '@/lib/rate-limit'
 import { getOpenAI, CHAT_MODEL } from '@/lib/openai'
 import { searchMembers } from '@/lib/api'
 import type OpenAI from 'openai'
@@ -29,6 +30,9 @@ interface MemberCardData {
 }
 
 export async function POST(req: Request) {
+  const limited = rateLimit({ req, name: 'assistant-chat', id: null, limit: 20, windowMs: 60_000, ipLimit: 20 })
+  if (limited) return limited
+
   let body: { messages?: ClientMessage[]; sessionId?: string }
   try {
     body = await req.json()

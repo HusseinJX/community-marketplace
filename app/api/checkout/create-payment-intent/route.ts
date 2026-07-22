@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { stripe, calculateFees } from '@/lib/stripe-server'
-import { getVendorConnectAccount, getVendorSettings, type DeliveryAddressJson } from '@/lib/vendor-connect'
+import { getVendorConnectAccount, getVendorSettings, getProductsByMember, type DeliveryAddressJson } from '@/lib/vendor-connect'
 import { uberConfigured } from '@/lib/uber-direct'
+import { rateLimit } from '@/lib/rate-limit'
 
 interface CartItem {
   name: string
@@ -26,6 +27,10 @@ interface CartItem {
 // so the platform cut is computed on items only.
 export async function POST(request: Request) {
   try {
+    // Checkout is guest-friendly (no sign-in required), so the guard is per-IP.
+    const limited = rateLimit({ req: request, name: 'checkout-pi', id: null, limit: 20, windowMs: 60_000, ipLimit: 20 })
+    if (limited) return limited
+
     const body = await request.json()
     const {
       items,
@@ -83,7 +88,26 @@ export async function POST(request: Request) {
       }
     }
 
-    const itemsCents = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
+    // SECURITY: never trust client-supplied prices. Re-price every line from the
+    // vendor's ACTIVE catalog (server-side, cents) and reject anything not
+    // currently on sale — otherwise a tampered `items[].price` lets a buyer pay
+    // any amount. Cart lines match a product by name within the member (the cart
+    // id is `${memberId}__${productName}`).
+    const catalog = await getProductsByMember(memberId)
+    const priced = items.map((item) => {
+      const product = catalog.find((p) => p.name === item.name)
+      if (!product) return null
+      const quantity = Math.min(999, Math.max(1, Math.floor(item.quantity || 1)))
+      return { name: product.name, price_cents: product.price, quantity }
+    })
+    if (priced.some((p) => p === null)) {
+      return NextResponse.json(
+        { error: 'ITEM_UNAVAILABLE', message: 'One or more items are no longer available at the listed price.' },
+        { status: 400 }
+      )
+    }
+    const pricedItems = priced as { name: string; price_cents: number; quantity: number }[]
+    const itemsCents = pricedItems.reduce((sum, i) => sum + i.price_cents * i.quantity, 0)
     // Trust the server's own arithmetic for the fee, never the client's number:
     // deliveryFeeCents arrives from the browser, so clamp it to >= 0 and only
     // honour it on a delivery order.
@@ -103,7 +127,7 @@ export async function POST(request: Request) {
       },
       metadata: {
         memberId,
-        items: JSON.stringify(items.map(i => ({ name: i.name, qty: i.quantity, price_cents: i.price }))),
+        items: JSON.stringify(pricedItems.map(i => ({ name: i.name, qty: i.quantity, price_cents: i.price_cents }))),
         subtotal_cents: String(itemsCents),
         platform_fee_cents: String(platformFee),
         vendor_amount_cents: String(vendorAmount),
