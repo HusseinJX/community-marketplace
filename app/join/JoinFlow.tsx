@@ -7,7 +7,8 @@ import { VendorPhoneLogin } from "@/components/auth/VendorPhoneLogin";
 import { Store, Users, Mic, Search, Loader2, Check, ArrowRight, ArrowLeft, LogOut, LogIn } from "lucide-react";
 import { JoinInterview } from "@/components/join/JoinInterview";
 import { GoogleIcon, AppleIcon } from "@/components/auth/OAuthBrandIcons";
-import { useIsNativeApp } from "@/lib/native";
+import { useIsNativeApp, isNativeApp } from "@/lib/native";
+import { nativeGoogleSignIn, nativeAppleSignIn } from "@/lib/native-auth";
 import type { BriefInput } from "@/lib/onboard";
 import type { PlaceCandidate } from "@/lib/places";
 
@@ -159,6 +160,23 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
     if (isSignedIn) {
       setMidFlow(true);
       afterSignedIn();
+      return;
+    }
+    // Inside the iOS app: native sheet → id token → Clerk (the web popup is
+    // blocked in the webview). Falls back to the popup on the web below.
+    if (isNativeApp()) {
+      setBusy(true);
+      setMidFlow(true);
+      try {
+        if (strategy === "oauth_google") await nativeGoogleSignIn(clerk);
+        else await nativeAppleSignIn(clerk);
+        afterSignedIn();
+      } catch (e) {
+        setMidFlow(false);
+        setErr(e instanceof Error ? e.message : "Couldn't sign in with that provider.");
+      } finally {
+        setBusy(false);
+      }
       return;
     }
     setBusy(true);

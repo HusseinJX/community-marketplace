@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useClerk } from "@clerk/nextjs";
 import { X, Loader2, ArrowRight } from "lucide-react";
 import { GoogleIcon, AppleIcon } from "@/components/auth/OAuthBrandIcons";
+import { isNativeApp } from "@/lib/native";
+import { nativeGoogleSignIn, nativeAppleSignIn } from "@/lib/native-auth";
 
 // Vendors create their account with a phone number in /join, so they log back
 // in the same way — a phone code, not Clerk's email/Google modal (that's the
@@ -82,6 +84,20 @@ export function VendorPhoneLogin({
     setErr("");
     setNoAccount(false);
     setBusy(true);
+    // Inside the iOS app: native sheet → id token → Clerk. The web popup below
+    // is blocked in the webview.
+    if (isNativeApp()) {
+      try {
+        if (strategy === "oauth_google") await nativeGoogleSignIn(clerk);
+        else await nativeAppleSignIn(clerk);
+        router.push(redirectUrl);
+      } catch (e) {
+        setErr(e instanceof Error ? e.message : "Couldn't sign in with that provider.");
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
     const popup = window.open("", "_blank", "width=520,height=640");
     try {
       await clerk.client.signIn.authenticateWithPopup({
