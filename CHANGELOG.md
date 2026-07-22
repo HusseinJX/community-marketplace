@@ -4,6 +4,12 @@ All notable changes to this project are documented here.
 
 ## [Unreleased] — commerce, live, social shell (branch `feat/collab-rooms`)
 
+### Changed — Google/Apple-only accounts, native iOS login, App Store readiness — 2026-07-22
+- **Accounts are Google/Apple only.** Removed phone from account sign-in/sign-up (vendor login modal + `/join` "who" step, incl. the `code1` account-phone step). Phone remains ONLY for business ownership verification (`code2` OTP). No email/password.
+- **Native in-app OAuth (verified on device):** Apple via `oauth_apple` redirect kept inside the WKWebView (`appleid.apple.com` in `capacitor.config.ts allowNavigation`); Google via two local SPM Swift plugins (`capacitor-apple-signin`, `capacitor-google-auth`) → id token → Clerk `authenticateWithGoogleOneTap`. `lib/native.ts` + `lib/native-auth.ts` + `/sso-callback` + `components/auth/OAuthBrandIcons.tsx`.
+- **iOS subscription paywall hidden** (`useIsNativeApp` gate) for Apple 3.1.1 compliance; web/Android unchanged.
+- Provisioned the App Review demo account (linked to the Xeno Pro profile); app remains fully usable without login.
+
 ### Added — sell path made real, fulfillment, collab Event/Attendees tabs — 2026-07-17
 - **Stripe Connect has a UI entry point** — new `StripeConnectCard` ("Set up payouts") calling the previously-orphaned `create-account`, plus a **"Start selling" checklist** (`components/vendor/SellChecklist.tsx`) on the dashboard: connect shop → set up payouts → (delivery only when `uberConfigured()`). Replaced a dead Stripe banner that could never render.
 - **Order fulfillment: pickup vs delivery** (migration `20260717120000` — `orders.fulfillment_type`, a `collected` status, `delivery_fee_charged_cents`; **applied to prod**). Fulfillment is chosen **before payment** (`components/checkout/FulfillmentPicker.tsx` + `GET /api/checkout/fulfillment/[memberId]`), so the courier fee actually goes into the PaymentIntent (`amount = items + fee`, `application_fee = 5%(items) + fee` → the fee lands with the **platform**, who pays Uber; 5% is on items only). Buyer sees the pickup address on checkout + success; pickup orders close via "Customer collected it".
