@@ -1,16 +1,18 @@
 import { cookies } from 'next/headers'
 import { DEMO_COOKIE, isDemoType, isDemoMode } from './demo-admin'
+import { JOINDEMO_COOKIE } from './joindemo'
 
-// Is this request a demo preview? True when the global env flag is on, OR when
-// the visitor explicitly entered the demo via /demo (which sets a demo-type
-// cookie). The cookie path lets the "Admin demo" work without sign-in even in
-// production, where the global flag stays off. Only ever consulted for
-// signed-out requests, and demo writes still no-op — so real vendors are
-// unaffected and no real data is mutated.
+// Is this request a demo preview? True when the global env flag is on (dev /
+// preview), OR — in production — when the visitor has BOTH entered the demo via
+// /demo (a demo-type cookie) AND unlocked with the shared demo password (the
+// httpOnly JOINDEMO_COOKIE). The password gate is what keeps the Admin demo from
+// being publicly reachable: a self-set demo-type cookie alone no longer opens
+// the portal. Demo writes still no-op, so no real data is ever mutated.
 export async function isDemoActive(): Promise<boolean> {
   if (isDemoMode()) return true
-  const c = (await cookies()).get(DEMO_COOKIE)?.value
-  return isDemoType(c)
+  const jar = await cookies()
+  if (!isDemoType(jar.get(DEMO_COOKIE)?.value)) return false
+  return jar.get(JOINDEMO_COOKIE)?.value === '1'
 }
 
 // Server-only: in demo mode the vendor pages have no Clerk user → no linked

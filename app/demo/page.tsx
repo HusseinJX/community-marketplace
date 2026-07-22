@@ -10,10 +10,30 @@ import { getCategories } from '@/lib/taxonomy'
 export default function DemoLauncher() {
   const [type, setType] = useState<DemoMemberType>('vendor')
   const [subtype, setSubtype] = useState('')
+  const [password, setPassword] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const categories = getCategories(type)
+  // In dev/preview the env flag already opens the portal; in production the demo
+  // is gated behind the shared demo password so it isn't public.
+  const needsPassword = process.env.NEXT_PUBLIC_DEMO_MODE !== '1'
 
-  function openAdmin() {
+  async function openAdmin() {
+    setError(null)
+    if (needsPassword) {
+      setBusy(true)
+      const res = await fetch('/api/joindemo/unlock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      }).catch(() => null)
+      setBusy(false)
+      if (!res?.ok) {
+        setError('Incorrect password.')
+        return
+      }
+    }
     writeDemoCookies(type, subtype)
     window.location.href = '/vendor'
   }
@@ -67,12 +87,29 @@ export default function DemoLauncher() {
           </>
         )}
 
+        {needsPassword && (
+          <>
+            <label className="mt-4 block text-xs font-medium text-stone-600">Demo password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && openAdmin()}
+              placeholder="Enter the demo password"
+              className="mt-1.5 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-800 focus:border-violet-400 focus:outline-none"
+            />
+          </>
+        )}
+
+        {error && <p className="mt-3 text-xs text-red-600">{error}</p>}
+
         <button
           type="button"
           onClick={openAdmin}
-          className="mt-5 inline-flex w-full items-center justify-center gap-1 rounded-full bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-700"
+          disabled={busy || (needsPassword && !password)}
+          className="mt-5 inline-flex w-full items-center justify-center gap-1 rounded-full bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-700 disabled:opacity-60"
         >
-          Open admin demo <ArrowRight className="h-4 w-4" />
+          {busy ? 'Unlocking…' : 'Open admin demo'} <ArrowRight className="h-4 w-4" />
         </button>
       </div>
     </div>
