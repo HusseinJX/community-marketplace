@@ -6,7 +6,7 @@ import { useClerk } from "@clerk/nextjs";
 import { X, Loader2, ArrowRight } from "lucide-react";
 import { GoogleIcon, AppleIcon } from "@/components/auth/OAuthBrandIcons";
 import { isNativeApp } from "@/lib/native";
-import { nativeGoogleSignIn, nativeAppleSignIn } from "@/lib/native-auth";
+import { nativeGoogleSignIn } from "@/lib/native-auth";
 
 // Vendors create their account with a phone number in /join, so they log back
 // in the same way — a phone code, not Clerk's email/Google modal (that's the

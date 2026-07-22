@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useClerk, useAuth } from "@clerk/nextjs";
 import { VendorPhoneLogin } from "@/components/auth/VendorPhoneLogin";
@@ -8,7 +8,7 @@ import { Store, Users, Mic, Search, Loader2, Check, ArrowRight, ArrowLeft, LogOu
 import { JoinInterview } from "@/components/join/JoinInterview";
 import { GoogleIcon, AppleIcon } from "@/components/auth/OAuthBrandIcons";
 import { useIsNativeApp, isNativeApp } from "@/lib/native";
-import { nativeGoogleSignIn, nativeAppleSignIn } from "@/lib/native-auth";
+import { nativeGoogleSignIn } from "@/lib/native-auth";
 import type { BriefInput } from "@/lib/onboard";
 import type { PlaceCandidate } from "@/lib/places";
 
@@ -79,8 +79,13 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
   // Once the person has started creating their account (OAuth or phone), signing
   // in flips useAuth().isSignedIn to true — but that must NOT bounce them to the
   // "log out first" screen mid-flow. That guard is only for people who LAND here
-  // already signed in, so it's suppressed once the flow is underway.
-  const [midFlow, setMidFlow] = useState(false);
+  // already signed in, so it's suppressed once the flow is underway. Initialize
+  // true when returning from the in-app Apple redirect (a resume is pending), so
+  // the guard never flashes before the resume effect runs.
+  const [midFlow, setMidFlow] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try { return !!sessionStorage.getItem("join_apple_resume"); } catch { return false; }
+  });
 
   // business (entities)
   const [pq, setPq] = useState("");
@@ -131,6 +136,35 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
     setPq("");
   }
 
+  // In-app Apple sign-in uses a full redirect (the native token strategy is
+  // gated to Clerk's native SDK, and Google-style popups don't work in WKWebView).
+  // A redirect drops this page's in-memory state, so oauthSignUp stashes it and we
+  // restore + advance here once we're back and signed in.
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
+    let raw: string | null = null;
+    try { raw = sessionStorage.getItem("join_apple_resume"); } catch { /* ignore */ }
+    if (!raw) return;
+    try { sessionStorage.removeItem("join_apple_resume"); } catch { /* ignore */ }
+    let s: { kind?: Kind; name?: string; role?: string; city?: string; igHandle?: string };
+    try { s = JSON.parse(raw); } catch { return; }
+    const k: Kind = s.kind ?? "vendor";
+    setKind(k);
+    setName(s.name ?? "");
+    setRole(s.role ?? "Owner");
+    setCity(s.city ?? "");
+    setIgHandle(s.igHandle ?? "");
+    setMidFlow(true);
+    if (k === "artist") {
+      setStep("working");
+      // Pass values explicitly — the setState calls above haven't flushed yet.
+      void finishArtist({ name: s.name ?? "", city: s.city ?? "", igHandle: s.igHandle ?? "" });
+    } else {
+      setStep("business");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoaded, isSignedIn]);
+
   // Advance past sign-in to the next real step: entities verify their business,
   // artists (self-owned) go straight to setup.
   function afterSignedIn() {
@@ -162,14 +196,35 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
       afterSignedIn();
       return;
     }
-    // Inside the iOS app: native sheet → id token → Clerk (the web popup is
-    // blocked in the webview). Falls back to the popup on the web below.
+    // Inside the iOS app the web popup is blocked (WKWebView):
+    //  • Apple — oauth_apple REDIRECT (kept inside the webview; Apple permits its
+    //    sign-in there). The native token strategy 401s from the web SDK. Redirect
+    //    drops our state, so stash it and resume via the effect above.
+    //  • Google — native plugin token (Google blocks webview OAuth).
     if (isNativeApp()) {
+      if (strategy === "oauth_apple") {
+        try {
+          sessionStorage.setItem("join_apple_resume", JSON.stringify({ kind, name, role, city, igHandle }));
+        } catch { /* ignore */ }
+        setBusy(true);
+        try {
+          await clerk.client.signIn.authenticateWithRedirect({
+            strategy: "oauth_apple",
+            redirectUrl: `${window.location.origin}/sso-callback`,
+            redirectUrlComplete: `${window.location.origin}/join`,
+          });
+          // Redirect navigates away; nothing after this runs.
+        } catch (e) {
+          try { sessionStorage.removeItem("join_apple_resume"); } catch { /* ignore */ }
+          setBusy(false);
+          setErr(e instanceof Error ? e.message : "Couldn't start Apple sign-in.");
+        }
+        return;
+      }
       setBusy(true);
       setMidFlow(true);
       try {
-        if (strategy === "oauth_google") await nativeGoogleSignIn(clerk);
-        else await nativeAppleSignIn(clerk);
+        await nativeGoogleSignIn(clerk);
         afterSignedIn();
       } catch (e) {
         setMidFlow(false);
@@ -432,16 +487,21 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
   }
 
   // ── Artist finish: create self-owned member + link ─────────────────────────
-  async function finishArtist() {
+  // `override` lets the Apple-redirect resume pass values that setState hasn't
+  // flushed yet; otherwise it reads the live form state.
+  async function finishArtist(override?: { name: string; city: string; igHandle: string }) {
+    const nm = override?.name ?? name;
+    const ct = override?.city ?? city;
+    const igRaw = override?.igHandle ?? igHandle;
     setBusy(true);
     setErr("");
     try {
-      const igClean = igHandle.trim().replace(/^@/, "");
+      const igClean = igRaw.trim().replace(/^@/, "");
       // DEMO: no member created — seed the interview from the artist form and go.
       if (demo) {
         setMemberId("demo-join");
-        setBizName(name);
-        setSeed({ name, city: city.trim() || null, instagramHandle: igClean || null });
+        setBizName(nm);
+        setSeed({ name: nm, city: ct.trim() || null, instagramHandle: igClean || null });
         setStep("interview");
         return;
       }
@@ -450,10 +510,10 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           profile: {
-            name,
+            name: nm,
             memberType: "artist",
-            ownerName: name,
-            city: city.trim() || undefined,
+            ownerName: nm,
+            city: ct.trim() || undefined,
             instagramHandle: igClean || undefined,
           },
           mode: "self",
@@ -461,10 +521,10 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
       })).json();
       if (!created.memberId) throw new Error(created.error || "Couldn't create your page.");
       setMemberId(created.memberId);
-      setBizName(name);
+      setBizName(nm);
       // Artists have no Maps anchor — the seed (name + city + IG) is what the
       // web-search research keys off to open the interview knowing them.
-      setSeed({ name, city: city.trim() || null, instagramHandle: igClean || null });
+      setSeed({ name: nm, city: ct.trim() || null, instagramHandle: igClean || null });
       await fetch("/api/claim", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
