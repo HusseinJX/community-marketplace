@@ -17,7 +17,11 @@ function ensureInit() {
     return false;
   }
   posthog.init(key, {
-    api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://us.i.posthog.com",
+    // Route ingestion through our own /ingest proxy (next.config rewrites) so ad
+    // blockers don't drop it; ui_host keeps "open in PostHog" links pointing at
+    // the real app.
+    api_host: "/ingest",
+    ui_host: "https://us.posthog.com",
     capture_pageview: false,
     capture_pageleave: true,
     person_profiles: "always",

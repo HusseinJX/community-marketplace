@@ -3,6 +3,17 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   // Emit a self-contained server bundle so the Docker/CapRover image stays small.
   output: "standalone",
+  // Reverse-proxy PostHog through our own origin (/ingest) so ad blockers, which
+  // block requests to *.posthog.com by name, don't silently drop 15-30% of our
+  // analytics. posthog-js is pointed at "/ingest" (see lib/posthog-provider).
+  // Required by PostHog's proxy so trailing-slash handling doesn't 308 its API.
+  skipTrailingSlashRedirect: true,
+  async rewrites() {
+    return [
+      { source: "/ingest/static/:path*", destination: "https://us-assets.i.posthog.com/static/:path*" },
+      { source: "/ingest/:path*", destination: "https://us.i.posthog.com/:path*" },
+    ];
+  },
   experimental: {
     // Cache the RSC payload of visited routes in the client Router Cache so
     // back/forward and tab-to-tab navigation reuse the rendered page instead of

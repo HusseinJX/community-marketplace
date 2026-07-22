@@ -11,6 +11,8 @@ import { PostHogProvider } from "@/lib/posthog-provider";
 import { FeedbackWidget } from "@/components/FeedbackWidget";
 import { PushInit } from "@/components/PushInit";
 import { DemoExitWatcher } from "@/components/DemoExitWatcher";
+import { AdPixels } from "@/components/analytics/AdPixels";
+import { ConsentBanner } from "@/components/analytics/ConsentBanner";
 import { SITE_NAME, SITE_URL } from "@/lib/seo";
 import "./globals.css";
 
@@ -100,6 +102,8 @@ export default function RootLayout({
             <FeedbackWidget />
             <PushInit />
             <DemoExitWatcher />
+            <AdPixels />
+            <ConsentBanner />
           </StoreProvider>
           </LocationProvider>
           </SWRProvider>
