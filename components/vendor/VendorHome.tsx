@@ -10,6 +10,7 @@ import { PLAN_KEY, PlanSwitch, type Tier } from '@/components/vendor/PlanSwitch'
 import { CollabMatchHero } from '@/components/vendor/CollabMatchHero'
 import { Opportunities } from '@/components/vendor/Opportunities'
 import { UpcomingCollabs, useUpcomingCollabs } from '@/components/vendor/ActiveCollabs'
+import { useIsNativeApp } from '@/lib/native'
 
 // The vendor front door: who to team up with, and what's already looking for you.
 // Everything else on this page is plumbing and sits below, in one list.
@@ -67,6 +68,7 @@ export function VendorHome({
 }) {
   const initial: Tier = plan === 'member' ? 'member' : plan === 'free' ? 'free' : 'pro'
   const [tier, setTier] = useState<Tier>(initial)
+  const native = useIsNativeApp() // iOS: no subscription price/upsell (Apple 3.1.1)
 
   useEffect(() => {
     const v = localStorage.getItem(PLAN_KEY)
@@ -178,9 +180,10 @@ export function VendorHome({
                 pointing at two pages; consolidated into /vendor/integrations. */}
             <Tile href="/vendor/integrations" Icon={Plug} label="Integrations" desc="Shop, delivery & bank payouts" />
           </Section>
-        ) : (
+        ) : native ? null : (
           // Off Pro, the shop tools simply vanished — no mention, no price, no way
           // through. The paywall was behind a door that didn't exist.
+          // (Hidden entirely in the iOS app — Apple 3.1.1 forbids the price + CTA.)
           <Section title="Sell on WhatsLocal">
             <div className="card-soft p-4 sm:col-span-2">
               <p className="text-[15px] font-semibold text-stone-900">Open your shop</p>

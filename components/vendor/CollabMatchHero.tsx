@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Lock, Plus, Sparkles, ChevronLeft, Loader2, Users } from 'lucide-react'
 import { CollabComposer } from '@/components/vendor/CollabComposer'
 import { demoMatches } from '@/lib/demo-match'
+import { useIsNativeApp } from '@/lib/native'
 import type { MatchCandidate } from '@/lib/types'
 
 // The Create side of the dashboard collabs card.
@@ -71,6 +72,7 @@ export function CollabMatchHero({
   /** For-you / Search — owned by the collabs bar in VendorHome. */
   mode?: 'for-you' | 'search'
 }) {
+  const native = useIsNativeApp() // iOS: hide the paid-plan upsell (Apple 3.1.1)
   const [view, setView] = useState<'ideas' | 'compose'>('ideas')
   const [seed, setSeed] = useState<Seed>({ title: '', desc: '', people: [] })
   const [composeKey, setComposeKey] = useState(0) // remount composer per open → fresh state
@@ -205,7 +207,7 @@ export function CollabMatchHero({
 
       {sent}
 
-      {!canInvite && upsell && (
+      {!canInvite && upsell && !native && (
         <div className="card-soft flex items-center gap-3 p-4">
           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-stone-100">
             <Lock className="h-4 w-4 text-stone-500" />

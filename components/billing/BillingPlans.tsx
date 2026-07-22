@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Check, Loader2, Rocket, Store, Search, Users } from "lucide-react";
 import type { Plan } from "@/lib/entitlements";
+import { useIsNativeApp } from "@/lib/native";
 
 type SelfServePlan = "member" | "pro";
 
@@ -125,6 +126,7 @@ export function BillingPlans({
 }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const native = useIsNativeApp();
 
   async function upgrade(plan: SelfServePlan) {
     setError(null);
@@ -177,6 +179,22 @@ export function BillingPlans({
   }
 
   const isPaid = currentPlan === "member" || currentPlan === "pro" || currentPlan === "enterprise";
+
+  // Apple 3.1.1: the native app must not sell or price digital subscriptions,
+  // nor route to web checkout. Show current plan only — no tiers, no prices,
+  // no upgrade/manage buttons. Plans stay fully purchasable on the web.
+  if (native) {
+    const label = currentPlan.charAt(0).toUpperCase() + currentPlan.slice(1);
+    return (
+      <div className="rounded-2xl border border-stone-200 bg-white p-5 text-center">
+        <p className="text-sm text-stone-500">Your current plan</p>
+        <p className="mt-1 text-lg font-semibold text-stone-900">{label}</p>
+        <p className="mt-3 text-sm text-stone-500">
+          You have everything your plan includes. Plan changes aren&apos;t available in the app.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">

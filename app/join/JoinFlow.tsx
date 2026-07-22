@@ -6,6 +6,7 @@ import { useClerk, useAuth } from "@clerk/nextjs";
 import { VendorPhoneLogin } from "@/components/auth/VendorPhoneLogin";
 import { Store, Users, Mic, Search, Loader2, Check, ArrowRight, ArrowLeft, LogOut, LogIn } from "lucide-react";
 import { JoinInterview } from "@/components/join/JoinInterview";
+import { useIsNativeApp } from "@/lib/native";
 import type { BriefInput } from "@/lib/onboard";
 import type { PlaceCandidate } from "@/lib/places";
 
@@ -67,6 +68,7 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
   const router = useRouter();
   const { isLoaded, isSignedIn } = useAuth();
   const clerk = useClerk();
+  const native = useIsNativeApp(); // iOS: hide subscription prices (Apple 3.1.1)
   const [loginOpen, setLoginOpen] = useState(false);
 
   // Onboarding creates a *vendor* account and must start from a logged-out
@@ -731,15 +733,22 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
             <Check className="h-6 w-6 text-white" />
           </div>
           <h1 className="text-xl font-bold text-stone-900">You&apos;re verified · live on WhatsLocal</h1>
-          <p className="text-sm text-stone-500">{bizName} is set up. Pick how you want to participate — start free, upgrade anytime.</p>
-          <div className="space-y-2 pt-2 text-left">
-            {/* Must match lib/entitlements.ts (FREE_CAN / MEMBER_CAN / PRO_CAN) — these
-                sit next to live prices. Corrected 2026-07-17: Member said "AI agent",
-                but textAssistant is PRO_CAN only, so $10 never included it. */}
-            <a href="/vendor" className="block rounded-xl border border-stone-200 p-4 hover:bg-stone-50"><b className="text-stone-900">Free</b> — your page, posts + event invites <span className="float-right text-stone-500">$0</span></a>
-            <a href="/vendor/billing" className="block rounded-xl border border-stone-200 p-4 hover:bg-stone-50"><b className="text-stone-900">Organizer</b> — send invites + host events <span className="float-right text-stone-500">$10/mo</span></a>
-            <a href="/vendor/billing" className="block rounded-xl border-2 border-violet-400 p-4 hover:bg-violet-50"><b className="text-stone-900">Pro</b> — AI agent + sell online <span className="float-right text-stone-500">$30/mo</span></a>
-          </div>
+          {native ? (
+            // iOS build: no plan prices or billing links (Apple 3.1.1).
+            <p className="text-sm text-stone-500">{bizName} is set up and live. Head to your dashboard to start posting, hosting, and connecting.</p>
+          ) : (
+            <>
+              <p className="text-sm text-stone-500">{bizName} is set up. Pick how you want to participate — start free, upgrade anytime.</p>
+              <div className="space-y-2 pt-2 text-left">
+                {/* Must match lib/entitlements.ts (FREE_CAN / MEMBER_CAN / PRO_CAN) — these
+                    sit next to live prices. Corrected 2026-07-17: Member said "AI agent",
+                    but textAssistant is PRO_CAN only, so $10 never included it. */}
+                <a href="/vendor" className="block rounded-xl border border-stone-200 p-4 hover:bg-stone-50"><b className="text-stone-900">Free</b> — your page, posts + event invites <span className="float-right text-stone-500">$0</span></a>
+                <a href="/vendor/billing" className="block rounded-xl border border-stone-200 p-4 hover:bg-stone-50"><b className="text-stone-900">Organizer</b> — send invites + host events <span className="float-right text-stone-500">$10/mo</span></a>
+                <a href="/vendor/billing" className="block rounded-xl border-2 border-violet-400 p-4 hover:bg-violet-50"><b className="text-stone-900">Pro</b> — AI agent + sell online <span className="float-right text-stone-500">$30/mo</span></a>
+              </div>
+            </>
+          )}
           <button onClick={() => router.push("/vendor")} className="mt-2 inline-flex items-center gap-2 rounded-full bg-stone-900 px-5 py-2.5 text-sm font-semibold text-white">
             Go to your dashboard <ArrowRight className="h-4 w-4" />
           </button>

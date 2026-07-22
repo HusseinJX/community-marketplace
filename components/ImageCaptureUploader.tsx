@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { Camera, Loader2, Sparkles, Check, X } from "lucide-react";
+import { useIsNativeApp } from "@/lib/native";
 
 type Mode = "products" | "events";
 
@@ -33,6 +34,7 @@ export function ImageCaptureUploader({
   mode: Mode;
   onSaved: () => void;
 }) {
+  const native = useIsNativeApp(); // iOS: no upgrade link (Apple 3.1.1)
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [upgrade, setUpgrade] = useState<string | null>(null);
@@ -184,9 +186,11 @@ export function ImageCaptureUploader({
         <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
           <p className="text-sm font-medium text-amber-900">Premium feature</p>
           <p className="mt-0.5 text-xs text-amber-700">{upgrade}</p>
-          <a href="/vendor/billing" className="mt-2 inline-block rounded-lg bg-amber-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-800">
-            Upgrade
-          </a>
+          {!native && (
+            <a href="/vendor/billing" className="mt-2 inline-block rounded-lg bg-amber-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-800">
+              Upgrade
+            </a>
+          )}
         </div>
       )}
 
