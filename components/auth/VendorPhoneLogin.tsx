@@ -84,12 +84,31 @@ export function VendorPhoneLogin({
     setErr("");
     setNoAccount(false);
     setBusy(true);
-    // Inside the iOS app: native sheet → id token → Clerk. The web popup below
-    // is blocked in the webview.
+    // Inside the iOS app the web popup is blocked (WKWebView). Each provider
+    // needs a different in-app path:
+    //  • Apple — Clerk's standard oauth_apple REDIRECT works in the webview
+    //    (Apple allows its sign-in there; the config bounces it to the system
+    //    browser and returns via the whatslocal.ai universal link). The native
+    //    `oauth_token_apple` strategy is gated to Clerk's native SDK, so it 401s
+    //    ("authorization_invalid") from the web SDK — don't use it here.
+    //  • Google — blocked in the webview, so use the native Google plugin token.
     if (isNativeApp()) {
+      if (strategy === "oauth_apple") {
+        try {
+          await clerk.client.signIn.authenticateWithRedirect({
+            strategy: "oauth_apple",
+            redirectUrl: `${window.location.origin}/sso-callback`,
+            redirectUrlComplete: `${window.location.origin}${redirectUrl}`,
+          });
+          // Redirect navigates away; nothing after this runs.
+        } catch (e) {
+          setBusy(false);
+          setErr(e instanceof Error ? e.message : "Couldn't start Apple sign-in.");
+        }
+        return;
+      }
       try {
-        if (strategy === "oauth_google") await nativeGoogleSignIn(clerk);
-        else await nativeAppleSignIn(clerk);
+        await nativeGoogleSignIn(clerk);
         router.push(redirectUrl);
       } catch (e) {
         setErr(e instanceof Error ? e.message : "Couldn't sign in with that provider.");
