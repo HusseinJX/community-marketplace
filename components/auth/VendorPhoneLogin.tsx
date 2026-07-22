@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useClerk } from "@clerk/nextjs";
 import { X, Loader2, ArrowRight } from "lucide-react";
+import { GoogleIcon, AppleIcon } from "@/components/auth/OAuthBrandIcons";
 
 // Vendors create their account with a phone number in /join, so they log back
 // in the same way — a phone code, not Clerk's email/Google modal (that's the
@@ -74,6 +75,38 @@ export function VendorPhoneLogin({
     }
   }
 
+  // Log in with Google / Apple — same providers as onboarding (/join). Uses a
+  // popup + /sso-callback so the modal stays mounted; on success it signs into
+  // the matching account and lands in the portal.
+  async function oauthLogin(strategy: "oauth_google" | "oauth_apple") {
+    setErr("");
+    setNoAccount(false);
+    setBusy(true);
+    const popup = window.open("", "_blank", "width=520,height=640");
+    try {
+      await clerk.client.signIn.authenticateWithPopup({
+        strategy,
+        redirectUrl: `${window.location.origin}/sso-callback`,
+        redirectUrlComplete: `${window.location.origin}${redirectUrl}`,
+        popup,
+      });
+      if (!clerk.session) throw new Error("Couldn't complete sign-in. Make sure the popup wasn't blocked.");
+      router.push(redirectUrl);
+    } catch (e) {
+      try { popup?.close(); } catch {}
+      const msg = e instanceof Error ? e.message : "";
+      // No account yet for that identity → point them at onboarding.
+      if (/couldn.?t find|not found|no account|identifier|single session/i.test(msg)) {
+        setNoAccount(true);
+        setErr("No vendor account for that login yet.");
+      } else {
+        setErr(/cancel|closed|abort/i.test(msg) ? "Sign-in was cancelled." : msg || "Couldn't sign in with that provider.");
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
@@ -91,7 +124,7 @@ export function VendorPhoneLogin({
         </div>
         <p className="mt-1 text-sm text-stone-500">
           {step === "phone"
-            ? "Sign in with the phone number you used to set up your page."
+            ? "Sign in the same way you set up your page — Google, Apple, or your phone number."
             : `We texted a code to ${phone}.`}
         </p>
 
@@ -107,12 +140,32 @@ export function VendorPhoneLogin({
 
         {step === "phone" ? (
           <>
+            {/* Same providers as onboarding (/join). */}
+            <div className="mt-4 space-y-2">
+              <button
+                onClick={() => oauthLogin("oauth_google")}
+                disabled={busy}
+                className="inline-flex w-full items-center justify-center gap-2.5 rounded-full border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold text-stone-800 hover:bg-stone-50 disabled:opacity-60"
+              >
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleIcon />} Continue with Google
+              </button>
+              <button
+                onClick={() => oauthLogin("oauth_apple")}
+                disabled={busy}
+                className="inline-flex w-full items-center justify-center gap-2.5 rounded-full bg-black px-4 py-2.5 text-sm font-semibold text-white hover:bg-stone-800 disabled:opacity-60"
+              >
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <AppleIcon />} Continue with Apple
+              </button>
+            </div>
+            <div className="my-3 flex items-center gap-3 text-[11px] font-medium uppercase tracking-wide text-stone-400">
+              <span className="h-px flex-1 bg-stone-200" /> or <span className="h-px flex-1 bg-stone-200" />
+            </div>
             <input
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               inputMode="tel"
               placeholder="🇺🇸 +1 (415) 555-0132"
-              className="mt-4 w-full rounded-lg border border-stone-200 px-3 py-2.5 text-sm"
+              className="w-full rounded-lg border border-stone-200 px-3 py-2.5 text-sm"
             />
             <button
               onClick={sendCode}
