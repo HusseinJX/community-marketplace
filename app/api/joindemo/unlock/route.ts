@@ -8,7 +8,8 @@ export const runtime = 'nodejs'
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}))
   const password = String(body.password ?? '')
-  if (password !== JOINDEMO_PASSWORD) {
+  // Fail-closed: no configured password (prod without JOINDEMO_PASSWORD) → locked.
+  if (!JOINDEMO_PASSWORD || password !== JOINDEMO_PASSWORD) {
     return NextResponse.json({ ok: false }, { status: 401 })
   }
   const res = NextResponse.json({ ok: true })

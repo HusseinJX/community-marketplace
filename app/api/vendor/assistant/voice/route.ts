@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { resolveActor } from '@/lib/admin'
+import { rateLimit } from '@/lib/rate-limit'
 import { getVendorSettings, getBusinessKnowledge } from '@/lib/vendor-connect'
 
 export const runtime = 'nodejs'
@@ -18,6 +19,9 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}))
   const actor = await resolveActor(body.memberId ?? null)
   if (!actor) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  // Realtime sessions are expensive — cap tightly per member.
+  const limited = rateLimit({ req, name: 'assistant-voice', id: actor.memberId, limit: 10, windowMs: 60_000 })
+  if (limited) return limited
   if (!process.env.OPENAI_API_KEY) {
     return NextResponse.json({ error: 'voice_unavailable' }, { status: 503 })
   }

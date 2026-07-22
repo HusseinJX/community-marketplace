@@ -76,7 +76,8 @@ export function MemberJsonLd({ member }: { member: Member }) {
     <script
       type="application/ld+json"
       // schema is built from our own typed fields — safe to serialize.
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+      // Escape "<" so a stray "</script>" in a field can't break out of the tag.
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema).replace(/</g, "\\u003c") }}
     />
   );
 }
@@ -117,7 +118,8 @@ export function CollectionJsonLd({
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+      // Escape "<" so a stray "</script>" in a field can't break out of the tag.
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema).replace(/</g, "\\u003c") }}
     />
   );
 }

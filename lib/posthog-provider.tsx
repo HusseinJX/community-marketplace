@@ -25,6 +25,11 @@ function ensureInit() {
     capture_pageview: false,
     capture_pageleave: true,
     person_profiles: "always",
+    // Error tracking — autocapture uncaught exceptions + unhandled promise
+    // rejections (wires window.onerror/onunhandledrejection). Crashes land in
+    // PostHog's Error Tracking, tied to the same person/session — so no separate
+    // tool (Sentry) is needed yet.
+    capture_exceptions: true,
     session_recording: {
       maskAllInputs: true,
       maskTextSelector: "[data-private]",

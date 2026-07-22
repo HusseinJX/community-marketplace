@@ -8,8 +8,13 @@ import { cookies } from 'next/headers'
 
 export const JOINDEMO_COOKIE = 'joindemo_ok'
 
-// Simple shared password. Override with the JOINDEMO_PASSWORD env var.
-export const JOINDEMO_PASSWORD = process.env.JOINDEMO_PASSWORD || 'whatslocal'
+// Shared password gating the demo's billable APIs (Google Places, voice token).
+// REQUIRED in production — set JOINDEMO_PASSWORD. Fail-closed: with no env in
+// prod there is NO default (a guessable default would leave those APIs open);
+// locally it falls back to a dev-only default for convenience.
+export const JOINDEMO_PASSWORD: string | null =
+  process.env.JOINDEMO_PASSWORD ??
+  (process.env.NODE_ENV === 'production' ? null : 'whatslocal')
 
 // Server-side: is the current request inside an unlocked /joindemo session?
 export async function isJoinDemoActive(): Promise<boolean> {

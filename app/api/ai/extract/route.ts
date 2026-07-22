@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getOpenAI, VISION_MODEL } from '@/lib/openai'
 import { resolveActor } from '@/lib/admin'
 import { gateCapability } from '@/lib/gate'
+import { rateLimit } from '@/lib/rate-limit'
 
 export const runtime = 'nodejs'
 
@@ -60,6 +61,10 @@ export async function POST(req: Request) {
 
   const actor = await resolveActor(body.memberId)
   if (!actor) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+
+  // OpenAI vision — cap per member.
+  const limited = rateLimit({ req, name: 'ai-extract', id: actor.memberId, limit: 20, windowMs: 60_000 })
+  if (limited) return limited
 
   // Menu capture → commerce (Pro); flyer/event capture → organize events (Pro).
   const gated = await gateCapability(

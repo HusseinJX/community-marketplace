@@ -74,7 +74,7 @@ export async function sendInviteEmail(opts: {
     <p style="margin:0 0 8px;font-size:18px;font-weight:600">${escapeHtml(who)} wants to collaborate</p>
     <p style="margin:0 0 16px;color:#57534e">You've got a new collaboration invite on WhatsLocal. Open your network to accept or decline.</p>
     ${note}
-    <p style="margin:0 0 24px"><a href="${opts.ctaUrl}" style="display:inline-block;background:#1c1917;color:#fff;text-decoration:none;padding:11px 20px;border-radius:10px;font-weight:600">View invite</a></p>
+    <p style="margin:0 0 24px"><a href="${escapeHtml(opts.ctaUrl)}" style="display:inline-block;background:#1c1917;color:#fff;text-decoration:none;padding:11px 20px;border-radius:10px;font-weight:600">View invite</a></p>
     <p style="margin:0;color:#a8a29e;font-size:13px">WhatsLocal AI · local businesses, collaborating</p>
   </div>`
   const text = `${who} invited you to collaborate on WhatsLocal.${opts.message ? `\n\n"${opts.message}"` : ''}\n\nView it: ${opts.ctaUrl}`

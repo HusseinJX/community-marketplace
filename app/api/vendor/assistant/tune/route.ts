@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { resolveActor } from '@/lib/admin'
+import { rateLimit } from '@/lib/rate-limit'
 import { getOpenAI, CHAT_MODEL } from '@/lib/openai'
 import {
   getVendorSettings,
@@ -73,6 +74,8 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}))
   const actor = await resolveActor(body.memberId ?? null)
   if (!actor) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const limited = rateLimit({ req, name: 'assistant-tune', id: actor.memberId, limit: 20, windowMs: 60_000 })
+  if (limited) return limited
   if (!process.env.OPENAI_API_KEY) return NextResponse.json({ error: 'unavailable' }, { status: 503 })
 
   const memberId = actor.memberId
