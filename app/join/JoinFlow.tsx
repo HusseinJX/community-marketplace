@@ -29,7 +29,7 @@ function maskPhone(raw?: string | null): string | null {
 // /api/claim, /api/vendor/profile.
 
 type Kind = "vendor" | "organizer" | "artist";
-type Step = "type" | "who" | "code1" | "business" | "code2" | "working" | "interview" | "done";
+type Step = "type" | "who" | "business" | "code2" | "working" | "interview" | "done";
 
 const TYPES: { key: Kind; icon: typeof Store; label: string; sub: string }[] = [
   { key: "vendor", icon: Store, label: "A business or vendor", sub: "Shop, bar, restaurant, maker" },
@@ -71,10 +71,9 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
   const [kind, setKind] = useState<Kind>("vendor");
   const [name, setName] = useState("");
   const [role, setRole] = useState("Owner");
-  const [phone, setPhone] = useState("");
+  // `code` is the BUSINESS-verification OTP (step "code2") — the only place phone
+  // is used. Account sign-in/sign-up is Google/Apple only (email-based).
   const [code, setCode] = useState("");
-  const [phoneMode, setPhoneMode] = useState<"signup" | "signin">("signup");
-  const [showPhone, setShowPhone] = useState(false); // phone fallback revealed?
 
   // Once the person has started creating their account (OAuth or phone), signing
   // in flips useAuth().isSignedIn to true — but that must NOT bounce them to the
@@ -258,85 +257,6 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
       try { popup?.close(); } catch {}
       const msg = e instanceof Error ? e.message : "";
       setErr(/cancel|closed|abort/i.test(msg) ? "Sign-in was cancelled." : msg || "Couldn't sign in with that provider.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  // ── Step 2 (fallback): who you are → send phone code (Clerk) ────────────────
-  async function sendPhoneCode() {
-    if (!name.trim()) return setErr("Add your name.");
-    if (phone.replace(/\D/g, "").length < 10) return setErr("Add a valid mobile number.");
-    setBusy(true);
-    setMidFlow(true);
-    setErr("");
-    const e164 = phone.startsWith("+") ? phone : `+1${phone.replace(/\D/g, "")}`;
-    try {
-      // DEMO: no real Clerk sign-in — show the code screen, accept anything.
-      if (demo) {
-        setPhoneMode("signup");
-        setStep("code1");
-        return;
-      }
-      // If already signed in, skip the phone step entirely.
-      if (isSignedIn) {
-        setStep(isArtist ? "working" : "business");
-        if (isArtist) void finishArtist();
-        return;
-      }
-      try {
-        await clerk.client.signUp.create({ phoneNumber: e164 });
-        await clerk.client.signUp.preparePhoneNumberVerification({ strategy: "phone_code" });
-        setPhoneMode("signup");
-      } catch {
-        // Phone already has an account → sign in with a code instead.
-        const si = await clerk.client.signIn.create({ identifier: e164 });
-        const factor = si.supportedFirstFactors?.find((f) => f.strategy === "phone_code") as
-          | { strategy: "phone_code"; phoneNumberId: string }
-          | undefined;
-        if (!factor) throw new Error("Phone sign-in unavailable");
-        await clerk.client.signIn.prepareFirstFactor({ strategy: "phone_code", phoneNumberId: factor.phoneNumberId });
-        setPhoneMode("signin");
-      }
-      setStep("code1");
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "Couldn't text a code. Check the number.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  // ── Step 3: confirm phone code #1 → sign in ────────────────────────────────
-  async function confirmPhoneCode() {
-    if (code.trim().length < 4) return setErr("Enter the 6-digit code.");
-    setBusy(true);
-    setErr("");
-    try {
-      // DEMO: any code passes; no Clerk session is created.
-      if (demo) {
-        setCode("");
-        if (isArtist) { setStep("working"); void finishArtist(); }
-        else setStep("business");
-        return;
-      }
-      if (phoneMode === "signup") {
-        const res = await clerk.client.signUp.attemptPhoneNumberVerification({ code: code.trim() });
-        if (res.status !== "complete") throw new Error("That code didn't match.");
-        await clerk.setActive({ session: res.createdSessionId });
-      } else {
-        const res = await clerk.client.signIn.attemptFirstFactor({ strategy: "phone_code", code: code.trim() });
-        if (res.status !== "complete") throw new Error("That code didn't match.");
-        await clerk.setActive({ session: res.createdSessionId });
-      }
-      setCode("");
-      if (isArtist) {
-        setStep("working");
-        void finishArtist();
-      } else {
-        setStep("business");
-      }
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "That code didn't match.");
     } finally {
       setBusy(false);
     }
@@ -638,7 +558,7 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
       {step === "who" && (
         <div className="space-y-4">
           <h1 className="text-xl font-bold text-stone-900">Tell us who you are</h1>
-          <p className="text-sm text-stone-500">A few quick details — no password, no email.</p>
+          <p className="text-sm text-stone-500">A few quick details, then continue with Google or Apple.</p>
           <div className="space-y-1.5">
             <label className="block text-xs font-medium text-stone-500">Your name</label>
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder={isArtist ? "Your name or stage name" : "Your name"} className="h-12 w-full rounded-xl border border-stone-200 px-4 text-base" />
@@ -674,39 +594,9 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <AppleIcon />} Continue with Apple
             </button>
           </div>
-
-          {/* Fallback: phone code, for anyone without a Google/Apple account. */}
-          {!showPhone ? (
-            <button
-              onClick={() => { setShowPhone(true); setErr(""); }}
-              className="mx-auto block text-xs font-medium text-stone-400 underline hover:text-stone-600"
-            >
-              or use your phone number instead
-            </button>
-          ) : (
-            <div className="space-y-2 border-t border-stone-100 pt-4">
-              <div className="space-y-1.5">
-                <label className="block text-xs font-medium text-stone-500">Mobile number</label>
-                <input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" placeholder="🇺🇸 +1 (415) 555-0132" className="h-12 w-full rounded-xl border border-stone-200 px-4 text-base" />
-              </div>
-              <button onClick={sendPhoneCode} disabled={busy} className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-stone-900 px-4 py-3 text-sm font-semibold text-white disabled:opacity-60">
-                {busy && <Loader2 className="h-4 w-4 animate-spin" />} Text me a code
-              </button>
-              <p className="text-xs text-stone-400">Your number signs you in — it isn&apos;t how we verify the business.</p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {step === "code1" && (
-        <div className="space-y-3">
-          <h1 className="text-xl font-bold text-stone-900">Confirm your number</h1>
-          <p className="text-sm text-stone-500">A code to sign you in — we texted {phone}.</p>
-          <input value={code} onChange={(e) => setCode(e.target.value)} inputMode="numeric" placeholder="Enter the 6-digit code" className="w-full rounded-lg border border-stone-200 px-3 py-2.5 text-center text-lg tracking-widest" />
-          <button onClick={confirmPhoneCode} disabled={busy} className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-stone-900 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60">
-            {busy && <Loader2 className="h-4 w-4 animate-spin" />} Confirm &amp; continue
-          </button>
-          <p className="text-xs text-stone-400">This signs you in. {isArtist ? "" : "Next we verify the business itself."}</p>
+          <p className="text-xs text-stone-400">
+            {isArtist ? "You'll finish setting up your page next." : "Next you'll find your business and verify you run it."}
+          </p>
         </div>
       )}
 
