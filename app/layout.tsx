@@ -59,12 +59,12 @@ export default function RootLayout({
     <ClerkAuthProvider>
       <html lang="en" className="h-full antialiased" suppressHydrationWarning>
         <head>
-          {/* Applies the theme BEFORE first paint, so a dark-mode visitor never
-              gets a white flash. Must be inline + synchronous; ThemeToggle only
-              reads the class this sets. */}
+          {/* Defaults to light; only an explicit `dark` choice applies the class,
+              BEFORE first paint so there's no flash. Must be inline + synchronous;
+              ThemeToggle only reads the class this sets. */}
           <script
             dangerouslySetInnerHTML={{
-              __html: `(function(){try{var s=localStorage.getItem('wl_theme');var d=s?s==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches;if(d)document.documentElement.classList.add('dark')}catch(e){}})()`,
+              __html: `(function(){try{if(localStorage.getItem('wl_theme')==='dark')document.documentElement.classList.add('dark')}catch(e){}})()`,
             }}
           />
         </head>

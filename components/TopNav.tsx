@@ -45,9 +45,10 @@ export function TopNav() {
         </Link>
       </div>
 
-      {/* Right — theme toggle (in the slot the cart vacated) */}
+      {/* Right — theme toggle (in the slot the cart vacated).
+          Hidden in production for now; light is the only public theme. */}
       <div className="flex justify-end">
-        <ThemeToggle />
+        {process.env.NODE_ENV !== "production" && <ThemeToggle />}
       </div>
     </div>
   );
