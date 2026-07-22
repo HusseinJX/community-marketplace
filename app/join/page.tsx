@@ -3,7 +3,7 @@ import { JoinFlow } from "./JoinFlow";
 
 export const metadata: Metadata = {
   title: "Join WhatsLocal",
-  description: "Set up your business, org, or artist page on WhatsLocal — verify with your phone in the browser.",
+  description: "Set up your business, org, or artist page on WhatsLocal — sign in with Google or Apple, all in the browser.",
 };
 
 // Self-serve "fresh join" — the rep-flow self-onboarding sequence, all in the browser.

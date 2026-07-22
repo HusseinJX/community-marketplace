@@ -18,6 +18,25 @@ function maskPhone(raw?: string | null): string | null {
   return `(•••) •••-${d.slice(-4)}`;
 }
 
+// Brand marks for the OAuth buttons (lucide has no Google/Apple logos).
+function GoogleIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
+      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1Z" />
+      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23Z" />
+      <path fill="#FBBC05" d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84Z" />
+      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1a11 11 0 0 0-9.82 6.06l3.66 2.84C6.71 7.3 9.14 5.38 12 5.38Z" />
+    </svg>
+  );
+}
+function AppleIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M17.05 12.54c-.03-2.6 2.12-3.85 2.22-3.91-1.21-1.77-3.09-2.01-3.76-2.04-1.6-.16-3.12.94-3.93.94-.81 0-2.06-.92-3.39-.9-1.74.03-3.35 1.01-4.25 2.57-1.81 3.14-.46 7.79 1.3 10.34.86 1.25 1.88 2.65 3.22 2.6 1.29-.05 1.78-.83 3.34-.83 1.56 0 2 .83 3.37.81 1.39-.03 2.27-1.27 3.12-2.53.98-1.45 1.39-2.86 1.41-2.93-.03-.01-2.71-1.04-2.74-4.12M14.53 4.9c.71-.86 1.19-2.06 1.06-3.25-1.02.04-2.26.68-2.99 1.54-.66.76-1.23 1.98-1.08 3.15 1.14.09 2.3-.58 3.01-1.44" />
+    </svg>
+  );
+}
+
 // Self-serve "fresh join" — matches the rep-flow mockup:
 //   pick type → who you are + phone (code #1, Clerk) → confirm →
 //   (entities) find business on Google → verify ownership (code #2, Twilio) →
@@ -70,6 +89,13 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [phoneMode, setPhoneMode] = useState<"signup" | "signin">("signup");
+  const [showPhone, setShowPhone] = useState(false); // phone fallback revealed?
+
+  // Once the person has started creating their account (OAuth or phone), signing
+  // in flips useAuth().isSignedIn to true — but that must NOT bounce them to the
+  // "log out first" screen mid-flow. That guard is only for people who LAND here
+  // already signed in, so it's suppressed once the flow is underway.
+  const [midFlow, setMidFlow] = useState(false);
 
   // business (entities)
   const [pq, setPq] = useState("");
@@ -120,11 +146,72 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
     setPq("");
   }
 
-  // ── Step 2: who you are → send phone code (Clerk) ──────────────────────────
+  // Advance past sign-in to the next real step: entities verify their business,
+  // artists (self-owned) go straight to setup.
+  function afterSignedIn() {
+    if (isArtist) {
+      setStep("working");
+      void finishArtist();
+    } else {
+      setStep("business");
+    }
+  }
+
+  // ── Step 2 (primary): sign in with Google / Apple (Clerk OAuth popup) ───────
+  // A popup keeps this page — and all its in-memory state (kind, name, the
+  // business you picked) — alive; a full redirect would drop it and dump the
+  // person back at step 1. /sso-callback completes the flow inside the popup and
+  // sets the session on the shared client, then the promise below resolves.
+  async function oauthSignUp(strategy: "oauth_google" | "oauth_apple") {
+    if (!name.trim()) return setErr(isArtist ? "Add your name or stage name." : "Add your name.");
+    setErr("");
+    // DEMO: no real OAuth — behave like a completed sign-in.
+    if (demo) {
+      setMidFlow(true);
+      afterSignedIn();
+      return;
+    }
+    // Already signed in (e.g. logged in via Google a moment ago)? Skip straight on.
+    if (isSignedIn) {
+      setMidFlow(true);
+      afterSignedIn();
+      return;
+    }
+    setBusy(true);
+    setMidFlow(true);
+    // The popup must be opened synchronously inside the click handler or the
+    // browser blocks it; Clerk then drives it to the provider and back.
+    const popup = window.open("", "_blank", "width=520,height=640");
+    try {
+      await clerk.client.signUp.authenticateWithPopup({
+        strategy,
+        redirectUrl: `${window.location.origin}/sso-callback`,
+        redirectUrlComplete: `${window.location.origin}/join`,
+        continueSignUp: true,
+        popup,
+      });
+      // Popup resolved — the shared client now holds the session. Guard against a
+      // Clerk instance still requiring extra fields (would leave us un-signed-in).
+      if (!clerk.session && clerk.client.signUp.status !== "complete") {
+        throw new Error("Couldn't finish sign-in. Make sure the popup wasn't blocked.");
+      }
+      afterSignedIn();
+    } catch (e) {
+      setMidFlow(false);
+      try { popup?.close(); } catch {}
+      const msg = e instanceof Error ? e.message : "";
+      setErr(/cancel|closed|abort/i.test(msg) ? "Sign-in was cancelled." : msg || "Couldn't sign in with that provider.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // ── Step 2 (fallback): who you are → send phone code (Clerk) ────────────────
   async function sendPhoneCode() {
     if (!name.trim()) return setErr("Add your name.");
     if (phone.replace(/\D/g, "").length < 10) return setErr("Add a valid mobile number.");
     setBusy(true);
+    setMidFlow(true);
     setErr("");
     const e164 = phone.startsWith("+") ? phone : `+1${phone.replace(/\D/g, "")}`;
     try {
@@ -408,7 +495,7 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
   // Already signed in (as a shopper or a vendor)? Onboarding needs a clean,
   // logged-out start — log out first, then this same page shows the flow.
   // (Skipped in demo, which runs without any Clerk session.)
-  if (isSignedIn && !demo) {
+  if (isSignedIn && !demo && !midFlow) {
     return (
       <div className="mx-auto max-w-md px-4 py-16 text-center">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-stone-100">
@@ -508,14 +595,44 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
               <input value={igHandle} onChange={(e) => setIgHandle(e.target.value)} placeholder="Instagram handle (optional) — helps us look you up" className="h-12 w-full rounded-xl border border-stone-200 px-4 text-base" />
             </>
           )}
-          <div className="space-y-1.5">
-            <label className="block text-xs font-medium text-stone-500">Mobile number</label>
-            <input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" placeholder="🇺🇸 +1 (415) 555-0132" className="h-12 w-full rounded-xl border border-stone-200 px-4 text-base" />
+          {/* Primary: sign in with Google / Apple. */}
+          <div className="space-y-2 pt-1">
+            <button
+              onClick={() => oauthSignUp("oauth_google")}
+              disabled={busy}
+              className="inline-flex w-full items-center justify-center gap-2.5 rounded-full border border-stone-300 bg-white px-4 py-3 text-sm font-semibold text-stone-800 hover:bg-stone-50 disabled:opacity-60"
+            >
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleIcon />} Continue with Google
+            </button>
+            <button
+              onClick={() => oauthSignUp("oauth_apple")}
+              disabled={busy}
+              className="inline-flex w-full items-center justify-center gap-2.5 rounded-full bg-black px-4 py-3 text-sm font-semibold text-white hover:bg-stone-800 disabled:opacity-60"
+            >
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <AppleIcon />} Continue with Apple
+            </button>
           </div>
-          <button onClick={sendPhoneCode} disabled={busy} className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-stone-900 px-4 py-3 text-sm font-semibold text-white disabled:opacity-60">
-            {busy && <Loader2 className="h-4 w-4 animate-spin" />} Text me a code
-          </button>
-          <p className="text-xs text-stone-400">Your number signs you in — it isn&apos;t how we verify the business.</p>
+
+          {/* Fallback: phone code, for anyone without a Google/Apple account. */}
+          {!showPhone ? (
+            <button
+              onClick={() => { setShowPhone(true); setErr(""); }}
+              className="mx-auto block text-xs font-medium text-stone-400 underline hover:text-stone-600"
+            >
+              or use your phone number instead
+            </button>
+          ) : (
+            <div className="space-y-2 border-t border-stone-100 pt-4">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-medium text-stone-500">Mobile number</label>
+                <input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" placeholder="🇺🇸 +1 (415) 555-0132" className="h-12 w-full rounded-xl border border-stone-200 px-4 text-base" />
+              </div>
+              <button onClick={sendPhoneCode} disabled={busy} className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-stone-900 px-4 py-3 text-sm font-semibold text-white disabled:opacity-60">
+                {busy && <Loader2 className="h-4 w-4 animate-spin" />} Text me a code
+              </button>
+              <p className="text-xs text-stone-400">Your number signs you in — it isn&apos;t how we verify the business.</p>
+            </div>
+          )}
         </div>
       )}
 
