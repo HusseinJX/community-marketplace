@@ -18,10 +18,27 @@ import type { useClerk } from "@clerk/nextjs";
 type Clerkish = ReturnType<typeof useClerk>;
 type SessionResult = { status?: string | null; createdSessionId?: string | null } | null | undefined;
 
+// Resolve a native plugin's bridge proxy. Bare Swift-only plugins (no JS package)
+// are NOT auto-populated on `Capacitor.Plugins` — the reliable way to reach them
+// from the hosted web is `Capacitor.registerPlugin(name)`, which returns a proxy
+// that routes calls to the native code. Fall back to the Plugins map just in case.
 function plugin(name: string): Record<string, (...a: unknown[]) => Promise<unknown>> | undefined {
   if (typeof window === "undefined") return undefined;
-  const c = (window as unknown as { Capacitor?: { Plugins?: Record<string, unknown> } }).Capacitor;
-  return c?.Plugins?.[name] as never;
+  const c = (window as unknown as {
+    Capacitor?: {
+      registerPlugin?: (n: string) => unknown;
+      Plugins?: Record<string, unknown>;
+    };
+  }).Capacitor;
+  if (!c) return undefined;
+  if (typeof c.registerPlugin === "function") {
+    try {
+      return c.registerPlugin(name) as never;
+    } catch {
+      /* fall through */
+    }
+  }
+  return c.Plugins?.[name] as never;
 }
 
 async function activate(clerk: Clerkish, res: SessionResult): Promise<void> {
