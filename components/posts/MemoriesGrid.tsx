@@ -6,6 +6,7 @@ import { X, Images, Heart } from "lucide-react";
 import { useAuth, SignInButton } from "@clerk/nextjs";
 import { useMemories } from "@/lib/data-hooks";
 import { streamEmbed, youtubeThumb } from "@/lib/embed";
+import { PostModerationMenu } from "@/components/posts/PostModerationMenu";
 import type { Post } from "@/lib/posts";
 
 type Tile = {
@@ -118,7 +119,17 @@ export function MemoriesGrid({
       </div>
 
       {open && (
-        <Lightbox post={open} onClose={() => setOpen(null)} onReact={() => react(open.id)} canReact={!!isSignedIn} />
+        <Lightbox
+          post={open}
+          onClose={() => setOpen(null)}
+          onReact={() => react(open.id)}
+          canReact={!!isSignedIn}
+          onModerated={() => {
+            // Reported/blocked → drop it from view immediately.
+            setPosts((ps) => ps.filter((p) => p.author_id !== open.author_id && p.id !== open.id));
+            setOpen(null);
+          }}
+        />
       )}
     </section>
   );
@@ -129,11 +140,13 @@ function Lightbox({
   onClose,
   onReact,
   canReact,
+  onModerated,
 }: {
   post: Post;
   onClose: () => void;
   onReact: () => void;
   canReact: boolean;
+  onModerated: () => void;
 }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -169,9 +182,12 @@ function Lightbox({
             </p>
             {when && <p className="text-xs text-stone-400">{when}</p>}
           </div>
-          <button onClick={onClose} className="rounded-full p-1.5 text-stone-400 hover:bg-stone-100">
-            <X className="h-5 w-5" />
-          </button>
+          <div className="flex shrink-0 items-center gap-1">
+            <PostModerationMenu post={post} onDone={onModerated} />
+            <button onClick={onClose} aria-label="Close" className="rounded-full p-1.5 text-stone-400 hover:bg-stone-100">
+              <X className="h-5 w-5" />
+            </button>
+          </div>
         </div>
 
         <div className="space-y-2 p-2">

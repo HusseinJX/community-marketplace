@@ -1,4 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
+import { getBlockedAuthorIds, getBannedAuthorIds } from '@/lib/moderation'
 
 // "Share" posts data layer. Service-role preferred (falls back to anon, which
 // the open grant/policy permits).
@@ -77,37 +78,49 @@ export async function createPost(p: NewPost): Promise<Post> {
   return data as Post
 }
 
-export async function getPosts(limit = 50): Promise<Post[]> {
+// Drop content the viewer should never see (App Store 1.2): globally-removed
+// posts are filtered in SQL; banned authors + the viewer's blocked users are
+// filtered here (small sets). Pass the viewer's clerk_user_id to apply blocks.
+async function withoutModerated(posts: Post[], viewerId?: string | null): Promise<Post[]> {
+  const [blocked, banned] = await Promise.all([getBlockedAuthorIds(viewerId), getBannedAuthorIds()])
+  if (blocked.size === 0 && banned.size === 0) return posts
+  return posts.filter((p) => !blocked.has(p.author_id) && !banned.has(p.author_id))
+}
+
+export async function getPosts(limit = 50, viewerId?: string | null): Promise<Post[]> {
   const { data, error } = await db()
     .from('posts')
     .select('*')
+    .eq('removed', false)
     .order('created_at', { ascending: false })
     .limit(limit)
   if (error || !data) return []
-  return data as Post[]
+  return withoutModerated(data as Post[], viewerId)
 }
 
 // "Memories" — every post the community tagged to one business.
-export async function getPostsByMemberId(memberId: string, limit = 100): Promise<Post[]> {
+export async function getPostsByMemberId(memberId: string, limit = 100, viewerId?: string | null): Promise<Post[]> {
   const { data, error } = await db()
     .from('posts')
     .select('*')
     .eq('tagged_member_id', memberId)
+    .eq('removed', false)
     .order('created_at', { ascending: false })
     .limit(limit)
   if (error || !data) return []
-  return data as Post[]
+  return withoutModerated(data as Post[], viewerId)
 }
 
 // "Memories" — every post the community tagged to one event (or live broadcast;
 // the share composer stores a scanned broadcast id in tagged_event_id too).
-export async function getPostsByEventId(eventId: string, limit = 100): Promise<Post[]> {
+export async function getPostsByEventId(eventId: string, limit = 100, viewerId?: string | null): Promise<Post[]> {
   const { data, error } = await db()
     .from('posts')
     .select('*')
     .eq('tagged_event_id', eventId)
+    .eq('removed', false)
     .order('created_at', { ascending: false })
     .limit(limit)
   if (error || !data) return []
-  return data as Post[]
+  return withoutModerated(data as Post[], viewerId)
 }

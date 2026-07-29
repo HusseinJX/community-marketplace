@@ -90,14 +90,27 @@ export default function TermsPage() {
             </p>
           </Block>
 
-          <Block title="4. Acceptable Use">
-            <p>You agree not to use the service to:</p>
+          <Block title="4. Acceptable Use & Zero Tolerance for Objectionable Content">
+            <p>
+              {SITE_NAME} has <strong>zero tolerance for objectionable content or abusive behavior</strong>. You
+              agree not to use the service to:
+            </p>
             <ul className="mt-3 list-disc space-y-2 pl-6">
-              <li>Harass, abuse, or harm other members.</li>
-              <li>Post false, misleading, unlawful, or infringing content.</li>
+              <li>Harass, bully, threaten, impersonate, or abuse other members.</li>
+              <li>
+                Post objectionable content — including content that is unlawful, hateful, harassing, sexually
+                explicit, violent, defamatory, misleading, or infringing.
+              </li>
               <li>Attempt to disrupt or gain unauthorized access to the service.</li>
               <li>Use the service for spam or unsolicited marketing.</li>
             </ul>
+            <p className="mt-3">
+              You can <strong>report</strong> any post you find objectionable, and <strong>block</strong> any user,
+              from the post&rsquo;s options menu — blocking immediately removes that user&rsquo;s content from your
+              view. We review reports and act on objectionable content and abusive users <strong>within 24
+              hours</strong>, removing the content and, where warranted, terminating the responsible account. By
+              using {SITE_NAME} you agree to these terms and to this content policy.
+            </p>
           </Block>
 
           <Block title="5. Member Content & Introductions">

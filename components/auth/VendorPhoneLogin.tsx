@@ -127,6 +127,20 @@ export function VendorPhoneLogin({
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <AppleIcon />} Continue with Apple
           </button>
         </div>
+
+        {/* EULA agreement presented before sign-in (App Store 1.2). The Terms
+            include the zero-tolerance clause for objectionable content/abuse. */}
+        <p className="mt-4 text-center text-[11px] leading-snug text-stone-400">
+          By continuing you agree to our{" "}
+          <a href="/terms" target="_blank" rel="noreferrer" className="underline hover:text-stone-600">
+            Terms of Use
+          </a>{" "}
+          — which prohibit objectionable content and abusive behavior — and our{" "}
+          <a href="/privacy" target="_blank" rel="noreferrer" className="underline hover:text-stone-600">
+            Privacy Policy
+          </a>
+          .
+        </p>
       </div>
     </div>
   );

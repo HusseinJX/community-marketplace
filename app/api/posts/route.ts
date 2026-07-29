@@ -12,12 +12,12 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const member = searchParams.get('member')
     const event = searchParams.get('event')
-    const posts = member
-      ? await getPostsByMemberId(member)
-      : event
-        ? await getPostsByEventId(event)
-        : await getPosts()
     const { userId } = await auth()
+    const posts = member
+      ? await getPostsByMemberId(member, 100, userId)
+      : event
+        ? await getPostsByEventId(event, 100, userId)
+        : await getPosts(50, userId)
     const reactions = await getReactionsForPosts(posts.map((p) => p.id), userId)
     const enriched = posts.map((p) => ({
       ...p,

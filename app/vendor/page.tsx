@@ -12,6 +12,7 @@ import { SellChecklist, type SellStep } from "@/components/vendor/SellChecklist"
 import { uberConfigured } from "@/lib/uber-direct";
 import { TitleQrButton } from "@/components/vendor/TitleQrButton";
 import { VendorSignOut } from "@/components/vendor/VendorSignOut";
+import { DeleteAccountButton } from "@/components/account/DeleteAccountButton";
 
 export default async function VendorDashboard({
   searchParams,
@@ -137,6 +138,11 @@ export default async function VendorDashboard({
           )}
         </div>
         {user?.email && <p className="mt-1 text-sm text-stone-500">{user.email}</p>}
+        {!demo && (
+          <div className="mt-2">
+            <DeleteAccountButton />
+          </div>
+        )}
       </div>
 
       {/* Profile-link banner — shown until a member profile is claimed (not in demo) */}
