@@ -127,7 +127,7 @@ export default async function VendorDashboard({
       {/* Welcome */}
       <div>
         <div className="flex items-center gap-2.5">
-          <h1 className="text-xl font-semibold text-stone-900">
+          <h1 className="min-w-0 truncate text-xl font-semibold text-stone-900">
             Welcome, {businessName}
           </h1>
           {profileUrl && <TitleQrButton url={profileUrl} businessName={businessName} />}

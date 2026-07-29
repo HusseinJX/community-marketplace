@@ -15,10 +15,15 @@ export function Opportunities({
   memberId,
   memberName,
   isAdmin,
+  showEmpty = false,
 }: {
   memberId: string
   memberName: string
   isAdmin: boolean
+  // When this is the sole content of a card (the dashboard "Join" tab), render a
+  // friendly empty state instead of collapsing to a blank card. Elsewhere it
+  // still renders nothing when empty.
+  showEmpty?: boolean
 }) {
   const [items, setItems] = useState<Opportunity[] | null>(null)
   const [asked, setAsked] = useState<Set<string>>(new Set())
@@ -58,8 +63,26 @@ export function Opportunities({
     }
   }
 
-  // Nothing to show → render nothing rather than an empty shell.
-  if (!items || items.length === 0) return null
+  // Still loading → render nothing (avoid flashing an empty state).
+  if (!items) return null
+  // No matches. Collapse to nothing, unless we're the card's sole content.
+  if (items.length === 0) {
+    if (!showEmpty) return null
+    return (
+      <div className="py-6 text-center">
+        <p className="text-[15px] font-semibold text-stone-900">No open events to join right now</p>
+        <p className="mx-auto mt-1 max-w-xs text-[13px] leading-snug text-stone-500">
+          When a local host puts on an event that fits your business, it&apos;ll show up here to request to join.
+        </p>
+        <Link
+          href="/vendor/organize"
+          className="mt-3 inline-flex rounded-full bg-stone-900 px-3.5 py-2 text-[13px] font-semibold text-white transition hover:bg-stone-800"
+        >
+          Host your own event
+        </Link>
+      </div>
+    )
+  }
 
   return (
     <section className="space-y-3">

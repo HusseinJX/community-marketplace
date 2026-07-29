@@ -141,7 +141,7 @@ export function VendorHome({
           ) : (
             // The retention lever — events others are hosting that fit you. Not
             // tier-gated: joining someone's lineup is supply, and we don't tax it.
-            <Opportunities memberId={memberId} memberName={memberName} isAdmin={isAdmin} />
+            <Opportunities memberId={memberId} memberName={memberName} isAdmin={isAdmin} showEmpty />
           )}
           </div>
         </div>
