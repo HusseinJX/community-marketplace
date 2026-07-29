@@ -21,6 +21,9 @@ RUN mkdir -p /tmp/sharpbuild \
 COPY .next/standalone ./
 COPY .next/static ./.next/static
 COPY public ./public
+# NOTE: Apple root CAs for StoreKit IAP are EMBEDDED in lib/apple-root-cas.ts
+# (compiled into the bundle), so no cert files are copied here — the gitignored
+# certs/apple/ dir is only a source-of-truth reference for regenerating that module.
 
 # Replace bundled sharp with the isolated Linux build.
 RUN rm -rf ./node_modules/sharp ./node_modules/@img \

@@ -1,6 +1,4 @@
 import 'server-only'
-import { readdirSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { createClient } from '@supabase/supabase-js'
 import {
   SignedDataVerifier,
@@ -11,6 +9,7 @@ import {
 } from '@apple/app-store-server-library'
 import type { Plan } from '@/lib/entitlements'
 import { planFromProductId } from '@/lib/iap-products'
+import { APPLE_ROOT_CAS } from '@/lib/apple-root-cas'
 
 // Apple In-App Purchase server verification. StoreKit purchases in the iOS app
 // arrive as Apple-signed JWS blobs (a signed transaction from the client, and
@@ -35,20 +34,14 @@ const APP_APPLE_ID = process.env.APPLE_APP_APPLE_ID
   ? Number(process.env.APPLE_APP_APPLE_ID)
   : undefined
 
-// Apple's root CAs (public certs) — download the 4 from
-// https://www.apple.com/certificateauthority/ into this dir (committed; they're
-// public). AppleRootCA-G3 is the one that signs IAP data. Fail closed if absent.
-const ROOT_DIR = process.env.APPLE_ROOT_CAS_DIR || join(process.cwd(), 'certs/apple')
-
+// Apple's root CAs (public certs) are EMBEDDED as PEM strings in
+// lib/apple-root-cas.ts — read from code, not disk, so the deploy pipeline
+// (tar / Docker COPY / Next output tracing) can never corrupt or drop them.
+// AppleRootCA-G3 is the one that signs IAP data.
 let cachedRoots: Buffer[] | null = null
 function rootCerts(): Buffer[] {
   if (cachedRoots) return cachedRoots
-  try {
-    const files = readdirSync(ROOT_DIR).filter((f) => /\.(cer|der|pem|crt)$/i.test(f))
-    cachedRoots = files.map((f) => readFileSync(join(ROOT_DIR, f)))
-  } catch {
-    cachedRoots = []
-  }
+  cachedRoots = APPLE_ROOT_CAS.map((pem) => Buffer.from(pem))
   return cachedRoots
 }
 
