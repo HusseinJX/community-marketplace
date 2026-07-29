@@ -14,9 +14,9 @@ export interface LiveEvent {
 // known event, append here — `event_label` is denormalized onto each broadcast
 // so renaming a label later won't orphan old rows.
 //
-// NB: label is "World Cup" (not "FIFA World Cup") — the "FIFA" wordmark is the
-// trademark/affiliation signal Apple flags (5.2.1). "World Cup" is a plain event
-// descriptor and stays generic across tournaments (men's, women's, etc.).
+// NB: this slug's label is the generic "Soccer Tournament" — we deliberately do
+// not use "World Cup"/"FIFA" text anywhere (App Store 5.2.1, trademarked). The
+// slug is internal; the label is what users see.
 export const LIVE_EVENTS: LiveEvent[] = [
   { slug: "nba", label: "NBA", emoji: "🏀", category: "Sports" },
   { slug: "nfl", label: "NFL", emoji: "🏈", category: "Sports" },
@@ -24,7 +24,7 @@ export const LIVE_EVENTS: LiveEvent[] = [
   { slug: "nhl", label: "NHL", emoji: "🏒", category: "Sports" },
   { slug: "college-football", label: "College Football", emoji: "🏈", category: "Sports" },
   { slug: "march-madness", label: "March Madness", emoji: "🏀", category: "Sports" },
-  { slug: "world-cup", label: "World Cup", emoji: "🌍", category: "Soccer" },
+  { slug: "world-cup", label: "Soccer Tournament", emoji: "🌍", category: "Soccer" },
   { slug: "champions-league", label: "Champions League", emoji: "⚽", category: "Soccer" },
   { slug: "premier-league", label: "Premier League", emoji: "⚽", category: "Soccer" },
   { slug: "la-liga", label: "La Liga", emoji: "⚽", category: "Soccer" },

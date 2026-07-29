@@ -47,7 +47,7 @@ export function demoEvents(memberId: string): VendorEvent[] {
     {
       ...baseEvent,
       id: DEMO_EVENT_WATCH,
-      title: 'World Cup Watch Party',
+      title: 'Big Match Watch Party',
       event_date: 'Sun, Jul 12',
       event_time: '12:00 PM',
       location: 'Courtside Sports Bar',

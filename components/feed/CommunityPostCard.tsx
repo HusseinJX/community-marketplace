@@ -7,6 +7,7 @@ import { useAuth, SignInButton } from "@clerk/nextjs";
 import type { SharePostFeedItem } from "@/lib/demo-feed";
 import { authorColor, initials } from "@/lib/demo-feed";
 import { ImageCarousel } from "@/components/ImageCarousel";
+import { PostModerationMenu } from "@/components/posts/PostModerationMenu";
 
 // A real community share post in the feed. Same posts also appear on the tagged
 // business/event "memories" wall — this is the timeline surface for them.
@@ -14,7 +15,11 @@ export function CommunityPostCard({ item }: { item: SharePostFeedItem }) {
   const { isSignedIn } = useAuth();
   const [reactions, setReactions] = useState(item.reactions ?? 0);
   const [reacted, setReacted] = useState(!!item.reacted);
+  const [hidden, setHidden] = useState(false);
   const color = authorColor(item.author.type);
+
+  // Reported/blocked → drop this card from the feed immediately.
+  if (hidden) return null;
 
   async function react() {
     // Optimistic toggle, reconciled with the server count.
@@ -46,10 +51,16 @@ export function CommunityPostCard({ item }: { item: SharePostFeedItem }) {
         >
           {initials(item.author.name)}
         </span>
-        <div className="min-w-0 leading-tight">
+        <div className="min-w-0 flex-1 leading-tight">
           <p className="truncate text-sm font-semibold text-stone-900">{item.author.name}</p>
           <p className="text-[11px] text-stone-400">{item.postedAt}</p>
         </div>
+        <PostModerationMenu
+          postId={item.postId}
+          authorId={item.authorId ?? null}
+          authorName={item.author.name}
+          onDone={() => setHidden(true)}
+        />
       </div>
 
       {item.body && (

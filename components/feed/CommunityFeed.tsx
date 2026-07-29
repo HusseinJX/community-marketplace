@@ -82,6 +82,7 @@ export function CommunityFeed({
         : rawPosts.map((p, i) => ({
             id: `post-${p.id}`,
             postId: p.id,
+            authorId: p.author_id ?? null,
             kind: "share",
             author: { id: p.author_name ?? "someone", name: p.author_name ?? "Someone", type: "shopper" },
             postedAt: relativeTime(p.created_at),

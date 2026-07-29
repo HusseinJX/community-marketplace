@@ -34,6 +34,8 @@ export type VendorPostFeedItem = FeedItemBase & {
 export type SharePostFeedItem = FeedItemBase & {
   kind: "share";
   postId: string;
+  // Real Clerk author id (for moderation block); absent on demo posts.
+  authorId?: string | null;
   body: string;
   images?: string[];
   videos?: string[];

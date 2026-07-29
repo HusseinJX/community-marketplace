@@ -21,6 +21,7 @@ import { fetchLiveBroadcasts } from "@/lib/demo-live-fixtures";
 // Shape returned by GET /api/posts — kept loose; only rendered fields are read.
 export interface ApiPost {
   id: string;
+  author_id?: string | null;
   author_name: string | null;
   body: string | null;
   image_urls?: string[];

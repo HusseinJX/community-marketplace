@@ -43,13 +43,13 @@ interface FixtureSpec {
 // loosely by start time. Keep this curated; mirrors how LIVE_EVENTS is hand-kept.
 const SLATE: FixtureSpec[] = [
   // Happening right now
-  { event_slug: "world-cup", matchup: "Mexico vs Brazil", teams: ["Mexico", "Brazil"], startsInMin: -35, lengthMin: 120 },
+  { event_slug: "liga-mx", matchup: "América vs Chivas", teams: ["América", "Chivas"], startsInMin: -35, lengthMin: 120 },
   { event_slug: "nba", matchup: "Lakers vs Celtics", teams: ["Lakers", "Celtics"], startsInMin: -50, lengthMin: 160 },
   { event_slug: "mlb", matchup: "Dodgers vs Giants", teams: ["Dodgers", "Giants"], startsInMin: -20, lengthMin: 180 },
   // Starting soon
-  { event_slug: "world-cup", matchup: "USA vs Argentina", teams: ["USA", "Argentina"], startsInMin: 75, lengthMin: 120 },
+  { event_slug: "la-liga", matchup: "Real Madrid vs Barcelona", teams: ["Real Madrid", "Barcelona"], startsInMin: 75, lengthMin: 120 },
   { event_slug: "ufc", matchup: "UFC 329: McGregor vs. Holloway 2", teams: ["McGregor", "Holloway"], startsInMin: 150, lengthMin: 300 },
-  { event_slug: "world-cup", matchup: "England vs France", teams: ["England", "France"], startsInMin: 210, lengthMin: 120 },
+  { event_slug: "champions-league", matchup: "Bayern vs PSG", teams: ["Bayern", "PSG"], startsInMin: 210, lengthMin: 120 },
   { event_slug: "mlb", matchup: "Yankees vs Red Sox", teams: ["Yankees", "Red Sox"], startsInMin: 320, lengthMin: 180 },
   // Later today / this week
   { event_slug: "f1", matchup: "British Grand Prix", startsInMin: 1080, lengthMin: 180 },

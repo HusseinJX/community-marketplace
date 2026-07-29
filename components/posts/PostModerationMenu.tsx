@@ -3,11 +3,11 @@
 import { useState } from "react";
 import { MoreVertical, Flag, Ban, Loader2, Check } from "lucide-react";
 import { useAuth } from "@clerk/nextjs";
-import type { Post } from "@/lib/posts";
 
 // Report / Block controls on a post (App Store 1.2). Reporting flags the content
 // for review; blocking hides everything from that author immediately. Both call
-// `onDone` so the caller can drop the post from view right away.
+// `onDone` so the caller can drop the post from view right away. Takes plain
+// fields so it works from both the memories lightbox and the home-feed card.
 const REASONS = [
   "Spam or scam",
   "Harassment or hate",
@@ -16,7 +16,17 @@ const REASONS = [
   "Something else",
 ];
 
-export function PostModerationMenu({ post, onDone }: { post: Post; onDone?: () => void }) {
+export function PostModerationMenu({
+  postId,
+  authorId,
+  authorName,
+  onDone,
+}: {
+  postId: string;
+  authorId: string | null;
+  authorName: string | null;
+  onDone?: () => void;
+}) {
   const { isSignedIn } = useAuth();
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"menu" | "report">("menu");
@@ -26,10 +36,10 @@ export function PostModerationMenu({ post, onDone }: { post: Post; onDone?: () =
   async function report(reason: string) {
     setBusy(true);
     try {
-      const res = await fetch(`/api/posts/${post.id}/report`, {
+      const res = await fetch(`/api/posts/${postId}/report`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason, authorId: post.author_id }),
+        body: JSON.stringify({ reason, authorId }),
       });
       if (res.status === 401) {
         setDone("Sign in to report.");
@@ -50,12 +60,12 @@ export function PostModerationMenu({ post, onDone }: { post: Post; onDone?: () =
       const res = await fetch("/api/moderation/block", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ authorId: post.author_id }),
+        body: JSON.stringify({ authorId }),
       });
       if (res.status === 401) {
         setDone("Sign in to block.");
       } else {
-        setDone(`Blocked. You won’t see ${post.author_name || "this user"} again.`);
+        setDone(`Blocked. You won’t see ${authorName || "this user"} again.`);
         setTimeout(() => onDone?.(), 900);
       }
     } catch {
@@ -107,7 +117,7 @@ export function PostModerationMenu({ post, onDone }: { post: Post; onDone?: () =
                   onClick={block}
                   className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[13px] text-rose-600 hover:bg-rose-50"
                 >
-                  <Ban className="h-4 w-4" /> Block {post.author_name || "this user"}
+                  <Ban className="h-4 w-4" /> Block {authorName || "this user"}
                 </button>
               </>
             ) : (

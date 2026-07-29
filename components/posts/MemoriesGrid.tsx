@@ -183,7 +183,12 @@ function Lightbox({
             {when && <p className="text-xs text-stone-400">{when}</p>}
           </div>
           <div className="flex shrink-0 items-center gap-1">
-            <PostModerationMenu post={post} onDone={onModerated} />
+            <PostModerationMenu
+              postId={post.id}
+              authorId={post.author_id}
+              authorName={post.author_name}
+              onDone={onModerated}
+            />
             <button onClick={onClose} aria-label="Close" className="rounded-full p-1.5 text-stone-400 hover:bg-stone-100">
               <X className="h-5 w-5" />
             </button>

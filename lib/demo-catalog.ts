@@ -40,7 +40,7 @@ export function demoProducts(): DemoProduct[] {
 
 export function demoVendorEvents(): DemoVendorEvent[] {
   return [
-    { id: 'demo-vevent-1', title: 'World Cup Watch Party', description: 'Big screens, drink specials, full menu', event_date: 'Sun, Jul 12', event_time: '12:00 PM', location: 'Courtside Sports Bar', poster_image_url: null, source: 'manual', active: true },
+    { id: 'demo-vevent-1', title: 'Big Match Watch Party', description: 'Big screens, drink specials, full menu', event_date: 'Sun, Jul 12', event_time: '12:00 PM', location: 'Courtside Sports Bar', poster_image_url: null, source: 'manual', active: true },
     { id: 'demo-vevent-2', title: 'Trivia Night', description: 'Weekly trivia — prizes for the top 3 teams', event_date: 'Thu, Jul 16', event_time: '7:00 PM', location: 'Courtside Sports Bar', poster_image_url: null, source: 'manual', active: true },
     // A draft (AI-captured flyer) so the publish flow is visible.
     { id: 'demo-vevent-draft', title: 'Live Jazz Brunch', description: 'Detected from your flyer', event_date: 'Sat, Jul 18', event_time: '11:00 AM', location: 'Courtside Sports Bar', poster_image_url: null, source: 'ai_events', active: false },
