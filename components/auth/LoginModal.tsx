@@ -56,9 +56,11 @@ export function LoginModal({
     if (isNativeApp()) {
       if (strategy === "oauth_apple") {
         try {
+          // Shoppers return via /account-callback (back to `dest`); vendors via
+          // /sso-callback (which nudges a brand-new login into /join onboarding).
           await clerk.client.signIn.authenticateWithRedirect({
             strategy: "oauth_apple",
-            redirectUrl: `${window.location.origin}/sso-callback`,
+            redirectUrl: `${window.location.origin}${isVendor ? "/sso-callback" : "/account-callback"}`,
             redirectUrlComplete: `${window.location.origin}${dest}`,
           });
         } catch (e) {
