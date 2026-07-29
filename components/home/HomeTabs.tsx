@@ -45,6 +45,28 @@ export function HomeTabs() {
 
   return (
     <>
+      {/* Parked for App Store resubmission (Apple 5.2.1 — the "World Cup 2026"
+          CTA is trademarked FIFA content). Kept here to restore once the World
+          Cup feature is re-enabled (see lib/features.ts `worldCup`).
+
+      <div className="mx-auto max-w-6xl px-4 pt-4 md:px-8">
+        <div className="relative rounded-2xl bg-gradient-to-br from-purple-700 to-pink-600 px-4 py-4 text-white sm:px-5">
+          <h1 className="text-xl font-semibold tracking-tight">
+            Your neighborhood, all in one place.
+          </h1>
+          <p className="mt-1.5 max-w-2xl text-sm leading-snug text-white/85">
+            Discover your local ecosystem, engage in it, and see who's giving back to the
+            neighborhood.
+          </p>
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <Link href="/world-cup" ...>World Cup 2026</Link>
+            <Link href="/sf" ...>SF</Link>
+            <Link href="/about" ...>What's this about?</Link>
+          </div>
+        </div>
+      </div>
+      */}
+
       <div className="mx-auto max-w-6xl px-4 pt-4 md:px-8">
         <HomeSearch />
 

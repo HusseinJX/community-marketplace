@@ -1,6 +1,8 @@
+import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Trophy, MapPin } from "lucide-react";
 import { WC_WATCH_PARTIES } from "@/lib/wc-watch-parties";
+import { FEATURES } from "@/lib/features";
 
 export const metadata = {
   title: "Where to watch the World Cup in SF",
@@ -9,6 +11,9 @@ export const metadata = {
 };
 
 export default function WatchWorldCupPage() {
+  // Parked for App Store 5.2.1 (branded FIFA/World Cup destination). Restore via
+  // lib/features.ts `worldCup`.
+  if (!FEATURES.worldCup) notFound();
   return (
     <div className="mx-auto max-w-7xl px-4 pb-24 md:px-8">
       {/* Hero */}

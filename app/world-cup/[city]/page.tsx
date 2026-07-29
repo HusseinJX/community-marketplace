@@ -9,6 +9,7 @@ import {
   cityImageUrl,
   COUNTRY_LABELS,
 } from "@/lib/world-cup-cities";
+import { FEATURES } from "@/lib/features";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -16,8 +17,10 @@ interface Props {
   params: Promise<{ city: string }>;
 }
 
+// Parked for App Store 5.2.1 (branded FIFA/World Cup destination). The page code
+// stays; flip lib/features.ts `worldCup` to bring it back.
 export async function generateStaticParams() {
-  return WORLD_CUP_CITIES.map((c) => ({ city: c.slug }));
+  return FEATURES.worldCup ? WORLD_CUP_CITIES.map((c) => ({ city: c.slug })) : [];
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -31,6 +34,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function CityPage({ params }: Props) {
+  if (!FEATURES.worldCup) notFound();
   const { city: slug } = await params;
   const city = getCityBySlug(slug);
   if (!city) notFound();

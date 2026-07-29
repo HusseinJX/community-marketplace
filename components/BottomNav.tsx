@@ -2,13 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Compass, User } from "lucide-react";
+import { Compass, User, Clapperboard } from "lucide-react";
+import { FEATURES } from "@/lib/features";
 
-// Shopper tabs: a "Local" page (live now + events + directory) and Profile
-// (account, tickets, orders, cart). Buying/booking are flows off cards on Local.
-// Messages lives INSIDE the shopper space, not as its own tab.
+// Shopper tabs: a "Local" page (live now + events + directory), a "Shorts"
+// reels feed, and Profile (account, tickets, orders, cart). Buying/booking are
+// flows off cards on Local. Messages lives INSIDE the shopper space.
+// The Shorts tab is parked until the reels feed ships (lib/features.ts `shorts`).
 const ITEMS = [
   { href: "/", label: "Local", icon: Compass },
+  ...(FEATURES.shorts ? [{ href: "/shorts", label: "Shorts", icon: Clapperboard }] : []),
   { href: "/shopper", label: "Profile", icon: User },
 ];
 
@@ -27,11 +30,11 @@ export function BottomNav() {
       <div className="mx-auto flex max-w-2xl items-center justify-around px-2">
         {ITEMS.map((it) => {
           const Icon = it.icon;
-          // Profile owns /shopper/*; "Local" owns the rest.
+          // Profile owns /shopper/*, Shorts owns /shorts/*, "Local" owns the rest.
           const active =
-            it.href === "/shopper"
-              ? pathname.startsWith("/shopper")
-              : !pathname.startsWith("/shopper");
+            it.href === "/"
+              ? !pathname.startsWith("/shopper") && !pathname.startsWith("/shorts")
+              : pathname.startsWith(it.href);
           return (
             <Link
               key={it.href}

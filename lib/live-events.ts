@@ -13,6 +13,10 @@ export interface LiveEvent {
 // Keep this list curated (the user chose a picklist over free-text). To add a
 // known event, append here — `event_label` is denormalized onto each broadcast
 // so renaming a label later won't orphan old rows.
+//
+// NB: label is "World Cup" (not "FIFA World Cup") — the "FIFA" wordmark is the
+// trademark/affiliation signal Apple flags (5.2.1). "World Cup" is a plain event
+// descriptor and stays generic across tournaments (men's, women's, etc.).
 export const LIVE_EVENTS: LiveEvent[] = [
   { slug: "nba", label: "NBA", emoji: "🏀", category: "Sports" },
   { slug: "nfl", label: "NFL", emoji: "🏈", category: "Sports" },
@@ -20,7 +24,7 @@ export const LIVE_EVENTS: LiveEvent[] = [
   { slug: "nhl", label: "NHL", emoji: "🏒", category: "Sports" },
   { slug: "college-football", label: "College Football", emoji: "🏈", category: "Sports" },
   { slug: "march-madness", label: "March Madness", emoji: "🏀", category: "Sports" },
-  { slug: "world-cup", label: "FIFA World Cup", emoji: "🌍", category: "Soccer" },
+  { slug: "world-cup", label: "World Cup", emoji: "🌍", category: "Soccer" },
   { slug: "champions-league", label: "Champions League", emoji: "⚽", category: "Soccer" },
   { slug: "premier-league", label: "Premier League", emoji: "⚽", category: "Soccer" },
   { slug: "la-liga", label: "La Liga", emoji: "⚽", category: "Soccer" },

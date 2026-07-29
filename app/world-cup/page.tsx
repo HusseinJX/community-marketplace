@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { Trophy, ArrowRight } from "lucide-react";
@@ -9,6 +10,7 @@ import {
   COUNTRY_LABELS,
   type WorldCupCity,
 } from "@/lib/world-cup-cities";
+import { FEATURES } from "@/lib/features";
 import { WorldCupCityCard } from "@/components/WorldCupCityCard";
 
 // Aerial Beira Rio Stadium photo (Unsplash, verified 200)
@@ -26,6 +28,9 @@ const FILTER_COUNT: Record<Filter, number> = {
 };
 
 export default function WorldCupPage() {
+  // Parked for App Store 5.2.1 (branded FIFA/World Cup destination). Restore via
+  // lib/features.ts `worldCup`.
+  if (!FEATURES.worldCup) notFound();
   const [filter, setFilter] = useState<Filter>("All");
 
   const cities =
