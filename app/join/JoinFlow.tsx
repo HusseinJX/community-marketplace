@@ -684,8 +684,17 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
           </div>
           <h1 className="text-xl font-bold text-stone-900">You&apos;re verified · live on WhatsLocal</h1>
           {native ? (
-            // iOS build: no plan prices or billing links (Apple 3.1.1).
-            <p className="text-sm text-stone-500">{bizName} is set up and live. Head to your dashboard to start posting, hosting, and connecting.</p>
+            // iOS build: offer the plan choice but WITHOUT prices here — Apple
+            // 3.1.1 requires in-app prices to come from StoreKit, which they do
+            // on /vendor/billing (the purchase happens there via IAP).
+            <>
+              <p className="text-sm text-stone-500">{bizName} is set up. Pick how you want to participate — start free, upgrade anytime.</p>
+              <div className="space-y-2 pt-2 text-left">
+                <a href="/vendor" className="block rounded-xl border border-stone-200 p-4 hover:bg-stone-50"><b className="text-stone-900">Free</b> — your page, posts + event invites</a>
+                <a href="/vendor/billing" className="block rounded-xl border border-stone-200 p-4 hover:bg-stone-50"><b className="text-stone-900">Organizer</b> — send invites + host events</a>
+                <a href="/vendor/billing" className="block rounded-xl border-2 border-violet-400 p-4 hover:bg-violet-50"><b className="text-stone-900">Pro</b> — AI agent + sell online</a>
+              </div>
+            </>
           ) : (
             <>
               <p className="text-sm text-stone-500">{bizName} is set up. Pick how you want to participate — start free, upgrade anytime.</p>

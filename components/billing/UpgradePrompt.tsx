@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { Sparkles } from "lucide-react";
-import { useIsNativeApp } from "@/lib/native";
 
 // Inline "this needs a paid plan" banner shown when an action returns 402
-// upgrade_required. `requires` names the lowest plan that unlocks it.
+// upgrade_required. `requires` names the lowest plan that unlocks it. The
+// upgrade path (StoreKit on iOS, Stripe on web) is handled on /vendor/billing.
 export function UpgradePrompt({
   requires = "pro",
   message,
@@ -13,10 +13,7 @@ export function UpgradePrompt({
   requires?: "member" | "pro";
   message?: string;
 }) {
-  const native = useIsNativeApp();
   const planLabel = requires === "member" ? "Member" : "Pro";
-  // Apple 3.1.1: no in-app purchase path on iOS — hide the whole prompt there.
-  if (native) return null;
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-900">
       <Sparkles className="h-4 w-4 shrink-0 text-violet-600" />

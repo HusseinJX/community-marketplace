@@ -1,11 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { Check, Loader2, Rocket, Store, Search, Users } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Check, Loader2, Rocket, Store, Search, Users, RotateCcw } from "lucide-react";
 import type { Plan } from "@/lib/entitlements";
 import { useIsNativeApp } from "@/lib/native";
+import { nativeGetProducts, nativePurchase, nativeRestore } from "@/lib/native-iap";
 
 type SelfServePlan = "member" | "pro";
+
+// Apple's system UI for managing/canceling an active subscription.
+const APPLE_MANAGE_URL = "itms-apps://apps.apple.com/account/subscriptions";
 
 // ⚠️ Every line below is a PROMISE ATTACHED TO A LIVE PRICE. Only list what
 // `lib/entitlements.ts` actually grants for that plan — check `FREE_CAN` /
@@ -127,11 +131,33 @@ export function BillingPlans({
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const native = useIsNativeApp();
+  // Localized StoreKit prices, keyed by plan (native only). Apple requires the
+  // in-app price shown to come from StoreKit, not a hardcoded string.
+  const [iapPrice, setIapPrice] = useState<Partial<Record<SelfServePlan, string>>>({});
 
+  useEffect(() => {
+    if (!native) return;
+    nativeGetProducts()
+      .then((products) => {
+        const map: Partial<Record<SelfServePlan, string>> = {};
+        for (const p of products) map[p.plan] = p.displayPrice;
+        setIapPrice(map);
+      })
+      .catch(() => {
+        /* plugin not present yet / offline — fall back to the hardcoded price */
+      });
+  }, [native]);
+
+  // Purchase a plan. Native → StoreKit (Apple 3.1.1); web → Stripe Checkout.
   async function upgrade(plan: SelfServePlan) {
     setError(null);
     setBusy(plan);
     try {
+      if (native) {
+        await nativePurchase(plan, memberId);
+        window.location.reload(); // re-fetch entitlements with the new plan
+        return;
+      }
       const res = await fetch("/api/billing/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -149,8 +175,29 @@ export function BillingPlans({
           ? "Link your business profile first."
           : "Couldn't start checkout. Please try again."
       );
-    } catch {
-      setError("Couldn't start checkout. Please try again.");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "";
+      if (msg !== "canceled") setError(msg || "Couldn't complete the purchase. Please try again.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  // Restore Purchases — required by Apple so a paid user re-unlocks on a new
+  // device / reinstall without paying again.
+  async function restore() {
+    setError(null);
+    setBusy("restore");
+    try {
+      const plan = await nativeRestore(memberId);
+      if (plan === "free") {
+        setError("No previous purchases found for this Apple ID.");
+      } else {
+        window.location.reload();
+        return;
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't restore purchases.");
     } finally {
       setBusy(null);
     }
@@ -158,6 +205,11 @@ export function BillingPlans({
 
   async function manage() {
     setError(null);
+    // Native subscriptions are managed by Apple, not us.
+    if (native) {
+      window.location.href = APPLE_MANAGE_URL;
+      return;
+    }
     setBusy("manage");
     try {
       const res = await fetch("/api/billing/portal", {
@@ -179,22 +231,6 @@ export function BillingPlans({
   }
 
   const isPaid = currentPlan === "member" || currentPlan === "pro" || currentPlan === "enterprise";
-
-  // Apple 3.1.1: the native app must not sell or price digital subscriptions,
-  // nor route to web checkout. Show current plan only — no tiers, no prices,
-  // no upgrade/manage buttons. Plans stay fully purchasable on the web.
-  if (native) {
-    const label = currentPlan.charAt(0).toUpperCase() + currentPlan.slice(1);
-    return (
-      <div className="rounded-2xl border border-stone-200 bg-white p-5 text-center">
-        <p className="text-sm text-stone-500">Your current plan</p>
-        <p className="mt-1 text-lg font-semibold text-stone-900">{label}</p>
-        <p className="mt-3 text-sm text-stone-500">
-          You have everything your plan includes. Plan changes aren&apos;t available in the app.
-        </p>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-4">
@@ -234,7 +270,11 @@ export function BillingPlans({
               </div>
 
               <div className="mb-1">
-                <span className="text-xl font-bold text-stone-900">{t.price}</span>
+                <span className="text-xl font-bold text-stone-900">
+                  {native && (t.plan === "member" || t.plan === "pro")
+                    ? iapPrice[t.plan] ?? t.price
+                    : t.price}
+                </span>
                 {t.cadence && <span className="text-sm text-stone-500">{t.cadence}</span>}
               </div>
               <p className="mb-4 text-xs font-medium text-violet-600">{t.tagline}</p>
@@ -284,16 +324,33 @@ export function BillingPlans({
         })}
       </div>
 
-      {isPaid && (
-        <div className="text-center">
-          <button
-            onClick={manage}
-            disabled={busy === "manage"}
-            className="inline-flex items-center gap-2 text-sm font-medium text-stone-500 hover:text-stone-800"
-          >
-            {busy === "manage" && <Loader2 className="h-4 w-4 animate-spin" />}
-            Manage billing & invoices →
-          </button>
+      {(isPaid || native) && (
+        <div className="flex flex-col items-center gap-3">
+          {isPaid && (
+            <button
+              onClick={manage}
+              disabled={busy === "manage"}
+              className="inline-flex items-center gap-2 text-sm font-medium text-stone-500 hover:text-stone-800"
+            >
+              {busy === "manage" && <Loader2 className="h-4 w-4 animate-spin" />}
+              {native ? "Manage subscription →" : "Manage billing & invoices →"}
+            </button>
+          )}
+          {/* Apple requires a Restore Purchases control in-app. */}
+          {native && (
+            <button
+              onClick={restore}
+              disabled={busy === "restore"}
+              className="inline-flex items-center gap-2 text-sm font-medium text-stone-500 hover:text-stone-800"
+            >
+              {busy === "restore" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RotateCcw className="h-4 w-4" />
+              )}
+              Restore purchases
+            </button>
+          )}
         </div>
       )}
     </div>
