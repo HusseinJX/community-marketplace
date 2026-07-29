@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { CalendarCheck, Check } from "lucide-react";
-import { useAuth, SignInButton } from "@clerk/nextjs";
+import { useAuth } from "@clerk/nextjs";
+import { useLogin } from "@/components/auth/ClerkAuthProvider";
 
 // Free RSVP for an organizer event. Shows the live going count + spots left and
 // toggles the current user's attendance. Signed-out users get a sign-in modal.
 export function RsvpButton({ eventId, demo }: { eventId: string; demo?: boolean }) {
   const { isSignedIn, isLoaded } = useAuth();
+  const openLogin = useLogin();
   const [count, setCount] = useState(0);
   const [capacity, setCapacity] = useState<number | null>(null);
   const [going, setGoing] = useState(false);
@@ -83,11 +85,12 @@ export function RsvpButton({ eventId, demo }: { eventId: string; demo?: boolean 
   if (isLoaded && !canRsvp) {
     return (
       <div>
-        <SignInButton mode="modal">
-          <button className="w-full rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700">
-            RSVP — sign in
-          </button>
-        </SignInButton>
+        <button
+          onClick={() => openLogin()}
+          className="w-full rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700"
+        >
+          RSVP — sign in
+        </button>
         {meta}
       </div>
     );

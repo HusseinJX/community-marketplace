@@ -5,7 +5,7 @@ import { Show, UserButton, useUser, useClerk } from "@clerk/nextjs";
 import { Heart, ShoppingBag, Users, ArrowRight, PenLine, Store, MessageCircle, LogOut } from "lucide-react";
 import { PushTestButton } from "@/components/PushTestButton";
 import { DeleteAccountButton } from "@/components/account/DeleteAccountButton";
-import { useOpenLogin } from "@/components/auth/ClerkAuthProvider";
+import { useLogin } from "@/components/auth/ClerkAuthProvider";
 import { useIsNativeApp } from "@/lib/native";
 import { useStore } from "@/lib/store";
 
@@ -15,7 +15,7 @@ import { useStore } from "@/lib/store";
 export function ShopperClient() {
   const { user } = useUser();
   const { signOut } = useClerk();
-  const openLogin = useOpenLogin();
+  const openLogin = useLogin();
   const isNative = useIsNativeApp();
   const { favorites, cart } = useStore();
 
@@ -52,7 +52,7 @@ export function ShopperClient() {
           }
         >
           <button
-            onClick={() => openLogin("shopper")}
+            onClick={() => openLogin({ redirectUrl: "/shopper" })}
             className="shrink-0 rounded-full bg-stone-900 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-stone-800"
           >
             Shopper login

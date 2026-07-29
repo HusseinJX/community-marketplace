@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { X, Images, Heart } from "lucide-react";
-import { useAuth, SignInButton } from "@clerk/nextjs";
+import { useAuth } from "@clerk/nextjs";
+import { useLogin } from "@/components/auth/ClerkAuthProvider";
 import { useMemories } from "@/lib/data-hooks";
 import { streamEmbed, youtubeThumb } from "@/lib/embed";
 import { PostModerationMenu } from "@/components/posts/PostModerationMenu";
@@ -36,6 +37,7 @@ export function MemoriesGrid({
   const [posts, setPosts] = useState<Post[]>([]);
   const [open, setOpen] = useState<Post | null>(null);
   const { isSignedIn } = useAuth();
+  const openLogin = useLogin();
 
   // Toggle ❤️ — optimistic, synced to both the grid and the open lightbox.
   async function react(postId: string) {
@@ -148,6 +150,8 @@ function Lightbox({
   canReact: boolean;
   onModerated: () => void;
 }) {
+  const openLogin = useLogin();
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     document.addEventListener("keydown", onKey);
@@ -230,11 +234,12 @@ function Lightbox({
               {post.reactions ?? 0}
             </button>
           ) : (
-            <SignInButton mode="modal">
-              <button className="inline-flex items-center gap-1.5 text-sm font-medium text-stone-500 hover:text-rose-500">
-                <Heart className="h-5 w-5 text-stone-400" /> {post.reactions ?? 0}
-              </button>
-            </SignInButton>
+            <button
+              onClick={() => openLogin()}
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-stone-500 hover:text-rose-500"
+            >
+              <Heart className="h-5 w-5 text-stone-400" /> {post.reactions ?? 0}
+            </button>
           )}
         </div>
 

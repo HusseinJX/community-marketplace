@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { Heart } from "lucide-react";
-import { useAuth, SignInButton } from "@clerk/nextjs";
+import { useAuth } from "@clerk/nextjs";
+import { useLogin } from "@/components/auth/ClerkAuthProvider";
 
 // Heart toggle for a broadcast. Signed-out users get a sign-in modal instead.
 export function SaveButton({
@@ -15,6 +16,7 @@ export function SaveButton({
   initialCount: number;
 }) {
   const { isSignedIn } = useAuth();
+  const openLogin = useLogin();
   const [saved, setSaved] = useState(initialSaved);
   const [count, setCount] = useState(initialCount);
   const [busy, setBusy] = useState(false);
@@ -35,11 +37,9 @@ export function SaveButton({
 
   if (!isSignedIn) {
     return (
-      <SignInButton mode="modal">
-        <button type="button" aria-label="Save (sign in)">
-          {inner}
-        </button>
-      </SignInButton>
+      <button type="button" aria-label="Save (sign in)" onClick={() => openLogin()}>
+        {inner}
+      </button>
     );
   }
 

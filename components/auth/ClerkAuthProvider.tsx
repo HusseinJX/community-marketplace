@@ -1,49 +1,51 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useState } from "react";
-import { ClerkProvider, useClerk } from "@clerk/nextjs";
+import { createContext, useCallback, useContext, useState } from "react";
+import { ClerkProvider } from "@clerk/nextjs";
+import { LoginModal } from "@/components/auth/LoginModal";
 
-// Which side is being logged into, so the shared Clerk modal can label itself
-// ("Signing in as a shopper" vs "as a vendor"). It's one Clerk account under the
-// hood — this is just contextual copy driven by which button was pressed.
-type Intent = "shopper" | "vendor" | null;
+// Options for opening the shared shopper login modal.
+type LoginOpts = { redirectUrl?: string; title?: string; subtitle?: string };
+const LoginOpener = createContext<(o: LoginOpts | null) => void>(() => {});
 
-const IntentSetter = createContext<(i: Intent) => void>(() => {});
-
-const SIGN_IN_SUBTITLE: Record<"shopper" | "vendor", string> = {
-  shopper: "Signing in as a shopper",
-  vendor: "Signing in as a vendor",
-};
-
-// Wraps ClerkProvider so the sign-in modal's copy can change per login button.
+// Wraps ClerkProvider and mounts the ONE shopper login modal (custom Google/Apple
+// screen with the EULA consent line), opened from anywhere via useLogin(). Vendor
+// sign-in uses <VendorPhoneLogin> (the same modal, vendor variant) directly.
 export function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
-  const [intent, setIntent] = useState<Intent>(null);
-
-  const localization = useMemo(
-    () => ({
-      signIn: {
-        start: {
-          title: "Sign in to WhatsLocal",
-          subtitle: intent ? SIGN_IN_SUBTITLE[intent] : "Welcome back to WhatsLocal",
-        },
-      },
-      signUp: {
-        start: {
-          title:
-            intent === "vendor"
-              ? "Set up your WhatsLocal vendor account"
-              : "Create your WhatsLocal account",
-          subtitle: intent === "vendor" ? "Signing up as a vendor" : "Welcome to WhatsLocal",
-        },
-      },
-    }),
-    [intent]
-  );
+  const [login, setLogin] = useState<LoginOpts | null>(null);
 
   return (
-    <ClerkProvider localization={localization} appearance={CLERK_APPEARANCE}>
-      <IntentSetter.Provider value={setIntent}>{children}</IntentSetter.Provider>
+    <ClerkProvider appearance={CLERK_APPEARANCE}>
+      <LoginOpener.Provider value={setLogin}>
+        {children}
+        {login && (
+          <LoginModal
+            variant="shopper"
+            onClose={() => setLogin(null)}
+            redirectUrl={login.redirectUrl}
+            title={login.title}
+            subtitle={login.subtitle}
+          />
+        )}
+      </LoginOpener.Provider>
     </ClerkProvider>
+  );
+}
+
+// Open the custom shopper login modal. Defaults the post-login redirect to the
+// current page so an inline action (save, RSVP, react) returns you where you were.
+export function useLogin() {
+  const setLogin = useContext(LoginOpener);
+  return useCallback(
+    (opts?: LoginOpts) => {
+      const redirectUrl =
+        opts?.redirectUrl ??
+        (typeof window !== "undefined"
+          ? window.location.pathname + window.location.search
+          : "/");
+      setLogin({ ...opts, redirectUrl });
+    },
+    [setLogin]
   );
 }
 
@@ -71,23 +73,3 @@ const CLERK_APPEARANCE = {
     footerActionLink: "font-semibold text-violet-600",
   },
 };
-
-// Open the Clerk sign-in modal, tagged with which side you're logging into so
-// the modal reads "Signing in as a shopper / vendor". Vendors sign up through
-// the /join onboarding flow, not Clerk — so the modal's "Don't have an account?
-// Sign up" footer is hidden for vendors and only shown to shoppers.
-export function useOpenLogin() {
-  const setIntent = useContext(IntentSetter);
-  const clerk = useClerk();
-  return useCallback(
-    (intent: "shopper" | "vendor", opts?: Parameters<typeof clerk.openSignIn>[0]) => {
-      setIntent(intent);
-      const hideSignUp =
-        intent === "vendor"
-          ? { appearance: { elements: { footerAction: { display: "none" } } } }
-          : {};
-      clerk.openSignIn({ ...hideSignUp, ...opts });
-    },
-    [setIntent, clerk]
-  );
-}

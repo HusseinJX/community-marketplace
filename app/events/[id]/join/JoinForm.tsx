@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Search, Check, Store } from "lucide-react";
-import { useAuth, SignInButton } from "@clerk/nextjs";
+import { useAuth } from "@clerk/nextjs";
+import { useLogin } from "@/components/auth/ClerkAuthProvider";
 import { listMembers } from "@/lib/api";
 import type { Member } from "@/lib/types";
 
@@ -72,6 +73,7 @@ function FindBusiness({
   isLoaded: boolean;
   onJoined: () => void;
 }) {
+  const openLogin = useLogin();
   const [members, setMembers] = useState<Member[]>([]);
   const [query, setQuery] = useState("");
   const [picked, setPicked] = useState<Member | null>(null);
@@ -127,11 +129,12 @@ function FindBusiness({
         </div>
 
         {isLoaded && !isSignedIn ? (
-          <SignInButton mode="modal">
-            <button className="w-full rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700">
-              Sign in to join the lineup
-            </button>
-          </SignInButton>
+          <button
+            onClick={() => openLogin()}
+            className="w-full rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700"
+          >
+            Sign in to join the lineup
+          </button>
         ) : (
           <button
             onClick={join}

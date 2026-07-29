@@ -3,7 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { MapPin, Radio, Store, CalendarDays, Heart } from "lucide-react";
-import { useAuth, SignInButton } from "@clerk/nextjs";
+import { useAuth } from "@clerk/nextjs";
+import { useLogin } from "@/components/auth/ClerkAuthProvider";
 import type { SharePostFeedItem } from "@/lib/demo-feed";
 import { authorColor, initials } from "@/lib/demo-feed";
 import { ImageCarousel } from "@/components/ImageCarousel";
@@ -13,6 +14,7 @@ import { PostModerationMenu } from "@/components/posts/PostModerationMenu";
 // business/event "memories" wall — this is the timeline surface for them.
 export function CommunityPostCard({ item }: { item: SharePostFeedItem }) {
   const { isSignedIn } = useAuth();
+  const openLogin = useLogin();
   const [reactions, setReactions] = useState(item.reactions ?? 0);
   const [reacted, setReacted] = useState(!!item.reacted);
   const [hidden, setHidden] = useState(false);
@@ -121,11 +123,12 @@ export function CommunityPostCard({ item }: { item: SharePostFeedItem }) {
               {reactions}
             </button>
           ) : (
-            <SignInButton mode="modal">
-              <button className="inline-flex items-center gap-1.5 text-sm font-semibold text-stone-600 hover:text-rose-500">
-                <Heart className="h-[22px] w-[22px] text-stone-500" /> {reactions}
-              </button>
-            </SignInButton>
+            <button
+              onClick={() => openLogin()}
+              className="inline-flex items-center gap-1.5 text-sm font-semibold text-stone-600 hover:text-rose-500"
+            >
+              <Heart className="h-[22px] w-[22px] text-stone-500" /> {reactions}
+            </button>
           )}
           {item.livestreamUrl && (
             <a

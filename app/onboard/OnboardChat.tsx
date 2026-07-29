@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Send, Check, Sparkles } from "lucide-react";
-import { useAuth, SignInButton } from "@clerk/nextjs";
+import { useAuth } from "@clerk/nextjs";
+import { useLogin } from "@/components/auth/ClerkAuthProvider";
 
 interface Msg {
   role: "user" | "assistant";
@@ -12,6 +13,7 @@ interface Msg {
 
 export function OnboardChat({ eventId, eventName }: { eventId: string | null; eventName: string | null }) {
   const { isSignedIn, isLoaded } = useAuth();
+  const openLogin = useLogin();
   const [messages, setMessages] = useState<Msg[]>([
     {
       role: "assistant",
@@ -111,11 +113,12 @@ export function OnboardChat({ eventId, eventName }: { eventId: string | null; ev
       {enoughToFinish && (
         <div className="border-t border-stone-100 px-3 py-2">
           {isLoaded && !isSignedIn ? (
-            <SignInButton mode="modal">
-              <button className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700">
-                <Sparkles className="h-3.5 w-3.5" /> Sign in to create my profile
-              </button>
-            </SignInButton>
+            <button
+              onClick={() => openLogin()}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
+            >
+              <Sparkles className="h-3.5 w-3.5" /> Sign in to create my profile
+            </button>
           ) : (
             <button
               onClick={finish}
