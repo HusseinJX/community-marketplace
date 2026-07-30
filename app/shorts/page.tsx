@@ -1,6 +1,8 @@
 "use client";
 
+import { notFound } from "next/navigation";
 import { Heart, MessageCircle, Send, Music2, Play } from "lucide-react";
+import { FEATURES } from "@/lib/features";
 
 // UI-only shorts/reels feed. No data, no playback — a vertical snap-scroll of
 // placeholder cards so the tab has something to show. Wire real media later.
@@ -44,6 +46,11 @@ const SHORTS = [
 ];
 
 export default function ShortsPage() {
+  // Parked with the nav entry (lib/features.ts `shorts`). The reels feed has no
+  // real playback yet — Apple 2.1(a) flagged "the video section did not play," so
+  // the whole surface 404s until it ships, not just the nav tab.
+  if (!FEATURES.shorts) notFound();
+
   return (
     <div
       className="fixed left-0 right-0 z-20 bg-black"
