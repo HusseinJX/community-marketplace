@@ -53,7 +53,7 @@ deploy). Work top to bottom.
 | **1.2** UGC moderation | Report + Block (home feed & memories) + EULA + zero-tolerance terms + dev-notify + admin remove/ban | ⬜ Clerk legal URLs (B1) + `db push` (B3) + record videos (D) |
 | **5.1.1(v)** account deletion | Surfaced on vendor dashboard (already on shopper) | ⬜ Record video (D) |
 | **2.1** cookies/tracking | Verified pixels off; reply drafted | ⬜ Paste reply (E) + ensure App Privacy says "no tracking" (A4) |
-| **2.1** NFC | Reply drafted (reads NDEF tags, no proprietary HW) | ⬜ Record video with a physical tag (D) |
+| **2.1** NFC | ✅ **In-app NFC reader removed** (camera QR covers it) — nothing to clarify | — |
 
 ---
 
@@ -109,7 +109,9 @@ deploy). Work top to bottom.
 - ⬜ **D3.** Block a user (open a post → ⋯ → Block → their content disappears).
 - ⬜ **D4.** Account deletion (Profile/shopper OR vendor dashboard → Delete account →
   full flow to confirmation).
-- ⬜ **D5.** NFC: scanning a physical NDEF tag opening a WhatsLocal profile.
+- ~~**D5.** NFC~~ — **REMOVED.** The in-app NFC reader was taken out (commit `5e014e8`);
+  camera QR covers it, so no NFC video is needed. (Physical NFC fobs with a URL still
+  work via iOS native tag reading — no app capability required.)
 
 > **D-note (2.1a):** The Shorts tab was placeholder-only (a Play button that played
 > nothing) — almost certainly the "video section did not play" bug. Hiding it fixes
@@ -124,7 +126,7 @@ From `scratchpad/asc-replies.md` (this session) into the App Review reply / the
 App Review Information notes:
 - ⬜ **E1.** Cookies / tracking (2.1)
 - ⬜ **E2.** Business model, 5 questions (2.1b)
-- ⬜ **E3.** NFC clarification (2.1)
+- ~~**E3.** NFC clarification~~ — not needed; NFC removed from the app.
 
 ## F. Deploy & resubmit
 

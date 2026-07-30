@@ -9,9 +9,10 @@ Rewritten 2026-07-29 for the IAP-shipping build.
   the version → scroll to **App Review Information → Notes**. Put the Google demo
   login (email/password) in this Notes field too, since "Sign in with Google"
   can't go in the standard username/password fields.
-- **These Q&A replies (E1/E2/E3):** post in the **Resolution Center** — the message
+- **These Q&A replies (E1/E2):** post in the **Resolution Center** — the message
   thread on the rejected submission — as your reply, since that's where Apple asked
-  the questions. Lead with the 2-line summary below, then paste E1, E2, E3.
+  the questions. Lead with the 2-line summary below, then paste E1, E2.
+  (NFC was removed from the app for this submission, so no NFC reply is needed.)
   (Optional: also append them to App Review Information → Notes so the new reviewer
   sees them proactively.)
 
@@ -36,7 +37,6 @@ WhatsLocal AI is a native iOS app for local-community discovery and business net
 
 • PUSH NOTIFICATIONS (APNs) — businesses are notified in real time when they receive a collaboration invite, a message in a collab room, or an event RSVP. These are real APNs pushes sent from our own server (no third-party push SDK).
 • CAMERA QR SCANNING — scan a business/event QR code to open it in-app.
-• NFC TAG READING — tap a standard NDEF tag to open a WhatsLocal profile. We read standard NDEF tags only; no proprietary hardware.
 • LOCATION — the map and "what's live near me" use device location.
 
 NO LOGIN REQUIRED TO REVIEW THE APP. Shoppers browse everything — the map, businesses, events, and live "what's near me" — with no account. Please review the app this way first; account creation is optional (used only for saving, invites, RSVPs, and business claiming).
@@ -94,13 +94,8 @@ Only for physical goods and real-world services — never for digital or softwar
 
 ---
 
-## E3 — 2.1 NFC clarification
+## NFC — removed for this submission
 
-Thank you for the question about our use of NFC.
-
-WhatsLocal AI uses Core NFC to let a user read a **standard NDEF tag** placed by a local business or event — for example, a sticker in a shop window or a card on a table. The tag contains a WhatsLocal URL; when the user taps it, the app opens that business or event profile in the app.
-
-- It reads **standard NDEF tags only**.
-- It uses **no proprietary hardware or protocol**, and does **not** read contactless payment cards or secure elements.
-- It does **not** write to tags.
-- It is **user-initiated and optional** — the app is fully usable without NFC. The same profiles are reachable by search, the map, or camera QR scan.
+The in-app NFC tag reader was removed (camera QR scanning covers the same use case),
+so there's no NFC feature to clarify. If a reviewer asks, the honest reply is simply:
+"NFC tag reading has been removed from this version; users scan a QR code instead."
