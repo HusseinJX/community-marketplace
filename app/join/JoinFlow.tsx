@@ -716,6 +716,25 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
               or see your public page
             </button>
           </div>
+          {/* Auto-renewable subscription disclosure — required (Guideline 3.1.2)
+              wherever subscription pricing is presented. Purchase completes on
+              /vendor/billing; this screen only advertises the plans + prices. */}
+          <div className="mx-auto max-w-md space-y-1.5 pt-2 text-[11px] leading-relaxed text-stone-400">
+            <p>
+              Paid plans are auto-renewing monthly subscriptions. Payment is charged to your{" "}
+              {native ? "Apple ID" : "payment method"} at confirmation and renews unless canceled at
+              least 24 hours before the period ends.
+            </p>
+            <p className="flex items-center justify-center gap-x-3">
+              <a href="/terms" target="_blank" rel="noopener noreferrer" className="underline hover:text-stone-600">
+                Terms of Use (EULA)
+              </a>
+              <span aria-hidden>·</span>
+              <a href="/privacy" target="_blank" rel="noopener noreferrer" className="underline hover:text-stone-600">
+                Privacy Policy
+              </a>
+            </p>
+          </div>
         </div>
       )}
 

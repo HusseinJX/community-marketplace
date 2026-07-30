@@ -353,6 +353,38 @@ export function BillingPlans({
           )}
         </div>
       )}
+
+      {/* Auto-renewable subscription disclosure + policy links.
+          REQUIRED by App Review Guideline 3.1.2 at the point of purchase:
+          renewal terms + functional Terms of Use (EULA) and Privacy Policy
+          links. Do not remove — its absence is a metadata/binary rejection. */}
+      <div className="mx-auto max-w-2xl space-y-2 pt-2 text-center text-[11px] leading-relaxed text-stone-400">
+        <p>
+          Subscriptions renew automatically each month until canceled. Payment is charged to your{" "}
+          {native ? "Apple ID" : "payment method"} at confirmation of purchase. Your subscription
+          renews at the price shown unless canceled at least 24 hours before the end of the current
+          period. {native && "Manage or cancel anytime in your Apple ID account settings."}
+        </p>
+        <p className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
+          <a
+            href="/terms"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-stone-600"
+          >
+            Terms of Use (EULA)
+          </a>
+          <span aria-hidden>·</span>
+          <a
+            href="/privacy"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-stone-600"
+          >
+            Privacy Policy
+          </a>
+        </p>
+      </div>
     </div>
   );
 }
