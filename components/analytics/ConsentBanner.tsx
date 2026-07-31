@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getConsent, setConsent } from "@/lib/consent";
+import { useIsNativeApp } from "@/lib/native";
 
 // Lightweight cookie-consent banner for the ad pixels. Shows only until the user
 // decides; the choice persists. Accept → Meta + Google tags flip on (Consent
@@ -10,12 +11,18 @@ import { getConsent, setConsent } from "@/lib/consent";
 // either way. Sits above the bottom nav.
 export function ConsentBanner() {
   const [show, setShow] = useState(false);
+  // Never show the cookie/ad-tracking prompt inside the native iOS app. The ad
+  // pixels don't run there (see AdPixels), so there's nothing to consent to —
+  // and a prompt that mentions ad tracking without an App Tracking Transparency
+  // request is an App Store rejection (Guideline 5.1.2(i)). If ads are ever
+  // enabled on iOS, wire ATT + the App Privacy declaration FIRST, then re-show.
+  const native = useIsNativeApp();
 
   useEffect(() => {
     if (getConsent() === null) setShow(true);
   }, []);
 
-  if (!show) return null;
+  if (native || !show) return null;
 
   function decide(state: "granted" | "denied") {
     setConsent(state);

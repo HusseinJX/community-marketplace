@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { getConsent, onConsentChange } from "@/lib/consent";
+import { isNativeApp } from "@/lib/native";
 
 // Third-party ad/retargeting pixels — Meta (Facebook/Instagram) + Google (Ads +
 // GA4). All env-gated: each no-ops until its ID is set, matching the app's
@@ -90,6 +91,12 @@ export function AdPixels() {
   const granted = useRef(false);
 
   useEffect(() => {
+    // No third-party ad/tracking tags inside the native iOS app — Apple requires
+    // an App Tracking Transparency prompt before any such tracking (Guideline
+    // 5.1.2(i)), which we don't show. Keep iOS tracking-free until ATT is wired.
+    // Checked synchronously here (not via the hook) so nothing loads on the
+    // first render before a native flag would flip.
+    if (isNativeApp()) return;
     loadGoogleBase();
     const apply = (state: string) => {
       if (state !== "granted") return;
