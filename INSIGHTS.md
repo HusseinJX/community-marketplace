@@ -3,6 +3,60 @@
 Non-obvious things learned building this app — read before touching onboarding,
 the iOS shell, or member data.
 
+## Video storage (YouTube) — 2026-08-04
+- **The channel is chosen at CONSENT, not by the Cloud project.** The OAuth client only
+  identifies the *app* and can live in any project; a refresh token binds to whichever
+  channel was picked on the Google screen, and **nothing in the token says which**. Uploads
+  landing on the wrong channel is fixed by re-consenting and picking the Brand Account —
+  NOT by generating new credentials, which is the natural but wrong assumption.
+  `uploadVideo` returns `channelId`/`channelTitle` precisely because the binding is invisible.
+- **Private videos cannot be embedded at all.** The privacy check runs on the *viewer*, not
+  the embedder, so every visitor gets "This video is private". Unlisted is the only workable
+  setting — and its corollary is that **the link IS the access control**: `posts.video_urls`
+  is public-but-unindexed. Fine for posts, wrong for anything sensitive.
+- **`youtube.upload` can only ever ADD.** Deleting needs `youtube.force-ssl`. A token minted
+  before that scope was requested 403s on delete while uploads keep working — a silent
+  half-failure.
+- **A YouTube delete is not instantly visible.** oembed returned 200 immediately after a
+  successful delete and 404 ten seconds later. Don't read an immediate 200 as failure.
+- **A `deleted_client` OAuth error is unrecoverable.** Deleting an OAuth client invalidates
+  every token it ever issued, so archived credentials cannot be revived by re-consenting.
+- **The "API not enabled" error names the project NUMBER, not the id.** Enabling the API on
+  the project you assume owns the client is a real way to lose twenty minutes.
+- **A YouTube video id is any 11 chars of `[A-Za-z0-9_-]`**, which plenty of ordinary URL
+  path segments match (`https://example.com/not-a-video` parsed as the id `not-a-video`).
+  Always host-check before extracting an id, or a non-YouTube URL builds a delete call for
+  an unrelated video.
+
+## Deletion semantics — 2026-08-04
+- **Soft-hide and hard-delete need different media behaviour.** `removePost()` is reversible
+  via `restorePost()`, so it must NOT reap the video — reaping would make restore impossible.
+  `deleteOwnPost()`/`purgePost()` are irreversible and must reap, because an unlisted video
+  outlives its row and stays watchable by link. Deleting the row alone makes "delete" a lie.
+- **Enforce ownership inside the DELETE statement** (`.eq('author_id', …)`) rather than
+  read-then-check: one round trip, and no window between the check and the delete.
+- **"Already gone" is success, not an error.** A repeat delete should report true — the
+  caller's intent is "this must not exist".
+
+## Operations — 2026-08-04
+- **`supabase db push` HANGS with no password.** `supabase/.temp/pooler-url` carries none, so
+  the CLI blocks on a prompt that never arrives without a TTY (it looks exactly like a network
+  hang). Port 5432 is unreachable from this machine; 6543 connects but still wants the
+  password. The route that needs no DB password: the Management API with the CLI's token from
+  the macOS Keychain — see the Key Convention in `CLAUDE.md`. Register the version in
+  `supabase_migrations.schema_migrations` afterwards or the history diverges.
+- **CapRover's env API REPLACES the whole variable set.** Read the app definition, extend it,
+  write it back — never post a partial one, or you silently drop 46 other variables.
+- **A `tr_dev_` Trigger.dev key sends everything to DEV**, including env-var writes. That is
+  how prod came to look configured while having zero variables, and why a scheduled task would
+  have failed every night in silence. Check the environment, not just the dashboard.
+- **Deployed runtimes differ from local.** The Trigger.dev worker runs Node 21, which has no
+  native WebSocket; `@supabase/supabase-js` builds a Realtime client inside `createClient()`
+  and throws without one. Local Node 25 passed with identical code, so it was invisible
+  outside the deployed environment. Pin `runtime` explicitly.
+- **Scripts importing `lib/posts` fail outside Next** — it pulls in `lib/moderation`, which
+  imports `server-only`. Run them with `npx tsx --conditions=react-server`.
+
 ## Architecture / data ownership
 - **Members live in the connector-agent, not here.** This app *reads* members via
   `lib/api.ts` (`marketplace-members`/`marketplace-member`) and historically could only

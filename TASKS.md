@@ -1,5 +1,27 @@
 # Tasks
 
+## 2026-08-04 Event sweep fix, draft queue, feed rework, video upload (see `session-context/2026-08-04-youtube-video-delete-purge.md` + `2026-08-02-event-sourcing-geo-reco.md`)
+**All DEPLOYED to CapRover prod and pushed** (`d9feaf2` → `43b5129` on `feat/collab-rooms`).
+
+**Unproven — the only assumed link:**
+- [ ] **An authenticated video upload on PROD has never run.** `/api/share/upload` checks `auth()` before `youtubeConfigured()`, so an unauthenticated probe is 401 either way and the 503→working flip can't be seen from outside. Everything upstream is verified against the live YouTube API + prod DB with the same credentials and code path. **Close it:** post a video on whatslocal.ai → confirm a `youtube.com` URL in `posts.video_urls` on channel `UC9QE0QLOPBMVMk_SI59h0eg`.
+- [ ] **The scraped-drafts UI has never been seen RENDERED.** Live on prod, admin-gated; data/API/auth all verified, layout is not (`isAdmin` redirects a headless session). Open `/vendor/admin?tab=drafts` signed in.
+- [ ] **No 09:00 UTC scheduled sweep has been observed yet.** Two faults that would have killed it silently are fixed and manual prod runs of the same task on the same deployment succeed; the first real cron is 2026-08-05 09:00 UTC. Check it fired.
+
+**Video / moderation gaps (known, deliberate):**
+- [ ] **`banAuthor()` only soft-removes** a banned user's posts, so their videos stay live on the channel by link. `purge` is per-post only — a banned author needs a bulk purge.
+- [ ] **There is no moderation UI at all** — the queue is API-only (`/api/admin/moderation`), so `remove`/`restore`/`ban`/`purge` are curl-only. App Store 1.2 expects reports actioned within 24h; that's hard without a screen.
+- [ ] **Every user's video lands on ONE company channel** (`WhatsLocal AI`). That's the design (free storage/transcoding), but the brand channel accumulates strangers' uploads and inherits YouTube's copyright/strike exposure as volume grows.
+- [ ] **A moderator-removed post keeps its video** (correct — `remove` is restorable). Use `purge` when it must actually leave the channel; make sure whoever moderates knows the difference.
+
+**Feed / events follow-ups:**
+- [ ] **The For-you feed caps at 240** returned events (60 revealed at a time). Past that it says "add a filter" rather than paging further — revisit only if people hit it.
+- [ ] **The 41 `downtownsf` drafts are still unreviewed** — the queue exists now, nobody has used it.
+- [ ] Signed-out users still see "Current location", not a neighbourhood (`/api/places/reverse` is auth-gated because each call is billed). Cost decision, not a code one.
+- [ ] `/events` still exists with its own For-you toggle and nothing links to it. Decide whether that page should exist.
+- [ ] **NFC fob → native app deep link: NOT STARTED.** Needs Universal Links — the AASA file (web, deployable) AND `com.apple.developer.associated-domains` in `App.entitlements` (**Xcode rebuild + App Review**). Neither half works alone, and users on the current build keep getting Safari until they update.
+
+
 ## 2026-07-11 Collab pivot + Firestore quota (see `session-context/2026-07-11-collab-pivot-and-firestore-quota.md`)
 Everything from that session is **built but LOCAL/uncommitted in both repos** — prod is unchanged.
 
