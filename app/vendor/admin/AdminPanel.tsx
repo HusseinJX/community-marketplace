@@ -4,10 +4,11 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Shield, UserPlus, FileText, Search, Check, Package, Calendar, ExternalLink, Star, PenSquare, ImagePlus, X, Loader2, Store, Radio, Globe, ChevronDown } from "lucide-react";
+import { Shield, UserPlus, FileText, Search, Check, Package, Calendar, ExternalLink, Star, PenSquare, ImagePlus, X, Loader2, Store, Radio, Globe, ChevronDown, ClipboardCheck } from "lucide-react";
 import { OnboardManager } from "../onboard/OnboardManager";
 import { FeaturedManager } from "../featured/FeaturedManager";
 import { LineupImportManager } from "@/components/admin/LineupImportManager";
+import { EventDrafts } from "@/components/admin/EventDrafts";
 import { SourcingAdmin } from "@/app/prototype/admin/page"; // prototype "Sourcing" panel, embedded as a tab
 import { OrganizeManager } from "@/app/vendor/organize/OrganizeManager"; // the "Run an event" (/organizers) toolkit, embedded as a tab
 import { ORG_FOCUS } from "@/lib/org-focus";
@@ -17,9 +18,9 @@ const TYPES = ["vendor", "artist", "organizer", "shopper", "influencer"] as cons
 // "Add by transcript" is no longer a tab — it lives as an expandable panel at
 // the top of the Create-profile content (both create members, so they belong
 // together).
-type Tab = "create" | "behalf" | "sourcing" | "organizer" | "post" | "featured";
+type Tab = "create" | "behalf" | "sourcing" | "drafts" | "organizer" | "post" | "featured";
 // "post" and "featured" are parked (disabled) — kept at the END of the order.
-const TABS: Tab[] = ["create", "behalf", "sourcing", "organizer", "post", "featured"];
+const TABS: Tab[] = ["create", "behalf", "sourcing", "drafts", "organizer", "post", "featured"];
 const DISABLED_TABS: Tab[] = ["post", "featured"];
 
 export function AdminPanel({ ownerMemberId }: { ownerMemberId: string }) {
@@ -67,6 +68,8 @@ export function AdminPanel({ ownerMemberId }: { ownerMemberId: string }) {
           <TabButton active={tab === "create"} onClick={() => setTab("create")} icon={UserPlus} label="Create profile" />
           <TabButton active={tab === "behalf"} onClick={() => setTab("behalf")} icon={Search} label="Act on behalf" />
           <TabButton active={tab === "sourcing"} onClick={() => setTab("sourcing")} icon={Globe} label="Sourcing" />
+          {/* Sits beside Sourcing: it reviews what Sourcing brings in. */}
+          <TabButton active={tab === "drafts"} onClick={() => setTab("drafts")} icon={ClipboardCheck} label="Scraped drafts" />
           <TabButton active={tab === "organizer"} onClick={() => setTab("organizer")} icon={Calendar} label="Organizer" />
           <TabButton active={tab === "post"} onClick={() => setTab("post")} icon={PenSquare} label="Add post" disabled />
           <TabButton active={tab === "featured"} onClick={() => setTab("featured")} icon={Star} label="Featured lists" disabled />
@@ -105,6 +108,8 @@ export function AdminPanel({ ownerMemberId }: { ownerMemberId: string }) {
       {tab === "post" && <AddPost />}
       {tab === "featured" && <FeaturedManager />}
       {tab === "sourcing" && <SourcingAdmin onDetailChange={setSourcingDetail} />}
+
+      {tab === "drafts" && <EventDrafts />}
       {/* Same toolkit as the footer "Run an event" page (/organizers): a
           no-login demo preview on sample data — nothing persists. */}
       {tab === "organizer" && (
