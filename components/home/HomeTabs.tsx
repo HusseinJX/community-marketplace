@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Newspaper, CalendarDays, Store, ArrowRight, ShoppingBag, Sparkles, CalendarPlus } from "lucide-react";
 import { EventSearchBar } from "@/components/feed/EventSearchBar";
+import { CityHeader } from "@/components/home/CityHeader";
 import { LiveFeed } from "@/components/live/LiveFeed";
 import { CommunityEventsLive } from "@/components/live/CommunityEventsLive";
 import { PersonalizedEvents } from "@/components/feed/PersonalizedEvents";
@@ -173,6 +174,12 @@ export function HomeTabs() {
             })}
           </div>
         </div>
+      </div>
+
+      {/* Which city you're being served — the same on every tab, so it sits
+          outside them rather than being repeated three times. */}
+      <div className="mx-auto max-w-6xl px-4 pt-3 md:px-8">
+        <CityHeader />
       </div>
 
       {/* Body — only the active tab mounts, keeping the page light per view. */}

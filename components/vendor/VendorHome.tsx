@@ -10,6 +10,9 @@ import { PLAN_KEY, PlanSwitch, type Tier } from '@/components/vendor/PlanSwitch'
 import { CollabMatchHero } from '@/components/vendor/CollabMatchHero'
 import { Opportunities } from '@/components/vendor/Opportunities'
 import { UpcomingCollabs, useUpcomingCollabs } from '@/components/vendor/ActiveCollabs'
+// Kept while its render block is commented out below — deleting it would make
+// restoring the feature a two-file change instead of uncommenting one block.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { EventLinkImport } from '@/components/vendor/EventLinkImport'
 import { useIsNativeApp } from '@/lib/native'
 
@@ -97,23 +100,33 @@ export function VendorHome({
   // rather than an effect, so it settles the moment the data lands and never
   // fights a choice the vendor has actually made.
   const upcoming = useUpcomingCollabs(memberId, !!isAdmin)
+  // Unused while the Join tab is hidden; it decides the default tab once the
+  // tab list has more than one entry again.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const hasUpcoming = upcoming.length > 0
-  const view: CollabView = collabView === 'upcoming' && !hasUpcoming ? 'join' : collabView
-  // "Create" tab hidden for now — leave the render branch in place so it's a
-  // one-line revert.
-  const tabs: CollabView[] = hasUpcoming ? ['upcoming', 'join'] : ['join']
+  // "Create" and "Join" ("Opportunities near you") are hidden for now. Every
+  // render branch below stays in place, so restoring either is one entry here.
+  const tabs: CollabView[] = ['upcoming']
+  // Fall back to the first VISIBLE tab rather than naming one, so hiding a tab
+  // can never strand the panel on a view with no control to leave it.
+  const view: CollabView = tabs.includes(collabView) ? collabView : tabs[0]
 
   // The tier toggle is demo scaffolding — show it in the admin demo, or to admins.
   const showPlanSwitch = demo || isAdmin
 
   return (
     <>
-      {/* Paste an event link → add it to your events (real vendors only). */}
+      {/* Paste an event link → add it to your events (real vendors only).
+          HIDDEN FOR NOW — uncomment to restore. Commented rather than `false &&`
+          because that form keeps TypeScript from narrowing `memberId` and the
+          block stops compiling.
+
       {memberId && !demo && (
         <div className="mb-6">
           <EventLinkImport memberId={memberId} memberName={memberName} isAdmin={isAdmin} />
         </div>
       )}
+      */}
 
       {/* ── The wedge, front and center. One "Collabs" section, two columns:
              people to team up with on one side, events to join on the other.
@@ -125,6 +138,12 @@ export function VendorHome({
               and Create opens on ideas.) */}
           <div className="mb-2 flex flex-wrap items-center gap-3">
             <h2 className="text-[11px] font-semibold uppercase tracking-wide text-stone-400">Collabs</h2>
+            {/* A switcher with one option is decoration — don't render it until
+                there is a choice to make. NOT a `hidden` class: that conflicts
+                with `inline-flex` on the same element and loses, because
+                competing display utilities are resolved by stylesheet order
+                rather than the order they appear in the class list. */}
+            {tabs.length > 1 && (
             <div className="inline-flex rounded-full bg-stone-100 p-0.5 text-[12px] font-medium">
               {tabs.map((v) => (
                 <button
@@ -139,6 +158,7 @@ export function VendorHome({
                 </button>
               ))}
             </div>
+            )}
           </div>
 
           <div className="card-soft p-4 sm:p-5">

@@ -15,7 +15,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { MapPin, Loader2, X, LocateFixed, Clock, Building2 } from "lucide-react";
-import { getUserPosition } from "@/lib/native-geo";
+import { cachedPosition, getHomePosition, refreshHomePosition } from "@/lib/home-position";
 import { usePersonalizedEvents } from "@/lib/data-hooks";
 
 const TOPIC_CHIPS: { id: string; label: string }[] = [
@@ -138,57 +138,6 @@ function dayLabel(iso: string): string {
   return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
 }
 
-/**
- * Position, remembered across sessions.
- *
- * Module scope rather than React state, because this component unmounts every
- * time you switch home tabs and re-asking the device on each remount both
- * re-prompts and delays distances that are already known.
- *
- * PERSISTED as well, because module scope dies on reload — and every reload was
- * therefore a fresh `getCurrentPosition()` call. Where the permission is a
- * standing grant that resolves silently; where it is not (a dismissed browser
- * prompt, or iOS "Allow Once", which lapses when the app is backgrounded) it is
- * another permission dialog, on every single launch. Remembering the last fix
- * means the feed opens already sorted by distance and only asks again once the
- * stored one has gone stale.
- *
- * Rounded to ~110m: this positions you in a neighbourhood and sorts by miles,
- * and nothing downstream reads finer, so there is no reason to keep a doorstep
- * on disk.
- */
-const HOME_KEY = "wl_home_pos";
-const HOME_TTL_MS = 24 * 60 * 60 * 1000;
-
-function readStoredHome(): { lat: number; lng: number } | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = window.localStorage.getItem(HOME_KEY);
-    if (!raw) return null;
-    const v = JSON.parse(raw) as { lat?: number; lng?: number; at?: number };
-    if (typeof v.lat !== "number" || typeof v.lng !== "number" || typeof v.at !== "number") return null;
-    if (Date.now() - v.at > HOME_TTL_MS) return null;
-    return { lat: v.lat, lng: v.lng };
-  } catch {
-    return null; // private mode, or something else wrote the key
-  }
-}
-
-function storeHome(pos: { lat: number; lng: number }): void {
-  try {
-    const r = (n: number) => Math.round(n * 1000) / 1000;
-    window.localStorage.setItem(
-      HOME_KEY,
-      JSON.stringify({ lat: r(pos.lat), lng: r(pos.lng), at: Date.now() }),
-    );
-  } catch {
-    /* private mode — we just re-ask next load */
-  }
-}
-
-let cachedHome: { lat: number; lng: number } | null = null;
-let geoRefused = false;
-
 export function PersonalizedEvents({
   // The SUBMITTED search text, owned by the page so the input can live in the
   // top search slot. Typing must never reach here — each miss with words in the
@@ -208,11 +157,11 @@ export function PersonalizedEvents({
   const [freeOnly, setFreeOnly] = useState(false);
   const [nearMe, setNearMe] = useState(false);
   const [radius, setRadius] = useState(2);
-  const [home, setHome] = useState<{ lat: number; lng: number } | null>(cachedHome);
+  const [home, setHome] = useState<{ lat: number; lng: number } | null>(cachedPosition);
   const [locating, setLocating] = useState(false);
   const [geoError, setGeoError] = useState<string | null>(null);
   // Location unavailable or refused — distances simply do not render.
-  const [locationOff, setLocationOff] = useState(geoRefused);
+  const [locationOff, setLocationOff] = useState(false);
 
   // The feed itself. SWR keyed on the request, so coming back to an unchanged
   // feed paints from cache with no network at all, and every filter combination
@@ -274,39 +223,19 @@ export function PersonalizedEvents({
   const visible = all.slice(0, shown);
   const more = all.length - visible.length;
 
-  // Ask for a position at most once per session, in the background.
+  // Position comes from the shared home cache, which the city header above also
+  // reads — one lookup, one permission dialog, one remembered fix.
   //
   // The feed does not wait on it: it renders immediately, then re-keys with
   // coordinates when they arrive, so distance is the default rather than
   // something to opt into. A refusal is not an error state.
-  //
-  // A stored fix short-circuits the whole thing, which is the difference
-  // between one permission dialog and one on every launch.
   useEffect(() => {
-    if (cachedHome || geoRefused) return;
     let cancelled = false;
-
-    void (async () => {
-      // A remembered fix answers immediately and asks the device nothing.
-      const stored = readStoredHome();
-      if (stored) {
-        cachedHome = stored;
-        if (!cancelled) setHome(stored);
-        return;
-      }
-
-      try {
-        const [lat, lng] = await getUserPosition();
-        if (cancelled) return;
-        cachedHome = { lat, lng };
-        storeHome(cachedHome);
-        setHome(cachedHome);
-      } catch {
-        geoRefused = true;
-        if (!cancelled) setLocationOff(true);
-      }
-    })();
-
+    void getHomePosition().then((p) => {
+      if (cancelled) return;
+      if (p) setHome(p);
+      else setLocationOff(true);
+    });
     return () => {
       cancelled = true;
     };
@@ -320,11 +249,9 @@ export function PersonalizedEvents({
     setGeoError(null);
     try {
       // Native-first (WKWebView has no navigator.geolocation), web fallback.
-      const [lat, lng] = await getUserPosition();
-      cachedHome = { lat, lng };
-      geoRefused = false;
-      storeHome(cachedHome);
-      setHome(cachedHome);
+      // Refresh rather than read: this button exists because the person wants a
+      // NEW fix, so a remembered one would be the wrong answer.
+      setHome(await refreshHomePosition());
       setLocationOff(false);
       setNearMe(true);
     } catch {

@@ -114,10 +114,13 @@ export function MessagesShell({
   return (
     // A chat fills the screen between the vendor nav and the bottom nav so its
     // composer pins just above the bottom nav — no page scroll, nothing below.
-    // The list view is an ordinary page and keeps the portal's padding, which
-    // the layout stops supplying on this route (see app/vendor/layout.tsx).
+    //
+    // VERTICAL padding only. The layout drops its own `py-10` on this route, but
+    // it ALWAYS supplies horizontal padding (VendorChrome) — so adding `px-6`
+    // here stacked on top of it and left 40px of gutter each side of a 375px
+    // phone, squeezing the content into 295px.
     <div
-      className={chatOpen ? 'flex flex-col px-4 pt-4' : 'space-y-6 px-6 py-10'}
+      className={chatOpen ? 'flex flex-col pt-4' : 'space-y-6 py-6 sm:py-10'}
       // An open chat hides the portal's nav row (see the body marker below), so
       // the only chrome left is the app's top + bottom nav — --app-chrome, not
       // --vendor-chrome.
