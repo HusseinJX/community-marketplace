@@ -65,7 +65,7 @@ export default async function CategoryPage({
       />
 
       <nav className="text-sm text-stone-500">
-        <Link href="/browse" className="hover:text-indigo-700">Browse</Link>
+        <Link href="/" className="hover:text-indigo-700">Home</Link>
         <span className="px-1.5">/</span>
         <Link href="/category" className="hover:text-indigo-700">Categories</Link>
         <span className="px-1.5">/</span>

@@ -4,21 +4,34 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Shield, UserPlus, FileText, Search, Check, Package, Calendar, ExternalLink, Star, PenSquare, ImagePlus, X, Loader2, Store, Radio } from "lucide-react";
+import { Shield, UserPlus, FileText, Search, Check, Package, Calendar, ExternalLink, Star, PenSquare, ImagePlus, X, Loader2, Store, Radio, Globe, ChevronDown } from "lucide-react";
 import { OnboardManager } from "../onboard/OnboardManager";
 import { FeaturedManager } from "../featured/FeaturedManager";
+import { LineupImportManager } from "@/components/admin/LineupImportManager";
+import { SourcingAdmin } from "@/app/prototype/admin/page"; // prototype "Sourcing" panel, embedded as a tab
+import { OrganizeManager } from "@/app/vendor/organize/OrganizeManager"; // the "Run an event" (/organizers) toolkit, embedded as a tab
 import { ORG_FOCUS } from "@/lib/org-focus";
 
 const TYPES = ["vendor", "artist", "organizer", "shopper", "influencer"] as const;
 
-type Tab = "create" | "transcript" | "behalf" | "post" | "featured";
-const TABS: Tab[] = ["create", "transcript", "behalf", "post", "featured"];
+// "Add by transcript" is no longer a tab — it lives as an expandable panel at
+// the top of the Create-profile content (both create members, so they belong
+// together).
+type Tab = "create" | "behalf" | "sourcing" | "organizer" | "post" | "featured";
+// "post" and "featured" are parked (disabled) — kept at the END of the order.
+const TABS: Tab[] = ["create", "behalf", "sourcing", "organizer", "post", "featured"];
+const DISABLED_TABS: Tab[] = ["post", "featured"];
 
 export function AdminPanel({ ownerMemberId }: { ownerMemberId: string }) {
   const router = useRouter();
   const params = useSearchParams();
   const tabParam = params.get("tab");
-  const tab: Tab = TABS.includes(tabParam as Tab) ? (tabParam as Tab) : "create";
+  const [showTranscript, setShowTranscript] = useState(false);
+  // Master-detail: hide the top tab pills when drilled into a city (Sourcing)
+  // or an org (Act on behalf → a member is selected via ?memberId).
+  const [sourcingDetail, setSourcingDetail] = useState(false);
+  const isSelectable = (t: string): t is Tab => TABS.includes(t as Tab) && !DISABLED_TABS.includes(t as Tab);
+  const tab: Tab = isSelectable(tabParam ?? "") ? (tabParam as Tab) : "create";
 
   // Persist the active tab in the URL so navigating into a member's
   // products/events and back (or the "Go back" bar) restores this view.
@@ -31,40 +44,89 @@ export function AdminPanel({ ownerMemberId }: { ownerMemberId: string }) {
     router.replace(`/vendor/admin?${sp.toString()}`);
   };
 
+  // Hide the top tab pills (and the header blurb) when drilled into a detail:
+  // a Sourcing city, or an Act-on-behalf member (an org, keyed by ?memberId).
+  const hidePills =
+    (tab === "sourcing" && sourcingDetail) || (tab === "behalf" && !!params.get("memberId"));
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="flex items-center gap-2 text-xl font-semibold text-stone-900">
-          <Shield className="h-6 w-6 text-indigo-500" /> Super-admin
-        </h1>
-        <p className="mt-1 text-sm text-stone-500">
-          Create profiles, onboard from a conversation, and add events/products on behalf of any business — even ones that haven&apos;t signed up.
-        </p>
-      </div>
+      {!hidePills && (
+        <div>
+          <h1 className="flex items-center gap-2 text-xl font-semibold text-stone-900">
+            <Shield className="h-6 w-6 text-indigo-500" /> Super-admin
+          </h1>
+          <p className="mt-1 text-sm text-stone-500">
+            Create profiles, onboard from a conversation, and add events/products on behalf of any business — even ones that haven&apos;t signed up.
+          </p>
+        </div>
+      )}
 
-      <div className="flex flex-wrap gap-2">
-        <TabButton active={tab === "create"} onClick={() => setTab("create")} icon={UserPlus} label="Create profile" />
-        <TabButton active={tab === "transcript"} onClick={() => setTab("transcript")} icon={FileText} label="Add by transcript" />
-        <TabButton active={tab === "behalf"} onClick={() => setTab("behalf")} icon={Search} label="Act on behalf" />
-        <TabButton active={tab === "post"} onClick={() => setTab("post")} icon={PenSquare} label="Add post" />
-        <TabButton active={tab === "featured"} onClick={() => setTab("featured")} icon={Star} label="Featured lists" />
-      </div>
+      {!hidePills && (
+        <div className="flex flex-wrap gap-2">
+          <TabButton active={tab === "create"} onClick={() => setTab("create")} icon={UserPlus} label="Create profile" />
+          <TabButton active={tab === "behalf"} onClick={() => setTab("behalf")} icon={Search} label="Act on behalf" />
+          <TabButton active={tab === "sourcing"} onClick={() => setTab("sourcing")} icon={Globe} label="Sourcing" />
+          <TabButton active={tab === "organizer"} onClick={() => setTab("organizer")} icon={Calendar} label="Organizer" />
+          <TabButton active={tab === "post"} onClick={() => setTab("post")} icon={PenSquare} label="Add post" disabled />
+          <TabButton active={tab === "featured"} onClick={() => setTab("featured")} icon={Star} label="Featured lists" disabled />
+        </div>
+      )}
 
-      {tab === "create" && <CreateProfile ownerMemberId={ownerMemberId} />}
-      {tab === "transcript" && <OnboardManager memberId={ownerMemberId} isAdmin />}
+      {tab === "create" && (
+        <div className="space-y-4">
+          {/* Bulk import a whole festival/market lineup from a photo. */}
+          <LineupImportManager ownerMemberId={ownerMemberId} />
+
+          {/* Add-by-transcript: an expandable panel on top of Create profile
+              (was its own tab). Both create members from different inputs. */}
+          <div className="overflow-hidden rounded-xl border border-stone-200 bg-white">
+            <button
+              onClick={() => setShowTranscript((v) => !v)}
+              aria-expanded={showTranscript}
+              className="flex w-full items-center justify-between px-4 py-3 text-left transition hover:bg-stone-50"
+            >
+              <span className="inline-flex items-center gap-2 text-sm font-medium text-stone-800">
+                <FileText className="h-4 w-4 text-indigo-500" /> Add by transcript
+              </span>
+              <ChevronDown className={`h-4 w-4 text-stone-400 transition-transform ${showTranscript ? "rotate-180" : ""}`} />
+            </button>
+            {showTranscript && (
+              <div className="border-t border-stone-100 p-4">
+                <OnboardManager memberId={ownerMemberId} isAdmin />
+              </div>
+            )}
+          </div>
+
+          <CreateProfile ownerMemberId={ownerMemberId} />
+        </div>
+      )}
       {tab === "behalf" && <ActOnBehalf />}
       {tab === "post" && <AddPost />}
       {tab === "featured" && <FeaturedManager />}
+      {tab === "sourcing" && <SourcingAdmin onDetailChange={setSourcingDetail} />}
+      {/* Same toolkit as the footer "Run an event" page (/organizers): a
+          no-login demo preview on sample data — nothing persists. */}
+      {tab === "organizer" && (
+        <OrganizeManager memberId="demo-organizer" isAdmin={false} emailReady demo eventOrganizer />
+      )}
     </div>
   );
 }
 
-function TabButton({ active, onClick, icon: Icon, label }: { active: boolean; onClick: () => void; icon: typeof Shield; label: string }) {
+function TabButton({ active, onClick, icon: Icon, label, disabled = false }: { active: boolean; onClick: () => void; icon: typeof Shield; label: string; disabled?: boolean }) {
   return (
     <button
-      onClick={onClick}
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
+      aria-disabled={disabled}
+      title={disabled ? "Disabled" : undefined}
       className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[13px] font-medium transition ${
-        active ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-600 hover:bg-stone-200"
+        disabled
+          ? "cursor-not-allowed bg-stone-100 text-stone-400 line-through opacity-60"
+          : active
+            ? "bg-stone-900 text-white"
+            : "bg-stone-100 text-stone-600 hover:bg-stone-200"
       }`}
     >
       <Icon className="h-4 w-4" /> {label}

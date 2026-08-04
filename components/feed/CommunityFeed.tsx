@@ -8,7 +8,9 @@ import { VendorPostCard } from "@/components/feed/VendorPostCard";
 import { CommunityPostCard } from "@/components/feed/CommunityPostCard";
 import { MerchCard } from "@/components/feed/MerchCard";
 import { EventsCard } from "@/components/feed/EventsCard";
+import { CommunityChatCard } from "@/components/community/CommunityChatCard";
 import { useEventsFeed, usePosts } from "@/lib/data-hooks";
+import { DEMO_COMMUNITY_CHATS } from "@/lib/demo-community-chats";
 
 // "3h ago" / "2d ago" / "Just now" from an ISO timestamp.
 function relativeTime(iso: string): string {
@@ -24,11 +26,25 @@ function relativeTime(iso: string): string {
   return `${days}d ago`;
 }
 
-type Filter = "all" | "shopper" | "vendor";
+// Which scroll position each community chat is tucked behind. Explicit rather
+// than computed because they have to dodge the merch (2) and events (5)
+// interstitials — two inserted cards back to back reads as an ad break. The
+// first is early enough to be met without hunting; the rest arrive over
+// successive "Load more"s, which is the pace you'd find them at anyway.
+const CHAT_SLOT_INDEXES = [1, 7, 11, 15];
+const CHAT_SLOTS = new Map(
+  DEMO_COMMUNITY_CHATS.map((chat, i) => [CHAT_SLOT_INDEXES[i] ?? 19 + i * 4, chat])
+);
+
+// Chats sits here rather than as its own home tab: a community chat is another
+// kind of community post, and promoting it to a top-level destination made the
+// home row four wide on a phone for content that belongs beside the posts.
+type Filter = "all" | "shopper" | "vendor" | "chats";
 const TABS: { id: Filter; label: string }[] = [
   { id: "all", label: "All" },
   { id: "shopper", label: "Shoppers" },
   { id: "vendor", label: "Vendors" },
+  { id: "chats", label: "Chats" },
 ];
 
 // The social community feed — events + vendor posts + featured merch/events.
@@ -66,8 +82,12 @@ export function CommunityFeed({
         description: String(e.description ?? ""),
         images: e.image ? [String(e.image)] : undefined,
         author: { id: String(e.memberId ?? ""), name: String(e.memberName ?? "Organizer"), type: "organizer" },
+        sourceId: e.sourceId ?? null,
+        eventUrl: e.eventUrl ?? null,
         postedAt: "Just now",
-        postedAtOrder: -1000 + i,
+        // Community events lead; harvested ones sit behind them. "Just now" is
+        // true of an organizer posting, but meaningless for a calendar we read.
+        postedAtOrder: (e.sourceId ? -500 : -1000) + i,
       })),
     [rawEvents]
   );
@@ -114,6 +134,9 @@ export function CommunityFeed({
     // vendor posts). "All" shows everything.
     if (filter === "shopper") return sorted.filter((i) => i.kind === "share");
     if (filter === "vendor") return sorted.filter((i) => i.kind === "event" || i.kind === "post");
+    // Chats is not a slice of the post stream — it is its own grid, rendered
+    // below instead of this list.
+    if (filter === "chats") return [];
     return sorted;
   }, [eventsOnly, filter, realEvents, realPosts]);
 
@@ -193,6 +216,23 @@ export function CommunityFeed({
         </div>
       )}
 
+      {/* Chats gets a grid of its own. Everywhere else they are seeded through
+          the scroll to be come across; picking the pill is going looking for
+          them, and that deserves the whole list at once. */}
+      {filter === "chats" && (
+        <div className="mx-auto max-w-2xl">
+          <p className="mb-4 text-sm text-stone-500">
+            Group chats rooted to a place. Drop in, see what&apos;s going on, star the ones you
+            want to come back to.
+          </p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {DEMO_COMMUNITY_CHATS.map((chat) => (
+              <CommunityChatCard key={chat.id} chat={chat} />
+            ))}
+          </div>
+        </div>
+      )}
+
       <div
         className={
           boardView
@@ -212,6 +252,11 @@ export function CommunityFeed({
             {/* Official WhatsLocal merch after the 3rd card, events after the 6th */}
             {i === 2 && <MerchCard />}
             {i === 5 && <EventsCard />}
+            {/* Community chats are seeded through the scroll rather than given a
+                section of their own — you're meant to come across one, not go
+                looking for a list. Each card hides itself unless you're near it,
+                so most people see none and someone in the Mission sees theirs. */}
+            {CHAT_SLOTS.get(i) && <CommunityChatCard chat={CHAT_SLOTS.get(i)!} />}
           </Fragment>
         ))}
       </div>

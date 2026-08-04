@@ -1,11 +1,10 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Users, MessageSquare, Sparkles } from 'lucide-react'
+import { Users, MessageSquare } from 'lucide-react'
 import { CollabsGate } from '@/components/vendor/CollabsGate'
 import { NetworkManager } from '@/app/vendor/network/NetworkManager'
 import { CustomerInbox } from './CustomerInbox'
-import { AssistantConsole } from '@/components/vendor/AssistantConsole'
 import { useVendorActivity } from '@/lib/data-hooks'
 import { countUnread, loadSeen, saveSeen, totalUnread, type SeenMap } from '@/lib/unread'
 
@@ -19,10 +18,10 @@ import { countUnread, loadSeen, saveSeen, totalUnread, type SeenMap } from '@/li
 //   Assistant      — your own ChatGPT-style threads with that same AI agent
 // Discovery (who to team up with) stays on Home. Home = find, Messages = talk.
 
-type Section = 'collabs' | 'customers' | 'assistant'
+type Section = 'collabs' | 'customers'
 
 function isSection(v: string | null): v is Section {
-  return v === 'collabs' || v === 'customers' || v === 'assistant'
+  return v === 'collabs' || v === 'customers'
 }
 
 export function MessagesShell({
@@ -110,7 +109,6 @@ export function MessagesShell({
   const tabs: { key: Section; label: string; Icon: typeof Users; unread: number }[] = [
     { key: 'collabs', label: 'Collaborations', Icon: Users, unread: collabUnread },
     { key: 'customers', label: 'Customers', Icon: MessageSquare, unread: customerUnread },
-    { key: 'assistant', label: 'Assistant', Icon: Sparkles, unread: 0 },
   ]
 
   return (
@@ -177,7 +175,6 @@ export function MessagesShell({
         {section === 'customers' && (
           <CustomerInbox onChatOpenChange={setChatOpen} unreadByConvo={unreadByConvo} onConvoSeen={markCustomerSeen} />
         )}
-        {section === 'assistant' && <AssistantConsole memberId={memberId} onChatOpenChange={setChatOpen} />}
       </div>
     </div>
   )

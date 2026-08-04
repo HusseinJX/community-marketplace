@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { ClerkAuthProvider } from "@/components/auth/ClerkAuthProvider";
 import { TopNav } from "@/components/TopNav";
 import { BottomNav } from "@/components/BottomNav";
-// import { AppBanner } from "@/components/AppBanner"; // hidden until the App Store listing exists
+import { AppBanner } from "@/components/AppBanner";
 import { SiteFooter } from "@/components/SiteFooter";
 import { StoreProvider } from "@/lib/store";
 import { SWRProvider } from "@/lib/swr";
@@ -87,10 +87,9 @@ export default function RootLayout({
             {/* Promo banners sit just under the nav so the header owns the notch
                 safe-area; they scroll away with the page. */}
             {/* SmsBanner (call-to-join) hidden — onboarding is app-first now. */}
-            {/* AppBanner hidden — the iOS app isn't published, so it was a black
-                bar on every page pointing at a dead App Store link. Restore it
-                (uncomment + set APP_STORE_URL) once the listing is live. */}
-            {/* <AppBanner /> */}
+            {/* Live on the App Store since 2026-08. Desktop-only + hidden inside
+                the native app — see components/AppBanner. */}
+            <AppBanner />
 
             <main className="flex-1">{children}</main>
 

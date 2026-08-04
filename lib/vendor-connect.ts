@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { sfToday } from './sf-date'
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -150,6 +151,14 @@ export interface VendorEvent {
   source: string
   active: boolean
   created_at: string
+  /** Registry id of the watched calendar this was harvested from; null = made in-app. */
+  source_id: string | null
+  /** The source's own stable id — the scraper's dedupe key. */
+  external_uid: string | null
+  /** Canonical page on the source site. For scraped events this is the only one. */
+  event_url: string | null
+  /** Last day of a multi-day event (exhibitions), else null. */
+  end_date: string | null
 }
 
 export interface NewVendorEvent {
@@ -176,13 +185,51 @@ export async function getVendorEventsByMember(memberId: string, includeDrafts = 
   return data as VendorEvent[]
 }
 
-// All live (active) events across every member — for the public community feed.
+/**
+ * All live events across every member — for the public community feed.
+ *
+ * Ordered by WHEN THE EVENT IS, not when the row was written. That was fine
+ * while every event was hand-made a few at a time, but harvested calendars
+ * arrive in batches of hundreds: sorting by `created_at` would hand all of the
+ * feed's slots to whichever scrape ran last and bury months-old organizer
+ * events that are happening tomorrow.
+ *
+ * Finished events are excluded here rather than in the caller, so no surface
+ * can forget to. Multi-day events are judged on their end date — an exhibition
+ * that opened last month is still on.
+ */
 export async function getPublicEvents(limit = 50): Promise<VendorEvent[]> {
+  // City-local, not UTC: after 5pm Pacific a UTC 'today' is tomorrow, which
+  // silently dropped this evening's events from the feed. See lib/sf-date.ts.
+  const today = sfToday()
   const { data, error } = await supabase
     .from('vendor_events')
     .select('*')
     .eq('active', true)
-    .order('created_at', { ascending: false })
+    .or(`end_date.gte.${today},and(end_date.is.null,event_date.gte.${today})`)
+    .order('event_date', { ascending: true })
+    .limit(limit)
+  if (error || !data) return []
+  return data as VendorEvent[]
+}
+
+/**
+ * Live events made by real members (never harvested) — the community's own.
+ *
+ * Kept as its own query so the feed can guarantee in-app events a place
+ * regardless of how many scraped events happen to fall on a nearer date.
+ */
+export async function getMemberEvents(limit = 30): Promise<VendorEvent[]> {
+  // City-local, not UTC: after 5pm Pacific a UTC 'today' is tomorrow, which
+  // silently dropped this evening's events from the feed. See lib/sf-date.ts.
+  const today = sfToday()
+  const { data, error } = await supabase
+    .from('vendor_events')
+    .select('*')
+    .eq('active', true)
+    .is('source_id', null)
+    .or(`end_date.gte.${today},and(end_date.is.null,event_date.gte.${today})`)
+    .order('event_date', { ascending: true })
     .limit(limit)
   if (error || !data) return []
   return data as VendorEvent[]

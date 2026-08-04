@@ -19,6 +19,12 @@ export type EventFeedItem = FeedItemBase & {
   location: string;
   description: string;
   images?: string[];
+  /** Watched calendar this was harvested from, else undefined for community
+      events. Its "author" is a source, not a member — so the card must not
+      link the byline to /members/{id}, which would 404. */
+  sourceId?: string | null;
+  /** Canonical page on the source site, for harvested events. */
+  eventUrl?: string | null;
 };
 
 export type VendorPostFeedItem = FeedItemBase & {

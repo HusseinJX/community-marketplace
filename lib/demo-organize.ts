@@ -30,6 +30,10 @@ export function demoEvents(memberId: string): VendorEvent[] {
     poster_image_url: null as string | null,
     source: 'manual',
     created_at: T0,
+    source_id: null as string | null,
+    external_uid: null as string | null,
+    event_url: null as string | null,
+    end_date: null as string | null,
   }
   return [
     {

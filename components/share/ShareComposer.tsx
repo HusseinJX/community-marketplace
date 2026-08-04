@@ -20,6 +20,13 @@ interface Media {
 type TagItem = { kind: "business" | "event"; id: string; label: string };
 type TagSlot = { query: string; tag: TagItem | null };
 
+/**
+ * Shown the instant a position is fixed, and kept if the reverse lookup never
+ * lands. Says what we actually know — you are here — without pretending to a
+ * precision (or a place name) we cannot back up.
+ */
+const PENDING_LOCATION = "Current location";
+
 export function ShareComposer() {
   const [body, setBody] = useState("");
   const [posted, setPosted] = useState(false);
@@ -31,6 +38,10 @@ export function ShareComposer() {
   const [location, setLocation] = useState("");
   const [locating, setLocating] = useState(false);
   const [locError, setLocError] = useState<string | null>(null);
+  // A vendor/org/artist with a saved business location can tag posts as either
+  // their current spot or their business location.
+  const [bizLocation, setBizLocation] = useState<string | null>(null);
+  const [locSource, setLocSource] = useState<"current" | "business">("current");
 
   const [members, setMembers] = useState<Member[]>([]);
   const [events, setEvents] = useState<EventSuggestion[]>([]);
@@ -209,27 +220,70 @@ export function ShareComposer() {
   }
 
   async function useCurrentLocation() {
+    setLocSource("current");
     setLocating(true);
     setLocError(null);
     try {
       const [lat, lng] = await getUserPosition();
-      // Reverse-geocode to a readable neighborhood label; fall back to coords.
-      let label = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+      // The fix itself is what gates posting, so settle the UI here and stop the
+      // spinner the moment we know where we are.
+      //
+      // A PLACEHOLDER, never coordinates. "37.7793, -122.4193" is not something
+      // a reader can do anything with, and it was reaching real posts whenever
+      // the reverse lookup didn't come back — which is every signed-out user,
+      // since that endpoint is authed to keep Google calls paid-for and capped.
+      setLocation(PENDING_LOCATION);
+      setLocating(false);
+      // Then upgrade to a readable neighborhood in the background. If it's slow
+      // or fails, the placeholder is already a fine thing to post.
       try {
         const res = await fetch(`/api/places/reverse?lat=${lat}&lng=${lng}`);
         if (res.ok) {
           const data = await res.json();
-          if (data.label) label = data.label;
+          // Only overwrite the placeholder — never stomp a label the user
+          // switched to (business location) while this was in flight.
+          if (data.label) {
+            setLocation((prev) => (prev === PENDING_LOCATION ? data.label : prev));
+          }
         }
       } catch {
-        /* keep coords fallback */
+        /* keep the placeholder */
       }
-      setLocation(label);
+      return;
     } catch {
       setLocError("Couldn't get your location. Check location permissions.");
     }
     setLocating(false);
   }
+
+  function useBusinessLocation() {
+    if (!bizLocation) return;
+    setLocSource("business");
+    setLocError(null);
+    setLocation(bizLocation);
+  }
+
+  // On mount: learn the user's business location (if any), and auto-tag the post
+  // with their current location — location is required to post.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/me/business-location");
+        const d = res.ok ? await res.json() : {};
+        if (alive && d?.location) setBizLocation(String(d.location));
+      } catch {
+        /* no business location — that's fine */
+      }
+    })();
+    // Auto-capture current location (auto location tag). If denied, the user
+    // can retry / pick business location; posting stays blocked until one is set.
+    void useCurrentLocation();
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function onScan(kind: "business" | "event", id: string) {
     const slot = scanSlot;
@@ -353,7 +407,8 @@ export function ShareComposer() {
 
   const canPost = goLive
     ? !!bizTag && !!eventSlug
-    : body.trim() || media.length > 0 || livestreamUrl.trim();
+    : // A location tag is REQUIRED on every post (auto-captured on mount).
+      !!location.trim() && (!!body.trim() || media.length > 0 || !!livestreamUrl.trim());
 
   return (
     <div className="mx-auto max-w-lg space-y-4 px-4 py-6">
@@ -574,23 +629,52 @@ export function ShareComposer() {
         />
       </label>
 
-      {/* Location — users only (a vendor's broadcast location is their tagged
-          venue). Tap to capture the device's current spot; no typing. */}
-      {!vendorMode && (
+      {/* Location — REQUIRED on every post, auto-captured on mount. A vendor/org/
+          artist with a saved business location can toggle between their current
+          spot and their business location. (Go-live broadcasts use the tagged
+          venue's location instead, so this is hidden there.) */}
+      {!goLive && (
         <div>
+          {/* Current / Business toggle — only when a business location exists. */}
+          {bizLocation && (
+            <div className="mb-2 inline-flex rounded-full bg-stone-100 p-0.5 text-[13px] font-medium">
+              <button
+                type="button"
+                onClick={useCurrentLocation}
+                className={
+                  "rounded-full px-3 py-1 transition " +
+                  (locSource === "current" ? "bg-white text-stone-900 shadow-sm" : "text-stone-500 hover:text-stone-700")
+                }
+              >
+                Current location
+              </button>
+              <button
+                type="button"
+                onClick={useBusinessLocation}
+                className={
+                  "rounded-full px-3 py-1 transition " +
+                  (locSource === "business" ? "bg-white text-stone-900 shadow-sm" : "text-stone-500 hover:text-stone-700")
+                }
+              >
+                Business location
+              </button>
+            </div>
+          )}
+
           {location ? (
             <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5">
               <Check className="h-4 w-4 shrink-0 text-emerald-600" />
               <span className="flex-1 truncate text-sm font-medium text-emerald-800">
-                Location set · {location}
+                {locSource === "business" ? "Business location" : "Location"} · {location}
               </span>
               <button
                 type="button"
-                onClick={() => setLocation("")}
-                aria-label="Clear location"
-                className="text-emerald-500 hover:text-emerald-700"
+                onClick={useCurrentLocation}
+                disabled={locating}
+                aria-label="Refresh current location"
+                className="text-emerald-500 hover:text-emerald-700 disabled:opacity-50"
               >
-                <X className="h-4 w-4" />
+                {locating ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
               </button>
             </div>
           ) : (
@@ -598,17 +682,20 @@ export function ShareComposer() {
               type="button"
               onClick={useCurrentLocation}
               disabled={locating}
-              className="flex w-full items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-left text-base text-stone-700 transition hover:bg-stone-50 disabled:opacity-60"
+              className="flex w-full items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2.5 text-left text-base text-amber-800 transition hover:bg-amber-100 disabled:opacity-60"
             >
               {locating ? (
-                <Loader2 className="h-4 w-4 shrink-0 animate-spin text-emerald-500" />
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin text-amber-600" />
               ) : (
-                <MapPin className="h-4 w-4 shrink-0 text-emerald-500" />
+                <MapPin className="h-4 w-4 shrink-0 text-amber-600" />
               )}
-              {locating ? "Getting your location…" : "Use current location"}
+              {locating ? "Getting your location…" : "Add location to post (required)"}
             </button>
           )}
           {locError && <p className="mt-1 text-xs text-rose-600">{locError}</p>}
+          {!location && !locating && (
+            <p className="mt-1 text-xs text-stone-500">Posts must be tagged with a location.</p>
+          )}
         </div>
       )}
 

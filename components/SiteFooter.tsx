@@ -10,7 +10,8 @@ import { FeedbackLink } from "@/components/FeedbackWidget";
 // and pins its input above the bottom nav, so there is no "below" to put it in.
 // Both inboxes count: the vendor portal's is as much a chat surface as the
 // shopper one, and it was getting 354px of marketing under the message box.
-const FULL_SCREEN = ["/messages", "/vendor/messages"];
+// Community chat rooms are the same shape — a thread with a pinned composer.
+const FULL_SCREEN = ["/messages", "/vendor/messages", "/community"];
 
 export function SiteFooter() {
   const pathname = usePathname();
@@ -76,7 +77,8 @@ export function SiteFooter() {
           <Link href="/explore" className="transition hover:text-indigo-700">All businesses</Link>
           <Link href="/city" className="transition hover:text-indigo-700">Places</Link>
           <Link href="/category" className="transition hover:text-indigo-700">Categories</Link>
-          <Link href="/browse" className="transition hover:text-indigo-700">Atlas</Link>
+          {/* "Atlas" pointed at /browse. Nothing points there now, and repointing
+              it at "/" would just duplicate the brand link above it. */}
         </div>
 
         <div className="mt-6 flex flex-col items-start justify-between gap-3 text-xs text-stone-500 sm:flex-row sm:items-center">

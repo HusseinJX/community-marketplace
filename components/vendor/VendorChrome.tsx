@@ -27,15 +27,22 @@ export function VendorChrome({ children }: { children: React.ReactNode }) {
   // padding is ALWAYS applied so content never touches the screen edges.)
   const fullScreen = pathname.startsWith('/vendor/messages')
 
+  // Super-admin is a focused back-office surface, not part of the vendor's own
+  // Home/Messages flow — hide the primary tab bar there (VendorBackBar in <main>
+  // still provides the way back).
+  const hideNav = pathname.startsWith('/vendor/admin')
+
   return (
     <div className={fullScreen ? 'bg-stone-50' : 'min-h-screen bg-stone-50'}>
       {/* data-vendor-nav: an open chat hides this row (globals.css) so the
           conversation gets the whole screen. */}
-      <header data-vendor-nav className="border-b border-stone-200 bg-white px-3 py-3 sm:px-6 sm:py-4">
-        <div className="mx-auto flex max-w-5xl items-center gap-2">
-          <VendorNav />
-        </div>
-      </header>
+      {!hideNav && (
+        <header data-vendor-nav className="border-b border-stone-200 bg-white px-3 py-3 sm:px-6 sm:py-4">
+          <div className="mx-auto flex max-w-5xl items-center gap-2">
+            <VendorNav />
+          </div>
+        </header>
+      )}
       <main className={`mx-auto max-w-5xl px-4 sm:px-6 ${fullScreen ? '' : 'py-10'}`}>
         <VendorBackBar />
         {children}

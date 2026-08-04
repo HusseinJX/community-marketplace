@@ -35,6 +35,9 @@ const detailsCache = new Map<string, Cached<PlaceDetails>>()
 // Everything a paid Text Search told us, kept per place so placeDetails doesn't
 // re-buy it. Not a cost cache — a "we already own this" ledger.
 const candidateCache = new Map<string, Cached<PlaceCandidate>>()
+// Neighborhood labels, keyed on a ~1km grid square rather than an exact fix —
+// see reverseGeocode for why that's the whole point.
+const reverseCache = new Map<string, Cached<string>>()
 
 function fresh<T>(c: Cached<T> | undefined, ttl = DAY): T | null {
   if (!c) return null
@@ -146,9 +149,22 @@ export async function placesSearch(
 }
 
 /** Reverse-geocode lat/lng → a short human label ("Mission District, SF"). */
+/**
+ * Coordinates → a short neighborhood label ("Mission District, SF").
+ *
+ * Cached on a ~1km grid (2dp), not on the raw fix. Two reasons, both from the
+ * spending rules above: a raw lat/lng is unique to the metre so it would never
+ * hit, and the answer is a *neighborhood* — every phone within a block of you
+ * has the same one. So the second person on that block, and you re-opening the
+ * composer, cost nothing and return instantly instead of paying a Geocoding
+ * request plus a round trip to Google.
+ */
 export async function reverseGeocode(lat: number, lng: number): Promise<string | null> {
   const key = KEY()
   if (!key || !Number.isFinite(lat) || !Number.isFinite(lng)) return null
+  const cacheKey = `${lat.toFixed(2)},${lng.toFixed(2)}`
+  const hit = fresh(reverseCache.get(cacheKey))
+  if (hit !== null) return hit
   try {
     const res = await fetch(
       `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&result_type=neighborhood|sublocality|locality&key=${key}`,
@@ -164,8 +180,14 @@ export async function reverseGeocode(lat: number, lng: number): Promise<string |
       )?.long_name ?? null
     const area = comp('neighborhood') ?? comp('sublocality') ?? comp('locality')
     const city = comp('locality')
-    if (area && city && area !== city) return `${area}, ${city}`
-    return area ?? city ?? (first.formatted_address as string) ?? null
+    const label =
+      area && city && area !== city
+        ? `${area}, ${city}`
+        : area ?? city ?? (first.formatted_address as string) ?? null
+    // Only successes are cached — a miss is cheap and rare (ocean, no result),
+    // and caching it would mean `fresh()` couldn't tell it from a cache miss.
+    if (label) remember(reverseCache, cacheKey, label)
+    return label
   } catch {
     return null
   }

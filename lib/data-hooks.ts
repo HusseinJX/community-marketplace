@@ -127,3 +127,56 @@ export function useCollaborations(memberId: string | null | undefined, isAdmin: 
 // Stable identity so consumers' useMemo deps don't churn on every render.
 const EMPTY: Activity[] = [];
 const EMPTY_COLLABS: CollaborationSummary[] = [];
+
+// ── Personalised events feed ─────────────────────────────────────────────────
+
+export interface PersonalizeParams {
+  text: string;
+  topics: string[];
+  freeOnly: boolean;
+  organizer: string | null;
+  lat: number | null;
+  lng: number | null;
+  maxMiles: number | null;
+}
+
+/**
+ * The "For you" feed.
+ *
+ * SWR rather than a useEffect+fetch, for the reason this whole file exists: the
+ * Events tab unmounts whenever you switch tabs or open an event, so a hand-rolled
+ * fetch-on-mount re-ran the whole request — including a model call — every single
+ * time you came back. Keyed on the request itself, so returning to an unchanged
+ * feed paints from cache instantly and every distinct filter combination keeps
+ * its own cached answer.
+ *
+ * POST because the request carries a sentence and a coordinate pair; the key is
+ * the serialised body, which is what makes two identical requests one request.
+ */
+export function usePersonalizedEvents(p: PersonalizeParams) {
+  const body = JSON.stringify(p);
+  const { data, isLoading, error } = useSWR(
+    ["events-personalize", body],
+    ([, payload]: [string, string]) =>
+      fetch("/api/events/personalize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: payload,
+      }).then(async (r) => {
+        if (!r.ok) {
+          const b = await r.json().catch(() => ({}));
+          throw new Error(b.error ?? "Could not load your feed");
+        }
+        return r.json();
+      }),
+    {
+      // The feed changes a few times a day, not a few times a minute, and every
+      // miss with text in the box costs a model call.
+      dedupingInterval: 5 * 60_000,
+      // Cached data is served as-is on remount. NOT revalidateOnMount:false —
+      // that would also suppress the very first fetch, leaving an empty feed.
+      revalidateIfStale: false,
+    },
+  );
+  return { data, loading: isLoading, error: error as Error | undefined };
+}

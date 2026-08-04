@@ -8,7 +8,8 @@ import { FilterSidebar } from "@/components/FilterSidebar";
 
 // Top-of-home search. Type a name, filter by business facets, or scan a QR /
 // tap an NFC tag at a market. Facet filters live in-place; "Show results"
-// carries them to /browse (the directory that actually filters on them).
+// carries them to /explore (the directory that actually filters on them —
+// it reads q + size + ownership off the URL on mount).
 export function HomeSearch() {
   const router = useRouter();
   const [q, setQ] = useState("");
@@ -16,7 +17,7 @@ export function HomeSearch() {
   const [size, setSize] = useState("");
   const [ownership, setOwnership] = useState<string[]>([]);
 
-  const toBrowse = (extra?: Record<string, string>) => {
+  const toResults = (extra?: Record<string, string>) => {
     const params = new URLSearchParams();
     const term = q.trim();
     if (term) params.set("q", term);
@@ -24,12 +25,12 @@ export function HomeSearch() {
     if (ownership.length) params.set("ownership", ownership.join(","));
     Object.entries(extra ?? {}).forEach(([k, v]) => params.set(k, v));
     const qs = params.toString();
-    router.push(qs ? `/browse?${qs}` : "/browse");
+    router.push(qs ? `/explore?${qs}` : "/explore");
   };
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    toBrowse();
+    toResults();
   };
 
   const toggleOwnership = (k: string) =>
@@ -72,7 +73,7 @@ export function HomeSearch() {
         open={filtersOpen}
         onClose={() => {
           setFiltersOpen(false);
-          if (activeCount > 0) toBrowse();
+          if (activeCount > 0) toResults();
         }}
         size={size}
         ownership={ownership}

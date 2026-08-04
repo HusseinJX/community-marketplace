@@ -28,6 +28,27 @@ const PRODUCTS_SCHEMA = {
   additionalProperties: false,
 } as const
 
+const LINEUP_SCHEMA = {
+  type: 'object',
+  properties: {
+    vendors: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' },
+          category: { type: ['string', 'null'], description: 'e.g. Food, Crafts, Music, Nonprofit — if shown or obvious' },
+          description: { type: ['string', 'null'] },
+        },
+        required: ['name', 'category', 'description'],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ['vendors'],
+  additionalProperties: false,
+} as const
+
 const EVENTS_SCHEMA = {
   type: 'object',
   properties: {
@@ -56,23 +77,32 @@ const EVENTS_SCHEMA = {
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}))
   const imageUrl = String(body.imageUrl ?? '')
-  const mode = body.mode === 'events' ? 'events' : 'products'
+  const mode: 'products' | 'events' | 'lineup' =
+    body.mode === 'events' ? 'events' : body.mode === 'lineup' ? 'lineup' : 'products'
   if (!imageUrl) return NextResponse.json({ error: 'Missing imageUrl' }, { status: 400 })
 
   const actor = await resolveActor(body.memberId)
   if (!actor) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+
+  // Bulk vendor-list extraction is a super-admin tool (it feeds member creation).
+  if (mode === 'lineup' && !actor.isAdmin) {
+    return NextResponse.json({ error: 'Admins only' }, { status: 403 })
+  }
 
   // OpenAI vision — cap per member.
   const limited = rateLimit({ req, name: 'ai-extract', id: actor.memberId, limit: 20, windowMs: 60_000 })
   if (limited) return limited
 
   // Menu capture → commerce (Pro); flyer/event capture → organize events (Pro).
-  const gated = await gateCapability(
-    actor.memberId,
-    mode === 'events' ? 'organizeEvents' : 'commerce',
-    { bypass: actor.isAdmin }
-  )
-  if (gated) return gated
+  // Lineup extraction is admin-only (checked above), so it skips the plan gate.
+  if (mode !== 'lineup') {
+    const gated = await gateCapability(
+      actor.memberId,
+      mode === 'events' ? 'organizeEvents' : 'commerce',
+      { bypass: actor.isAdmin }
+    )
+    if (gated) return gated
+  }
 
   // Fetch the image server-side and send it inline (base64) rather than handing
   // OpenAI the storage URL — OpenAI's downloader can be slow/flaky fetching
@@ -91,7 +121,12 @@ export async function POST(req: Request) {
   const instruction =
     mode === 'products'
       ? 'Extract every distinct menu item / product from this image. Capture name, a short description if shown, and the price in cents. Do not invent items or prices that are not visible.'
-      : 'Extract the event(s) advertised on this flyer/poster: title, description, date, time, and location exactly as printed. Do not invent details.'
+      : mode === 'lineup'
+        ? 'This is a festival/market lineup or exhibitor list. Extract every distinct business/vendor/exhibitor name shown. For each, capture the name, a category if shown or clearly implied (Food, Crafts, Music, Nonprofit, etc.), and a short description if present. Do not invent vendors that are not listed.'
+        : 'Extract the event(s) advertised on this flyer/poster: title, description, date, time, and location exactly as printed. Do not invent details.'
+
+  const SCHEMA = mode === 'products' ? PRODUCTS_SCHEMA : mode === 'lineup' ? LINEUP_SCHEMA : EVENTS_SCHEMA
+  const SCHEMA_NAME = mode === 'products' ? 'extracted_products' : mode === 'lineup' ? 'extracted_vendors' : 'extracted_events'
 
   const completion = await getOpenAI().chat.completions.create({
     model: VISION_MODEL,
@@ -106,11 +141,7 @@ export async function POST(req: Request) {
     ],
     response_format: {
       type: 'json_schema',
-      json_schema: {
-        name: mode === 'products' ? 'extracted_products' : 'extracted_events',
-        schema: mode === 'products' ? PRODUCTS_SCHEMA : EVENTS_SCHEMA,
-        strict: true,
-      },
+      json_schema: { name: SCHEMA_NAME, schema: SCHEMA, strict: true },
     },
   })
 
@@ -131,6 +162,16 @@ export async function POST(req: Request) {
         price: typeof p.price_cents === 'number' ? p.price_cents : 0,
         currency: (p.currency || 'usd').toLowerCase(),
       })),
+    })
+  }
+
+  if (mode === 'lineup') {
+    const vendors = (parsed.vendors as { name: string; category: string | null; description: string | null }[] | undefined) ?? []
+    return NextResponse.json({
+      mode,
+      vendors: vendors
+        .filter((v) => v.name && v.name.trim())
+        .map((v) => ({ name: v.name.trim(), category: v.category, description: v.description })),
     })
   }
 

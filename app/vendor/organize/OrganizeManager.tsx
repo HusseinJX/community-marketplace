@@ -25,6 +25,7 @@ const DEMO_EVENTS: VendorEvent[] = [
     event_time: "2:00 PM – 8:00 PM", location: "Valencia St", city: "San Francisco", neighborhood: "Mission",
     lat: 37.7599, lng: -122.4214,
     poster_image_url: null, capacity: 300, source: "manual", active: true, created_at: "2026-06-20T15:00:00.000Z",
+    source_id: null, external_uid: null, event_url: null, end_date: null,
   },
   {
     id: "demo-ev-market", member_id: "", member_name: "You", title: "Neighborhood Night Market",
@@ -32,6 +33,7 @@ const DEMO_EVENTS: VendorEvent[] = [
     event_time: "6:00 PM – 10:00 PM", location: "Dolores Park", city: "San Francisco", neighborhood: "Mission",
     lat: 37.7596, lng: -122.4269,
     poster_image_url: null, capacity: null, source: "manual", active: true, created_at: "2026-06-24T15:00:00.000Z",
+    source_id: null, external_uid: null, event_url: null, end_date: null,
   },
 ];
 
@@ -407,7 +409,8 @@ function Lineup({ event, memberId, isAdmin, demo }: { event: VendorEvent; member
           sentLabel="In lineup"
           excludeIds={new Set([memberId])}
           placeholder="Search — “taco truck”, “muralist”, “live band”…"
-          emptyHint="Search to add vendors, performers, sponsors…"
+          emptyHint="No businesses to show yet."
+          browseWhenEmpty
         />
 
         {/* No "invite as" step — the role is inferred from what each business

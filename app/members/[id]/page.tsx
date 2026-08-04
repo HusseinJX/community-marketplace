@@ -9,6 +9,8 @@ import {
   resolveHeroImages,
 } from "@/lib/seo";
 import { MemberJsonLd } from "@/components/JsonLd";
+import { BackToHome } from "@/components/BackToHome";
+import { RememberOrigin } from "@/components/RememberOrigin";
 import { getProductsByMember, getVendorEventsByMember, type SupabaseProduct, type VendorEvent } from "@/lib/vendor-connect";
 import { getBroadcastsByMember, type Broadcast } from "@/lib/broadcasts";
 import { isLive, eventEmoji, eventLabel as liveEventLabel, timeLeftLabel } from "@/lib/live-events";
@@ -17,7 +19,6 @@ import { EventCard } from "@/components/EventCard";
 import { MiniMap } from "@/components/MiniMap";
 import { ShopSection } from "@/components/ShopSection";
 import { ActionBar } from "@/components/ActionBar";
-import { GoogleReviewButton } from "@/components/GoogleReviewButton";
 import { GroupChat } from "@/components/GroupChat";
 import { ImageCarousel } from "@/components/ImageCarousel";
 import { AskAssistant } from "@/components/AskAssistant";
@@ -200,9 +201,9 @@ export default async function MemberProfilePage({
   if (fetchError || !member) {
     return (
       <div className="mx-auto max-w-4xl px-6 py-16">
-        <Link href="/browse" className="inline-flex items-center gap-1 text-sm text-indigo-700 hover:underline">
-          ← Back to browse
-        </Link>
+        {/* Returns to the home tab you came from (Feed / Shop / …), not a fixed
+            destination — see components/BackToHome. */}
+        <BackToHome className="inline-flex items-center gap-1 text-sm text-indigo-700 hover:underline" />
         <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
           {fetchError || "Member not found."}
         </div>
@@ -263,6 +264,25 @@ export default async function MemberProfilePage({
   });
 
   const hasSocials = [...knownSocialKeys].some((k) => p[k]) || extraSocials.length > 0;
+
+  // Compact social links for the profile action row (row 2) — emoji-iconed.
+  const str = (v: unknown) => (v ? String(v) : "");
+  const socialLinks = [
+    p.instagramHandle && { href: `https://instagram.com/${str(p.instagramHandle).replace(/^@/, "")}`, label: "Instagram", icon: "📸" },
+    (p.twitterHandle || p.xHandle) && { href: `https://x.com/${str(p.twitterHandle || p.xHandle).replace(/^@/, "")}`, label: "X", icon: "𝕏" },
+    p.tiktokHandle && { href: `https://tiktok.com/@${str(p.tiktokHandle).replace(/^@/, "")}`, label: "TikTok", icon: "🎵" },
+    (p.youtubeUrl || p.youtubeHandle) && { href: str(p.youtubeUrl) || `https://youtube.com/@${str(p.youtubeHandle).replace(/^@/, "")}`, label: "YouTube", icon: "▶️" },
+    p.facebookUrl && { href: str(p.facebookUrl), label: "Facebook", icon: "👥" },
+    p.linkedinUrl && { href: str(p.linkedinUrl), label: "LinkedIn", icon: "💼" },
+    p.threadsHandle && { href: `https://threads.net/@${str(p.threadsHandle).replace(/^@/, "")}`, label: "Threads", icon: "🧵" },
+    p.spotifyUrl && { href: str(p.spotifyUrl), label: "Spotify", icon: "🎧" },
+    p.soundcloudUrl && { href: str(p.soundcloudUrl), label: "SoundCloud", icon: "☁️" },
+    p.eventbriteUrl && { href: str(p.eventbriteUrl), label: "Eventbrite", icon: "🎟️" },
+    p.bandsintownUrl && { href: str(p.bandsintownUrl), label: "Bandsintown", icon: "🎸" },
+    p.meetupUrl && { href: str(p.meetupUrl), label: "Meetup", icon: "🤝" },
+    p.pinterestUrl && { href: str(p.pinterestUrl), label: "Pinterest", icon: "📌" },
+  ].filter(Boolean) as { href: string; label: string; icon: string }[];
+
   const hasLocation = typeof p.latitude === "number" && typeof p.longitude === "number";
   const memberTypeColor: Record<string, string> = {
     vendor: "#3B82F6", artist: "#8B5CF6", organizer: "#10B981",
@@ -273,9 +293,12 @@ export default async function MemberProfilePage({
   return (
     <div className="mx-auto max-w-7xl px-4 pb-24 pt-8 md:px-8">
       {isIndexable(member) && <MemberJsonLd member={member} />}
-      <Link href="/browse" className="inline-flex items-center gap-1 text-sm text-indigo-700 hover:underline">
-        ← Back to browse
-      </Link>
+      {/* This profile links onward to its own events, so record it as the place
+          those events come back to. */}
+      <RememberOrigin href={`/members/${id}`} label={name} />
+      {/* Returns wherever you came from — the home tab you were browsing, or a
+          profile that sent you here. See components/BackToHome. */}
+      <BackToHome className="inline-flex items-center gap-1 text-sm text-indigo-700 hover:underline" />
 
       {/* Hero */}
       {(() => {
@@ -319,7 +342,18 @@ export default async function MemberProfilePage({
         {memberType === "vendor" && ENDORSEMENTS[id] && (
           <EndorsementRows data={ENDORSEMENTS[id]} />
         )}
-        <ActionBar memberName={name} memberId={id} isVendor={memberType === "vendor"} canInquire={hasAssistant} />
+        <ActionBar
+          memberName={name}
+          memberId={id}
+          isVendor={memberType === "vendor"}
+          canInquire={hasAssistant}
+          websiteUrl={p.websiteUrl as string | undefined}
+          googleMapsUrl={p.googleMapsUrl as string | undefined}
+          placeId={p.placeId as string | undefined}
+          businessName={(p.businessName as string) || name}
+          businessAddress={p.businessAddress as string | undefined}
+          socials={socialLinks}
+        />
       </header>
 
       <div className="mt-10 grid gap-10 lg:grid-cols-3">
@@ -617,15 +651,8 @@ export default async function MemberProfilePage({
                   Visit website →
                 </a>
               )}
-              {/* One-click leave-a-review on the business's Google listing */}
-              <div>
-                <GoogleReviewButton
-                  placeId={p.placeId as string | undefined}
-                  name={(p.businessName as string) || name}
-                  address={p.businessAddress as string | undefined}
-                  mapsUrl={p.googleMapsUrl as string | undefined}
-                />
-              </div>
+              {/* Leave-a-review moved to the profile action row (ActionBar's
+                  "Leave a Google review"); hidden here to avoid duplication. */}
             </div>
           )}
 

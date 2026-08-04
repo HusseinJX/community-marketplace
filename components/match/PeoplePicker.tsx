@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import useSWR from 'swr'
 import { Search, X, Loader2 } from 'lucide-react'
 import { MatchCard } from './MatchCard'
 import { demoMatches } from '@/lib/demo-match'
-import type { MatchCandidate } from '@/lib/types'
+import type { MatchCandidate, Member } from '@/lib/types'
 
 // The ONE way to pick people — shared by the collaboration composer and the
 // organizer lineup so both behave identically:
@@ -25,6 +26,7 @@ export function PeoplePicker({
   sentLabel = 'Invited',
   placeholder = 'Search people — “muralist for a launch night”',
   emptyHint = 'Search above to add people.',
+  browseWhenEmpty = false,
 }: {
   memberId: string
   isAdmin: boolean
@@ -38,10 +40,41 @@ export function PeoplePicker({
   sentLabel?: string
   placeholder?: string
   emptyHint?: string
+  /** When true, show a browsable member list before any search, paginated with
+   *  a "Load more" button — instead of just the already-picked people. */
+  browseWhenEmpty?: boolean
 }) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<MatchCandidate[]>([])
   const [searching, setSearching] = useState(false)
+  // Browse-before-search list (only when browseWhenEmpty). Backed by the shared
+  // SWR "/api/directory" key so it's cached across mounts (opening the Add view
+  // again doesn't refetch) and deduped with the home/explore directory.
+  const BROWSE_PAGE = 20
+  const [browseVisible, setBrowseVisible] = useState(BROWSE_PAGE)
+  const { data: dir, isLoading: dirLoading } = useSWR<{ members?: Member[] }>(
+    browseWhenEmpty && !demo ? '/api/directory' : null,
+  )
+  const browse = useMemo<MatchCandidate[]>(() => {
+    if (!browseWhenEmpty) return []
+    if (demo) return demoMatches('', 50)
+    return (dir?.members ?? [])
+      .map((m) => {
+        const p = (m.profile ?? {}) as Record<string, unknown>
+        return {
+          id: m.id,
+          name: String(p.name ?? p.businessName ?? ''),
+          memberType: p.memberType as string | undefined,
+          city: p.city as string | undefined,
+          neighborhood: p.neighborhood as string | undefined,
+          category: p.category as string | undefined,
+          reasons: [],
+          profile: m.profile,
+        } as MatchCandidate
+      })
+      .filter((c) => c.id && c.name)
+  }, [browseWhenEmpty, demo, dir])
+  const browseLoading = browseWhenEmpty && !demo && dirLoading && !dir
   // Rows mid-animation: `confirming` = just picked (held in the search list until
   // the check pops), `leaving` = just dropped (held until it fades out).
   const [confirming, setConfirming] = useState<Set<string>>(new Set())
@@ -115,11 +148,22 @@ export function PeoplePicker({
   }
 
   const isSearching = query.trim().length > 0
+  // Empty-state list: a browsable directory (paginated) when browseWhenEmpty, else
+  // just the people already picked. Picked items stay pinned on top so a pick made
+  // while browsing never scrolls out of view.
+  const browseFiltered = browse.filter((c) => c.id !== memberId && !excludeIds?.has(c.id))
+  const browseSlice = browseFiltered.slice(0, browseVisible)
+  const pickedPinned = [...picked.values()].filter(
+    (c) => c.id !== memberId && !browseSlice.some((b) => b.id === c.id),
+  )
   const shown = isSearching
     ? results.filter(
         (c) => c.id !== memberId && !excludeIds?.has(c.id) && (!picked.has(c.id) || confirming.has(c.id)),
       )
-    : [...picked.values()].filter((c) => c.id !== memberId)
+    : browseWhenEmpty
+      ? [...pickedPinned, ...browseSlice]
+      : [...picked.values()].filter((c) => c.id !== memberId)
+  const canLoadMore = !isSearching && browseWhenEmpty && browseFiltered.length > browseVisible
 
   return (
     <div className="space-y-2">
@@ -142,9 +186,9 @@ export function PeoplePicker({
         )}
       </div>
 
-      {searching ? (
+      {searching || (browseWhenEmpty && !isSearching && browseLoading && browse.length === 0) ? (
         <div className="flex items-center justify-center gap-2 py-8 text-sm text-stone-400">
-          <Loader2 className="h-4 w-4 animate-spin" /> Searching…
+          <Loader2 className="h-4 w-4 animate-spin" /> {searching ? 'Searching…' : 'Loading…'}
         </div>
       ) : shown.length === 0 ? (
         <p className="py-8 text-center text-sm text-stone-400">
@@ -156,6 +200,13 @@ export function PeoplePicker({
             const joining = confirming.has(c.id)
             const going = leaving.has(c.id)
             const already = sentIds?.has(c.id)
+            // Browsing (empty query, browse mode): toggle picks/drops in place —
+            // no confirm-then-drop dance, since the row stays in the list.
+            const handleToggle = isSearching
+              ? () => pick(c)
+              : browseWhenEmpty
+                ? () => onToggle(c)
+                : () => drop(c)
             return (
               <div
                 key={c.id}
@@ -168,11 +219,21 @@ export function PeoplePicker({
                   justUnselected={going}
                   disabled={already}
                   disabledLabel={sentLabel}
-                  onToggle={() => (isSearching ? pick(c) : drop(c))}
+                  onToggle={handleToggle}
                 />
               </div>
             )
           })}
+
+          {canLoadMore && (
+            <button
+              type="button"
+              onClick={() => setBrowseVisible((n) => n + BROWSE_PAGE)}
+              className="mt-1 w-full rounded-xl border border-stone-200 bg-white py-2.5 text-sm font-semibold text-stone-600 transition hover:bg-stone-50"
+            >
+              Load more
+            </button>
+          )}
         </div>
       )}
     </div>

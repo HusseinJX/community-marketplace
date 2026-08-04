@@ -25,8 +25,18 @@ export const syncVendorCatalogTask = task({
 // Observable in the Trigger.dev dashboard (Schedules).
 export const syncAllCatalogsTask = schedules.task({
   id: 'sync-all-catalogs',
-  // 3am UTC daily.
-  cron: '0 3 * * *',
+  // DECLARATIVE SCHEDULE DISABLED (2026-08-04).
+  //
+  // Was `cron: '0 3 * * *'`. The worker had never been deployed, so this cron
+  // had never actually run; deploying the event-sourcing sweep would have
+  // switched it on as a side effect of an unrelated feature. Catalog sync has
+  // not been exercised against live vendors, so that is not a thing to enable
+  // by accident.
+  //
+  // The task still deploys and can be run on demand (dashboard, or by
+  // attaching a schedule). To restore automatic nightly syncing, put the cron
+  // line back:
+  //   cron: '0 3 * * *',
   run: async () => {
     const memberIds = await getConnectedMemberIds()
     logger.info('Daily catalog sweep starting', { vendors: memberIds.length })

@@ -63,7 +63,7 @@ export default async function CityPage({
       />
 
       <nav className="text-sm text-stone-500">
-        <Link href="/browse" className="hover:text-indigo-700">Browse</Link>
+        <Link href="/" className="hover:text-indigo-700">Home</Link>
         <span className="px-1.5">/</span>
         <Link href="/city" className="hover:text-indigo-700">Places</Link>
         <span className="px-1.5">/</span>

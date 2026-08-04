@@ -102,7 +102,10 @@ export function LoginModal({
     try {
       await clerk.client.signIn.authenticateWithPopup({
         strategy,
-        redirectUrl: `${window.location.origin}/sso-callback`,
+        // /vendor-callback uses FALLBACK redirects so the popup honors this
+        // redirectUrlComplete (/vendor). /sso-callback FORCE-redirects to /join,
+        // which broke this popup's completion handshake — see that route's note.
+        redirectUrl: `${window.location.origin}/vendor-callback`,
         redirectUrlComplete: `${window.location.origin}${dest}`,
         popup,
       });

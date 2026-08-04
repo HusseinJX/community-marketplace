@@ -7,8 +7,13 @@
 interface GeoPosition {
   coords: { latitude: number; longitude: number };
 }
+interface GeoOptions {
+  enableHighAccuracy?: boolean;
+  timeout?: number;
+  maximumAge?: number;
+}
 interface GeolocationPlugin {
-  getCurrentPosition: (opts?: { enableHighAccuracy?: boolean; timeout?: number }) => Promise<GeoPosition>;
+  getCurrentPosition: (opts?: GeoOptions) => Promise<GeoPosition>;
 }
 interface CapacitorGlobal {
   isNativePlatform?: () => boolean;
@@ -26,20 +31,41 @@ export function nativeGeoAvailable(): boolean {
   return !!c?.isNativePlatform?.() && !!c?.Plugins?.Geolocation;
 }
 
+// ── Why coarse + cached is the DEFAULT ───────────────────────────────────────
+// Every caller here wants a *neighborhood*, not a doorstep: a "Mission District,
+// SF" post label, distance-in-km sorting, a you-are-here pin on a city map. None
+// of them can tell 10m from 500m.
+//
+// `enableHighAccuracy: true` makes iOS spin up the GPS radio and wait for it to
+// converge — commonly several seconds cold, much worse indoors — to buy
+// precision nothing downstream reads. Coarse location answers from the wifi/cell
+// fix that iOS already has, typically in well under a second, and `maximumAge`
+// lets a fix taken minutes ago return with no wait at all.
+//
+// So: ask for precision only when something actually depends on it, via
+// `{ highAccuracy: true }`. Don't flip the default back.
+const COARSE: GeoOptions = { enableHighAccuracy: false, timeout: 8000, maximumAge: 300_000 };
+const PRECISE: GeoOptions = { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 };
+
+export interface PositionOptions {
+  /** Wait for a real GPS fix. Slow (seconds). Only for true precision needs. */
+  highAccuracy?: boolean;
+}
+
 // Resolve the device's current position as [lat, lng]. Throws on denial/error so
 // the caller can surface a message.
-export async function getNativePosition(): Promise<[number, number]> {
+export async function getNativePosition(opts: PositionOptions = {}): Promise<[number, number]> {
   const plugin = cap()?.Plugins?.Geolocation;
   if (!plugin) throw new Error("Native geolocation unavailable");
-  const pos = await plugin.getCurrentPosition({ enableHighAccuracy: true, timeout: 8000 });
+  const pos = await plugin.getCurrentPosition(opts.highAccuracy ? PRECISE : COARSE);
   return [pos.coords.latitude, pos.coords.longitude];
 }
 
 // Unified position lookup: native plugin inside the iOS shell, browser
 // geolocation on the web. Rejects on denial/unavailable so callers can fall
-// back silently. `maximumAge` lets a recent fix return instantly.
-export async function getUserPosition(): Promise<[number, number]> {
-  if (nativeGeoAvailable()) return getNativePosition();
+// back silently. Coarse + cached by default — see the note above.
+export async function getUserPosition(opts: PositionOptions = {}): Promise<[number, number]> {
+  if (nativeGeoAvailable()) return getNativePosition(opts);
   return new Promise((resolve, reject) => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
       reject(new Error("Geolocation unavailable"));
@@ -48,7 +74,7 @@ export async function getUserPosition(): Promise<[number, number]> {
     navigator.geolocation.getCurrentPosition(
       (p) => resolve([p.coords.latitude, p.coords.longitude]),
       (e) => reject(e),
-      { timeout: 8000, maximumAge: 300_000 }
+      opts.highAccuracy ? PRECISE : COARSE
     );
   });
 }

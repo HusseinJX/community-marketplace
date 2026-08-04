@@ -75,7 +75,7 @@ export function CommunityEventsLive({ only }: { only?: "now" | "upcoming" } = {}
   return (
     <div className="mx-auto max-w-6xl space-y-10 px-4 md:px-8">
       {only === undefined && (
-        <h2 className="text-xl font-semibold tracking-tight text-stone-900">Upcoming community events</h2>
+        <h2 className="text-xl font-semibold tracking-tight text-stone-900">Upcoming events</h2>
       )}
 
       {showNow && (

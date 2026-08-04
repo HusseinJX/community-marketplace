@@ -14,11 +14,14 @@ export function GoogleReviewButton({
   name,
   address,
   mapsUrl,
+  className,
 }: {
   placeId?: string | null;
   name?: string | null;
   address?: string | null;
   mapsUrl?: string | null;
+  /** Override the default styling (e.g. to sit inline in a button row). */
+  className?: string;
 }) {
   const q = reviewQuery(name, address);
   // Skip the network entirely when we already know the Place ID.
@@ -36,7 +39,10 @@ export function GoogleReviewButton({
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-amber-400 px-3.5 py-2 text-[13px] font-semibold text-stone-900 shadow-sm transition hover:bg-amber-300"
+      className={
+        className ??
+        "mt-4 inline-flex items-center gap-1.5 rounded-full bg-amber-400 px-3.5 py-2 text-[13px] font-semibold text-stone-900 shadow-sm transition hover:bg-amber-300"
+      }
     >
       <Star className="h-4 w-4 fill-current" />
       Leave a Google review

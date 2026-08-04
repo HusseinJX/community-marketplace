@@ -55,6 +55,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Post is empty' }, { status: 400 })
   }
 
+  // Every post must carry a location tag (auto-captured by the composer).
+  const location = (b.location ?? '').toString().trim()
+  if (!location) {
+    return NextResponse.json({ error: 'A location tag is required to post.' }, { status: 400 })
+  }
+
   try {
     const post = await createPost({
       author_id: userId ?? 'demo',
@@ -67,7 +73,7 @@ export async function POST(request: Request) {
       tagged_event_id: b.taggedEventId ?? null,
       tagged_event_title: b.taggedEventTitle ?? null,
       livestream_url: b.livestreamUrl ?? null,
-      location: (b.location ?? '').toString().trim() || null,
+      location,
     })
     return NextResponse.json({ post })
   } catch (err) {

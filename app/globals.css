@@ -321,3 +321,7 @@ textarea,
 .dark .bg-emerald-50 { background-color: #12211b; }
 .dark .bg-amber-50 { background-color: #241d10; }
 .dark .bg-rose-50 { background-color: #261418; }
+
+/* Hide the horizontal scrollbar on chip/selector rows (still scrollable). */
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }

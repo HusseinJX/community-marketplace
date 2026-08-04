@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getPublicEvents } from '@/lib/vendor-connect'
+import { getPublicEvents, getMemberEvents } from '@/lib/vendor-connect'
 import { getAcceptedLineupCounts } from '@/lib/collab-network'
 import { listEvents } from '@/lib/api'
 
@@ -32,6 +32,11 @@ export interface FeedEvent {
   collaborators: number
   /** The host + accepted lineup, for the avatar stack on event cards. */
   collaboratorList: { id: string; name: string | null }[]
+  /** Watched calendar this was harvested from, else null for community events. */
+  sourceId: string | null
+  /** Canonical page on the source site — where a scraped card links instead of
+      a member profile, because its "host" is a calendar, not a business. */
+  eventUrl: string | null
 }
 
 // Public community-feed events: real in-app organizer/vendor events
@@ -41,7 +46,15 @@ export async function GET() {
   const seen = new Set<string>()
 
   try {
-    for (const e of await getPublicEvents(50)) {
+    // Two queries, deliberately. The community's own events are fetched
+    // separately and merged FIRST so that harvested calendars — which arrive
+    // hundreds at a time — can never crowd a real organizer out of the feed
+    // just by having a nearer date. Scraped events fill the remaining room.
+    const members = await getMemberEvents(30)
+    const all = await getPublicEvents(120)
+    const scraped = all.filter((e) => e.source_id !== null)
+
+    for (const e of [...members, ...scraped]) {
       if (seen.has(e.id)) continue
       seen.add(e.id)
       out.push({
@@ -58,6 +71,8 @@ export async function GET() {
         memberName: e.member_name ?? 'Organizer',
         collaborators: 1,
         collaboratorList: [{ id: e.member_id, name: e.member_name ?? 'Organizer' }],
+        sourceId: e.source_id,
+        eventUrl: e.event_url,
       })
     }
   } catch {
@@ -98,6 +113,8 @@ export async function GET() {
         memberName: e.memberName ?? 'Organizer',
         collaborators: 1,
         collaboratorList: e.memberId ? [{ id: e.memberId, name: e.memberName ?? 'Organizer' }] : [],
+        sourceId: null,
+        eventUrl: null,
       })
     }
   } catch {

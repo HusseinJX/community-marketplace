@@ -42,7 +42,7 @@ const SECTIONS: Section[] = [
     eyebrow: "Events",
     title: "Real events, made by members",
     body: "Every event here is created by our members and their collaborations — a market a business hosts, a show an artist puts on, a festival an organizer pulls together. Real community, in real life, built by the people in it.",
-    href: "/events",
+    href: "/?tab=events",
     cta: "Find events near you",
     accent: "from-rose-500 to-pink-600",
   },

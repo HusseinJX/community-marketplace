@@ -153,7 +153,7 @@ export default function WorldCupPage() {
           Local vendors, makers, artists, cooks, builders — the living culture that no tourist map shows you.
         </p>
         <Link
-          href="/browse"
+          href="/"
           className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#d4a017] px-5 py-2.5 text-sm font-semibold text-stone-900 transition hover:bg-[#f0c040]"
         >
           Browse the directory <ArrowRight className="h-4 w-4" />

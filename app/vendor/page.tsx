@@ -13,6 +13,7 @@ import { uberConfigured } from "@/lib/uber-direct";
 import { TitleQrButton } from "@/components/vendor/TitleQrButton";
 import { VendorSignOut } from "@/components/vendor/VendorSignOut";
 import { DeleteAccountButton } from "@/components/account/DeleteAccountButton";
+import { AssistantLauncher } from "@/components/assistant/AssistantLauncher";
 
 export default async function VendorDashboard({
   searchParams,
@@ -165,7 +166,8 @@ export default async function VendorDashboard({
           render (it needed a stripe_connect_accounts row, which only the
           unreachable create-account route could write) and linked to a public
           profile page that ignored the param it passed. */}
-      {!demo && profile && sellSteps && <SellChecklist steps={sellSteps} />}
+      {/* "Start selling" checklist hidden for now — restore by uncommenting:
+      {!demo && profile && sellSteps && <SellChecklist steps={sellSteps} />} */}
 
       <VendorHome
         orderCount={orderCount}
@@ -176,6 +178,10 @@ export default async function VendorDashboard({
         isAdmin={admin}
         demo={demo}
       />
+
+      {/* General assistant (connector brain — same one from Messages/SMS) as a
+          floating button for account + business-profile help. */}
+      <AssistantLauncher />
     </div>
   );
 }

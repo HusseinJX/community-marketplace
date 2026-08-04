@@ -34,6 +34,22 @@ const nextConfig: NextConfig = {
       // Google Places photos (Oakland harvest, future imports)
       { protocol: "https", hostname: "lh3.googleusercontent.com" },
       { protocol: "https", hostname: "maps.googleapis.com" },
+
+      // ── Scraped-event posters (one per watched calendar in lib/sources/registry.ts)
+      //
+      // These are safe to enumerate BECAUSE the source list is hand-curated —
+      // this is not the open web. An unlisted host is not a soft failure:
+      // next/image throws outright in dev, and in production every optimizer
+      // request 400s, which is how 546 harvested events shipped with broken
+      // posters. ADDING A SOURCE MEANS ADDING ITS IMAGE HOST HERE.
+      { protocol: "https", hostname: "cdn.funcheap.com" },
+      { protocol: "https", hostname: "fortmason.org" },
+      { protocol: "https", hostname: "localist-images.azureedge.net" }, // UCSF / Localist
+      { protocol: "https", hostname: "gggp.org" },
+      { protocol: "https", hostname: "img.ctykit.com" }, // Downtown SF
+      { protocol: "https", hostname: "ybgfestival.org" },
+      { protocol: "https", hostname: "images.lumacdn.com" }, // TIAT / Luma
+      { protocol: "https", hostname: "images.squarespace-cdn.com" }, // La Cocina
     ],
     formats: ["image/avif", "image/webp"],
     deviceSizes: [400, 640, 768, 1024, 1280],

@@ -48,7 +48,7 @@ export function HappeningThisWeek() {
           </h2>
           <p className="text-sm text-stone-500">Local events near you — RSVP and show up.</p>
         </div>
-        <Link href="/events?view=events" className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-indigo-700 hover:underline">
+        <Link href="/?tab=events" className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-indigo-700 hover:underline">
           See all <ArrowRight className="h-4 w-4" />
         </Link>
       </div>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Show, UserButton, useUser, useClerk } from "@clerk/nextjs";
 import { Heart, ShoppingBag, Users, ArrowRight, PenLine, Store, MessageCircle, LogOut } from "lucide-react";
 import { PushTestButton } from "@/components/PushTestButton";
+import { StarredCommunityChats } from "@/components/community/StarredCommunityChats";
 import { DeleteAccountButton } from "@/components/account/DeleteAccountButton";
 import { useLogin } from "@/components/auth/ClerkAuthProvider";
 import { useIsNativeApp } from "@/lib/native";
@@ -102,6 +103,10 @@ export function ShopperClient() {
           <ArrowRight className="h-4 w-4 shrink-0 text-stone-400" />
         </Link>
       </div>
+
+      {/* Rooms you starred while you were standing in them. Self-hides when
+          empty — see StarredCommunityChats. */}
+      <StarredCommunityChats />
 
       {/* Local resources — single entry into the community resource explorer */}
       <div className="space-y-3">

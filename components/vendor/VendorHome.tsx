@@ -10,6 +10,7 @@ import { PLAN_KEY, PlanSwitch, type Tier } from '@/components/vendor/PlanSwitch'
 import { CollabMatchHero } from '@/components/vendor/CollabMatchHero'
 import { Opportunities } from '@/components/vendor/Opportunities'
 import { UpcomingCollabs, useUpcomingCollabs } from '@/components/vendor/ActiveCollabs'
+import { EventLinkImport } from '@/components/vendor/EventLinkImport'
 import { useIsNativeApp } from '@/lib/native'
 
 // The vendor front door: who to team up with, and what's already looking for you.
@@ -98,13 +99,22 @@ export function VendorHome({
   const upcoming = useUpcomingCollabs(memberId, !!isAdmin)
   const hasUpcoming = upcoming.length > 0
   const view: CollabView = collabView === 'upcoming' && !hasUpcoming ? 'join' : collabView
-  const tabs: CollabView[] = hasUpcoming ? ['upcoming', 'join', 'create'] : ['join', 'create']
+  // "Create" tab hidden for now — leave the render branch in place so it's a
+  // one-line revert.
+  const tabs: CollabView[] = hasUpcoming ? ['upcoming', 'join'] : ['join']
 
   // The tier toggle is demo scaffolding — show it in the admin demo, or to admins.
   const showPlanSwitch = demo || isAdmin
 
   return (
     <>
+      {/* Paste an event link → add it to your events (real vendors only). */}
+      {memberId && !demo && (
+        <div className="mb-6">
+          <EventLinkImport memberId={memberId} memberName={memberName} isAdmin={isAdmin} />
+        </div>
+      )}
+
       {/* ── The wedge, front and center. One "Collabs" section, two columns:
              people to team up with on one side, events to join on the other.
              Stacks on mobile. ────────────────────────────────────────────── */}

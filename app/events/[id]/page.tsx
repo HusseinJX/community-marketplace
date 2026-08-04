@@ -1,7 +1,6 @@
 import type { ComponentType } from "react";
 import Link from "next/link";
 import {
-  ArrowLeft,
   Calendar,
   MapPin,
   UserRound,
@@ -20,6 +19,7 @@ import { getPostsByEventId } from "@/lib/posts";
 import { groupByRole } from "@/lib/lineup-roles";
 import { isEventOrganizer } from "@/lib/org-focus";
 import { EventActionBar } from "./EventActionBar";
+import { BackToHome } from "@/components/BackToHome";
 import { MemoriesGrid } from "@/components/posts/MemoriesGrid";
 import { RsvpButton } from "@/components/events/RsvpButton";
 import { EventLocationMap } from "@/components/events/EventLocationMap";
@@ -154,13 +154,7 @@ export default async function EventDetailPage({
       <main className="min-h-screen bg-stone-50 px-4 py-16">
         <div className="mx-auto max-w-2xl text-center">
           <p className="text-stone-500 text-lg mb-6">Event not found.</p>
-          <Link
-            href="/events"
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-indigo-700 hover:underline"
-          >
-            <ArrowLeft className="size-4" />
-            Back to events
-          </Link>
+          <BackToHome className="inline-flex items-center gap-1.5 text-sm font-medium text-indigo-700 hover:underline" />
         </div>
       </main>
     );
@@ -223,9 +217,11 @@ export default async function EventDetailPage({
   const grad = gradientFor(title);
   const attendance = attendanceFor(event.id);
 
-  const backHref = event.memberId ? `/members/${event.memberId}` : "/events";
-  const backLabel =
-    event.memberId && member ? `Back to ${hostName}` : "Back to events";
+  // No hardcoded back destination. BackToHome resolves it from where you
+  // actually came from: the host's profile if you opened the event there (the
+  // profile records itself via RememberOrigin), otherwise the home tab you were
+  // browsing. Forcing "back to the host" sent people who arrived from the Events
+  // tab to a profile they'd never seen.
 
   const expectItems: { icon: ComponentType<{ className?: string }>; text: string }[] = [
     { icon: Users, text: "Open to all community members" },
@@ -241,13 +237,7 @@ export default async function EventDetailPage({
     <main className="min-h-screen bg-stone-50">
       <div className="mx-auto max-w-5xl px-4 py-8 sm:py-12">
         {/* Back link */}
-        <Link
-          href={backHref}
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-stone-600 hover:text-indigo-700 transition mb-6"
-        >
-          <ArrowLeft className="size-4" />
-          {backLabel}
-        </Link>
+        <BackToHome className="mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-stone-600 transition hover:text-indigo-700" />
 
         {/* Hero — image-first, gradient fallback */}
         {heroImage ? (

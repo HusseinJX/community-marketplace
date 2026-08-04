@@ -31,11 +31,17 @@ export default function ExplorePage() {
   const [own, setOwn] = useState<string[]>([]);
   const toggleOwn = (k: string) => setOwn((o) => (o.includes(k) ? o.filter((x) => x !== k) : [...o, k]));
 
-  // Carry a search over from the home page (?q=). Read on mount rather than with
-  // useSearchParams so this page doesn't need a Suspense boundary.
+  // Carry a search over from the home page (?q=, plus the facet filters the home
+  // filter sidebar sets: ?size= and ?ownership=a,b). Read on mount rather than
+  // with useSearchParams so this page doesn't need a Suspense boundary.
   useEffect(() => {
-    const initial = new URLSearchParams(window.location.search).get("q");
+    const params = new URLSearchParams(window.location.search);
+    const initial = params.get("q");
     if (initial) setQ(initial);
+    const initialSize = params.get("size");
+    if (initialSize) setSize(initialSize);
+    const initialOwn = params.get("ownership");
+    if (initialOwn) setOwn(initialOwn.split(",").filter(Boolean));
   }, []);
 
   // Real search: the cached directory is only the first browse page, so typing a

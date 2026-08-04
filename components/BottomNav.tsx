@@ -18,9 +18,8 @@ const ITEMS = [
 export function BottomNav() {
   const pathname = usePathname();
 
-  // The shopper bottom nav (Local/Profile) has no place in the vendor portal —
-  // the vendor pages (incl. the admin demo) have their own layout/nav.
-  if (pathname.startsWith("/vendor")) return null;
+  // Shown app-wide, including the vendor portal, so Home/Profile is always one
+  // tap away. (The global spacer in app/layout.tsx reserves room for it.)
 
   return (
     <nav
