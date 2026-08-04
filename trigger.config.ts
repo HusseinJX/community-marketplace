@@ -9,6 +9,12 @@ import { defineConfig } from '@trigger.dev/sdk'
 export default defineConfig({
   project: process.env.TRIGGER_PROJECT_REF || 'proj_REPLACE_ME',
   dirs: ['./trigger'],
+  // Node 22, not the default 21. `@supabase/supabase-js` builds a Realtime
+  // client eagerly inside createClient(), and Realtime throws on any runtime
+  // without a native WebSocket — which Node 21 is. Every deployed run died at
+  // the first Supabase call while local runs (Node 25) passed, so the failure
+  // was invisible outside the deployed environment.
+  runtime: 'node-22',
   maxDuration: 300,
   retries: {
     enabledInDev: false,
