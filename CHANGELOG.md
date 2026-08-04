@@ -4,6 +4,25 @@ All notable changes to this project are documented here.
 
 ## [Unreleased] — commerce, live, social shell (branch `feat/collab-rooms`)
 
+### Fixed — the nightly event sweep never actually worked in production — 2026-08-04
+- **Trigger.dev prod had ZERO environment variables.** They had been set on the **dev** environment, so the `0 9 * * *` sweep would have failed on every run, silently, forever. Set `SUPABASE_URL` / `SUPABASE_ANON_KEY` / `GOOGLE_PLACES_API_KEY` / `OPENAI_API_KEY` on prod.
+- **The deployed worker ran Node 21, which has no native WebSocket** — `@supabase/supabase-js` builds a Realtime client inside `createClient()`, which throws without one, so every Supabase call died on boot. Local runs (Node 25) passed with identical code, making it invisible outside the deployed environment. `trigger.config.ts` now pins `runtime: 'node-22'` (deployed as **v20260804.4**).
+- **Verified end to end in prod**, not just deployed: a full-path run on the smallest source returned `pulled 3 · kept 3 · written 3 · published 3 · failed 0 · labelled 5 · pending 0` — which also cleared the 5 long-unlabelled events.
+
+### Added — draft review queue for scraped events — 2026-08-04
+- **Admin → Scraped drafts** (`components/admin/EventDrafts.tsx`, a tab beside Sourcing): the 41 held-back `downtownsf` events were invisible with no way to act on them. Publish or reject each one.
+- Migration `20260804150000_event_review_state` adds `vendor_events.reviewed_at`. It is the missing half of the state: `active = false` alone could not distinguish "nobody has looked at this" from "a reviewer said no", so a rejection could not be recorded — and deleting the row was worse than useless, since the next sweep re-inserts it as a fresh draft. Both decisions stamp the column, so **a rejection survives re-scrapes** (verified against prod, including a simulated re-scrape).
+- The queue is scoped **by source**, never by `active` alone — the `--hide` kill switch flips `active` off across every scraped row, and an `active = false` queue would then present all ~800 published events as awaiting review.
+- Finished events are excluded using the same rule as `pruneFinished` (end date where there is one, city-local), so a months-long exhibition that opened in June stays a live decision while a one-night event in March does not.
+- The card shows the **date range** (`2026-03-21 → 2026-09-05`, "runs to"), because a still-running exhibition displayed as its opening day looks exactly like the mis-parse this queue exists to catch.
+
+### Changed — home tabs, feed paging, self-ageing countdowns — 2026-08-04
+- **Home tabs are now For you · What's on · Feed · Shop.** For you leads and is the default (`/` is For you); the What's on/For you sub-toggle inside Events is gone. `?tab=events` still resolves, for links and sessions already in the wild.
+- **The For-you feed no longer stops at 60.** The API returns up to 240 ranked events and the client reveals a screen at a time; past that it says so (`Showing the top 240 of 753`) rather than ending silently. Paging is client-side on purpose — a page parameter would re-run `extractPersona` per page, turning a free scroll into a model call each time.
+- **Countdown badges age themselves.** A tab left open used to sit on "in 9m" indefinitely. Elapsed time is measured entirely in the browser (never server-clock minus client-clock, which would read a skewed phone's offset as real elapsed time); the absolute countdown still comes from the server, which is why it is computed there.
+- Footer subtitle → "The Digital Homepage for your Local world."
+- `data/` (~24MB of regenerable scrape caches) is now gitignored.
+
 ### Changed — Google/Apple-only accounts, native iOS login, App Store readiness — 2026-07-22
 - **Accounts are Google/Apple only.** Removed phone from account sign-in/sign-up (vendor login modal + `/join` "who" step, incl. the `code1` account-phone step). Phone remains ONLY for business ownership verification (`code2` OTP). No email/password.
 - **Native in-app OAuth (verified on device):** Apple via `oauth_apple` redirect kept inside the WKWebView (`appleid.apple.com` in `capacitor.config.ts allowNavigation`); Google via two local SPM Swift plugins (`capacitor-apple-signin`, `capacitor-google-auth`) → id token → Clerk `authenticateWithGoogleOneTap`. `lib/native.ts` + `lib/native-auth.ts` + `/sso-callback` + `components/auth/OAuthBrandIcons.tsx`.
