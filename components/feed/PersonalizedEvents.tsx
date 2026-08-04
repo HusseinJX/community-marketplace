@@ -14,7 +14,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Search, MapPin, Loader2, X, LocateFixed, Clock, Building2 } from "lucide-react";
+import { MapPin, Loader2, X, LocateFixed, Clock, Building2 } from "lucide-react";
 import { getUserPosition } from "@/lib/native-geo";
 import { usePersonalizedEvents } from "@/lib/data-hooks";
 
@@ -139,20 +139,69 @@ function dayLabel(iso: string): string {
 }
 
 /**
- * Position, remembered for the life of the SPA session.
+ * Position, remembered across sessions.
  *
- * Module scope, not React state: this component unmounts every time you switch
- * home tabs, and re-asking the device for a fix on each remount both re-prompts
- * and delays the distances that are already known.
+ * Module scope rather than React state, because this component unmounts every
+ * time you switch home tabs and re-asking the device on each remount both
+ * re-prompts and delays distances that are already known.
+ *
+ * PERSISTED as well, because module scope dies on reload — and every reload was
+ * therefore a fresh `getCurrentPosition()` call. Where the permission is a
+ * standing grant that resolves silently; where it is not (a dismissed browser
+ * prompt, or iOS "Allow Once", which lapses when the app is backgrounded) it is
+ * another permission dialog, on every single launch. Remembering the last fix
+ * means the feed opens already sorted by distance and only asks again once the
+ * stored one has gone stale.
+ *
+ * Rounded to ~110m: this positions you in a neighbourhood and sorts by miles,
+ * and nothing downstream reads finer, so there is no reason to keep a doorstep
+ * on disk.
  */
+const HOME_KEY = "wl_home_pos";
+const HOME_TTL_MS = 24 * 60 * 60 * 1000;
+
+function readStoredHome(): { lat: number; lng: number } | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(HOME_KEY);
+    if (!raw) return null;
+    const v = JSON.parse(raw) as { lat?: number; lng?: number; at?: number };
+    if (typeof v.lat !== "number" || typeof v.lng !== "number" || typeof v.at !== "number") return null;
+    if (Date.now() - v.at > HOME_TTL_MS) return null;
+    return { lat: v.lat, lng: v.lng };
+  } catch {
+    return null; // private mode, or something else wrote the key
+  }
+}
+
+function storeHome(pos: { lat: number; lng: number }): void {
+  try {
+    const r = (n: number) => Math.round(n * 1000) / 1000;
+    window.localStorage.setItem(
+      HOME_KEY,
+      JSON.stringify({ lat: r(pos.lat), lng: r(pos.lng), at: Date.now() }),
+    );
+  } catch {
+    /* private mode — we just re-ask next load */
+  }
+}
+
 let cachedHome: { lat: number; lng: number } | null = null;
 let geoRefused = false;
 
-export function PersonalizedEvents() {
-  const [text, setText] = useState("");
-  // What was actually SUBMITTED. Typing must not re-key the request — each miss
-  // with words in the box costs a model call.
-  const [query, setQuery] = useState("");
+export function PersonalizedEvents({
+  // The SUBMITTED search text, owned by the page so the input can live in the
+  // top search slot. Typing must never reach here — each miss with words in the
+  // box costs a model call, so only a submit changes it.
+  query = "",
+  onClearQuery,
+  onLoadingChange,
+}: {
+  query?: string;
+  onClearQuery?: () => void;
+  /** Lets the lifted search button show the feed's own loading state. */
+  onLoadingChange?: (loading: boolean) => void;
+} = {}) {
   const [topics, setTopics] = useState<string[]>([]);
   // Narrowed to one organiser, set by tapping their tag on any card.
   const [organizer, setOrganizer] = useState<string | null>(null);
@@ -179,6 +228,12 @@ export function PersonalizedEvents() {
     // distance filter without a location silently empties the feed.
     maxMiles: nearMe && home ? radius : null,
   }) as { data: Result | undefined; loading: boolean; error: Error | undefined };
+
+  // The search button lives a level up now, so it has to be told when the feed
+  // is working or "Go" would look inert while the request is in flight.
+  useEffect(() => {
+    onLoadingChange?.(loading);
+  }, [loading, onLoadingChange]);
 
   // Let the countdowns age themselves instead of refetching to refresh them.
   // A tab left open used to sit on "in 9m" indefinitely; polling would fix that
@@ -219,20 +274,32 @@ export function PersonalizedEvents() {
   const visible = all.slice(0, shown);
   const more = all.length - visible.length;
 
-  // Ask for a position once per session, in the background.
+  // Ask for a position at most once per session, in the background.
   //
   // The feed does not wait on it: it renders immediately, then re-keys with
   // coordinates when they arrive, so distance is the default rather than
   // something to opt into. A refusal is not an error state.
+  //
+  // A stored fix short-circuits the whole thing, which is the difference
+  // between one permission dialog and one on every launch.
   useEffect(() => {
     if (cachedHome || geoRefused) return;
     let cancelled = false;
 
     void (async () => {
+      // A remembered fix answers immediately and asks the device nothing.
+      const stored = readStoredHome();
+      if (stored) {
+        cachedHome = stored;
+        if (!cancelled) setHome(stored);
+        return;
+      }
+
       try {
         const [lat, lng] = await getUserPosition();
         if (cancelled) return;
         cachedHome = { lat, lng };
+        storeHome(cachedHome);
         setHome(cachedHome);
       } catch {
         geoRefused = true;
@@ -256,6 +323,7 @@ export function PersonalizedEvents() {
       const [lat, lng] = await getUserPosition();
       cachedHome = { lat, lng };
       geoRefused = false;
+      storeHome(cachedHome);
       setHome(cachedHome);
       setLocationOff(false);
       setNearMe(true);
@@ -324,47 +392,7 @@ export function PersonalizedEvents() {
 
   return (
     <div>
-      {/* ── the one input ─────────────────────────────────────────────── */}
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          setQuery(text);
-        }}
-        className="rounded-2xl border border-stone-200 bg-white p-3 shadow-sm"
-      >
-        <div className="flex items-center gap-2">
-          <Search className="h-4 w-4 shrink-0 text-stone-400" />
-          <input
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="What are you in the mood for?"
-            aria-label="Describe what you want to do"
-            maxLength={400}
-            className="min-w-0 flex-1 bg-transparent text-[15px] text-stone-900 outline-none placeholder:text-stone-400"
-          />
-          {text && (
-            <button
-              type="button"
-              onClick={() => {
-                setText("");
-                setQuery("");
-              }}
-              aria-label="Clear"
-              className="rounded-full p-1 text-stone-400 hover:bg-stone-100 hover:text-stone-700"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
-          <button
-            type="submit"
-            disabled={loading}
-            className="shrink-0 rounded-full bg-stone-900 px-4 py-1.5 text-sm font-medium text-white disabled:opacity-50"
-          >
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Go"}
-          </button>
-        </div>
-
-      </form>
+      {/* The search input lives in the page's top slot — see EventSearchBar. */}
 
       {/* ── filters ───────────────────────────────────────────────────────
           ONE horizontal scroll row, not a wrapping grid. Ten wrapped pills ate
@@ -443,15 +471,16 @@ export function PersonalizedEvents() {
           </div>
         )}
 
-        {(topics.length > 0 || freeOnly || nearMe || text || organizer) && (
+        {(topics.length > 0 || freeOnly || nearMe || query || organizer) && (
           <button
             onClick={() => {
-              setText("");
               setTopics([]);
               setFreeOnly(false);
               setNearMe(false);
               setOrganizer(null);
-              setQuery("");
+              // The search box is the page's now, so Reset asks it to clear
+              // rather than clearing a copy and leaving words in the input.
+              onClearQuery?.();
             }}
             className="shrink-0 whitespace-nowrap text-xs text-stone-400 underline underline-offset-2 hover:text-stone-700"
           >
@@ -480,7 +509,7 @@ export function PersonalizedEvents() {
       ) : null}
 
       {/* ── what we heard ─────────────────────────────────────────────── */}
-      {result && (text || topics.length > 0 || organizer) && (
+      {result && (query || topics.length > 0 || organizer) && (
         <div className="mt-4 rounded-xl border border-stone-200 bg-stone-50 px-4 py-3">
           <p className="text-[15px] font-medium text-stone-900">{result.summary}</p>
           {result.parseFailed && (

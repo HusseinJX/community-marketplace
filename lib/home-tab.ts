@@ -12,25 +12,24 @@
 // Session-scoped on purpose: this is "where I just was", not a preference. A new
 // tab starts fresh on Events rather than inheriting a stale tab from hours ago.
 
-export type HomeTab = "foryou" | "whatson" | "feed" | "shop";
+export type HomeTab = "events" | "feed" | "shop";
 
-// The two ways of reading events are top-level tabs rather than a sub-toggle
-// inside one "Events" tab: they are the reason to open the app on a given day,
-// and burying the ranked one behind a second control made it the harder of the
-// two to reach despite being the default. For you leads — a feed built around
-// what someone said they want beats a chronological list of everything.
-// Chats is not here: it lives as a pill inside Feed, since a community chat is
-// a kind of community post, not a separate destination.
+// Events leads because it is the reason to open the app on a given day — what's
+// on, near you, right now. For you / What's on are a toggle INSIDE it, not two
+// top-level tabs: it is the same set of events read two ways, so splitting them
+// spent two of four tab slots on one idea and pushed Feed and Shop to the edge
+// of a phone. Chats is not here either — it lives as a pill inside Feed, since
+// a community chat is a kind of community post, not a separate destination.
 export const HOME_TABS: { id: HomeTab; label: string }[] = [
-  { id: "foryou", label: "For you" },
-  { id: "whatson", label: "What's on" },
+  { id: "events", label: "Events" },
   { id: "feed", label: "Feed" },
   { id: "shop", label: "Shop" },
 ];
 
-// `?tab=events` is in the wild — shared links, bookmarks, and any sessionStorage
-// written before the split. It means "the events tab", which is now For you.
-const LEGACY: Record<string, HomeTab> = { events: "foryou" };
+// Both spellings are in the wild — `?tab=events` from before the split, and
+// `?tab=foryou` / `?tab=whatson` from while it was split. All three mean the
+// events tab; which VIEW they land on is the toggle's business, not the URL's.
+const LEGACY: Record<string, HomeTab> = { foryou: "events", whatson: "events" };
 
 export function isHomeTab(v: string | null | undefined): v is HomeTab {
   return HOME_TABS.some((t) => t.id === v);
@@ -55,22 +54,22 @@ export function rememberHomeTab(tab: HomeTab): void {
   rememberOrigin(homeTabTarget(tab));
 }
 
-/** The tab to send someone back to. Defaults to For you (home's own default). */
+/** The tab to send someone back to. Defaults to Events (home's own default). */
 export function lastHomeTab(): HomeTab {
-  if (typeof window === "undefined") return "foryou";
+  if (typeof window === "undefined") return "events";
   try {
-    return toHomeTab(window.sessionStorage.getItem(KEY)) ?? "foryou";
+    return toHomeTab(window.sessionStorage.getItem(KEY)) ?? "events";
   } catch {
-    return "foryou";
+    return "events";
   }
 }
 
 /** `{ href, label }` for a back link pointing at that tab. */
 export function homeTabTarget(tab: HomeTab): { href: string; label: string } {
   return {
-    // "/" IS For you now, so it is the one without a query param.
-    href: tab === "foryou" ? "/" : `/?tab=${tab}`,
-    label: HOME_TABS.find((t) => t.id === tab)?.label ?? "For you",
+    // "/" IS the Events tab, so it is the one without a query param.
+    href: tab === "events" ? "/" : `/?tab=${tab}`,
+    label: HOME_TABS.find((t) => t.id === tab)?.label ?? "Events",
   };
 }
 
