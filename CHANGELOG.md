@@ -33,6 +33,12 @@ All notable changes to this project are documented here.
 - Finished events are excluded using the same rule as `pruneFinished` (end date where there is one, city-local), so a months-long exhibition that opened in June stays a live decision while a one-night event in March does not.
 - The card shows the **date range** (`2026-03-21 → 2026-09-05`, "runs to"), because a still-running exhibition displayed as its opening day looks exactly like the mis-parse this queue exists to catch.
 
+### Changed — one pill size across the app, one-word Events toggle — 2026-08-04 (later)
+- **Every pill is now the same size** — `px-4 py-1.5 text-sm font-medium`, measured identical to the Feed tab's (14px text, 6/16px padding, 34px tall). The topic chips (Music, Art, …) and Free only / Near me were a size smaller than the rest of the app.
+- **The For you / What's on radio became ONE pill.** Two labelled pills plus a heading overflowed a 375px phone once they matched everyone else's size, and the choice was never symmetric anyway: For you is the default, What's on is what you get without it. It now reads as a filter you switch on — the same affordance as the Free only / Near me pills below it.
+- **"Events near you"** is `text-xl`, taking over from the **"Upcoming events"** heading that sat right beneath it saying the same thing (`CommunityEventsLive` gained a `hideHeading` prop rather than losing its heading, so it stays reusable).
+- Supply CTA shortened to **"Hosting something? Add an event"**.
+
 ### Changed — one Events tab, one search box, remembered location — 2026-08-04 (later)
 - **Events is one tab again** (`Events · Feed · Shop`), with For you / What's on as a toggle inside it. Splitting them had spent two of four tab slots on a single idea and pushed Feed and Shop to the edge of a phone. `?tab=events`, `?tab=foryou` and `?tab=whatson` all resolve; `whatson` lands on the What's on view.
 - **The top search slot swaps with the tab.** On Events it *is* the event search (`components/feed/EventSearchBar.tsx`, lifted out of `PersonalizedEvents`, same wrapper as `HomeSearch` so the width is identical); elsewhere the business search returns. Two search boxes stacked would be two inputs competing for the same intent. Submitting from What's on switches to For you — a ranked answer to a sentence is what For you *is*, and staying on a chronological list would read as the search having done nothing.

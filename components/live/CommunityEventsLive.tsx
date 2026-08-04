@@ -34,7 +34,12 @@ function parseEventDayMs(s: string): number {
 // Community events split into Happening now and Upcoming. Both render as
 // horizontal scroll rails; upcoming is grouped into themed rails (Markets,
 // Music, Food, etc.). `only` renders just one section.
-export function CommunityEventsLive({ only }: { only?: "now" | "upcoming" } = {}) {
+export function CommunityEventsLive({
+  only,
+  // The home Events tab already says "Events near you" directly above this, so
+  // its own heading would be the second title in a row saying the same thing.
+  hideHeading,
+}: { only?: "now" | "upcoming"; hideHeading?: boolean } = {}) {
   const [nowTs, setNowTs] = useState(0);
   useEffect(() => { setNowTs(Date.now()); }, []);
 
@@ -74,7 +79,7 @@ export function CommunityEventsLive({ only }: { only?: "now" | "upcoming" } = {}
 
   return (
     <div className="mx-auto max-w-6xl space-y-10 px-4 md:px-8">
-      {only === undefined && (
+      {only === undefined && !hideHeading && (
         <h2 className="text-xl font-semibold tracking-tight text-stone-900">Upcoming events</h2>
       )}
 

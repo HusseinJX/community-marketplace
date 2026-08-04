@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Newspaper, CalendarDays, Store, ArrowRight, ShoppingBag, Rows3, Sparkles, CalendarPlus } from "lucide-react";
+import { Newspaper, CalendarDays, Store, ArrowRight, ShoppingBag, Sparkles, CalendarPlus } from "lucide-react";
 import { EventSearchBar } from "@/components/feed/EventSearchBar";
 import { LiveFeed } from "@/components/live/LiveFeed";
 import { CommunityEventsLive } from "@/components/live/CommunityEventsLive";
@@ -129,7 +129,7 @@ export function HomeTabs() {
             <>
               <CalendarPlus className="h-3.5 w-3.5 shrink-0 text-stone-400" />
               <span className="min-w-0 truncate">
-                <span className="font-medium text-stone-700">Hosting something?</span> Add, organize or host an event!
+                <span className="font-medium text-stone-700">Hosting something?</span> Add an event
               </span>
             </>
           ) : (
@@ -196,37 +196,30 @@ export function HomeTabs() {
         <div className="pb-24 pt-4">
           <div className="mx-auto max-w-2xl px-4 md:px-8">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold tracking-tight text-stone-900">
+              <h2 className="text-xl font-semibold tracking-tight text-stone-900">
                 Events near you
               </h2>
-              <div
-                role="tablist"
-                aria-label="Events view"
-                className="inline-flex shrink-0 rounded-full border border-stone-200 bg-white p-0.5"
+              {/* ONE pill, on or off — not a two-option radio.
+                  Two labelled pills plus a title overflowed a 375px phone, and
+                  the choice was never symmetric anyway: For you is the default
+                  and What's on is what you get without it. So this reads as a
+                  filter you switch on, matching the "Free only" / "Near me"
+                  pills below. Sized like the Feed tab's pills
+                  (px-4 py-1.5 text-sm) so the app has one pill, not three. */}
+              <button
+                type="button"
+                aria-pressed={eventsView === "foryou"}
+                onClick={() => setEventsView(eventsView === "foryou" ? "browse" : "foryou")}
+                className={
+                  "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-4 py-1.5 text-sm font-medium transition " +
+                  (eventsView === "foryou"
+                    ? "border-stone-900 bg-stone-900 text-white"
+                    : "border-stone-200 bg-white text-stone-600 hover:border-stone-400 hover:text-stone-900")
+                }
               >
-                {(
-                  [
-                    { id: "foryou", label: "For you", Icon: Sparkles },
-                    { id: "browse", label: "What's on", Icon: Rows3 },
-                  ] as const
-                ).map(({ id, label, Icon }) => (
-                  <button
-                    key={id}
-                    role="tab"
-                    aria-selected={eventsView === id}
-                    onClick={() => setEventsView(id)}
-                    className={
-                      "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition " +
-                      (eventsView === id
-                        ? "bg-stone-900 text-white"
-                        : "text-stone-500 hover:text-stone-800")
-                    }
-                  >
-                    <Icon className="h-3.5 w-3.5" />
-                    {label}
-                  </button>
-                ))}
-              </div>
+                <Sparkles className="h-3.5 w-3.5" />
+                For you
+              </button>
             </div>
           </div>
 
@@ -240,7 +233,7 @@ export function HomeTabs() {
             </div>
           ) : (
             <div className="pt-2">
-              <CommunityEventsLive />
+              <CommunityEventsLive hideHeading />
             </div>
           )}
         </div>

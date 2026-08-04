@@ -408,7 +408,7 @@ export function PersonalizedEvents({
               key={t.id}
               onClick={() => toggleTopic(t.id)}
               aria-pressed={on}
-              className={`shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-xs font-medium transition ${
+              className={`shrink-0 whitespace-nowrap rounded-full border px-4 py-1.5 text-sm font-medium transition ${
                 on
                   ? "border-stone-900 bg-stone-900 text-white"
                   : "border-stone-200 bg-white text-stone-600 hover:border-stone-400"
@@ -427,7 +427,7 @@ export function PersonalizedEvents({
             setFreeOnly(next);
           }}
           aria-pressed={freeOnly}
-          className={`shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-xs font-medium ${
+          className={`shrink-0 whitespace-nowrap rounded-full border px-4 py-1.5 text-sm font-medium ${
             freeOnly
               ? "border-emerald-600 bg-emerald-600 text-white"
               : "border-stone-200 bg-white text-stone-600 hover:border-stone-400"
@@ -444,7 +444,7 @@ export function PersonalizedEvents({
           }}
           aria-pressed={nearMe}
           disabled={locating}
-          className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border px-3 py-1 text-xs font-medium disabled:opacity-60 ${
+          className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border px-4 py-1.5 text-sm font-medium disabled:opacity-60 ${
             nearMe
               ? "border-indigo-600 bg-indigo-600 text-white"
               : "border-stone-200 bg-white text-stone-600 hover:border-stone-400"
