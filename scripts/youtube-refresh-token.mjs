@@ -20,7 +20,14 @@ const CLIENT_ID = process.env.YOUTUBE_CLIENT_ID
 const CLIENT_SECRET = process.env.YOUTUBE_CLIENT_SECRET
 const PORT = 8719
 const REDIRECT = `http://localhost:${PORT}/callback`
-const SCOPE = 'https://www.googleapis.com/auth/youtube.upload'
+// upload + force-ssl. `youtube.upload` can only ever ADD videos — it cannot
+// delete, so without force-ssl a deleted post leaves its video playable on the
+// channel forever to anyone who kept the link. Deletion is the reason the
+// broader scope is here; nothing else needs it.
+const SCOPE = [
+  'https://www.googleapis.com/auth/youtube.upload',
+  'https://www.googleapis.com/auth/youtube.force-ssl',
+].join(' ')
 
 if (!CLIENT_ID || !CLIENT_SECRET) {
   console.error('Set YOUTUBE_CLIENT_ID and YOUTUBE_CLIENT_SECRET env vars first.')

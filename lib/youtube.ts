@@ -46,6 +46,14 @@ async function getAccessToken(): Promise<string | null> {
 export interface YouTubeUploadResult {
   videoId: string
   videoUrl: string // https://www.youtube.com/watch?v=<id>
+  // WHICH channel it landed on. The upload already asks for `part=snippet`, so
+  // the API returns this for free and we used to discard it — which left the
+  // one thing worth confirming (that videos go to the brand channel, not
+  // somebody's personal one) impossible to check without a second API call and
+  // a wider scope. A refresh token binds to whichever channel was picked at
+  // consent, and nothing in the token says which, so record it per upload.
+  channelId?: string
+  channelTitle?: string
 }
 
 // Resumable 2-step upload → unlisted video. Throws on failure so callers can
@@ -101,7 +109,104 @@ export async function uploadVideo(
   if (!put.ok) {
     throw new Error(`YouTube upload failed: ${put.status} ${await put.text().catch(() => '')}`)
   }
-  const data = (await put.json()) as { id?: string }
+  const data = (await put.json()) as {
+    id?: string
+    snippet?: { channelId?: string; channelTitle?: string }
+  }
   if (!data.id) throw new Error('YouTube upload: no video id returned')
-  return { videoId: data.id, videoUrl: `https://www.youtube.com/watch?v=${data.id}` }
+  return {
+    videoId: data.id,
+    videoUrl: `https://www.youtube.com/watch?v=${data.id}`,
+    channelId: data.snippet?.channelId,
+    channelTitle: data.snippet?.channelTitle,
+  }
+}
+
+/**
+ * Delete a video from the central channel.
+ *
+ * Needed because a YouTube URL is its own access control: an unlisted video
+ * stays playable forever by anyone holding the link, so dropping a post row
+ * without this leaves the video up and the "delete" a lie.
+ *
+ * Requires the `youtube.force-ssl` scope — `youtube.upload` can only add. A
+ * token minted before that scope was requested will 403 here while uploads keep
+ * working, which is why this reports failure rather than throwing.
+ *
+ * Returns true when the video is gone, INCLUDING when it was already gone (404)
+ * — the caller's intent is "this should not exist", and a second delete of the
+ * same id is success, not an error.
+ */
+export async function deleteVideo(videoIdOrUrl: string): Promise<boolean> {
+  const id = extractVideoId(videoIdOrUrl)
+  if (!id) return false
+
+  const token = await getAccessToken()
+  if (!token) return false
+
+  const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?id=${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (res.status === 204 || res.status === 404) return true
+
+  console.error('YouTube delete failed:', res.status, await res.text().catch(() => ''))
+  return false
+}
+
+/**
+ * Video id from a watch URL, a youtu.be link, an embed URL, or a bare id.
+ *
+ * We store whole URLs in `posts.video_urls`, so deletion has to work from what
+ * is actually on the row rather than an id nobody kept.
+ */
+const YT_HOSTS = new Set([
+  'youtube.com',
+  'www.youtube.com',
+  'm.youtube.com',
+  'music.youtube.com',
+  'youtu.be',
+  'www.youtu.be',
+  'youtube-nocookie.com',
+  'www.youtube-nocookie.com',
+])
+
+export function extractVideoId(input: string): string | null {
+  const s = (input || '').trim()
+  if (!s) return null
+  // A bare id: 11 chars of the YouTube alphabet, no scheme or slashes.
+  if (/^[\w-]{11}$/.test(s) && !s.includes('/')) return s
+  try {
+    const u = new URL(s)
+    // HOST CHECK FIRST. A YouTube id is any 11 characters of [A-Za-z0-9_-], and
+    // plenty of ordinary path segments are exactly that — "not-a-video" is 11.
+    // Without this, a non-YouTube URL on a post yields a plausible-looking id
+    // and we issue a delete for someone else's video id.
+    if (!YT_HOSTS.has(u.hostname.toLowerCase())) return null
+    const v = u.searchParams.get('v')
+    if (v && /^[\w-]{11}$/.test(v)) return v
+    // youtu.be/<id>, /embed/<id>, /shorts/<id>, /v/<id>
+    const last = u.pathname.split('/').filter(Boolean).pop() ?? ''
+    return /^[\w-]{11}$/.test(last) ? last : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Best-effort reap of every video on a post. Never throws and never blocks a
+ * response — a post the user asked to delete should disappear even if YouTube
+ * is having a bad day. Returns how many were removed.
+ */
+export async function deleteVideosSafe(urls: string[] | null | undefined): Promise<number> {
+  if (!urls?.length || !youtubeConfigured()) return 0
+  let gone = 0
+  for (const u of urls) {
+    try {
+      if (await deleteVideo(u)) gone++
+    } catch (err) {
+      console.error('YouTube delete threw:', err)
+    }
+  }
+  return gone
 }

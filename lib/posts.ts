@@ -124,3 +124,31 @@ export async function getPostsByEventId(eventId: string, limit = 100, viewerId?:
   if (error || !data) return []
   return withoutModerated(data as Post[], viewerId)
 }
+
+/**
+ * Hard-delete a post the caller owns, returning the media it referenced so the
+ * caller can reap it.
+ *
+ * Deliberately separate from moderation's removePost(), which is a SOFT hide
+ * paired with restorePost() — reaping a moderated post's video would make
+ * "restore" impossible. This is the author saying delete, and meaning it.
+ *
+ * Ownership is enforced in the statement itself (`author_id = ...`) rather than
+ * by reading the row and checking in JS: one round trip, and no window between
+ * the check and the delete.
+ */
+export async function deleteOwnPost(
+  postId: string,
+  authorId: string,
+  opts: { admin?: boolean } = {}
+): Promise<{ deleted: boolean; videoUrls: string[] }> {
+  let q = db().from('posts').delete().eq('id', postId)
+  // An admin deletes anyone's; everyone else is scoped to their own rows.
+  if (!opts.admin) q = q.eq('author_id', authorId)
+
+  const { data, error } = await q.select('video_urls')
+
+  if (error) throw new Error(`could not delete post: ${error.message}`)
+  const row = data?.[0] as { video_urls?: string[] } | undefined
+  return { deleted: !!row, videoUrls: row?.video_urls ?? [] }
+}
