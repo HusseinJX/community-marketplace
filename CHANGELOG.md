@@ -4,6 +4,12 @@ All notable changes to this project are documented here.
 
 ## [Unreleased] — commerce, live, social shell (branch `feat/collab-rooms`)
 
+> **Deployed to CapRover prod 2026-08-04** (two deploys): the event-feed/tab work, the
+> scraped-draft review queue, and video upload + delete + moderator purge are all live on
+> `whatslocal.ai`. Verified each time: `/vendor` 307 → `/vendor/sign-in` (demo mode off),
+> ad pixels still inert (`fbq`/`gtag` undefined — the ATT statement to App Review stays
+> true), 0 console errors. No native change, so no Xcode rebuild was needed.
+
 ### Added — video upload is LIVE, on the WhatsLocal AI brand channel, with delete — 2026-08-04
 - **YouTube video storage works end to end.** ProLocalIQ's old credentials were confirmed dead (`deleted_client` — the OAuth client had been deleted, which invalidates every token it ever issued), so a new client + refresh token replaced them. Verified: uploaded → landed **unlisted** on the `WhatsLocal AI` brand channel → embedded back through `lib/embed.ts`.
 - A refresh token binds to whichever channel is picked **at consent**, not to the Cloud project that owns the OAuth client — the client can live in any project. The first token bound to a personal channel; re-consenting and choosing the Brand Account moved it.
