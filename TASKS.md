@@ -1,5 +1,24 @@
 # Tasks
 
+## ⚠️ NEXT SESSION IS NATIVE — start here (2026-08-04 handoff)
+Full handoff: `session-context/2026-08-04-handoff.md` (gitignored, local).
+
+- [ ] **DEPLOY `b7041a7` + `26cfd53`** — committed and pushed but **NOT deployed**. Prod is behind git by those two UI commits (pill sizing, city header, the two vendor-dashboard hides, messages padding). No native change, no paywall touch, pixels inert.
+- [ ] **NFC fob → app deep link (Universal Links).** THE native task. Two halves, **neither works alone**: (a) `/.well-known/apple-app-site-association` served from `whatslocal.ai` as `application/json`, no redirect, no `.json` extension — ships with a normal deploy; (b) `com.apple.developer.associated-domains` = `applinks:whatslocal.ai` in `App.entitlements` — compiled into the IPA, so **Xcode rebuild + App Review**. Users on the current build keep getting Safari until they update, and there is no forced-update mechanism, so shipping only the web half achieves nothing visible.
+- [ ] **Other native, already staged:** push `presentationOptions` needs `npx cap sync ios` + rebuild to apply; the NFC tag-reading entitlement is **not linked in the pbxproj** (needs the Xcode capability toggle + a physical device); **ATT must be wired before the ad pixels are ever switched on**.
+
+### Accepted as-is — do NOT "fix" these unprompted (confirmed 2026-08-04)
+- **Book button is a UI-only demo** — there is no booking/reservations system behind it.
+- **iOS share-sheet** — not needed right now.
+- **Orphan routes** (`/vendor/messages/assistant`, `/messages/assistant`, `/events`, unlinked shopper routes) — reachable by URL, linked from nothing. Fine.
+
+### Four temporary hides — one-entry reverts, no decision yet
+Render branches intact in every case.
+- [ ] Collabs **Create** tab (`VendorHome.tsx`, `tabs` array)
+- [ ] **Start selling** checklist (`app/vendor/page.tsx:169`, commented)
+- [ ] **Opportunities near you** = Collabs *Join* tab (`VendorHome.tsx`)
+- [ ] **Paste an event link** (`VendorHome.tsx`, commented block)
+
 ## 2026-08-04 Event sweep fix, draft queue, feed rework, video upload (see `session-context/2026-08-04-youtube-video-delete-purge.md` + `2026-08-02-event-sourcing-geo-reco.md`)
 **All DEPLOYED to CapRover prod and pushed** (`d9feaf2` → `43b5129` on `feat/collab-rooms`).
 
