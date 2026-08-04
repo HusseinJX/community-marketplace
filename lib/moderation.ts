@@ -133,3 +133,34 @@ export async function banAuthor(authorId: string, reason?: string): Promise<void
   await db().from('posts').update({ removed: true }).eq('author_id', authorId)
   await db().from('content_reports').update({ status: 'actioned' }).eq('author_id', authorId)
 }
+
+/**
+ * Permanently destroy a post and hand back the media it referenced.
+ *
+ * removePost() is a SOFT hide with restorePost() as its counterpart, which is
+ * the right default for a report: a moderator acting on a complaint should be
+ * able to be wrong. But a soft hide leaves the video live on the channel — an
+ * unlisted YouTube URL is its own access control, so anyone who kept the link
+ * keeps watching a post that was "taken down". For content that genuinely has
+ * to go, hiding is not enough.
+ *
+ * So this is the deliberate, irreversible one. It returns the video URLs rather
+ * than deleting them here, keeping this module free of a YouTube dependency and
+ * letting the caller decide (and report) whether the reap succeeded.
+ */
+export async function purgePost(postId: string): Promise<{ purged: boolean; videoUrls: string[] }> {
+  const { data, error } = await db()
+    .from('posts')
+    .delete()
+    .eq('id', postId)
+    .select('video_urls')
+
+  if (error) throw new Error(`could not purge post: ${error.message}`)
+  const row = data?.[0] as { video_urls?: string[] } | undefined
+
+  // Close the reports either way: the post is gone, so leaving them pending
+  // would keep an unactionable item in the queue forever.
+  await db().from('content_reports').update({ status: 'actioned' }).eq('post_id', postId)
+
+  return { purged: !!row, videoUrls: row?.video_urls ?? [] }
+}
