@@ -67,14 +67,20 @@ interface FeedEvent {
  * heading above the card already answers "when", and repeating it on every card
  * is noise pretending to be information.
  */
-function whenBadge(e: FeedEvent): { label: string; tone: "now" | "soon" | "next" | "past" } | null {
+function whenBadge(
+  e: FeedEvent,
+  /** Minutes since the server measured these countdowns. */
+  agedMin: number,
+): { label: string; tone: "now" | "soon" | "next" | "past" } | null {
   if (e.day === "tomorrow") return { label: "Tomorrow", tone: "next" };
   if (e.day !== "today") return null;
 
   // Decided server-side against the event's own end time, in city hours.
   if (e.onNow) return { label: "On now", tone: "now" };
 
-  const m = e.startsInMin;
+  // Age the server's countdown by how long this response has been on screen.
+  // Without this a tab left open keeps promising "in 9m" an hour later.
+  const m = e.startsInMin == null ? null : e.startsInMin - agedMin;
   // Today but no readable start time — "today" is all we can honestly say.
   if (m == null) return { label: "Today", tone: "next" };
 
@@ -101,7 +107,12 @@ interface Result {
   filtered: Record<string, number>;
   total: number;
   events: FeedEvent[];
+  /** Epoch ms when the server measured `startsInMin`. */
+  generatedAt?: number;
 }
+
+/** How many events one "screen" of the feed reveals. */
+const PAGE = 60;
 
 /** Local calendar date as `YYYY-MM-DD` (never UTC — toISOString shifts the day). */
 function localISO(d: Date): string {
@@ -169,6 +180,45 @@ export function PersonalizedEvents() {
     maxMiles: nearMe && home ? radius : null,
   }) as { data: Result | undefined; loading: boolean; error: Error | undefined };
 
+  // Let the countdowns age themselves instead of refetching to refresh them.
+  // A tab left open used to sit on "in 9m" indefinitely; polling would fix that
+  // at the price of a model call every few minutes, which the once-per-item
+  // rule exists to prevent. Ageing is free and cannot fail.
+  //
+  // Elapsed time is measured entirely inside this browser: `start` is captured
+  // in the effect and compared against the same clock. Never server-time minus
+  // client-time — a phone whose clock is off by an hour would read that offset
+  // as an hour of elapsed time and declare tonight over. Only the ABSOLUTE
+  // countdown comes from the server, which is precisely why it is computed there.
+  const generatedAt = result?.generatedAt;
+  const [aged, setAged] = useState<{ gen: number | undefined; n: number }>({
+    gen: undefined,
+    n: 0,
+  });
+  useEffect(() => {
+    const start = Date.now();
+    const id = window.setInterval(
+      () => setAged({ gen: generatedAt, n: Math.floor((Date.now() - start) / 60_000) }),
+      30_000,
+    );
+    return () => window.clearInterval(id);
+  }, [generatedAt]);
+  // A fresh response resets the age by comparison rather than by writing, so
+  // new countdowns are never shown pre-aged while waiting for the next tick.
+  const agedMin = aged.gen === generatedAt ? aged.n : 0;
+
+  // How much of the ranked feed is revealed. Tied to the query rather than
+  // reset by an effect, so a narrower search can never paint one frame of the
+  // old scroll depth before snapping back to the first screen.
+  const feedKey = `${query}|${topics.join(",")}|${organizer ?? ""}|${freeOnly}|${nearMe ? radius : ""}`;
+  const [reveal, setReveal] = useState<{ key: string; n: number }>({ key: feedKey, n: PAGE });
+  const shown = reveal.key === feedKey ? reveal.n : PAGE;
+  const showMore = () => setReveal({ key: feedKey, n: shown + PAGE });
+
+  const all = result?.events ?? [];
+  const visible = all.slice(0, shown);
+  const more = all.length - visible.length;
+
   // Ask for a position once per session, in the background.
   //
   // The feed does not wait on it: it renders immediately, then re-keys with
@@ -229,7 +279,7 @@ export function PersonalizedEvents() {
   // top-scoring event. Someone scanning for something to do reads forward in
   // time, so time decides the order and the score only breaks ties.
   const byDay = new Map<string, FeedEvent[]>();
-  for (const e of result?.events ?? []) {
+  for (const e of visible) {
     const list = byDay.get(e.date);
     if (list) list.push(e);
     else byDay.set(e.date, [e]);
@@ -509,7 +559,7 @@ export function PersonalizedEvents() {
                           pills below. */}
                       <div className="flex shrink-0 items-center gap-1">
                         {(() => {
-                          const w = whenBadge(e);
+                          const w = whenBadge(e, agedMin);
                           if (!w) return null;
                           const tone =
                             w.tone === "now"
@@ -588,6 +638,33 @@ export function PersonalizedEvents() {
             </ul>
           </section>
         ))}
+
+        {/* Everything ranked below the fold used to be simply unreachable: a
+            broad filter matched far more than one screen and the list just
+            stopped. Revealing is local — no request, no model call. */}
+        {more > 0 && (
+          <div className="mt-8 flex flex-col items-center gap-2">
+            <button
+              type="button"
+              onClick={showMore}
+              className="rounded-full border border-stone-300 bg-white px-5 py-2 text-sm font-semibold text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+            >
+              Show {Math.min(more, PAGE)} more
+            </button>
+            <p className="text-xs text-stone-400">
+              {visible.length} of {result?.total ?? all.length}
+            </p>
+          </div>
+        )}
+
+        {/* Ranked past what one response carries. Saying so beats a list that
+            quietly ends — the useful move here is a narrower query, not more
+            scrolling. */}
+        {more === 0 && (result?.total ?? 0) > all.length && (
+          <p className="mt-8 text-center text-xs text-stone-400">
+            Showing the top {all.length} of {result?.total}. Add a filter to narrow it down.
+          </p>
+        )}
       </div>
 
       {loading && !result && (

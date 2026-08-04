@@ -25,6 +25,11 @@ const supabase = () =>
 /** Cap on candidates pulled before ranking. Ranking is in-memory and cheap. */
 const CANDIDATES = 1200
 
+// How much ranked feed to hand the client in one response. It reveals a screen
+// at a time from this; beyond it, the answer is to narrow the query rather than
+// to keep scrolling, and the response says so via `total`.
+const MAX_RETURNED = 240
+
 export interface PersonalizeBody {
   text?: string
   lat?: number | null
@@ -174,7 +179,15 @@ export async function POST(req: Request) {
   // thing; it isn't when the only thing they asked for is what's close.
   const askedForSomething = !!text || (body.topics?.length ?? 0) > 0 || !!organizer
   const ordered = askedForSomething || !home ? diversify(ranked) : ranked
-  const spread = ordered.slice(0, 60)
+
+  // Send several screens, not one, and let the client reveal them.
+  //
+  // The alternative — a page param the client re-requests — would re-run
+  // extractPersona on every "show more", turning a free scroll into a model
+  // call per page. Ranking is already done at this point; the only cost of
+  // carrying more of it is bytes. So paging happens in the browser and this
+  // stays exactly one model call per query, per the once-per-item rule.
+  const spread = ordered.slice(0, MAX_RETURNED)
 
   return NextResponse.json({
     summary: facts.summary,
@@ -189,6 +202,12 @@ export async function POST(req: Request) {
     },
     filtered: droppedByTopic ? { ...filtered, 'a different kind of thing': droppedByTopic } : filtered,
     total: ranked.length,
+    // When the countdowns below were measured. The client ages them against
+    // this instead of refetching, so a tab left open does not sit on "in 9m"
+    // forever. Elapsed time is a duration, which a phone with a skewed clock
+    // still measures correctly — only its absolute reading is wrong, which is
+    // why the absolute part keeps coming from here.
+    generatedAt: Date.now(),
     events: spread.map((s) => ({
       id: s.event.uid,
       title: s.event.title,

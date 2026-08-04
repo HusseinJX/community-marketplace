@@ -53,3 +53,7 @@ supabase/.temp/
 .omc/
 session-context/
 deno.lock
+
+# Local scrape caches (scripts/*-events.ts --from-file). ~24MB of source
+# output, regenerable by re-running the scrape — a cache, not source.
+data/

@@ -12,20 +12,34 @@
 // Session-scoped on purpose: this is "where I just was", not a preference. A new
 // tab starts fresh on Events rather than inheriting a stale tab from hours ago.
 
-export type HomeTab = "feed" | "events" | "shop";
+export type HomeTab = "foryou" | "whatson" | "feed" | "shop";
 
-// Events leads because it is the reason to open the app on a given day —
-// what's on, near you, right now. Chats is not here: it lives as a pill inside
-// Feed, since a community chat is a kind of community post, not a separate
-// destination.
+// The two ways of reading events are top-level tabs rather than a sub-toggle
+// inside one "Events" tab: they are the reason to open the app on a given day,
+// and burying the ranked one behind a second control made it the harder of the
+// two to reach despite being the default. For you leads — a feed built around
+// what someone said they want beats a chronological list of everything.
+// Chats is not here: it lives as a pill inside Feed, since a community chat is
+// a kind of community post, not a separate destination.
 export const HOME_TABS: { id: HomeTab; label: string }[] = [
-  { id: "events", label: "Events" },
+  { id: "foryou", label: "For you" },
+  { id: "whatson", label: "What's on" },
   { id: "feed", label: "Feed" },
   { id: "shop", label: "Shop" },
 ];
 
+// `?tab=events` is in the wild — shared links, bookmarks, and any sessionStorage
+// written before the split. It means "the events tab", which is now For you.
+const LEGACY: Record<string, HomeTab> = { events: "foryou" };
+
 export function isHomeTab(v: string | null | undefined): v is HomeTab {
   return HOME_TABS.some((t) => t.id === v);
+}
+
+/** A tab id from anywhere untrusted (URL, storage), old names included. */
+export function toHomeTab(v: string | null | undefined): HomeTab | null {
+  if (isHomeTab(v)) return v;
+  return v ? LEGACY[v] ?? null : null;
 }
 
 const KEY = "wl_home_tab";
@@ -41,23 +55,22 @@ export function rememberHomeTab(tab: HomeTab): void {
   rememberOrigin(homeTabTarget(tab));
 }
 
-/** The tab to send someone back to. Defaults to Events (home's own default). */
+/** The tab to send someone back to. Defaults to For you (home's own default). */
 export function lastHomeTab(): HomeTab {
-  if (typeof window === "undefined") return "events";
+  if (typeof window === "undefined") return "foryou";
   try {
-    const v = window.sessionStorage.getItem(KEY);
-    return isHomeTab(v) ? v : "events";
+    return toHomeTab(window.sessionStorage.getItem(KEY)) ?? "foryou";
   } catch {
-    return "events";
+    return "foryou";
   }
 }
 
 /** `{ href, label }` for a back link pointing at that tab. */
 export function homeTabTarget(tab: HomeTab): { href: string; label: string } {
   return {
-    // "/" IS the events tab now, so it is the one without a query param.
-    href: tab === "events" ? "/" : `/?tab=${tab}`,
-    label: HOME_TABS.find((t) => t.id === tab)?.label ?? "Events",
+    // "/" IS For you now, so it is the one without a query param.
+    href: tab === "foryou" ? "/" : `/?tab=${tab}`,
+    label: HOME_TABS.find((t) => t.id === tab)?.label ?? "For you",
   };
 }
 

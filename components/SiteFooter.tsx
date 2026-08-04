@@ -30,7 +30,7 @@ export function SiteFooter() {
               WhatsLocal AI
             </Link>
             <p className="mt-3 max-w-sm text-sm text-stone-600">
-              Local businesses team up to put on events. Neighbors find them.
+              The Digital Homepage for your Local world.
             </p>
           </div>
 

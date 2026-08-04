@@ -2,19 +2,20 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Newspaper, CalendarDays, Store, ArrowRight, ShoppingBag, Rows3, Sparkles } from "lucide-react";
+import { Newspaper, Store, ArrowRight, ShoppingBag, Rows3, Sparkles } from "lucide-react";
 import { LiveFeed } from "@/components/live/LiveFeed";
 import { CommunityEventsLive } from "@/components/live/CommunityEventsLive";
 import { PersonalizedEvents } from "@/components/feed/PersonalizedEvents";
 import { LocalDirectory } from "@/components/home/LocalDirectory";
 import { HomeSearch } from "@/components/home/HomeSearch";
 import { CommunityFeed } from "@/components/feed/CommunityFeed";
-import { HOME_TABS, isHomeTab, rememberHomeTab, type HomeTab } from "@/lib/home-tab";
+import { HOME_TABS, toHomeTab, rememberHomeTab, type HomeTab } from "@/lib/home-tab";
 
 // Labels + ids live in lib/home-tab.ts so detail-page back links can name the
 // tab without importing this component. Icons stay here — they're presentation.
 const TAB_ICONS: Record<HomeTab, typeof Newspaper> = {
-  events: CalendarDays,
+  foryou: Sparkles,
+  whatson: Rows3,
   feed: Newspaper,
   shop: Store,
 };
@@ -23,15 +24,13 @@ const TAB_ICONS: Record<HomeTab, typeof Newspaper> = {
 // between Feed (live venues + community posts), Events (now + upcoming), and
 // Shop (the local directory). Tab is mirrored to ?tab= so back/deep-links work.
 export function HomeTabs() {
-  const [tab, setTab] = useState<HomeTab>("events");
-  // Sub-view of the Events tab: chronological, or ranked around a sentence.
-  const [eventsView, setEventsView] = useState<"browse" | "foryou">("foryou");
+  const [tab, setTab] = useState<HomeTab>("foryou");
 
   // Hydrate the initial tab from the URL (?tab=), then keep the URL in sync
   // without a full navigation so the browser back button steps through tabs.
   useEffect(() => {
     const q = new URLSearchParams(window.location.search).get("tab");
-    const initial = isHomeTab(q) ? q : "events";
+    const initial = toHomeTab(q) ?? "foryou";
     setTab(initial);
     // Record it on arrival too, not just on click — someone who lands on
     // /?tab=shop and opens a profile should still get "← Shop".
@@ -42,8 +41,8 @@ export function HomeTabs() {
     setTab(next);
     rememberHomeTab(next);
     const url = new URL(window.location.href);
-    // "/" is the Events tab, so that is the one with no query param.
-    if (next === "events") url.searchParams.delete("tab");
+    // "/" is For you, so that is the one with no query param.
+    if (next === "foryou") url.searchParams.delete("tab");
     else url.searchParams.set("tab", next);
     window.history.replaceState(null, "", url.toString());
     window.scrollTo({ top: 0 });
@@ -135,52 +134,18 @@ export function HomeTabs() {
         </>
       )}
 
-      {/* Events tab reads two ways: chronological (what's on, soonest first) or
-          rearranged around a sentence someone types. A sub-toggle rather than a
-          fourth top-level tab — it is the same events either way, and the top
-          row is already at its limit on a phone. */}
-      {tab === "events" && (
-        <div className="pb-24 pt-4">
-          <div className="mx-auto max-w-6xl px-4 md:px-8">
-            <div
-              role="tablist"
-              aria-label="Events view"
-              className="inline-flex rounded-full border border-stone-200 bg-white p-0.5"
-            >
-              {(
-                [
-                  { id: "browse", label: "What's on", Icon: Rows3 },
-                  { id: "foryou", label: "For you", Icon: Sparkles },
-                ] as const
-              ).map(({ id, label, Icon }) => (
-                <button
-                  key={id}
-                  role="tab"
-                  aria-selected={eventsView === id}
-                  onClick={() => setEventsView(id)}
-                  className={
-                    "inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-[13px] font-semibold transition " +
-                    (eventsView === id
-                      ? "bg-stone-900 text-white"
-                      : "text-stone-500 hover:text-stone-800")
-                  }
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
+      {/* The two ways of reading events are separate top-level tabs. They were
+          one "Events" tab with a sub-toggle, which meant two rows of controls
+          stacked on a phone and put the default view behind an extra decision. */}
+      {tab === "foryou" && (
+        <div className="mx-auto max-w-2xl px-4 pb-24 pt-4 md:px-8">
+          <PersonalizedEvents />
+        </div>
+      )}
 
-          {eventsView === "foryou" ? (
-            <div className="mx-auto max-w-2xl px-4 pt-4 md:px-8">
-              <PersonalizedEvents />
-            </div>
-          ) : (
-            <div className="pt-2">
-              <CommunityEventsLive />
-            </div>
-          )}
+      {tab === "whatson" && (
+        <div className="pb-24 pt-2">
+          <CommunityEventsLive />
         </div>
       )}
 
