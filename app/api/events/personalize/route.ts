@@ -235,6 +235,13 @@ export async function POST(req: Request) {
       day: s.event.date === today ? 'today' : s.event.date === tomorrow ? 'tomorrow' : 'later',
       why: s.why,
       topics: audience[s.event.uid]?.topics ?? [],
+      // For the expanded card. Trimmed hard on purpose: this rides on every
+      // event in a response that can carry 240 of them, so the blurb is a
+      // teaser that earns the tap, not the whole description.
+      blurb: (s.event.description || '').replace(/\s+/g, ' ').trim().slice(0, 200) || null,
+      endTime: s.event.end,
+      /** The source's own page — the only link that can answer "is this real". */
+      url: s.event.url || null,
     })),
   })
 }

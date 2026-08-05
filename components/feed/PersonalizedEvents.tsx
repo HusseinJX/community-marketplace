@@ -14,7 +14,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { MapPin, Loader2, X, LocateFixed, Clock, Building2 } from "lucide-react";
+import { MapPin, Loader2, X, LocateFixed, Clock, Building2, ChevronDown, ExternalLink } from "lucide-react";
 import { cachedPosition, getHomePosition, refreshHomePosition } from "@/lib/home-position";
 import { usePersonalizedEvents } from "@/lib/data-hooks";
 
@@ -58,6 +58,11 @@ interface FeedEvent {
   day: "today" | "tomorrow" | "later";
   why: string[];
   topics: string[];
+  /** Short teaser, shown only once the card is expanded. */
+  blurb: string | null;
+  endTime: string | null;
+  /** The source's own event page. */
+  url: string | null;
 }
 
 /**
@@ -152,6 +157,16 @@ export function PersonalizedEvents({
   onLoadingChange?: (loading: boolean) => void;
 } = {}) {
   const [topics, setTopics] = useState<string[]>([]);
+  // Which cards are open. A Set rather than a single id: opening one should not
+  // close another you deliberately opened to compare against.
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggleCard = (id: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   // Narrowed to one organiser, set by tapping their tag on any card.
   const [organizer, setOrganizer] = useState<string | null>(null);
   const [freeOnly, setFreeOnly] = useState(false);
@@ -499,27 +514,48 @@ export function PersonalizedEvents({
             </h2>
             <ul className="space-y-2">
               {evs.map((e) => (
-                // The whole card opens the event, but the organiser inside it is
-                // its own control — and a <button> may not live inside an <a>.
-                // So the link is a stretched overlay and the organiser tag is a
-                // later positioned sibling, which paints above it.
+                // TAP THE CARD to open it in place; tap the TITLE to leave for
+                // the event page. Deciding to go is usually a two-step: is this
+                // even worth a look, then take me there. The card used to be one
+                // stretched link, so the only way to see more than a truncated
+                // line was to leave the feed and come back.
+                //
+                // Not a <button> wrapper: the title link and the organiser tag
+                // are real controls, and neither may live inside a button. A div
+                // with role/tabIndex takes the tap and keeps the keyboard working.
                 <li
                   key={e.id}
-                  className="group relative rounded-xl border border-stone-200 bg-white p-3 transition hover:border-stone-300 hover:shadow-sm"
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={expanded.has(e.id)}
+                  onClick={() => toggleCard(e.id)}
+                  onKeyDown={(ev) => {
+                    if (ev.key === "Enter" || ev.key === " ") {
+                      ev.preventDefault();
+                      toggleCard(e.id);
+                    }
+                  }}
+                  className="group relative cursor-pointer rounded-xl border border-stone-200 bg-white p-3 transition hover:border-stone-300 hover:shadow-sm"
                 >
-                  <Link
-                    href={`/events/${e.id}`}
-                    aria-label={`Open ${e.title}`}
-                    className="absolute inset-0 z-0 rounded-xl"
-                  />
                   <div>
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <h3 className="truncate text-[15px] font-semibold text-stone-900">
-                          {e.title}
-                        </h3>
-                        <p className="mt-0.5 truncate text-xs text-stone-500">
-                          {[e.time, e.venue].filter(Boolean).join(" · ") || e.source}
+                        {/* The title is the way OUT of the feed. stopPropagation
+                            so tapping it navigates instead of also toggling the
+                            card open behind the new page. */}
+                        <Link
+                          href={`/events/${e.id}`}
+                          onClick={(ev) => ev.stopPropagation()}
+                          className="relative z-10 block"
+                        >
+                          <h3 className={`text-[15px] font-semibold text-stone-900 underline-offset-2 hover:underline ${expanded.has(e.id) ? "" : "truncate"}`}>
+                            {e.title}
+                          </h3>
+                        </Link>
+                        <p className={`mt-0.5 text-xs text-stone-500 ${expanded.has(e.id) ? "" : "truncate"}`}>
+                          {[expanded.has(e.id) && e.endTime ? `${e.time}–${e.endTime}` : e.time, e.venue]
+                            .filter(Boolean)
+                            .join(" · ") || e.source}
                         </p>
                       </div>
                       {/* When and where — the two facts that decide whether
@@ -582,6 +618,43 @@ export function PersonalizedEvents({
 
                   </div>
 
+                  {/* ── expanded ────────────────────────────────────────
+                      Only what the collapsed card had to cut: the blurb, and
+                      the two links that answer "is this real" (the source's own
+                      page) and "take me there" (the event page). Deliberately
+                      NOT a second copy of the badges above it. */}
+                  {expanded.has(e.id) && (
+                    <div className="mt-2.5 border-t border-stone-100 pt-2.5">
+                      {e.blurb && (
+                        <p className="text-[13px] leading-snug text-stone-600">
+                          {e.blurb}
+                          {e.blurb.length >= 200 && "…"}
+                        </p>
+                      )}
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <Link
+                          href={`/events/${e.id}`}
+                          onClick={(ev) => ev.stopPropagation()}
+                          className="relative z-10 inline-flex items-center gap-1 rounded-full bg-stone-900 px-3 py-1.5 text-[12px] font-semibold text-white transition hover:bg-stone-800"
+                        >
+                          Open event
+                        </Link>
+                        {e.url && (
+                          <a
+                            href={e.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(ev) => ev.stopPropagation()}
+                            className="relative z-10 inline-flex items-center gap-1 rounded-full border border-stone-200 px-3 py-1.5 text-[12px] font-medium text-stone-600 transition hover:border-stone-400 hover:text-stone-900"
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                            Source page
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {/* The organiser, as a real control. It used to be the
                       faintest text on the card despite being the thing a reader
                       most often wants more of — tapping it shows everything
@@ -602,6 +675,16 @@ export function PersonalizedEvents({
                     <Building2 className="h-3 w-3 shrink-0" />
                     <span className="truncate">{e.source}</span>
                   </button>
+
+                  {/* The only hint that the card does anything when tapped.
+                      Bottom-right, out of the way of the badges, rotating so
+                      the open state is legible without reading anything. */}
+                  <ChevronDown
+                    aria-hidden
+                    className={`pointer-events-none absolute bottom-3 right-3 h-4 w-4 text-stone-300 transition-transform ${
+                      expanded.has(e.id) ? "rotate-180" : ""
+                    }`}
+                  />
                 </li>
               ))}
             </ul>
