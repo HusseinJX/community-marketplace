@@ -9,6 +9,7 @@ Spec: `session-context/2026-08-05-proximity-ranking-spec.md`. Both halves shippe
 - [x] **Businesses rank nearest-first on the Shop tab** (`LocalDirectory` + `lib/proximity.ts` + a distance chip on `MemberCard`). No migration. "Near me" = hide past this radius, nothing else; members with no coords are excluded from it and counted out loud, and never show a distance.
 - [x] **Posts capture coordinates going forward** — migration `20260805120000_post_coordinates` **applied to prod and registered**; `ShareComposer` keeps the fix it already resolved; `CommunityFeed` ranks placed posts nearest-first with recency as tiebreak and fallback. Old posts stay unplaceable, sort behind, show no distance. Geocoding labels stays rejected.
 - [x] **One geolocation prompt on home** — `LiveFeed`/`LiveNowRail` moved off direct `getUserPosition()`; `useViewerPosition` borrows an existing home fix.
+- [x] **"Nearby businesses" rail on the event page** (`components/events/NearbyBusinesses.tsx`) — nearest 12 within 5mi of the **venue**, server-rendered (no permission dialog), self-hiding. Also fixed a pre-existing infinite render loop found while verifying it (`data ?? []` in `lib/data-hooks.ts` → `MemoriesGrid`).
 - [ ] **Deploy it.** Nothing is on prod but the migration (which is additive + nullable, so prod is safe with the old code running). Normal CapRover deploy + the demo-mode gate.
 - [ ] **Open:** no business surface other than the Shop tab ranks yet — `/explore` and `/browse` still sort by name-match score. `lib/proximity.ts` is ready for both.
 

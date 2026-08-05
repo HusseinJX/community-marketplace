@@ -18,6 +18,18 @@ import { fetchLiveBroadcasts } from "@/lib/demo-live-fixtures";
 // sharing, so a single Home visit could hit /api/events/feed 2-3 times and
 // re-hit everything on every navigation.
 
+// EVERY "no data yet" return below hands back the same `NONE` array (declared
+// with its siblings at the bottom of the file).
+//
+// `data?.posts ?? []` looks harmless and is not: it is a NEW array on every
+// render, so anything using it as a dependency re-runs forever. It caused a
+// real infinite render loop — MemoriesGrid copies `posts` into state in an
+// effect keyed on it, so every event or member page with nothing tagged to it
+// yet spun on "Maximum update depth exceeded" until the tab was closed.
+// Downstream useMemos were quietly recomputing every render for the same
+// reason. A module-level constant is referentially stable, so one empty result
+// equals the last one.
+
 // Shape returned by GET /api/posts — kept loose; only rendered fields are read.
 export interface ApiPost {
   id: string;
@@ -49,25 +61,25 @@ export function useBroadcasts() {
     // Live surfaces stay fresh — broadcasts start and expire on their own.
     { refreshInterval: 60_000 }
   );
-  return { broadcasts: data ?? [], loading: isLoading && !data, refresh: mutate };
+  return { broadcasts: data ?? NONE, loading: isLoading && !data, refresh: mutate };
 }
 
 /** Public community events feed (real vendor_events + connector events). */
 export function useEventsFeed() {
   const { data, isLoading } = useSWR<{ events?: FeedEvent[] }>("/api/events/feed");
-  return { events: data?.events ?? [], loading: isLoading && !data };
+  return { events: data?.events ?? NONE, loading: isLoading && !data };
 }
 
 /** Community share posts (from the share composer / posts table). */
 export function usePosts() {
   const { data, isLoading } = useSWR<{ posts?: ApiPost[] }>("/api/posts");
-  return { posts: data?.posts ?? [], loading: isLoading && !data };
+  return { posts: data?.posts ?? NONE, loading: isLoading && !data };
 }
 
 /** Local member directory (home "Who's local" rail + /explore share one key). */
 export function useDirectory() {
   const { data, isLoading } = useSWR<{ members?: Member[] }>("/api/directory");
-  return { members: data?.members ?? [], loading: isLoading && !data };
+  return { members: data?.members ?? NONE, loading: isLoading && !data };
 }
 
 /**
@@ -77,7 +89,7 @@ export function useDirectory() {
  */
 export function useFeatured<T = unknown>() {
   const { data, isLoading } = useSWR<{ lists?: T[] }>("/api/featured");
-  return { lists: data?.lists ?? [], loading: isLoading && !data };
+  return { lists: data?.lists ?? NONE, loading: isLoading && !data };
 }
 
 /** One live broadcast by id (the /live/[id] detail page). */
@@ -100,7 +112,7 @@ export function useMemories(memberId?: string, eventId?: string) {
       ? `event=${encodeURIComponent(eventId)}`
       : "";
   const { data } = useSWR<{ posts?: Post[] }>(qs ? `/api/posts?${qs}` : null);
-  return { posts: data?.posts ?? [] };
+  return { posts: data?.posts ?? NONE };
 }
 
 /**
@@ -129,6 +141,7 @@ export function useCollaborations(memberId: string | null | undefined, isAdmin: 
 }
 
 // Stable identity so consumers' useMemo deps don't churn on every render.
+const NONE: never[] = [];
 const EMPTY: Activity[] = [];
 const EMPTY_COLLABS: CollaborationSummary[] = [];
 

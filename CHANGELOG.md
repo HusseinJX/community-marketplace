@@ -10,6 +10,17 @@ All notable changes to this project are documented here.
 > ad pixels still inert (`fbq`/`gtag` undefined — the ATT statement to App Review stays
 > true), 0 console errors. No native change, so no Xcode rebuild was needed.
 
+### Added — "Nearby businesses" on the event page — 2026-08-05
+- **A rail of the closest local businesses at the bottom of every event page** (`components/events/NearbyBusinesses.tsx`) — the Amazon-style "while you're there" recommendation, ranked by distance **from the venue**.
+- **Measured from the EVENT, not from the reader.** Someone looking at a market three miles away wants to know what else is on that block when they arrive — a fact about the venue, the same for everyone. So it renders on the **server**: no position lookup, no permission dialog, nothing to wait for. The heading says "distances are from the event" out loud, because the identical green chip on the home directory means "from you".
+- Nearest 12 within 5 miles; anything further isn't the same trip. Excludes the host (already named at the top), and shoppers/influencers (people, not places you can walk into). Businesses with no coordinates are **dropped, not floated in at the end** — this section is a claim about proximity, and a record we couldn't place has no business making it. Self-hides when the event has no pin or nothing is close.
+- Uses `fetchAllMembers()` (24h `unstable_cache`), so it costs a page render nothing.
+
+### Fixed — infinite render loop on every event and member page with no memories — 2026-08-05
+- **`data?.posts ?? []` in `lib/data-hooks.ts` returned a NEW array on every render.** `MemoriesGrid` copies `posts` into state in an effect keyed on it, so the effect re-fired forever: an event or member page with nothing tagged to it yet pinned a core with "Maximum update depth exceeded" until the tab was closed. Measured 66 errors in ~8s on one event page; 0 after.
+- Every `?? []` in the file now returns one shared `NONE` constant — the same fix `EMPTY`/`EMPTY_COLLABS` already had further down for the same reason. Downstream `useMemo`s across the feed, directory and live surfaces were also recomputing on every render off these arrays.
+- Found while verifying the nearby-businesses rail. Pre-existing and unrelated to it (the loop reproduces on `HEAD`, and on events with no pin where the new section never renders).
+
 ### Added — proximity ranking for businesses and posts — 2026-08-05
 - **Businesses rank nearest-first on the Shop tab** (`components/home/LocalDirectory.tsx`). A ranking change only, **no migration**: 93% of members already carried `latitude`/`longitude` (the map drew pins from them) and nothing read them — `/api/directory` sorted by name-match score, else the connector's order.
 - **`lib/proximity.ts`** — the shared measurement (`milesTo` / `byDistance` / `milesLabel`). `0,0` is treated as unplaced, not as a point in the Atlantic: it is what an empty numeric column looks like, and measuring it would put every unfilled record ~5,000 miles away rather than nowhere.

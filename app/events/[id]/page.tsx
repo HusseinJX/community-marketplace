@@ -23,6 +23,7 @@ import { BackToHome } from "@/components/BackToHome";
 import { MemoriesGrid } from "@/components/posts/MemoriesGrid";
 import { RsvpButton } from "@/components/events/RsvpButton";
 import { EventLocationMap } from "@/components/events/EventLocationMap";
+import { NearbyBusinesses } from "@/components/events/NearbyBusinesses";
 
 // ─── Gradient helpers ────────────────────────────────────────────────────────
 
@@ -477,6 +478,13 @@ export default async function EventDetailPage({
             </div>
           </div>
         </div>
+
+        {/* What else is on that block when you get there. Full width under both
+            columns, and it self-hides when the event has no pin or nothing is
+            close — an empty "nearby" rail is worse than no rail. */}
+        {pinLat != null && pinLng != null && (
+          <NearbyBusinesses lat={pinLat} lng={pinLng} excludeMemberId={event.memberId} />
+        )}
       </div>
     </main>
   );

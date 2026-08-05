@@ -20,6 +20,16 @@ the iOS shell, or member data.
 - **Say "no location" rather than nothing.** A blank where a distance sits on every other
   card reads as "nearby". The grey chip only appears once the reader's own position is
   known, which is the only moment the absence means anything.
+- **Distance measured from WHAT is a product decision, not a detail.** The home directory
+  measures from the reader; the event page's "Nearby businesses" measures from the **venue**
+  — what else is on that block when you get there is the same fact for everyone, so it
+  renders on the server with no permission dialog at all. The chip looks identical either
+  way, so the heading has to say which.
+- **`data ?? []` in a hook is an infinite loop waiting for a consumer.** A fresh array every
+  render, and `MemoriesGrid` copies it into state in an effect keyed on it — so every event
+  or member page with nothing tagged to it yet spun on "Maximum update depth exceeded"
+  forever. Return ONE module-level constant for the empty case. Symptom to recognise: a
+  page that works but heats the device.
 - **Two single-flight position caches on one screen is still two dialogs.** `home-position`
   (module + localStorage + shared in-flight) and `use-viewer-position` (community chats,
   with its own retry and `?at=` spoof) each deduped themselves and not each other. The chat
