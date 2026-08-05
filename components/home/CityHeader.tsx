@@ -17,7 +17,7 @@
 // and this import is the one thing to repoint.
 
 import { useState } from "react";
-import { MapPin, Check } from "lucide-react";
+import { Check } from "lucide-react";
 import { useHomePosition } from "@/lib/home-position";
 import { nearestPlace, PLACES, type Place } from "@/lib/prototype-data";
 import { trackConversion } from "@/lib/analytics";
@@ -56,14 +56,13 @@ export function CityHeader() {
   const cover = live ?? FALLBACK;
 
   if (servedHere) {
+    // Just the city, at page-title size. "Near you in San Francisco" spent most
+    // of a line explaining a mechanic; the name alone says where you are, and
+    // the surfaces below already say they're sorted by distance.
     return (
-      <p className="flex items-center gap-1.5 text-[13px] text-stone-500">
-        <MapPin className="h-3.5 w-3.5 shrink-0 text-stone-400" />
-        <span className="min-w-0 truncate">
-          Near you in{" "}
-          <span className="font-medium text-stone-700">{near.city}</span>
-        </span>
-      </p>
+      <h1 className="truncate text-2xl font-semibold tracking-tight text-stone-900">
+        {near.city}
+      </h1>
     );
   }
 

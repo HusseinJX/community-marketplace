@@ -10,6 +10,10 @@ All notable changes to this project are documented here.
 > ad pixels still inert (`fbq`/`gtag` undefined — the ATT statement to App Review stays
 > true), 0 console errors. No native change, so no Xcode rebuild was needed.
 
+### Changed — the city header is just the city name, big — 2026-08-05
+- "Near you in San Francisco" in 13px grey → **San Francisco** as an `h1` at 24px. The old line spent most of its width explaining a mechanic the surfaces below already state ("Nearest first, measured from where you are"); the name alone answers where you are.
+- The not-covered-yet state (amber "We're not in {city} yet" + the **Bring WhatsLocal to {city}** button) is unchanged, and so is the rule that it says **nothing** until the position settles — a city name shown to someone who denied location would be a guess.
+
 ### Added — "Nearby businesses" on the event page — 2026-08-05
 - **A rail of the closest local businesses at the bottom of every event page** (`components/events/NearbyBusinesses.tsx`) — the Amazon-style "while you're there" recommendation, ranked by distance **from the venue**.
 - **Measured from the EVENT, not from the reader.** Someone looking at a market three miles away wants to know what else is on that block when they arrive — a fact about the venue, the same for everyone. So it renders on the **server**: no position lookup, no permission dialog, nothing to wait for. The heading says "distances are from the event" out loud, because the identical green chip on the home directory means "from you".
