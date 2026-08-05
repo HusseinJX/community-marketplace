@@ -291,14 +291,17 @@ export default async function MemberProfilePage({
   const pinColor = memberTypeColor[memberType] ?? "#6B7280";
 
   return (
-    <div className="mx-auto max-w-7xl px-4 pb-24 pt-8 md:px-8">
+    // Tight at the top on a phone: the header, the back link and the hero were
+    // eating most of the first screen before you saw the business at all.
+    // Desktop keeps the roomier spacing.
+    <div className="mx-auto max-w-7xl px-4 pb-24 pt-2 md:px-8 md:pt-8">
       {isIndexable(member) && <MemberJsonLd member={member} />}
       {/* This profile links onward to its own events, so record it as the place
           those events come back to. */}
       <RememberOrigin href={`/members/${id}`} label={name} />
       {/* Returns wherever you came from — the home tab you were browsing, or a
           profile that sent you here. See components/BackToHome. */}
-      <BackToHome className="inline-flex items-center gap-1 text-sm text-indigo-700 hover:underline" />
+      <BackToHome className="-ml-1 inline-flex items-center gap-1 px-1 py-1 text-[13px] text-indigo-700 hover:underline md:text-sm" />
 
       {/* Hero */}
       {(() => {
@@ -307,16 +310,16 @@ export default async function MemberProfilePage({
         const single = typeof p.imageUrl === "string" && !isPlaceholder(p.imageUrl) ? [p.imageUrl] : [];
         const heroImages = (curated && curated.length ? curated : apiImages.length ? apiImages : single);
         return heroImages.length > 0 ? (
-          <div className="mt-6">
+          <div className="mt-2 md:mt-6">
             <ImageCarousel images={heroImages} alt={name} aspect="wide" fallbackGradient={gradient} priority />
           </div>
         ) : (
-          <div className={`mt-6 aspect-[21/9] w-full rounded-2xl bg-gradient-to-br ${gradient}`} />
+          <div className={`mt-2 aspect-[21/9] w-full rounded-2xl bg-gradient-to-br md:mt-6 ${gradient}`} />
         );
       })()}
 
       {/* Header */}
-      <header className="mt-8 border-b border-stone-200 pb-8">
+      <header className="mt-4 border-b border-stone-200 pb-5 md:mt-8 md:pb-8">
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-3xl font-semibold tracking-tight text-stone-900 md:text-4xl">{name}</h1>
           <MemberTypeBadge type={p.memberType} />

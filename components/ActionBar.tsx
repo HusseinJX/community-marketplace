@@ -51,7 +51,7 @@ export function ActionBar({
     : null;
   // Row-pill styling so GoogleReviewButton sits inline with the other actions.
   const reviewPill =
-    "inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3.5 py-2 text-[13px] font-medium text-stone-700 transition hover:border-amber-300 hover:text-amber-600";
+    "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-stone-200 bg-white px-3.5 py-2 text-[13px] font-medium text-stone-700 transition hover:border-amber-300 hover:text-amber-600";
 
   // The booking flow opens straight on THIS business's slots (the space is
   // pre-selected — no "find a space" browse step). Demo slots for now (UI-only).
@@ -89,13 +89,17 @@ export function ActionBar({
   };
 
   return (
-    <div className="mt-6 space-y-3">
-      {/* Row 1 — primary actions */}
-      <div className="flex flex-wrap gap-2">
+    <div className="mt-4 space-y-2 md:mt-6 md:space-y-3">
+      {/* Row 1 — primary actions.
+          ONE horizontal scroll row on a phone, not a wrapping grid. Seven pills
+          wrapped into three stacked rows and pushed everything about the
+          business below the fold. Bleeding to the screen edge (-mx-4) is the
+          cue that it scrolls. Desktop has the width to wrap, so it still does. */}
+      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] md:mx-0 md:flex-wrap md:overflow-visible md:px-0 md:pb-0 [&::-webkit-scrollbar]:hidden">
       <button
         onClick={() => setFollowing((v) => !v)}
         className={
-          "inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[13px] font-medium transition " +
+          "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-2 text-[13px] font-medium transition " +
           (following
             ? "bg-stone-900 text-white hover:bg-stone-800"
             : "bg-indigo-600 text-white hover:bg-indigo-700")
@@ -110,7 +114,7 @@ export function ActionBar({
       <button
         onClick={() => setSaved((v) => !v)}
         className={
-          "inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-[13px] font-medium transition " +
+          "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 py-2 text-[13px] font-medium transition " +
           (saved
             ? "border-indigo-200 bg-indigo-50 text-indigo-700"
             : "border-stone-200 bg-white text-stone-700 hover:border-indigo-300 hover:text-indigo-700")
@@ -124,7 +128,7 @@ export function ActionBar({
         <button
           onClick={logVisit}
           className={
-            "inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-[13px] font-medium transition " +
+            "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 py-2 text-[13px] font-medium transition " +
             (visits > 0
               ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-300"
               : "border-stone-200 bg-white text-stone-700 hover:border-emerald-300 hover:text-emerald-700")
@@ -138,7 +142,7 @@ export function ActionBar({
 
       <button
         onClick={() => setSupportOpen(true)}
-        className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3.5 py-2 text-[13px] font-medium text-stone-700 transition hover:border-rose-300 hover:text-rose-600"
+        className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-stone-200 bg-white px-3.5 py-2 text-[13px] font-medium text-stone-700 transition hover:border-rose-300 hover:text-rose-600"
       >
         <HandHeart className="h-4 w-4" />
         Support
@@ -155,7 +159,7 @@ export function ActionBar({
       {canInquire && (
         <button
           onClick={() => window.dispatchEvent(new CustomEvent("open-assistant"))}
-          className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3.5 py-2 text-[13px] font-medium text-stone-700 transition hover:border-indigo-300 hover:text-indigo-700"
+          className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-stone-200 bg-white px-3.5 py-2 text-[13px] font-medium text-stone-700 transition hover:border-indigo-300 hover:text-indigo-700"
         >
           <MessageSquare className="h-4 w-4" />
           Inquire
@@ -166,7 +170,7 @@ export function ActionBar({
       {isVendor && (
         <button
           onClick={() => setBookOpen(true)}
-          className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-3.5 py-2 text-[13px] font-medium text-white transition hover:bg-emerald-700"
+          className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-emerald-600 px-3.5 py-2 text-[13px] font-medium text-white transition hover:bg-emerald-700"
         >
           <CalendarClock className="h-4 w-4" />
           Book
@@ -176,13 +180,13 @@ export function ActionBar({
 
       {/* Row 2 — Visit website, then social icons */}
       {(websiteHref || socials.length > 0) && (
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="-mx-4 flex items-center gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] md:mx-0 md:flex-wrap md:overflow-visible md:px-0 md:pb-0 [&::-webkit-scrollbar]:hidden">
           {websiteHref && (
             <a
               href={websiteHref}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3.5 py-2 text-[13px] font-medium text-stone-700 transition hover:border-indigo-300 hover:text-indigo-700"
+              className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-stone-200 bg-white px-3.5 py-2 text-[13px] font-medium text-stone-700 transition hover:border-indigo-300 hover:text-indigo-700"
             >
               <Globe className="h-4 w-4" />
               Visit website
@@ -196,7 +200,7 @@ export function ActionBar({
               rel="noreferrer"
               aria-label={s.label}
               title={s.label}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-stone-200 bg-white text-base text-stone-700 transition hover:border-indigo-300 hover:text-indigo-700"
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-stone-200 bg-white text-base text-stone-700 transition hover:border-indigo-300 hover:text-indigo-700"
             >
               <span aria-hidden>{s.icon}</span>
             </a>
