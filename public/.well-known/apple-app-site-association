@@ -5,6 +5,10 @@
       {
         "appID": "6UWM5JUAC5.ai.whatslocal.app",
         "paths": [
+          "/members/*",
+          "/events/*",
+          "/live/*",
+          "/featured/*",
           "/sso-callback",
           "/sso-callback/*",
           "/sign-in",

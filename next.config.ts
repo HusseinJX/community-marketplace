@@ -57,8 +57,17 @@ const nextConfig: NextConfig = {
     minimumCacheTTL: 31536000,
   },
   // Apple requires the app-site-association file to be served as JSON (no
-  // redirect) for Universal Links — used so Clerk's OAuth callback returns into
-  // the native app instead of Safari.
+  // redirect) for Universal Links.
+  //
+  // Originally added so Clerk's OAuth callback returned into the native app
+  // instead of Safari; the file now also claims the CONTENT paths, which is
+  // what makes an NFC fob or a shared link open the app rather than the
+  // website. The fob encodes `…/members/{id}` (see QrScanButton), so without
+  // `/members/*` in that file a tap went to Safari no matter what the app's
+  // entitlements said. `/checkout` is deliberately NOT claimed — a payment
+  // returning from Stripe should finish in the browser it started in.
+  //
+  // The file itself must stay pure JSON (no comments), hence this note here.
   async headers() {
     return [
       {
