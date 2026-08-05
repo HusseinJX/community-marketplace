@@ -27,6 +27,16 @@ import { useIsNativeApp } from '@/lib/native'
 // Upcoming leads: what you're already committed to, before anything to discover.
 type CollabView = 'upcoming' | 'join' | 'create'
 
+// The whole Collabs section is HIDDEN for now — flip to `true` to restore it.
+// Every render branch below is left intact (same as the Create/Join tabs and
+// the event-link import above it), so this is the only edit either way.
+//
+// Typed `boolean` rather than left as the literal `false` on purpose: a literal
+// makes TypeScript treat the branch as unreachable and stop narrowing `memberId`
+// inside it, which is what broke the build the last time something here was
+// switched off with a bare `false &&`.
+const SHOW_COLLABS: boolean = false
+
 function Tile({ href, Icon, label, desc }: { href: string; Icon: typeof Package; label: string; desc?: string }) {
   return (
     <Link href={href} className="card-soft card-hover flex items-center justify-between p-4">
@@ -131,7 +141,7 @@ export function VendorHome({
       {/* ── The wedge, front and center. One "Collabs" section, two columns:
              people to team up with on one side, events to join on the other.
              Stacks on mobile. ────────────────────────────────────────────── */}
-      {memberId ? (
+      {!SHOW_COLLABS ? null : memberId ? (
         <div>
           {/* Title + the Upcoming / Join / Create toggle, above the card. (The
               For-you/Search tabs are gone — the composer has its own search bar,

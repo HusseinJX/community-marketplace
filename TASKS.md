@@ -4,13 +4,13 @@
 Handoff: `session-context/2026-08-04-handoff.md`. Everything through `d6ce033` is
 **pushed AND deployed** — prod == git.
 
-### Track 1 — proximity ranking ✅ DONE 2026-08-05 (built + verified, NOT deployed)
+### Track 1 — proximity ranking ✅ DONE + DEPLOYED + PUSHED 2026-08-05
 Spec: `session-context/2026-08-05-proximity-ranking-spec.md`. Both halves shipped in code.
 - [x] **Businesses rank nearest-first on the Shop tab** (`LocalDirectory` + `lib/proximity.ts` + a distance chip on `MemberCard`). No migration. "Near me" = hide past this radius, nothing else; members with no coords are excluded from it and counted out loud, and never show a distance.
 - [x] **Posts capture coordinates going forward** — migration `20260805120000_post_coordinates` **applied to prod and registered**; `ShareComposer` keeps the fix it already resolved; `CommunityFeed` ranks placed posts nearest-first with recency as tiebreak and fallback. Old posts stay unplaceable, sort behind, show no distance. Geocoding labels stays rejected.
 - [x] **One geolocation prompt on home** — `LiveFeed`/`LiveNowRail` moved off direct `getUserPosition()`; `useViewerPosition` borrows an existing home fix.
 - [x] **"Nearby businesses" rail on the event page** (`components/events/NearbyBusinesses.tsx`) — nearest 12 within 5mi of the **venue**, server-rendered (no permission dialog), self-hiding. Also fixed a pre-existing infinite render loop found while verifying it (`data ?? []` in `lib/data-hooks.ts` → `MemoriesGrid`).
-- [ ] **Deploy it.** Nothing is on prod but the migration (which is additive + nullable, so prod is safe with the old code running). Normal CapRover deploy + the demo-mode gate.
+- [x] **Deployed** — CapRover **v96**, verified on prod (city header, sticky day heading, single distance badge, nearby rail). Pushed: `feat/collab-rooms` `4e3a965 → 24c4789`. Migration `20260805120000` applied + registered. **Prod == git == DB.**
 - [ ] **Open:** no business surface other than the Shop tab ranks yet — `/explore` and `/browse` still sort by name-match score. `lib/proximity.ts` is ready for both.
 
 ### Track 2 — native
@@ -22,8 +22,9 @@ Spec: `session-context/2026-08-05-proximity-ranking-spec.md`. Both halves shippe
 - **iOS share-sheet** — not needed right now.
 - **Orphan routes** (`/vendor/messages/assistant`, `/messages/assistant`, `/events`, unlinked shopper routes) — reachable by URL, linked from nothing. Fine.
 
-### Four temporary hides — one-entry reverts, no decision yet
+### Five temporary hides — one-entry reverts, no decision yet
 Render branches intact in every case.
+- [ ] **The whole Collabs section** on the vendor dashboard (`VendorHome.tsx` → `SHOW_COLLABS = false`; flip to `true`)
 - [ ] Collabs **Create** tab (`VendorHome.tsx`, `tabs` array)
 - [ ] **Start selling** checklist (`app/vendor/page.tsx:169`, commented)
 - [ ] **Opportunities near you** = Collabs *Join* tab (`VendorHome.tsx`)

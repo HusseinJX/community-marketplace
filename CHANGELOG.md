@@ -10,6 +10,17 @@ All notable changes to this project are documented here.
 > ad pixels still inert (`fbq`/`gtag` undefined — the ATT statement to App Review stays
 > true), 0 console errors. No native change, so no Xcode rebuild was needed.
 
+### Changed — the Collabs section is hidden on the vendor dashboard — 2026-08-05
+- The whole **Collabs** block on `/vendor` (the Upcoming card and the "Team up → Link your business" variant) no longer renders. The dashboard now opens on Pro tools. `VendorHome.tsx` → `SHOW_COLLABS`, flip to `true` to restore; every render branch is left intact, matching the other four temporary hides.
+- Declared `const SHOW_COLLABS: boolean = false`, **not** the literal `false`: a literal makes TypeScript treat the branch as unreachable and stop narrowing `memberId` inside it, which is exactly what broke the build the last time something in this file was switched off with a bare `false &&`.
+
+### Ops — prod outage, droplet resize, swap, snapshot — 2026-08-05
+- **The site 502'd for ~35 minutes.** A deploy interrupted mid-upload had already reached CapRover, which began building **v95** on the 1GB droplet; the box wedged (CPU 100%) and Cloudflare returned 502. `deployedVersion` never advanced past 94, so the running app was never replaced — CapRover later went 94 → **96**, skipping the abandoned build.
+- **Droplet resized to 2GB / 2 vCPU** (`s-2vcpu-2gb-amd`, CPU+RAM only, so it stays reversible).
+- **The likely root cause was no swap.** The box had `Swap: 0B`, so a build spiking past physical memory had nowhere to go and got OOM-killed rather than slowed. Added a **2GB swapfile** with `vm.swappiness=10`, persisted in `/etc/fstab` + `/etc/sysctl.conf`. *Circumstantial: the reboot wiped the build logs, so this is inferred from timing, not proven.*
+- **Disk was never the problem** — 39% used, 36GB free. Pruned images older than 30 days (167 → 103, 2.1GB) which keeps recent rollback images; `docker builder prune` reclaimed 0B. **Do NOT run `docker system prune -af`** — it deletes the images CapRover's one-click rollback depends on.
+- **Snapshot taken:** `marketplace-v96-20260805-0432` (23.4GB), live, no downtime. Note it captures the droplet only — all real data is in Supabase and is not covered by it.
+
 ### Fixed — event cards said the same thing twice, and got the day wrong — 2026-08-05
 - **The day heading now sticks** while its own events scroll past (`PersonalizedEvents`), parked under the app header + tab row. Scrolling a long day meant losing track of which day you were in and scrolling back up to find out. `sticky` inside each `<section>`, not the page, so each heading hands over to the next instead of stacking.
 - **One distance badge per card, not two.** `lib/reco/rank.ts` pushed "0.3 mi away" into the reason pills while the card already carried the green badge beside the time — the same number twice, in two styles, burning one of three reason slots.
