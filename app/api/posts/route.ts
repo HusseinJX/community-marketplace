@@ -61,6 +61,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'A location tag is required to post.' }, { status: 400 })
   }
 
+  // Coordinates behind that label, when the composer had a real fix. Rounded to
+  // ~110m to match what the app already persists — a post is a neighbourhood
+  // signal, not a doorstep. Anything out of range or unparseable becomes null
+  // rather than a number we'd later print as a distance.
+  const coord = (v: unknown, max: number): number | null => {
+    const n = typeof v === 'number' ? v : Number(v)
+    if (!Number.isFinite(n) || Math.abs(n) > max) return null
+    return Math.round(n * 1000) / 1000
+  }
+  const lat = coord(b.lat, 90)
+  const lng = coord(b.lng, 180)
+  // Both or neither: half a coordinate places nothing.
+  const placed = lat !== null && lng !== null && !(lat === 0 && lng === 0)
+
   try {
     const post = await createPost({
       author_id: userId ?? 'demo',
@@ -74,6 +88,8 @@ export async function POST(request: Request) {
       tagged_event_title: b.taggedEventTitle ?? null,
       livestream_url: b.livestreamUrl ?? null,
       location,
+      lat: placed ? lat : null,
+      lng: placed ? lng : null,
     })
     return NextResponse.json({ post })
   } catch (err) {

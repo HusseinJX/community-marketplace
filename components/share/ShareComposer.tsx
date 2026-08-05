@@ -36,11 +36,17 @@ export function ShareComposer() {
   const [uploading, setUploading] = useState(false);
   const [livestreamUrl, setLivestreamUrl] = useState("");
   const [location, setLocation] = useState("");
+  // The coordinates BEHIND that label, kept rather than thrown away: the label
+  // is a neighbourhood name (and for signed-out users the literal placeholder),
+  // which nothing can measure a distance from. Null whenever the label doesn't
+  // come with a fix — the feed then shows no distance instead of a made-up one.
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [locating, setLocating] = useState(false);
   const [locError, setLocError] = useState<string | null>(null);
   // A vendor/org/artist with a saved business location can tag posts as either
   // their current spot or their business location.
   const [bizLocation, setBizLocation] = useState<string | null>(null);
+  const [bizCoords, setBizCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [locSource, setLocSource] = useState<"current" | "business">("current");
 
   const [members, setMembers] = useState<Member[]>([]);
@@ -225,6 +231,9 @@ export function ShareComposer() {
     setLocError(null);
     try {
       const [lat, lng] = await getUserPosition();
+      // Rounded to ~110m, the same precision the home position cache keeps.
+      const r = (n: number) => Math.round(n * 1000) / 1000;
+      setCoords({ lat: r(lat), lng: r(lng) });
       // The fix itself is what gates posting, so settle the UI here and stop the
       // spinner the moment we know where we are.
       //
@@ -261,6 +270,10 @@ export function ShareComposer() {
     setLocSource("business");
     setLocError(null);
     setLocation(bizLocation);
+    // The business's OWN pin, not the device's — tagging a post to the shop
+    // while standing somewhere else must not place it where you're standing.
+    // Null when the profile has no coordinates, which is the honest answer.
+    setCoords(bizCoords);
   }
 
   // On mount: learn the user's business location (if any), and auto-tag the post
@@ -272,6 +285,9 @@ export function ShareComposer() {
         const res = await fetch("/api/me/business-location");
         const d = res.ok ? await res.json() : {};
         if (alive && d?.location) setBizLocation(String(d.location));
+        if (alive && typeof d?.lat === "number" && typeof d?.lng === "number") {
+          setBizCoords({ lat: d.lat, lng: d.lng });
+        }
       } catch {
         /* no business location — that's fine */
       }
@@ -384,6 +400,8 @@ export function ShareComposer() {
           taggedEventTitle: evTag?.label ?? null,
           livestreamUrl: livestreamUrl.trim() || null,
           location: location.trim() || null,
+          lat: coords?.lat ?? null,
+          lng: coords?.lng ?? null,
         }),
       });
       const data = await res.json();
@@ -392,6 +410,7 @@ export function ShareComposer() {
         setMedia([]);
         setLivestreamUrl("");
         setLocation("");
+        setCoords(null);
         setLocError(null);
         setPostedTo([bizTag, evTag].filter(Boolean) as TagItem[]);
         setSlots([{ query: "", tag: null }]);

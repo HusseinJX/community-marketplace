@@ -32,6 +32,10 @@ export interface ApiPost {
   tagged_event_title?: string | null;
   livestream_url?: string | null;
   location?: string | null;
+  /** Where it was posted. Null on anything written before 2026-08-05 — the
+   *  label above is a neighbourhood name, not something measurable. */
+  lat?: number | null;
+  lng?: number | null;
   created_at: string;
   reactions?: number;
   reacted?: boolean;

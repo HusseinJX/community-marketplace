@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { MapPin } from "lucide-react";
 import type { Member } from "@/lib/types";
+import { milesLabel } from "@/lib/proximity";
 import { MemberTypeBadge } from "./MemberTypeBadge";
 import { ImageCarousel } from "./ImageCarousel";
 import { HeroMedia } from "./HeroMedia";
@@ -26,7 +28,20 @@ function collectTags(p: Member["profile"]): string[] {
   return Array.from(new Set(candidates)).slice(0, 2);
 }
 
-export function MemberCard({ member, matchedOn }: { member: Member; matchedOn?: string[] }) {
+export function MemberCard({
+  member,
+  matchedOn,
+  miles,
+  // True when the reader's position is known. Lets the card distinguish "we
+  // can't measure this" from "we don't know where you are" — without it, a
+  // silent gap where a distance should be reads as "nearby".
+  hasPosition = false,
+}: {
+  member: Member;
+  matchedOn?: string[];
+  miles?: number | null;
+  hasPosition?: boolean;
+}) {
   const p = member.profile ?? {};
   const name = p.name || "Anonymous member";
   const location = [p.neighborhood, p.city].filter(Boolean).join(", ");
@@ -73,8 +88,22 @@ export function MemberCard({ member, matchedOn }: { member: Member; matchedOn?: 
           <MemberTypeBadge type={p.memberType} />
         </div>
 
-        {location && (
-          <div className="text-sm text-stone-500">{location}</div>
+        {(location || hasPosition) && (
+          <div className="flex flex-wrap items-center gap-2 text-sm text-stone-500">
+            {location && <span>{location}</span>}
+            {miles != null ? (
+              <span className="whitespace-nowrap rounded-full bg-emerald-50 px-2 py-0.5 font-mono text-[11px] font-semibold text-emerald-800">
+                <MapPin className="mr-0.5 inline h-3 w-3" />
+                {milesLabel(miles)}
+              </span>
+            ) : hasPosition ? (
+              // We know where the reader is but not where this business is.
+              // Saying nothing here would imply it is close by.
+              <span className="whitespace-nowrap rounded-full bg-stone-100 px-2 py-0.5 text-[11px] text-stone-400">
+                no location
+              </span>
+            ) : null}
+          </div>
         )}
 
         {(p.category || p.subcategory) && (

@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { eventEmoji, eventLabel, timeLeftLabel } from "@/lib/live-events";
-import { getUserPosition, distanceKm } from "@/lib/native-geo";
+import { distanceKm } from "@/lib/native-geo";
+import { useHomePosition } from "@/lib/home-position";
 import { useBroadcasts } from "@/lib/data-hooks";
 import type { LiveBroadcast } from "./types";
 
@@ -13,28 +14,21 @@ import type { LiveBroadcast } from "./types";
 export function LiveNowRail() {
   // Shared cache with the main live feed — one request, instant on return.
   const { broadcasts: items } = useBroadcasts();
-  const [coords, setCoords] = useState<[number, number] | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    // Best-effort location so "near you" is literally true (silent if denied).
-    getUserPosition().then((c) => !cancelled && setCoords(c)).catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  // The shared home position — the same lookup the city header, the directory
+  // and the events feed read. Asking the device directly here was a second
+  // permission dialog on the same screen.
+  const { position } = useHomePosition();
 
   // Nearest-first when we know where the viewer is; venues without coordinates
   // fall to the back. Otherwise keep the feed's (recency) order.
   const ranked = useMemo(() => {
-    if (!coords) return items;
-    const [uLat, uLng] = coords;
+    if (!position) return items;
     const dist = (b: LiveBroadcast) =>
       typeof b.latitude === "number" && typeof b.longitude === "number"
-        ? distanceKm(uLat, uLng, b.latitude, b.longitude)
+        ? distanceKm(position.lat, position.lng, b.latitude, b.longitude)
         : Number.POSITIVE_INFINITY;
     return [...items].sort((a, b) => dist(a) - dist(b));
-  }, [items, coords]);
+  }, [items, position]);
 
   if (items.length === 0) return null;
 

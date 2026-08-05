@@ -3,6 +3,29 @@
 Non-obvious things learned building this app — read before touching onboarding,
 the iOS shell, or member data.
 
+## Proximity — 2026-08-05
+- **A stored place LABEL is not a location.** `posts.location` looked like place data
+  ("SoMa", "Mission District") and is not measurable — and for signed-out users it is the
+  literal string `"Current location"`, because `/api/places/reverse` is auth-gated to cap
+  Google spend. Geocoding those labels was rejected: it returns a **district centroid** and
+  would print "0.3 mi away" about a point we invented. The composer already had a real fix
+  in hand and was throwing it away; keeping it was the whole fix.
+- **`0,0` must be treated as unplaced.** It is what an empty numeric column looks like, and
+  a haversine will happily report ~5,000 miles — a confident wrong answer where "unknown"
+  was correct. `coordsOf()` rejects it.
+- **A distance filter that passes through what it couldn't place is not a filter.** Same bug
+  class as the events feed putting a 180-mile event atop a "no car" list. With "Near me" on,
+  unplaced records are excluded and the count is *stated* — a silently short list reads as
+  "the neighbourhood is empty".
+- **Say "no location" rather than nothing.** A blank where a distance sits on every other
+  card reads as "nearby". The grey chip only appears once the reader's own position is
+  known, which is the only moment the absence means anything.
+- **Two single-flight position caches on one screen is still two dialogs.** `home-position`
+  (module + localStorage + shared in-flight) and `use-viewer-position` (community chats,
+  with its own retry and `?at=` spoof) each deduped themselves and not each other. The chat
+  hook now *borrows* a home fix when one exists rather than being merged — the retry and
+  spoof semantics are part of a gating mechanic and not worth changing for this.
+
 ## Video storage (YouTube) — 2026-08-04
 - **The channel is chosen at CONSENT, not by the Cloud project.** The OAuth client only
   identifies the *app* and can live in any project; a refresh token binds to whichever

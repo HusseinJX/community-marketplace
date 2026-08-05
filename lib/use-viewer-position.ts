@@ -12,6 +12,20 @@
 
 import { useEffect, useState } from "react";
 import { getUserPosition } from "@/lib/native-geo";
+import { cachedPosition, readStoredPosition } from "@/lib/home-position";
+
+// A fix the home screen already has, if any. The home surfaces (city header,
+// directory, events, live) share one lookup and remember it for a day; a chat
+// card seeded into that same feed asking the device again is a second dialog
+// for a fix we are already holding.
+//
+// Deliberately READ-ONLY — this never triggers the home lookup, and the retry
+// and ?at= spoof below stay exactly as they were. It only skips the device when
+// the answer is already in hand.
+function borrowedPosition(): [number, number] | null {
+  const p = cachedPosition() ?? readStoredPosition();
+  return p ? [p.lat, p.lng] : null;
+}
 
 export type PositionState =
   /** Still resolving — render a skeleton, not a locked state. */
@@ -47,6 +61,12 @@ export function useViewerPosition(): PositionState {
       return;
     }
     if (cached) return;
+    const borrowed = borrowedPosition();
+    if (borrowed) {
+      cached = borrowed;
+      setState({ status: "ready", coords: borrowed });
+      return;
+    }
     let alive = true;
     inflight ??= getUserPosition();
     inflight

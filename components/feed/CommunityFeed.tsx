@@ -10,6 +10,8 @@ import { MerchCard } from "@/components/feed/MerchCard";
 import { EventsCard } from "@/components/feed/EventsCard";
 import { CommunityChatCard } from "@/components/community/CommunityChatCard";
 import { useEventsFeed, usePosts } from "@/lib/data-hooks";
+import { useHomePosition } from "@/lib/home-position";
+import { byDistance, milesTo } from "@/lib/proximity";
 import { DEMO_COMMUNITY_CHATS } from "@/lib/demo-community-chats";
 
 // "3h ago" / "2d ago" / "Just now" from an ISO timestamp.
@@ -68,6 +70,24 @@ export function CommunityFeed({
   // makes one request each (not 2-3) and returning to the tab paints instantly.
   const { events: rawEvents } = useEventsFeed();
   const { posts: rawPosts } = usePosts();
+  // Shared home position — the same one lookup the city header and the events
+  // feed use, so this adds no second permission dialog.
+  const { position } = useHomePosition();
+
+  // Posts nearest-first once we know where the reader is.
+  //
+  // Only posts written from 2026-08-05 carry coordinates; everything older is
+  // unplaceable and stays where recency put it, at the back of the placed ones.
+  // The list arrives newest-first, so recency remains both the tiebreak and the
+  // fallback. An unplaced post shows no distance rather than a guessed one.
+  const ranked = useMemo(() => {
+    const measured = rawPosts.map((p) => ({
+      p,
+      miles: milesTo(position, { latitude: p.lat, longitude: p.lng }),
+    }));
+    if (!position) return measured;
+    return [...measured].sort((a, b) => byDistance(a.miles, b.miles));
+  }, [rawPosts, position]);
 
   // Real events created in-app sort ahead of the demo feed.
   const realEvents = useMemo<EventFeedItem[]>(
@@ -99,14 +119,15 @@ export function CommunityFeed({
     () =>
       eventsOnly
         ? [] // the events-only view never shows posts
-        : rawPosts.map((p, i) => ({
+        : ranked.map(({ p, miles }, i) => ({
             id: `post-${p.id}`,
             postId: p.id,
             authorId: p.author_id ?? null,
             kind: "share",
             author: { id: p.author_name ?? "someone", name: p.author_name ?? "Someone", type: "shopper" },
             postedAt: relativeTime(p.created_at),
-            // Newest first; sits above real events (-1000) so fresh posts lead.
+            // Keeps the ranked order above (nearest first, else newest) and
+            // sits above real events (-1000) so community posts lead.
             postedAtOrder: -3000 + i,
             body: p.body ?? "",
             images: p.image_urls?.length ? p.image_urls : undefined,
@@ -120,11 +141,12 @@ export function CommunityFeed({
                 ? { id: p.tagged_event_id, title: p.tagged_event_title }
                 : null,
             location: p.location ?? null,
+            miles,
             livestreamUrl: p.livestream_url ?? null,
             reactions: p.reactions ?? 0,
             reacted: p.reacted ?? false,
           })),
-    [eventsOnly, rawPosts]
+    [eventsOnly, ranked]
   );
 
   const filtered: FeedItem[] = useMemo(() => {

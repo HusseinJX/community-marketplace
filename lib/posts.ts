@@ -27,6 +27,11 @@ export interface Post {
   tagged_event_title: string | null
   livestream_url: string | null
   location: string | null
+  // Where the post was made. NULL on every row written before 2026-08-05, and
+  // on any post whose location tag we couldn't measure — see the migration.
+  // A null here must never be treated as "nearby".
+  lat: number | null
+  lng: number | null
   created_at: string
   // attached by the API layer (not columns on the row)
   reactions?: number

@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { LayoutGrid, Map as MapIcon, Radio, RefreshCw, MapPin } from "lucide-react";
 import { groupByEvent, eventEmoji, eventLabel } from "@/lib/live-events";
-import { getUserPosition, distanceKm } from "@/lib/native-geo";
+import { distanceKm } from "@/lib/native-geo";
+import { useHomePosition } from "@/lib/home-position";
 import { BroadcastCard } from "./BroadcastCard";
 import { MatchCard, type MatchGroup } from "./MatchCard";
 import { LiveMap } from "./LiveMap";
@@ -23,8 +24,10 @@ export function LiveFeed({ afterHero, afterFeed }: { afterHero?: React.ReactNode
   // World Cup"): lock to that event and drop the filter chips — just the cards.
   const [locked, setLocked] = useState(false);
   // The viewer's location, for "nearest to you" ranking. Best-effort: null until
-  // granted, and the feed silently stays in recency order without it.
-  const [coords, setCoords] = useState<[number, number] | null>(null);
+  // granted, and the feed silently stays in recency order without it. Read from
+  // the SHARED home position — asking the device here directly was a second
+  // permission dialog on a screen that already asks once.
+  const { position } = useHomePosition();
 
   useEffect(() => {
     // Honor a ?event=<slug> deep link (e.g. from a live-event page).
@@ -33,8 +36,6 @@ export function LiveFeed({ afterHero, afterFeed }: { afterHero?: React.ReactNode
       setEvent(q);
       setLocked(true);
     }
-    // Best-effort location for "nearest first" ranking (silent if denied).
-    getUserPosition().then(setCoords).catch(() => {});
   }, []);
 
   // Event chips derived from what's actually live, in curated order.
@@ -61,15 +62,15 @@ export function LiveFeed({ afterHero, afterFeed }: { afterHero?: React.ReactNode
   // the match groups and grid below inherit the order for free (venues within a
   // group come out nearest-first, and groups order by their nearest venue).
   const sorted = useMemo(() => {
-    if (!coords) return filtered;
-    const [uLat, uLng] = coords;
+    if (!position) return filtered;
+    const [uLat, uLng] = [position.lat, position.lng];
     const dist = (b: LiveBroadcast) =>
       typeof b.latitude === "number" && typeof b.longitude === "number"
         ? distanceKm(uLat, uLng, b.latitude, b.longitude)
         : Number.POSITIVE_INFINITY;
     return [...filtered].sort((a, b) => dist(a) - dist(b));
-  }, [filtered, coords]);
-  const nearFirst = coords != null && sorted.some((b) => typeof b.latitude === "number");
+  }, [filtered, position]);
+  const nearFirst = position != null && sorted.some((b) => typeof b.latitude === "number");
 
   // Group broadcasts by match (the game), not by venue — one card per game, each
   // opening the list of places showing it.

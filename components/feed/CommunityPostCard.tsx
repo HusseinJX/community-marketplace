@@ -7,6 +7,7 @@ import { useAuth } from "@clerk/nextjs";
 import { useLogin } from "@/components/auth/ClerkAuthProvider";
 import type { SharePostFeedItem } from "@/lib/demo-feed";
 import { authorColor, initials } from "@/lib/demo-feed";
+import { milesLabel } from "@/lib/proximity";
 import { ImageCarousel } from "@/components/ImageCarousel";
 import { PostModerationMenu } from "@/components/posts/PostModerationMenu";
 
@@ -107,6 +108,12 @@ export function CommunityPostCard({ item }: { item: SharePostFeedItem }) {
             {item.location && (
               <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
                 <MapPin className="h-3 w-3" /> {item.location}
+                {/* Only when the post carried real coordinates. Posts written
+                    before those existed show the label alone — no distance is
+                    better than one measured from a district centroid. */}
+                {item.miles != null && (
+                  <b className="font-mono font-semibold">· {milesLabel(item.miles)}</b>
+                )}
               </span>
             )}
           </div>

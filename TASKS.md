@@ -4,10 +4,13 @@
 Handoff: `session-context/2026-08-04-handoff.md`. Everything through `d6ce033` is
 **pushed AND deployed** — prod == git.
 
-### Track 1 — proximity ranking (decided 2026-08-04)
-Full spec: `session-context/2026-08-05-proximity-ranking-spec.md`.
-- [ ] **Businesses: rank nearest-first + filter pills.** Ranking change only, **no migration** — **93% of members already have `latitude`/`longitude`** (92/99 sampled); nothing uses them (`/api/directory` sorts by name-match score, else connector order). Land it on the **Shop tab** (`LocalDirectory`), which now sits under the shared city header. Reuse `useHomePosition()` and `distanceKm`; match the app-wide pill size. **A member with no coords must never show a distance or rank as if nearby** — a filter that exempts what it couldn't place is not a filter.
-- [ ] **Posts: capture real coordinates going forward (option 1).** ⚠️ **Posts have NO coordinates today** — `posts.location` is TEXT holding neighbourhood *labels* ("SoMa", "Mission District"), and signed-out users get the literal string `"Current location"`. Add nullable `lat`/`lng`, capture them in `ShareComposer` (it already resolves the position for the label), pass through `POST /api/posts` → `createPost`. **Forward-only** — old posts stay unplaceable and must degrade honestly. **Geocoding the label was considered and REJECTED**: it prints a district centroid as if it were the post's location.
+### Track 1 — proximity ranking ✅ DONE 2026-08-05 (built + verified, NOT deployed)
+Spec: `session-context/2026-08-05-proximity-ranking-spec.md`. Both halves shipped in code.
+- [x] **Businesses rank nearest-first on the Shop tab** (`LocalDirectory` + `lib/proximity.ts` + a distance chip on `MemberCard`). No migration. "Near me" = hide past this radius, nothing else; members with no coords are excluded from it and counted out loud, and never show a distance.
+- [x] **Posts capture coordinates going forward** — migration `20260805120000_post_coordinates` **applied to prod and registered**; `ShareComposer` keeps the fix it already resolved; `CommunityFeed` ranks placed posts nearest-first with recency as tiebreak and fallback. Old posts stay unplaceable, sort behind, show no distance. Geocoding labels stays rejected.
+- [x] **One geolocation prompt on home** — `LiveFeed`/`LiveNowRail` moved off direct `getUserPosition()`; `useViewerPosition` borrows an existing home fix.
+- [ ] **Deploy it.** Nothing is on prod but the migration (which is additive + nullable, so prod is safe with the old code running). Normal CapRover deploy + the demo-mode gate.
+- [ ] **Open:** no business surface other than the Shop tab ranks yet — `/explore` and `/browse` still sort by name-match score. `lib/proximity.ts` is ready for both.
 
 ### Track 2 — native
 - [ ] **NFC fob → app deep link (Universal Links).** THE native task. Two halves, **neither works alone**: (a) `/.well-known/apple-app-site-association` served from `whatslocal.ai` as `application/json`, no redirect, no `.json` extension — ships with a normal deploy; (b) `com.apple.developer.associated-domains` = `applinks:whatslocal.ai` in `App.entitlements` — compiled into the IPA, so **Xcode rebuild + App Review**. Users on the current build keep getting Safari until they update, and there is no forced-update mechanism, so shipping only the web half achieves nothing visible.

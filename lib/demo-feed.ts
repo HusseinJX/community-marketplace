@@ -48,6 +48,8 @@ export type SharePostFeedItem = FeedItemBase & {
   taggedMember?: { id: string; name: string } | null;
   taggedEvent?: { id: string; title: string } | null;
   location?: string | null;
+  /** Miles from the reader, when both ends are known. Null = unplaceable. */
+  miles?: number | null;
   livestreamUrl?: string | null;
   reactions?: number;
   reacted?: boolean;

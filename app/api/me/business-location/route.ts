@@ -22,7 +22,13 @@ export async function GET() {
       [p.neighborhood, p.city].filter(Boolean).join(', ') ||
       (p.city as string) ||
       ''
-    return NextResponse.json({ location: label.trim() || null })
+    // The business's own coordinates, when the profile carries them (~93% do).
+    // Sent alongside the label so a post tagged to the shop is placed at the
+    // SHOP, not wherever the phone happens to be. Null when absent — never the
+    // device's fix standing in for the business's.
+    const lat = typeof p.latitude === 'number' ? p.latitude : null
+    const lng = typeof p.longitude === 'number' ? p.longitude : null
+    return NextResponse.json({ location: label.trim() || null, lat, lng })
   } catch {
     return NextResponse.json({ location: null })
   }
