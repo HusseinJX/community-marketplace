@@ -15,6 +15,7 @@
 
 import { cosine } from './embed'
 import { milesBetween } from '@/lib/sources/geo'
+import { sfToday } from '@/lib/sf-date'
 import type { ScrapedEvent } from '@/lib/sources/types'
 import type { EventAudience, PersonaFacts, Topic } from './audience'
 
@@ -105,13 +106,23 @@ function proximityScore(miles: number | null, radius: number): number {
   return 1 - miles / radius
 }
 
+/**
+ * Whole days from the CITY's today to a `YYYY-MM-DD` event date.
+ *
+ * Both ends are parsed as UTC noon, so the subtraction is between two fixed
+ * calendar dates and can't be dragged across a boundary by the hour of day —
+ * the timezone question is settled once, by sfToday(), before any arithmetic.
+ */
+function daysFromToday(date: string): number {
+  const d = Date.parse(date + 'T12:00:00Z')
+  const t = Date.parse(sfToday() + 'T12:00:00Z')
+  if (Number.isNaN(d) || Number.isNaN(t)) return Infinity
+  return Math.round((d - t) / 864e5)
+}
+
 function soonScore(date: string, horizonDays: number): number {
   const days = Math.max(0, (Date.parse(date + 'T12:00:00Z') - Date.now()) / 864e5)
   return days > horizonDays ? 0 : 1 - days / horizonDays
-}
-
-function fmtMiles(m: number): string {
-  return m < 0.2 ? 'right here' : m < 10 ? `${m.toFixed(1)} mi away` : `${Math.round(m)} mi away`
 }
 
 /**
@@ -198,14 +209,27 @@ function reasons(
     why.push(a.energy === 'quiet' ? 'a calm one' : a.energy === 'lively' ? 'a lively one' : 'sociable')
   }
 
-  if (miles != null && (miles < 1.2 || (p.maxMiles != null && miles <= p.maxMiles))) {
-    why.push(fmtMiles(miles))
-  }
+  // Distance is deliberately NOT a reason pill. The card already carries it as
+  // a badge beside the time — the two facts that decide whether something is
+  // even possible sit together up there — so pushing "0.3 mi away" in here put
+  // the same number on the card twice, in two different styles, and spent one
+  // of the three reason slots saying nothing new.
 
-  const days = Math.round((Date.parse(e.date + 'T12:00:00Z') - Date.now()) / 864e5)
-  if (days <= 0) why.push('today')
-  else if (days === 1) why.push('tomorrow')
-  else if (days <= 7) why.push(`in ${days} days`)
+  // WHEN, judged in CITY hours against CITY dates — never by subtracting two
+  // timestamps. The old version measured UTC noon against the wall clock, so
+  // every evening in San Francisco (after 5pm, when UTC has already rolled
+  // over) it labelled TOMORROW's events "today" and the day after "tomorrow" —
+  // visibly wrong on cards sitting under a "Tomorrow" heading. Two calendar
+  // dates are either the same day or they are not; there is no difference here
+  // worth computing.
+  //
+  // "today" and "tomorrow" are NOT pills: the feed groups by day under a
+  // heading that stays pinned while you scroll, and the badge beside the title
+  // already says "On now" / "in 20m" / "Tomorrow". A third copy on the same
+  // card is not emphasis. "in 3 days" survives because turning "Thu, Aug 6"
+  // into a distance from now is real work a reader shouldn't have to do.
+  const days = daysFromToday(e.date)
+  if (days > 1 && days <= 7) why.push(`in ${days} days`)
 
   if (e.free === true) why.push('free')
   if (a?.format === 'drop-in') why.push('just turn up')

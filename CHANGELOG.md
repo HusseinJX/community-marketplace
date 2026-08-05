@@ -10,6 +10,12 @@ All notable changes to this project are documented here.
 > ad pixels still inert (`fbq`/`gtag` undefined — the ATT statement to App Review stays
 > true), 0 console errors. No native change, so no Xcode rebuild was needed.
 
+### Fixed — event cards said the same thing twice, and got the day wrong — 2026-08-05
+- **The day heading now sticks** while its own events scroll past (`PersonalizedEvents`), parked under the app header + tab row. Scrolling a long day meant losing track of which day you were in and scrolling back up to find out. `sticky` inside each `<section>`, not the page, so each heading hands over to the next instead of stacking.
+- **One distance badge per card, not two.** `lib/reco/rank.ts` pushed "0.3 mi away" into the reason pills while the card already carried the green badge beside the time — the same number twice, in two styles, burning one of three reason slots.
+- **"today" / "tomorrow" dropped from the reason pills too.** Between the pinned day heading and the badge beside the title, a third copy is not emphasis. `in 3 days` stays: turning "Thu, Aug 6" into a distance from now is real work a reader shouldn't do.
+- **The day labels were WRONG, city-local vs UTC — again.** `Math.round((Date.parse(date + 'T12:00:00Z') - Date.now()) / 864e5)` measured UTC noon against the wall clock, so after 5pm Pacific (once UTC rolls over) tomorrow's events were labelled **"today"** and the day after "tomorrow" — visibly wrong, since those cards sat under a "Tomorrow" heading. Now compared as calendar dates against `sfToday()`, which is what `lib/sf-date.ts` exists for.
+
 ### Changed — the city header is just the city name, big — 2026-08-05
 - "Near you in San Francisco" in 13px grey → **San Francisco** as an `h1` at 24px. The old line spent most of its width explaining a mechanic the surfaces below already state ("Nearest first, measured from where you are"); the name alone answers where you are.
 - The not-covered-yet state (amber "We're not in {city} yet" + the **Bring WhatsLocal to {city}** button) is unchanged, and so is the rule that it says **nothing** until the position settles — a city name shown to someone who denied location would be a guess.

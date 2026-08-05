@@ -481,7 +481,20 @@ export function PersonalizedEvents({
       <div className={loading ? "opacity-50 transition-opacity" : "transition-opacity"}>
         {grouped.map(([day, evs]) => (
           <section key={day} className="mt-6">
-            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-stone-400">
+            {/* The day sticks to the top while its own events are on screen.
+                Scrolling a long day used to mean losing which day you were in
+                and having to scroll back up to find the heading again.
+                `sticky` inside the section (not the page) is what makes each
+                heading hand over to the next instead of stacking.
+
+                Offset = the app header (3.5rem) + the sticky tab row beneath it
+                (56px, measured), so it parks directly under them rather than
+                sliding behind. Full-bleed background, or cards would show
+                through the gap as they pass under it. */}
+            <h2
+              className="sticky z-10 -mx-4 mb-2 bg-stone-50/90 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-stone-400 backdrop-blur md:-mx-8 md:px-8"
+              style={{ top: "calc(7rem + env(safe-area-inset-top))" }}
+            >
               {dayLabel(day)}
             </h2>
             <ul className="space-y-2">

@@ -20,6 +20,15 @@ the iOS shell, or member data.
 - **Say "no location" rather than nothing.** A blank where a distance sits on every other
   card reads as "nearby". The grey chip only appears once the reader's own position is
   known, which is the only moment the absence means anything.
+- **A fact belongs in exactly one place on a card.** The event card carried distance twice
+  (green badge beside the time + a "0.3 mi away" reason pill) and the day up to three times
+  (pinned heading + when-badge + a "today" pill). Reason pills are for what the reader
+  doesn't already know — anything the layout states is not a reason.
+- **The city-local date bug keeps coming back in NEW arithmetic.** `lib/sf-date.ts` fixed the
+  feed, then `rank.ts` reintroduced it with `Date.parse(date + 'T12:00:00Z') - Date.now()`:
+  after 5pm Pacific, UTC has rolled over, so tomorrow's events were labelled "today" —
+  under a heading that said Tomorrow. Rule: settle the timezone ONCE with `sfToday()` and
+  compare calendar dates. Never subtract a wall clock from a date.
 - **Distance measured from WHAT is a product decision, not a detail.** The home directory
   measures from the reader; the event page's "Nearby businesses" measures from the **venue**
   — what else is on that block when you get there is the same fact for everyone, so it
