@@ -1,9 +1,15 @@
 # Tasks
 
-## ⚠️ NEXT SESSION IS NATIVE — start here (2026-08-04 handoff)
-Full handoff: `session-context/2026-08-04-handoff.md` (gitignored, local).
+## ⚠️ START HERE — two tracks queued (2026-08-04 handoff)
+Handoff: `session-context/2026-08-04-handoff.md`. Everything through `d6ce033` is
+**pushed AND deployed** — prod == git.
 
-- [ ] **DEPLOY `b7041a7` + `26cfd53`** — committed and pushed but **NOT deployed**. Prod is behind git by those two UI commits (pill sizing, city header, the two vendor-dashboard hides, messages padding). No native change, no paywall touch, pixels inert.
+### Track 1 — proximity ranking (decided 2026-08-04)
+Full spec: `session-context/2026-08-05-proximity-ranking-spec.md`.
+- [ ] **Businesses: rank nearest-first + filter pills.** Ranking change only, **no migration** — **93% of members already have `latitude`/`longitude`** (92/99 sampled); nothing uses them (`/api/directory` sorts by name-match score, else connector order). Land it on the **Shop tab** (`LocalDirectory`), which now sits under the shared city header. Reuse `useHomePosition()` and `distanceKm`; match the app-wide pill size. **A member with no coords must never show a distance or rank as if nearby** — a filter that exempts what it couldn't place is not a filter.
+- [ ] **Posts: capture real coordinates going forward (option 1).** ⚠️ **Posts have NO coordinates today** — `posts.location` is TEXT holding neighbourhood *labels* ("SoMa", "Mission District"), and signed-out users get the literal string `"Current location"`. Add nullable `lat`/`lng`, capture them in `ShareComposer` (it already resolves the position for the label), pass through `POST /api/posts` → `createPost`. **Forward-only** — old posts stay unplaceable and must degrade honestly. **Geocoding the label was considered and REJECTED**: it prints a district centroid as if it were the post's location.
+
+### Track 2 — native
 - [ ] **NFC fob → app deep link (Universal Links).** THE native task. Two halves, **neither works alone**: (a) `/.well-known/apple-app-site-association` served from `whatslocal.ai` as `application/json`, no redirect, no `.json` extension — ships with a normal deploy; (b) `com.apple.developer.associated-domains` = `applinks:whatslocal.ai` in `App.entitlements` — compiled into the IPA, so **Xcode rebuild + App Review**. Users on the current build keep getting Safari until they update, and there is no forced-update mechanism, so shipping only the web half achieves nothing visible.
 - [ ] **Other native, already staged:** push `presentationOptions` needs `npx cap sync ios` + rebuild to apply; the NFC tag-reading entitlement is **not linked in the pbxproj** (needs the Xcode capability toggle + a physical device); **ATT must be wired before the ad pixels are ever switched on**.
 
