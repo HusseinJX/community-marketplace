@@ -11,18 +11,19 @@
 // getCurrentPosition() — this sits above a feed that also wants coordinates, and
 // two callers would mean two permission dialogs.
 //
-// The city registry currently lives in lib/prototype-data (PLACES +
-// CITY_COORDS + nearestPlace). Only pure data and haversine are imported, no
-// prototype UI. When cities become real rows, move the registry out of there
-// and this import is the one thing to repoint.
+// Which cities count as live is DERIVED from the sources that feed them
+// (lib/cities.ts → lib/sources/registry.ts). It used to read a hand-typed
+// `status: "live"` flag in prototype-data, which meant this header and the
+// actual scraping pipeline could disagree — it could name a city with no events
+// in it. Adding the first source for a city is now what turns it on.
 
 import { useState } from "react";
 import { Check } from "lucide-react";
 import { useHomePosition } from "@/lib/home-position";
-import { nearestPlace, PLACES, type Place } from "@/lib/prototype-data";
+import { nearestCity, liveCities, isCityLive, type City } from "@/lib/cities";
 import { trackConversion } from "@/lib/analytics";
 
-const FALLBACK: Place | undefined = PLACES.find((p) => p.status === "live");
+const FALLBACK: City | undefined = liveCities()[0];
 const INTEREST_KEY = "wl_city_interest";
 
 export function CityHeader() {
@@ -39,9 +40,9 @@ export function CityHeader() {
   // Nearest city we know of, and the nearest we actually cover. Before the
   // position settles — or after a refusal — we say nothing rather than claim a
   // city, because a wrong "Near you in …" is worse than no line at all.
-  const near = position ? nearestPlace(position.lat, position.lng)?.place ?? null : null;
+  const near = position ? nearestCity(position.lat, position.lng)?.city ?? null : null;
   const live = position
-    ? nearestPlace(position.lat, position.lng, { activeOnly: true })?.place ?? null
+    ? nearestCity(position.lat, position.lng, { liveOnly: true })?.city ?? null
     : null;
 
   // Say nothing until we actually know where they are.
@@ -52,7 +53,8 @@ export function CityHeader() {
   // location on. A missing line beats a false one.
   if (!settled || !near) return null;
 
-  const servedHere = near.status === "live";
+  // Live = this city has at least one source feeding it. Never a stored flag.
+  const servedHere = isCityLive(near.id);
   const cover = live ?? FALLBACK;
 
   if (servedHere) {

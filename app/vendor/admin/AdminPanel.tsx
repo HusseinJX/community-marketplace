@@ -9,7 +9,11 @@ import { OnboardManager } from "../onboard/OnboardManager";
 import { FeaturedManager } from "../featured/FeaturedManager";
 import { LineupImportManager } from "@/components/admin/LineupImportManager";
 import { EventDrafts } from "@/components/admin/EventDrafts";
-import { SourcingAdmin } from "@/app/prototype/admin/page"; // prototype "Sourcing" panel, embedded as a tab
+// The REAL sourcing panel: the registry that actually runs, plus counts from
+// the events it wrote. This used to import SourcingAdmin from the prototype,
+// which rendered six invented sources with invented run stats — so the screen
+// showed a pipeline that did not exist while the real one ran unattended.
+import { SourcingPanel } from "@/components/admin/SourcingPanel";
 import { OrganizeManager } from "@/app/vendor/organize/OrganizeManager"; // the "Run an event" (/organizers) toolkit, embedded as a tab
 import { ORG_FOCUS } from "@/lib/org-focus";
 
@@ -107,7 +111,7 @@ export function AdminPanel({ ownerMemberId }: { ownerMemberId: string }) {
       {tab === "behalf" && <ActOnBehalf />}
       {tab === "post" && <AddPost />}
       {tab === "featured" && <FeaturedManager />}
-      {tab === "sourcing" && <SourcingAdmin onDetailChange={setSourcingDetail} />}
+      {tab === "sourcing" && <SourcingPanel onDetailChange={setSourcingDetail} />}
 
       {tab === "drafts" && <EventDrafts />}
       {/* Same toolkit as the footer "Run an event" page (/organizers): a

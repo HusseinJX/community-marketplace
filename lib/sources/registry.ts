@@ -18,6 +18,7 @@ export const SOURCES: SourceDef[] = [
   // ── Library ────────────────────────────────────────────────────────────────
   {
     id: 'sfpl',
+    city: 'sf',
     label: 'San Francisco Public Library',
     site: 'https://sfpl.org',
     pattern: 'drupal-ics',
@@ -45,6 +46,7 @@ export const SOURCES: SourceDef[] = [
   // ── Aggregator ─────────────────────────────────────────────────────────────
   {
     id: 'funcheap',
+    city: 'sf',
     label: 'Funcheap SF',
     site: 'https://sf.funcheap.com',
     pattern: 'json-ld',
@@ -60,6 +62,7 @@ export const SOURCES: SourceDef[] = [
   // ── Arts & culture ─────────────────────────────────────────────────────────
   {
     id: 'fortmason',
+    city: 'sf',
     label: 'Fort Mason Center',
     site: 'https://fortmason.org',
     pattern: 'wp-tribe',
@@ -73,6 +76,7 @@ export const SOURCES: SourceDef[] = [
   },
   {
     id: 'ybgfestival',
+    city: 'sf',
     label: 'Yerba Buena Gardens Festival',
     site: 'https://ybgfestival.org',
     pattern: 'wp-tribe',
@@ -86,6 +90,7 @@ export const SOURCES: SourceDef[] = [
   },
   {
     id: 'gggp',
+    city: 'sf',
     label: 'Gardens of Golden Gate Park',
     site: 'https://gggp.org',
     pattern: 'wp-tribe',
@@ -100,6 +105,7 @@ export const SOURCES: SourceDef[] = [
   },
   {
     id: 'tiat',
+    city: 'sf',
     label: 'TIAT — The Intersection of Art & Technology',
     site: 'https://www.tiat.place',
     pattern: 'luma',
@@ -112,6 +118,7 @@ export const SOURCES: SourceDef[] = [
   },
   {
     id: 'somarts',
+    city: 'sf',
     label: 'SOMArts Cultural Center',
     site: 'https://somarts.org',
     pattern: 'json-ld',
@@ -125,6 +132,7 @@ export const SOURCES: SourceDef[] = [
   // ── Neighbourhood / business district ──────────────────────────────────────
   {
     id: 'downtownsf',
+    city: 'sf',
     label: 'Downtown SF',
     site: 'https://downtownsf.org',
     pattern: 'recipe',
@@ -139,6 +147,7 @@ export const SOURCES: SourceDef[] = [
   // ── Community / food ───────────────────────────────────────────────────────
   {
     id: 'lacocina',
+    city: 'sf',
     label: 'La Cocina',
     site: 'https://www.lacocinasf.org',
     pattern: 'squarespace',
@@ -152,6 +161,7 @@ export const SOURCES: SourceDef[] = [
   // ── Education ──────────────────────────────────────────────────────────────
   {
     id: 'ucsf',
+    city: 'sf',
     label: 'UCSF',
     site: 'https://calendar.ucsf.edu',
     pattern: 'localist',

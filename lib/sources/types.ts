@@ -50,6 +50,21 @@ export interface ScrapedEvent {
 export interface SourceDef {
   id: string
   label: string
+  /**
+   * Which city this source feeds, as a `PLACES` id ('sf', 'oak', …).
+   *
+   * This is what ACTIVATES a city. A city is live when at least one enabled
+   * source points at it (see lib/cities.ts) — the city header, and anything
+   * else that asks "are we in this city yet", derives from these, never from a
+   * hand-typed flag. Adding the first Oakland source turns Oakland on.
+   */
+  city: string
+  /**
+   * Off switch. Absent or true = running. Set `false` to stop scraping a source
+   * without deleting its recipe — and note that turning off the LAST source in
+   * a city turns that city off, because live-ness is derived from these.
+   */
+  enabled?: boolean
   /** Homepage — what a person would paste. */
   site: string
   pattern: Pattern
