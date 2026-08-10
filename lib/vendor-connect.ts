@@ -55,6 +55,10 @@ export interface SupabaseProduct {
   source?: string
   /** good | service | digital | ticket. Read via kindOf() — see lib/product-kind.ts. */
   kind?: string
+  /** Digital only: object path in the PRIVATE digital-goods bucket. Never public. */
+  digital_file_path?: string | null
+  digital_file_name?: string | null
+  digital_file_size?: number | null
 }
 
 export async function getProductsByMember(memberId: string): Promise<SupabaseProduct[]> {
@@ -90,6 +94,9 @@ export interface NewProduct {
   active?: boolean // false = draft pending approval
   source?: string // manual | ai_menu | ai_counter | shopify | square
   kind?: string // good (default) | service | digital | ticket
+  digital_file_path?: string | null
+  digital_file_name?: string | null
+  digital_file_size?: number | null
 }
 
 export async function createProduct(

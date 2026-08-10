@@ -3,6 +3,7 @@ import { stripe } from '@/lib/stripe-server'
 import { updateVendorConnectStatus, createOrder, getOrderByPaymentIntent, updateOrderStatus, getVendorEventById, type FulfillmentType } from '@/lib/vendor-connect'
 import { issuePaidTickets, linesFromMetadata } from '@/lib/ticket-issue'
 import { cancelTicketsForPaymentIntent } from '@/lib/tickets'
+import { deliverDigitalItems } from '@/lib/digital-deliver'
 import { pushOrderToStore } from '@/lib/composio-commerce'
 import Stripe from 'stripe'
 
@@ -114,6 +115,12 @@ export async function POST(request: Request) {
             uber_tracking_url: null,
           })
           console.log(`Order created via webhook for payment_intent ${pi.id}`)
+          const created = await getOrderByPaymentIntent(pi.id)
+          if (created) {
+            // Durability path for downloads too: if the buyer's browser closed
+            // before confirm-payment ran, the links still get emailed.
+            await deliverDigitalItems(created, { buyerEmail: pi.receipt_email ?? null })
+          }
         }
 
         // Push the completed order back into the vendor's connected store

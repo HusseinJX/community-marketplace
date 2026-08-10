@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe-server'
 import { createOrder, getOrderByPaymentIntent, type FulfillmentType } from '@/lib/vendor-connect'
 import { terminalStatusFor } from '@/lib/product-kind'
+import { deliverDigitalItems } from '@/lib/digital-deliver'
 
 // The vocabulary orders may be created with, checked against PI metadata.
 const FULFILLMENT_TYPES: string[] = ['pickup', 'delivery', 'ticket', 'digital', 'service']
@@ -90,6 +91,11 @@ export async function POST(request: Request) {
       uber_delivery_id: null,
       uber_tracking_url: null,
     })
+
+    // Any digital line in the basket is delivered now — including one bought
+    // alongside a physical item, which is why this isn't gated on
+    // fulfillment_type being 'digital'.
+    await deliverDigitalItems(order, { buyerEmail: paymentIntent.receipt_email ?? meta.buyerEmail ?? null })
 
     return NextResponse.json({ success: true, orderNumber: order.order_number, orderId: order.id })
   } catch (error: unknown) {

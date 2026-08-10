@@ -141,6 +141,50 @@ export async function sendTicketEmail(opts: {
   return sendEmail({ to: opts.to, subject, html, text })
 }
 
+// The download links for a purchase.
+//
+// Like the ticket email, this IS the product for a guest buyer — there is no
+// other place their purchase exists from their side — so it leads with the
+// links and says plainly that they keep working.
+export async function sendDigitalEmail(opts: {
+  to: string | null
+  vendorName: string | null
+  items: { productName: string; url: string; fileName: string | null }[]
+}): Promise<boolean> {
+  if (!emailConfigured() || !opts.to || opts.items.length === 0) return false
+
+  const n = opts.items.length
+  const subject = n === 1 ? `Your download: ${opts.items[0].productName}` : `Your ${n} downloads`
+
+  const rows = opts.items
+    .map(
+      (i) => `<table role="presentation" width="100%" style="border:1px solid #e7e5e4;border-radius:14px;margin:0 0 12px">
+      <tr><td style="padding:16px">
+        <p style="margin:0 0 4px;font-weight:600">${escapeHtml(i.productName)}</p>
+        ${i.fileName ? `<p style="margin:0 0 12px;color:#a8a29e;font-size:13px">${escapeHtml(i.fileName)}</p>` : ''}
+        <a href="${escapeHtml(i.url)}" style="display:inline-block;background:#1c1917;color:#fff;text-decoration:none;padding:10px 18px;border-radius:10px;font-weight:600;font-size:14px">Download</a>
+      </td></tr>
+    </table>`
+    )
+    .join('')
+
+  const html = `<div style="font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.55;color:#1c1917;max-width:480px">
+    <p style="margin:0 0 6px;font-size:20px;font-weight:700">Thanks for your order</p>
+    <p style="margin:0 0 20px;color:#57534e">${n === 1 ? 'Your download is ready.' : 'Your downloads are ready.'}</p>
+    ${rows}
+    <p style="margin:16px 0 0;color:#57534e;font-size:14px">Keep this email — the links above work whenever you need them, on any device.</p>
+    <p style="margin:16px 0 0;color:#a8a29e;font-size:13px">${opts.vendorName ? `${escapeHtml(opts.vendorName)} · ` : ''}WhatsLocal AI</p>
+  </div>`
+
+  const text = [
+    'Thanks for your order. Your downloads are ready.',
+    '',
+    ...opts.items.map((i) => `${i.productName}\n${i.url}`),
+  ].join('\n')
+
+  return sendEmail({ to: opts.to, subject, html, text })
+}
+
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, '&amp;')

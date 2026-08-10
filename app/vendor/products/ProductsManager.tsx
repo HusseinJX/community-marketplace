@@ -34,6 +34,28 @@ export function ProductsManager({
   const [showAdd, setShowAdd] = useState(false)
   const [form, setForm] = useState({ name: '', description: '', price: '', kind: 'good' as ProductKind })
   const [upgrade, setUpgrade] = useState<'member' | 'pro' | null>(null)
+  const [file, setFile] = useState<{ path: string; name: string; size: number } | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [fileError, setFileError] = useState<string | null>(null)
+
+  async function uploadFile(f?: File) {
+    if (!f) return
+    setUploading(true)
+    setFileError(null)
+    setFile(null)
+    try {
+      const body = new FormData()
+      body.append('file', f)
+      body.append('memberId', memberId)
+      const res = await fetch('/api/vendor/digital-file', { method: 'POST', body })
+      const d = await res.json()
+      if (!res.ok) setFileError(d.error ?? 'Upload failed.')
+      else setFile({ path: d.path, name: d.name, size: d.size })
+    } catch {
+      setFileError('Upload failed.')
+    }
+    setUploading(false)
+  }
 
   const load = useCallback(async () => {
     // Admin demo has no real backend member — seed sample rows instead.
@@ -79,6 +101,13 @@ export function ProductsManager({
 
   async function addManual() {
     if (!form.name.trim()) return
+    // A digital product with no file is a promise nobody can keep — the buyer
+    // pays and the delivery step finds nothing to send. Blocked here rather
+    // than discovered at checkout.
+    if (form.kind === 'digital' && !file) {
+      setFileError('Add the file customers will download.')
+      return
+    }
     if (adminDemo) {
       setProducts((p) => [
         { id: `demo-prod-${Date.now()}`, name: form.name, description: form.description || null, price: Math.round(parseFloat(form.price || '0') * 100), currency: 'usd', image_url: null, active: true, source: 'manual', kind: form.kind },
@@ -99,6 +128,9 @@ export function ProductsManager({
         active: true,
         source: 'manual',
         kind: form.kind,
+        digital_file_path: file?.path ?? null,
+        digital_file_name: file?.name ?? null,
+        digital_file_size: file?.size ?? null,
       }),
     })
     // Commerce is a Pro capability — surface an upgrade prompt on 402.
@@ -109,6 +141,7 @@ export function ProductsManager({
     }
     setUpgrade(null)
     setForm({ name: '', description: '', price: '', kind: 'good' })
+    setFile(null)
     setShowAdd(false)
     load()
   }
@@ -149,14 +182,9 @@ export function ProductsManager({
           {/* What kind of thing this is decides how it gets fulfilled — a
               service must never reach the buyer as "Pick up".
 
-              Tickets are excluded: they're sold on the event, not the catalog.
-              DIGITAL is excluded too, deliberately: the schema, the checkout
-              copy and the order lifecycle all handle it, but nothing stores a
-              file or emails a download link yet — so offering it here would
-              promise the buyer an email that never arrives. Add it back in the
-              same change that builds delivery, not before. */}
+              Tickets are excluded: they're sold on the event, not the catalog. */}
           <div className="flex flex-wrap gap-1.5">
-            {(['good', 'service'] as const).map((k) => (
+            {(['good', 'service', 'digital'] as const).map((k) => (
               <button
                 key={k}
                 type="button"
@@ -173,6 +201,27 @@ export function ProductsManager({
             ))}
           </div>
           <p className="text-xs text-stone-500">{KIND_DEFS[form.kind].blurb}</p>
+
+          {form.kind === 'digital' && (
+            <div className="rounded-lg bg-stone-50 p-3">
+              <label className="block text-xs font-medium text-stone-600">
+                The file customers get
+              </label>
+              <input
+                type="file"
+                onChange={(e) => uploadFile(e.target.files?.[0])}
+                className="mt-1.5 block w-full text-xs file:mr-3 file:rounded-lg file:border-0 file:bg-stone-900 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-white"
+              />
+              {uploading && <p className="mt-2 text-xs text-stone-500">Uploading…</p>}
+              {file && !uploading && (
+                <p className="mt-2 text-xs text-emerald-700">{file.name} ready</p>
+              )}
+              {fileError && <p className="mt-2 text-xs text-rose-600">{fileError}</p>}
+              <p className="mt-2 text-xs text-stone-400">
+                Stored privately. Buyers get their own link — it can&apos;t be shared by copying a URL.
+              </p>
+            </div>
+          )}
           <button onClick={addManual} className="rounded-lg bg-indigo-600 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-indigo-700">Save</button>
         </div>
       )}

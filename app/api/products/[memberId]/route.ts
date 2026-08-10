@@ -63,6 +63,9 @@ export async function POST(
         // what every AI-scanned menu item and POS import is, and it's the only
         // reading that can't skip a handover the buyer expects.
         kind: kindOf(p.kind),
+        digital_file_path: p.digital_file_path ?? null,
+        digital_file_name: p.digital_file_name ?? null,
+        digital_file_size: p.digital_file_size ?? null,
       })
     )
   }
@@ -85,7 +88,7 @@ export async function PATCH(
   if (!body.id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
 
   const fields: Record<string, unknown> = {}
-  for (const k of ['name', 'description', 'price', 'currency', 'image_url', 'active', 'source', 'kind'] as const) {
+  for (const k of ['name', 'description', 'price', 'currency', 'image_url', 'active', 'source', 'kind', 'digital_file_path', 'digital_file_name', 'digital_file_size'] as const) {
     if (k in body) fields[k] = k === 'price' ? Math.max(0, Math.round(body[k])) : body[k]
   }
   await updateProduct(String(body.id), memberId, fields)
