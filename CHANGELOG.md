@@ -33,9 +33,11 @@ All notable changes to this project are documented here.
   the `data-private` masking; a second rrweb would double script weight inside the iOS WKWebView and
   capture the conversation text we just finished masking.
 - **Verified against a local sink**, not by inspection: a real throw in a route handler and a real browser
-  throw each produced an `event` envelope, and the PostHog context attached. **`tunnelRoute: "/monitoring"`
-  is UNVERIFIED** — with a fake DSN the client posted straight to the DSN host, so it may engage only for a
-  real sentry.io DSN.
+  throw each produced an `event` envelope, and the PostHog context attached. **Re-verified against the real
+  project** once the DSN was set — a server event flushed cleanly, and the browser posted through
+  `tunnelRoute: "/monitoring"` (4 envelopes, all `200`, nothing direct to `ingest.us.sentry.io`). The tunnel
+  engages **only for a real sentry.io DSN**; against a fake local one the client bypasses it, which is what
+  made it look broken while wiring.
 - **Everything no-ops without a DSN, including the build** (`withSentryConfig` skips source-map upload with
   no auth token). That is deliberate: this build is also an App Store release, and a missing analytics
   token must never be able to block a deploy. `NEXT_PUBLIC_SENTRY_DSN` is **baked at build time** — same

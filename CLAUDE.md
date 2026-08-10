@@ -241,9 +241,11 @@ dashboards, and PostHog only ever saw the browser half anyway.
 - **Everything no-ops without a DSN**, including the build: `withSentryConfig` skips source-map upload with
   no `SENTRY_AUTH_TOKEN`, which matters because this build is also an App Store release and a missing
   analytics token must never block a deploy.
-- **`tunnelRoute: "/monitoring"`** is configured (same anti-ad-blocker reasoning as PostHog's `/ingest`)
-  but is **UNVERIFIED** — with a fake local DSN the client posted straight to the DSN host, so the tunnel
-  appears to engage only for a real sentry.io DSN. Confirm after setting the real one.
+- **`tunnelRoute: "/monitoring"` — VERIFIED 2026-08-10** with the real DSN: the browser posted 4 envelopes
+  to `localhost:3000/monitoring?o=…&p=…&r=us`, all `200`, and **nothing** direct to `ingest.us.sentry.io`.
+  Note it engages **only for a real sentry.io DSN** — against a fake local DSN the client posts straight to
+  the DSN host, which is what made this look broken during wiring. Same anti-ad-blocker reasoning as
+  PostHog's `/ingest`.
 - `disableLogger` is deliberately **not** set: the SDK deprecates it for
   `webpack.treeshake.removeDebugLogging`, which its own warning says is unsupported with Turbopack — which
   is what this project builds with.
