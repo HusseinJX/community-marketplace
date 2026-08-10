@@ -94,8 +94,11 @@ export default withSentryConfig(nextConfig, {
   // sentry.io by hostname, and a silently-dropped error report is worse than no
   // error reporter, because you believe you have one.
   tunnelRoute: "/monitoring",
-  // Don't let the build shout when there's no token to upload with.
-  silent: true,
+  // Quiet by default (there is usually no token in a local build), but
+  // debuggable: SENTRY_VERBOSE=1 makes it say what it did with the source maps.
+  // Hardcoding `true` meant a build could silently skip the upload and look
+  // identical to one that did it.
+  silent: !process.env.SENTRY_VERBOSE,
   // NOTE: no `disableLogger` — the SDK deprecates it in favour of
   // `webpack.treeshake.removeDebugLogging`, which its own warning says is "not
   // supported with Turbopack". This project builds with Turbopack, so the

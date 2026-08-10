@@ -35,28 +35,73 @@ if (!projectId) {
   process.exit(1)
 }
 
+// An ORG auth token (`sntrys_…`) carries its own org and REGION in a base64
+// payload. Both matter: the org saves a lookup, and the region is why a plain
+// `sentry.io/api/0/projects/` call 403s — a US-region token has to talk to
+// us.sentry.io, and the wrong host reads as a permissions error rather than a
+// routing one.
+const claims = (() => {
+  if (!token.startsWith('sntrys_')) return {}
+  try {
+    let b = token.split('_')[1]
+    b += '='.repeat((4 - (b.length % 4)) % 4)
+    return JSON.parse(Buffer.from(b, 'base64').toString('utf8'))
+  } catch {
+    return {}
+  }
+})()
+
+const base = (claims.region_url || 'https://sentry.io').replace(/\/$/, '')
+
 const api = async (path) => {
-  const res = await fetch(`https://sentry.io/api/0${path}`, {
+  const res = await fetch(`${base}/api/0${path}`, {
     headers: { Authorization: `Bearer ${token}` },
   })
-  if (!res.ok) throw new Error(`${path} → ${res.status} ${await res.text()}`)
+  if (!res.ok) throw new Error(`${base}${path} → ${res.status} ${await res.text()}`)
   return res.json()
 }
 
-// One call: every project the token can see, each carrying its organization.
-const projects = await api('/projects/')
-const hit = projects.find((p) => String(p.id) === projectId)
+const org = claims.org
+if (!org) {
+  console.error('Token has no embedded org — use an ORGANIZATION auth token (sntrys_…), not a personal one')
+  process.exit(1)
+}
 
-if (!hit) {
+// Listing projects needs `project:read`, which an upload token does NOT have —
+// the scope it needs for its actual job is `project:releases`. So try the clean
+// way, then fall back to asking the releases endpoint (which the token IS
+// entitled to) whether a candidate slug exists: 200 = right, 404 = wrong.
+async function findProjectSlug() {
+  try {
+    const projects = await api(`/organizations/${org}/projects/`)
+    const hit = projects.find((p) => String(p.id) === projectId)
+    if (hit) return hit.slug
+    console.error(`Token sees org "${org}" but not project ${projectId}.`)
+    process.exit(1)
+  } catch (e) {
+    if (!String(e.message).includes('403')) throw e
+  }
+
+  // The org slug first — Sentry names the first project after the org more often
+  // than not, and the wizard's default is second.
+  const candidates = [org, 'javascript-nextjs', `${org}-web`, 'nextjs', 'javascript']
+  for (const slug of candidates) {
+    try {
+      await api(`/projects/${org}/${slug}/releases/`)
+      console.log(`(listing was 403 — found "${slug}" by probing releases)`)
+      return slug
+    } catch {
+      /* 404 = not this one */
+    }
+  }
   console.error(
-    `Token is valid but cannot see project ${projectId}. ` +
-      `Visible: ${projects.map((p) => `${p.slug}(${p.id})`).join(', ') || 'none'}`,
+    `Could not determine the project slug. Either add project:read to the token, ` +
+      `or read it off your Sentry URL: sentry.io/organizations/${org}/projects/<SLUG>/`,
   )
   process.exit(1)
 }
 
-const org = hit.organization.slug
-const project = hit.slug
+const project = await findProjectSlug()
 
 const written = raw
   .replace(/^SENTRY_ORG=.*$/m, `SENTRY_ORG=${org}`)
