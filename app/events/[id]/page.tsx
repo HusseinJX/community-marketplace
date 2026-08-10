@@ -1,13 +1,6 @@
-import type { ComponentType } from "react";
 import Link from "next/link";
-import {
-  Calendar,
-  MapPin,
-  UserRound,
-  Users,
-  Clock,
-  ExternalLink,
-} from "lucide-react";
+import { Calendar, MapPin, Clock, UserRound, ExternalLink } from "lucide-react";
+import { isScrapedHost } from "@/lib/sources/persist";
 import { listEvents, getMember } from "@/lib/api";
 import type { EventSuggestion, Member } from "@/lib/types";
 import { getVendorEventById } from "@/lib/vendor-connect";
@@ -101,6 +94,8 @@ export default async function EventDetailPage({
   let posterUrl: string | null = null;
   let eventLat: number | null = null;
   let eventLng: number | null = null;
+  /** The source's own listing, for harvested events. */
+  let sourceUrl: string | null = null;
   if (!event) {
     const { events } = await listEvents();
     event = events.find((e) => e.id === id);
@@ -114,6 +109,7 @@ export default async function EventDetailPage({
       posterUrl = ve.poster_image_url;
       eventLat = ve.lat;
       eventLng = ve.lng;
+      sourceUrl = ve.event_url;
       event = {
         id: ve.id,
         memberId: ve.member_id,
@@ -224,21 +220,22 @@ export default async function EventDetailPage({
   // browsing. Forcing "back to the host" sent people who arrived from the Events
   // tab to a profile they'd never seen.
 
-  const expectItems: { icon: ComponentType<{ className?: string }>; text: string }[] = [
-    { icon: Users, text: "Open to all community members" },
-    {
-      icon: Clock,
-      text: event.time ? `Starts at ${event.time}` : "Check time with host",
-    },
-    { icon: MapPin, text: event.location || "Location TBD" },
-    { icon: UserRound, text: `Hosted by ${hostName}` },
-  ];
+  // A harvested event has no host — it has a SOURCE. Rendering "Hosted by
+  // Funcheap SF" with an avatar and a bio card states something false: they
+  // listed it, they aren't putting it on. So for these the host card goes and
+  // the credit is a single line that says what actually happened.
+  const scrapedHost = isScrapedHost(event.memberId);
+
+  // "What to expect" is gone: it restated the time, the place and the host —
+  // all of which are already in the header three inches above — inside four
+  // cards, and the one line left ("open to all") is the chip at the top.
 
   return (
     <main className="min-h-screen bg-stone-50">
-      <div className="mx-auto max-w-5xl px-4 py-8 sm:py-12">
-        {/* Back link */}
-        <BackToHome className="mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-stone-600 transition hover:text-indigo-700" />
+      <div className="mx-auto max-w-5xl px-4 pb-8 pt-3 sm:pb-12 sm:pt-4">
+        {/* Back link. Tight to the header and tight to the hero — it used to
+            reserve a band of empty screen above the photo on a phone. */}
+        <BackToHome className="mb-3 inline-flex items-center gap-1.5 text-sm font-medium text-stone-600 transition hover:text-indigo-700" />
 
         {/* Hero — image-first, gradient fallback */}
         {heroImage ? (
@@ -321,51 +318,55 @@ export default async function EventDetailPage({
               </section>
             )}
 
-            {/* What to expect */}
-            <section>
-              <p className="section-label mb-4">What to expect</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {expectItems.map(({ icon: Icon, text }) => (
+            {/* About the host — only when there IS one. */}
+            {scrapedHost ? (
+              <p className="text-sm text-stone-500">
+                Listed by <span className="font-medium text-stone-700">{hostName}</span>
+                {sourceUrl ? (
+                  <>
+                    {" · "}
+                    <a
+                      href={sourceUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-indigo-700 hover:underline"
+                    >
+                      Event details
+                      <ExternalLink className="size-3" />
+                    </a>
+                  </>
+                ) : null}
+              </p>
+            ) : (
+              <section>
+                <p className="section-label mb-4">About the host</p>
+                <div className="card-soft p-4 flex gap-4">
                   <div
-                    key={text}
-                    className="card-soft flex items-start gap-3 p-4"
+                    className={`size-14 shrink-0 rounded-full bg-gradient-to-br ${grad} flex items-center justify-center text-white font-bold text-xl`}
                   >
-                    <Icon className="size-5 text-indigo-500 shrink-0 mt-0.5" />
-                    <span className="text-sm text-stone-700">{text}</span>
+                    {hostName.charAt(0).toUpperCase()}
                   </div>
-                ))}
-              </div>
-            </section>
-
-            {/* About the host */}
-            <section>
-              <p className="section-label mb-4">About the host</p>
-              <div className="card-soft p-4 flex gap-4">
-                <div
-                  className={`size-14 shrink-0 rounded-full bg-gradient-to-br ${grad} flex items-center justify-center text-white font-bold text-xl`}
-                >
-                  {hostName.charAt(0).toUpperCase()}
+                  <div>
+                    <Link
+                      href={`/members/${event.memberId}`}
+                      className="font-semibold text-stone-900 hover:text-indigo-700 transition"
+                    >
+                      {hostName}
+                    </Link>
+                    {hostLocation && (
+                      <p className="text-xs text-stone-500 mt-0.5">
+                        {hostLocation}
+                      </p>
+                    )}
+                    {hostBio && (
+                      <p className="mt-2 text-sm text-stone-700 leading-relaxed line-clamp-4">
+                        {hostBio}
+                      </p>
+                    )}
+                  </div>
                 </div>
-                <div>
-                  <Link
-                    href={`/members/${event.memberId}`}
-                    className="font-semibold text-stone-900 hover:text-indigo-700 transition"
-                  >
-                    {hostName}
-                  </Link>
-                  {hostLocation && (
-                    <p className="text-xs text-stone-500 mt-0.5">
-                      {hostLocation}
-                    </p>
-                  )}
-                  {hostBio && (
-                    <p className="mt-2 text-sm text-stone-700 leading-relaxed line-clamp-4">
-                      {hostBio}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </section>
+              </section>
+            )}
 
             {/* Lineup — confirmed vendors, performers, sponsors, etc. */}
             {lineupGroups.length > 0 && (
@@ -440,13 +441,21 @@ export default async function EventDetailPage({
                 <div className="flex items-start gap-2.5">
                   <UserRound className="size-4 text-stone-400 shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-stone-500 text-xs mb-0.5">Hosted by</p>
-                    <Link
-                      href={`/members/${event.memberId}`}
-                      className="font-medium text-indigo-700 hover:underline"
-                    >
-                      {hostName}
-                    </Link>
+                    <p className="text-stone-500 text-xs mb-0.5">
+                      {scrapedHost ? "Listed by" : "Hosted by"}
+                    </p>
+                    {/* A source id has no profile page — linking it produced a
+                        dead /members/source:funcheap link. */}
+                    {scrapedHost ? (
+                      <p className="font-medium text-stone-800">{hostName}</p>
+                    ) : (
+                      <Link
+                        href={`/members/${event.memberId}`}
+                        className="font-medium text-indigo-700 hover:underline"
+                      >
+                        {hostName}
+                      </Link>
+                    )}
                   </div>
                 </div>
               </div>

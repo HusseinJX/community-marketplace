@@ -10,6 +10,59 @@ All notable changes to this project are documented here.
 > ad pixels still inert (`fbq`/`gtag` undefined — the ATT statement to App Review stays
 > true), 0 console errors. No native change, so no Xcode rebuild was needed.
 
+### Changed — business cards are the photo, and the home header is search-then-tabs — 2026-08-10
+- **`MemberCard` is image-forward.** Portrait 4/5 photo with the name, distance and
+  "neighbourhood · category" on a frosted gradient plate **over** the bottom of the image;
+  the blurb and the tag row are gone. The card used to give more height to a block of text
+  than to the picture, which reads as clunky in a feed of images. Carousel dots are off on
+  this card (the plate owns that edge — `ImageCarousel` gained an `indicators` prop); the
+  `1/3` counter and the type badge moved onto the photo. The name has its own full-width
+  line: sharing a row with the distance chip clipped "Hamburger Haven" to "Hamburge Haven".
+  Applies everywhere the card renders — home Shop rails, `/browse`, `/city`, `/category`,
+  the event page.
+- **The event page rails the same categories as the Shop tab.** `NearbyBusinesses` leads
+  with the 8 closest, then Food & drink / Retail & shops / Artists & makers / … over
+  everything within 5 mi of the venue, each still in distance order. The lead rail answers
+  "what is right here"; the categories answer "what kind of thing am I after", which is the
+  question someone has once they have decided to come.
+- **Home header order is now search → tabs → city → section.** The 3-tab selector follows
+  the search box instead of sitting under a supply pitch, so the first two things on screen
+  are the two ways to move. Still sticky — position in the document doesn't change what it
+  does once you scroll past it.
+- **"For you" became a two-icon segmented toggle** (✨ For you / 📅 What's on), like a
+  list/grid switch. As a single labelled pill it read as a filter you switch ON and left
+  "what's on" unnamed; a pair says there are two views and you are in one.
+- **"Free only" moved up into the topic pills** (first, before Music) — free is a fact
+  about an event exactly like its topic, and it was the only reason that row had a second
+  row under it. On Shop, the marketplace became a basket icon button on the
+  "Browse all local businesses" heading row, instead of a full-width black bar between the
+  city and the directory.
+- **"Hosting something? / Own a local business?" moved to where the location caption was**,
+  under the filters — it is the one line on the screen that asks the reader for something.
+
+### Removed — the "Near me" radius filter, on both Events and Shop — 2026-08-10
+- The pill, its radius slider, and the "Nearest first, measured from where you are" caption
+  are all gone. **Nearest-first ranking stays** (it is the default, and every card prints
+  its own distance, which is the caption demonstrating itself). What is gone is the ability
+  to hide anything past N miles — a control whose only power was to make the evening
+  emptier. The unplaced-businesses footnote went with it, since nothing is excluded now.
+- What survives is the half that can still be acted on: "Turn on location to sort by
+  distance", shown only when location is actually off.
+- Reversible: this is UI only. `lib/proximity.ts` `RADIUS_STEPS` and the API's `maxMiles`
+  parameter are untouched, so restoring the pill is re-adding the control, not the plumbing.
+
+### Fixed — the event page said things that were not true, twice over — 2026-08-10
+- **"What to expect" deleted.** Four cards restating the time, the place and the host — all
+  of which are in the header three inches above — plus one line ("open to all") that is the
+  chip at the top of the page.
+- **A harvested event has a SOURCE, not a host.** "Hosted by Funcheap SF", with an avatar
+  and a bio card, states something false: they listed it, they are not putting it on. For
+  `isScrapedHost` events the host card is now a single line — "Listed by Funcheap SF ·
+  Event details →" (the source's own listing) — and the sidebar's "Hosted by" link, which
+  pointed at a dead `/members/source:funcheap`, is plain "Listed by" text.
+- **The back row was reserving a band of empty screen** above the hero on a phone
+  (`py-8` → `pt-3`, `mb-6` → `mb-3`).
+
 ### Added — native: NFC deep links live, swipe-back + white splash submitted — 2026-08-05
 - **NFC fob → app is LIVE, and it turned out to be a web-only change.** The shipped App Store build already carried `applinks:whatslocal.ai` (verified with `codesign -d --entitlements` against the 2026-07-29 archive), the AASA was already served correctly, and `lib/native-links.ts` already routed same-origin paths into the webview. The only defect was the AASA **path list**: it claimed the auth callbacks and nothing else, so `/members/{id}` — what a fob encodes — went to Safari exactly as instructed. Claimed `/members/*`, `/events/*`, `/live/*`, `/featured/*`. **No rebuild, no App Review, works for existing users.** `/checkout` deliberately unclaimed so a Stripe return finishes in the browser it started in.
 - Verified after deploy: prod serves the new list, **Apple's CDN** (`app-site-association.cdn-apple.com`) serves it too, and a real fob tap opened the app. A device that had already cached the old list needed one delete + reinstall.

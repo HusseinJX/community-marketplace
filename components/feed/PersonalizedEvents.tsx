@@ -12,7 +12,7 @@
 // reason inferred from a similarity score — that is how an earlier version
 // told someone a job-hunting talk "matched your interest in art".
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { MapPin, Loader2, X, LocateFixed, Clock, Building2, ChevronDown, ExternalLink } from "lucide-react";
 import { cachedPosition, getHomePosition, refreshHomePosition } from "@/lib/home-position";
@@ -35,8 +35,6 @@ const TOPIC_CHIPS: { id: string; label: string }[] = [
 // competed with the topic pills directly below for the same tap, and doubled
 // the height of the controls before a single event was visible. The placeholder
 // carries the same hint at no cost.
-
-const RADIUS_STEPS = [0.5, 1, 2, 5, 10];
 
 interface FeedEvent {
   id: string;
@@ -150,11 +148,14 @@ export function PersonalizedEvents({
   query = "",
   onClearQuery,
   onLoadingChange,
+  belowFilters,
 }: {
   query?: string;
   onClearQuery?: () => void;
   /** Lets the lifted search button show the feed's own loading state. */
   onLoadingChange?: (loading: boolean) => void;
+  /** One line under the filters, where the "nearest first" caption used to be. */
+  belowFilters?: ReactNode;
 } = {}) {
   const [topics, setTopics] = useState<string[]>([]);
   // Which cards are open. A Set rather than a single id: opening one should not
@@ -170,8 +171,6 @@ export function PersonalizedEvents({
   // Narrowed to one organiser, set by tapping their tag on any card.
   const [organizer, setOrganizer] = useState<string | null>(null);
   const [freeOnly, setFreeOnly] = useState(false);
-  const [nearMe, setNearMe] = useState(false);
-  const [radius, setRadius] = useState(2);
   const [home, setHome] = useState<{ lat: number; lng: number } | null>(cachedPosition);
   const [locating, setLocating] = useState(false);
   const [geoError, setGeoError] = useState<string | null>(null);
@@ -188,9 +187,10 @@ export function PersonalizedEvents({
     organizer,
     lat: home?.lat ?? null,
     lng: home?.lng ?? null,
-    // Only send a radius when "near me" is on AND we have an origin — a
-    // distance filter without a location silently empties the feed.
-    maxMiles: nearMe && home ? radius : null,
+    // No radius filter on this surface any more — the feed is ranked nearest
+    // first and every card says how far, so hiding events past a line was a
+    // control that could only ever make the evening emptier.
+    maxMiles: null,
   }) as { data: Result | undefined; loading: boolean; error: Error | undefined };
 
   // The search button lives a level up now, so it has to be told when the feed
@@ -229,7 +229,7 @@ export function PersonalizedEvents({
   // How much of the ranked feed is revealed. Tied to the query rather than
   // reset by an effect, so a narrower search can never paint one frame of the
   // old scroll depth before snapping back to the first screen.
-  const feedKey = `${query}|${topics.join(",")}|${organizer ?? ""}|${freeOnly}|${nearMe ? radius : ""}`;
+  const feedKey = `${query}|${topics.join(",")}|${organizer ?? ""}|${freeOnly}`;
   const [reveal, setReveal] = useState<{ key: string; n: number }>({ key: feedKey, n: PAGE });
   const shown = reveal.key === feedKey ? reveal.n : PAGE;
   const showMore = () => setReveal({ key: feedKey, n: shown + PAGE });
@@ -268,10 +268,8 @@ export function PersonalizedEvents({
       // NEW fix, so a remembered one would be the wrong answer.
       setHome(await refreshHomePosition());
       setLocationOff(false);
-      setNearMe(true);
     } catch {
       setGeoError("Couldn't get your location. Check location permissions.");
-      setNearMe(false);
     } finally {
       setLocating(false);
     }
@@ -343,6 +341,21 @@ export function PersonalizedEvents({
           Negative margins let it bleed to the screen edge, which is the cue
           that it scrolls. */}
       <div className="-mx-4 mt-3 flex gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden">
+        {/* Free is a fact about an event exactly like its topic is, and it was
+            the only reason this row had a second row beneath it. First, because
+            for a lot of people it is the filter that decides the evening. */}
+        <button
+          onClick={() => setFreeOnly(!freeOnly)}
+          aria-pressed={freeOnly}
+          className={`shrink-0 whitespace-nowrap rounded-full border px-4 py-1.5 text-sm font-medium transition ${
+            freeOnly
+              ? "border-emerald-600 bg-emerald-600 text-white"
+              : "border-stone-200 bg-white text-stone-600 hover:border-stone-400"
+          }`}
+        >
+          Free only
+        </button>
+
         {TOPIC_CHIPS.map((t) => {
           const on = topics.includes(t.id);
           return (
@@ -360,71 +373,18 @@ export function PersonalizedEvents({
             </button>
           );
         })}
-      </div>
 
-      <div className="-mx-4 mt-2 flex items-center gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden">
-        <button
-          onClick={() => {
-            const next = !freeOnly;
-            setFreeOnly(next);
-          }}
-          aria-pressed={freeOnly}
-          className={`shrink-0 whitespace-nowrap rounded-full border px-4 py-1.5 text-sm font-medium ${
-            freeOnly
-              ? "border-emerald-600 bg-emerald-600 text-white"
-              : "border-stone-200 bg-white text-stone-600 hover:border-stone-400"
-          }`}
-        >
-          Free only
-        </button>
-
-        <button
-          onClick={() => {
-            if (!home) return void useMyLocation();
-            const next = !nearMe;
-            setNearMe(next);
-          }}
-          aria-pressed={nearMe}
-          disabled={locating}
-          className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border px-4 py-1.5 text-sm font-medium disabled:opacity-60 ${
-            nearMe
-              ? "border-indigo-600 bg-indigo-600 text-white"
-              : "border-stone-200 bg-white text-stone-600 hover:border-stone-400"
-          }`}
-        >
-          {locating ? <Loader2 className="h-3 w-3 animate-spin" /> : <LocateFixed className="h-3 w-3" />}
-          Near me
-        </button>
-
-        {nearMe && home && (
-          <div className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap text-xs text-stone-500">
-            <span>within</span>
-            <input
-              type="range"
-              min={0}
-              max={RADIUS_STEPS.length - 1}
-              step={1}
-              value={RADIUS_STEPS.indexOf(radius)}
-              onChange={(e) => setRadius(RADIUS_STEPS[Number(e.target.value)])}
-              aria-label="Distance in miles"
-              className="w-24 accent-indigo-600"
-            />
-            <b className="font-mono text-stone-800">{radius} mi</b>
-          </div>
-        )}
-
-        {(topics.length > 0 || freeOnly || nearMe || query || organizer) && (
+        {(topics.length > 0 || freeOnly || query || organizer) && (
           <button
             onClick={() => {
               setTopics([]);
               setFreeOnly(false);
-              setNearMe(false);
               setOrganizer(null);
               // The search box is the page's now, so Reset asks it to clear
               // rather than clearing a copy and leaving words in the input.
               onClearQuery?.();
             }}
-            className="shrink-0 whitespace-nowrap text-xs text-stone-400 underline underline-offset-2 hover:text-stone-700"
+            className="shrink-0 self-center whitespace-nowrap px-1 text-xs text-stone-400 underline underline-offset-2 hover:text-stone-700"
           >
             Reset
           </button>
@@ -433,22 +393,23 @@ export function PersonalizedEvents({
 
       {geoError && <p className="mt-2 text-xs text-amber-700">{geoError}</p>}
 
-      {/* State of the world, one line. Either we know where you are (and every
-          card can say how far), or we don't and there is one tap to fix it. */}
-      {home ? (
-        <p className="mt-2 inline-flex items-center gap-1 text-xs text-stone-500">
-          <MapPin className="h-3 w-3 text-emerald-600" />
-          Nearest first, measured from where you are
-        </p>
-      ) : locationOff ? (
+      {/* "Nearest first, measured from where you are" is gone: it explained a
+          sort that every card demonstrates by printing its own distance, and
+          the "Near me" radius pill it belonged to went with it. What is left is
+          the half that can still be acted on — an offer to turn location on —
+          and, in its place, the one line that asks the reader for something. */}
+      {!home && locationOff ? (
         <button
           onClick={() => void useMyLocation()}
-          className="mt-2 inline-flex items-center gap-1 text-xs text-indigo-600 underline underline-offset-2 hover:text-indigo-800"
+          disabled={locating}
+          className="mt-2 inline-flex items-center gap-1 text-xs text-indigo-600 underline underline-offset-2 hover:text-indigo-800 disabled:opacity-60"
         >
-          <LocateFixed className="h-3 w-3" />
+          {locating ? <Loader2 className="h-3 w-3 animate-spin" /> : <LocateFixed className="h-3 w-3" />}
           Turn on location to sort by distance
         </button>
       ) : null}
+
+      {belowFilters && <div className="mt-3">{belowFilters}</div>}
 
       {/* ── what we heard ─────────────────────────────────────────────── */}
       {result && (query || topics.length > 0 || organizer) && (

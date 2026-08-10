@@ -14,12 +14,13 @@ export function HeroMedia({
   images?: string[];
   gradientClass: string;
   alt: string;
-  aspect?: "video" | "square";
+  aspect?: "video" | "square" | "tall";
   priority?: boolean;
 }) {
   const usable = usableImages(images);
   const [errored, setErrored] = useState(false);
-  const aspectClass = aspect === "square" ? "aspect-square" : "aspect-[16/10]";
+  const aspectClass =
+    aspect === "square" ? "aspect-square" : aspect === "tall" ? "aspect-[4/5]" : "aspect-[16/10]";
 
   if (usable.length === 0 || errored) {
     return <div className={`${aspectClass} w-full bg-gradient-to-br ${gradientClass}`} />;

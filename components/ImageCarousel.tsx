@@ -11,6 +11,8 @@ type Props = {
   aspect?: "video" | "square" | "wide" | "tall";
   rounded?: string;
   showCounter?: boolean;
+  /** Dots along the bottom edge. Off when something else sits there. */
+  indicators?: boolean;
   fallbackGradient?: string;
   sizes?: string;
   priority?: boolean;
@@ -39,6 +41,7 @@ export function ImageCarousel({
   aspect = "video",
   rounded = "rounded-2xl",
   showCounter = true,
+  indicators = true,
   fallbackGradient,
   sizes,
   priority,
@@ -113,7 +116,11 @@ export function ImageCarousel({
             <ChevronRight className="h-4 w-4" />
           </button>
 
-          <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 items-center gap-1.5">
+          <div
+            className={`absolute bottom-2 left-1/2 flex -translate-x-1/2 items-center gap-1.5 ${
+              indicators ? "" : "hidden"
+            }`}
+          >
             {filtered.map((_, idx) => (
               <button
                 key={idx}

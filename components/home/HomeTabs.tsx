@@ -2,7 +2,16 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Newspaper, CalendarDays, Store, ArrowRight, ShoppingBag, Sparkles, CalendarPlus } from "lucide-react";
+import {
+  Newspaper,
+  CalendarDays,
+  CalendarRange,
+  Store,
+  ArrowRight,
+  ShoppingBasket,
+  Sparkles,
+  CalendarPlus,
+} from "lucide-react";
 import { EventSearchBar } from "@/components/feed/EventSearchBar";
 import { CityHeader } from "@/components/home/CityHeader";
 import { LiveFeed } from "@/components/live/LiveFeed";
@@ -74,6 +83,40 @@ export function HomeTabs() {
     window.scrollTo({ top: 0 });
   };
 
+  // The one line for supply: this is a shopper door, but the wedge is
+  // businesses teaming up, and a cold visitor who owns a bakery would otherwise
+  // have to dig it out of the footer. On Events it asks for the thing that tab
+  // is made of — the supply gap there is events, not listings — but both land
+  // on the same /join.
+  //
+  // It sits where the "Nearest first, measured from where you are" line used to,
+  // under the filters: that line explained a mechanic the cards already show by
+  // printing a distance on each one, and this is the one thing on the screen
+  // that asks the reader for something.
+  const supplyLink = (
+    <Link
+      href="/join"
+      className="flex items-center gap-2 text-[13px] text-stone-500 transition hover:text-stone-900"
+    >
+      {tab === "events" ? (
+        <>
+          <CalendarPlus className="h-3.5 w-3.5 shrink-0 text-stone-400" />
+          <span className="min-w-0 truncate">
+            <span className="font-medium text-stone-700">Hosting something?</span> Add an event
+          </span>
+        </>
+      ) : (
+        <>
+          <Store className="h-3.5 w-3.5 shrink-0 text-stone-400" />
+          <span className="min-w-0 truncate">
+            <span className="font-medium text-stone-700">Own a local business?</span> Add your profile!
+          </span>
+        </>
+      )}
+      <ArrowRight className="h-3.5 w-3.5 shrink-0" />
+    </Link>
+  );
+
   return (
     <>
       {/* Parked for App Store resubmission (Apple 5.2.1 — the "World Cup 2026"
@@ -116,38 +159,14 @@ export function HomeTabs() {
         ) : (
           <HomeSearch />
         )}
-
-        {/* The one line for supply: this is a shopper door, but the wedge is
-            businesses teaming up, and a cold visitor who owns a bakery would
-            otherwise have to dig it out of the footer. On Events it asks for
-            the thing that tab is made of — the supply gap there is events, not
-            listings — but both land on the same /join. */}
-        <Link
-          href="/join"
-          className="mt-3 flex items-center gap-2 text-[13px] text-stone-500 transition hover:text-stone-900"
-        >
-          {tab === "events" ? (
-            <>
-              <CalendarPlus className="h-3.5 w-3.5 shrink-0 text-stone-400" />
-              <span className="min-w-0 truncate">
-                <span className="font-medium text-stone-700">Hosting something?</span> Add an event
-              </span>
-            </>
-          ) : (
-            <>
-              <Store className="h-3.5 w-3.5 shrink-0 text-stone-400" />
-              <span className="min-w-0 truncate">
-                <span className="font-medium text-stone-700">Own a local business?</span> Add your profile!
-              </span>
-            </>
-          )}
-          <ArrowRight className="h-3.5 w-3.5 shrink-0" />
-        </Link>
       </div>
 
-      {/* Sticky selector — sits directly beneath the app header. */}
+      {/* Sticky selector — search, then where you are going. It follows the
+          search box rather than sitting under a supply pitch, so the first two
+          things on the screen are the two ways to move. Still sticky: position
+          in the document doesn't change what it does once you scroll past it. */}
       <div
-        className="sticky z-20 mt-4 border-b border-stone-100 bg-stone-50/85 backdrop-blur"
+        className="sticky z-20 mt-3 border-b border-stone-100 bg-stone-50/85 backdrop-blur"
         style={{ top: "calc(3.5rem + env(safe-area-inset-top))" }}
       >
         <div className="mx-auto flex max-w-6xl justify-center px-4 py-2 md:px-8">
@@ -185,6 +204,7 @@ export function HomeTabs() {
       {/* Body — only the active tab mounts, keeping the page light per view. */}
       {tab === "feed" && (
         <>
+          <div className="mx-auto max-w-6xl px-4 pt-3 md:px-8">{supplyLink}</div>
           <LiveFeed />
           <section className="mx-auto max-w-6xl border-t border-stone-100 px-4 pb-24 pt-4 md:px-8">
             <h2 className="mb-5 text-xl font-semibold tracking-tight text-stone-900">
@@ -206,27 +226,35 @@ export function HomeTabs() {
               <h2 className="text-xl font-semibold tracking-tight text-stone-900">
                 Events near you
               </h2>
-              {/* ONE pill, on or off — not a two-option radio.
-                  Two labelled pills plus a title overflowed a 375px phone, and
-                  the choice was never symmetric anyway: For you is the default
-                  and What's on is what you get without it. So this reads as a
-                  filter you switch on, matching the "Free only" / "Near me"
-                  pills below. Sized like the Feed tab's pills
-                  (px-4 py-1.5 text-sm) so the app has one pill, not three. */}
-              <button
-                type="button"
-                aria-pressed={eventsView === "foryou"}
-                onClick={() => setEventsView(eventsView === "foryou" ? "browse" : "foryou")}
-                className={
-                  "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-4 py-1.5 text-sm font-medium transition " +
-                  (eventsView === "foryou"
-                    ? "border-stone-900 bg-stone-900 text-white"
-                    : "border-stone-200 bg-white text-stone-600 hover:border-stone-400 hover:text-stone-900")
-                }
-              >
-                <Sparkles className="h-3.5 w-3.5" />
-                For you
-              </button>
+              {/* Two icons, like the list/grid switch on a desktop feed — the
+                  same events, read two ways. It was a labelled pill, which read
+                  as a filter you switch ON and left "what's on" unnamed; a
+                  segmented pair says there are two views and you are in one. */}
+              <div className="inline-flex shrink-0 items-center rounded-full border border-stone-200 bg-white p-0.5">
+                {(
+                  [
+                    { id: "foryou", Icon: Sparkles, label: "For you" },
+                    { id: "browse", Icon: CalendarRange, label: "What's on" },
+                  ] as const
+                ).map(({ id, Icon, label }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setEventsView(id)}
+                    aria-pressed={eventsView === id}
+                    aria-label={label}
+                    title={label}
+                    className={
+                      "inline-flex h-8 w-9 items-center justify-center rounded-full transition " +
+                      (eventsView === id
+                        ? "bg-stone-900 text-white"
+                        : "text-stone-400 hover:text-stone-800")
+                    }
+                  >
+                    <Icon className="h-4 w-4" />
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -236,10 +264,12 @@ export function HomeTabs() {
                 query={eventQuery}
                 onClearQuery={clearEventSearch}
                 onLoadingChange={setEventsLoading}
+                belowFilters={supplyLink}
               />
             </div>
           ) : (
             <div className="pt-2">
+              <div className="mx-auto max-w-2xl px-4 md:px-8">{supplyLink}</div>
               <CommunityEventsLive hideHeading />
             </div>
           )}
@@ -248,17 +278,23 @@ export function HomeTabs() {
 
       {tab === "shop" && (
         <div className="pb-24">
-          <div className="mx-auto max-w-6xl px-4 pt-4 md:px-8">
-            <Link
-              href="/shop"
-              className="inline-flex items-center gap-2 rounded-full bg-stone-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-stone-800"
-            >
-              <ShoppingBag className="h-4 w-4 shrink-0" />
-              Go to the marketplace
-              <ArrowRight className="h-4 w-4 shrink-0" />
-            </Link>
-          </div>
-          <LocalDirectory />
+          {/* The marketplace is now an icon on the heading row below, not a
+              full-width black bar between the city and the directory — it was
+              the loudest thing on the tab while being the smaller of the two
+              ways in. */}
+          <LocalDirectory
+            headerAction={
+              <Link
+                href="/shop"
+                aria-label="Go to the marketplace"
+                title="Go to the marketplace"
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-stone-900 text-white transition hover:bg-stone-800"
+              >
+                <ShoppingBasket className="h-4 w-4" />
+              </Link>
+            }
+            belowHeader={supplyLink}
+          />
         </div>
       )}
 

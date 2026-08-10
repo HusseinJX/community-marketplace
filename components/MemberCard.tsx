@@ -16,18 +16,6 @@ const TYPE_GRADIENTS: Record<string, string> = {
   influencer: "from-pink-300 to-rose-400",
 };
 
-function collectTags(p: Member["profile"]): string[] {
-  if (!p) return [];
-  const candidates = [
-    ...((p.services ?? []) as string[]),
-    ...((p.specialties ?? []) as string[]),
-    ...((p.menuHighlights ?? []) as string[]),
-    ...((p.shareTypes ?? []) as string[]),
-    ...((p.interests ?? []) as string[]),
-  ];
-  return Array.from(new Set(candidates)).slice(0, 2);
-}
-
 export function MemberCard({
   member,
   matchedOn,
@@ -45,9 +33,6 @@ export function MemberCard({
   const p = member.profile ?? {};
   const name = p.name || "Anonymous member";
   const location = [p.neighborhood, p.city].filter(Boolean).join(", ");
-  const tags = collectTags(p);
-  const notesStr = Array.isArray(p.notes) ? (p.notes as string[]).join(" · ") : (p.notes as string | undefined);
-  const blurb = (p.approvedBlurb || p.personalNote || p.businessDescription || notesStr || p.description || "") as string;
   const type = (p.memberType as string | undefined)?.toLowerCase() ?? "";
   const gradient = TYPE_GRADIENTS[type] ?? "from-stone-200 to-stone-300";
   // Image priority:
@@ -59,92 +44,89 @@ export function MemberCard({
   const profileImages = Array.isArray(p.images) ? usableImages(p.images) : [];
   const carouselImages = curated && curated.length ? curated : (profileImages.length ? profileImages : null);
 
+  const subtitle = [location, p.category as string | undefined].filter(Boolean).join(" · ");
+
   return (
     <Link
       href={`/members/${member.id}`}
-      className="group card-soft card-hover flex h-full flex-col overflow-hidden"
+      className="group card-soft card-hover relative flex h-full flex-col overflow-hidden"
     >
-      {carouselImages && carouselImages.length > 0 ? (
-        <ImageCarousel
-          images={carouselImages}
-          alt={name}
-          aspect="video"
-          rounded="rounded-none"
-          showCounter={carouselImages.length > 1}
-          fallbackGradient={gradient}
-        />
-      ) : (
-        <HeroMedia
-          images={p.imageUrl ? [p.imageUrl] : []}
-          gradientClass={gradient}
-          alt={name}
-        />
-      )}
-      <div className="flex flex-1 flex-col gap-3 p-4">
-        <div className="flex items-start justify-between gap-3">
-          <h3 className="text-lg font-semibold leading-tight text-stone-900 transition group-hover:text-indigo-700">
-            {name}
-          </h3>
+      <div className="relative">
+        {carouselImages && carouselImages.length > 0 ? (
+          <ImageCarousel
+            images={carouselImages}
+            alt={name}
+            aspect="tall"
+            rounded="rounded-none"
+            showCounter={carouselImages.length > 1}
+            // The name plate owns the bottom edge — dots would sit underneath it.
+            indicators={false}
+            fallbackGradient={gradient}
+          />
+        ) : (
+          <HeroMedia
+            images={p.imageUrl ? [p.imageUrl] : []}
+            gradientClass={gradient}
+            alt={name}
+            aspect="tall"
+          />
+        )}
+
+        {/* Type sits on the image, top-left, clear of the carousel's counter. */}
+        <div className="pointer-events-none absolute left-2.5 top-2.5">
           <MemberTypeBadge type={p.memberType} />
         </div>
 
-        {(location || hasPosition) && (
-          <div className="flex flex-wrap items-center gap-2 text-sm text-stone-500">
-            {location && <span>{location}</span>}
-            {miles != null ? (
-              <span className="whitespace-nowrap rounded-full bg-emerald-50 px-2 py-0.5 font-mono text-[11px] font-semibold text-emerald-800">
-                <MapPin className="mr-0.5 inline h-3 w-3" />
-                {milesLabel(miles)}
-              </span>
-            ) : hasPosition ? (
-              // We know where the reader is but not where this business is.
-              // Saying nothing here would imply it is close by.
-              <span className="whitespace-nowrap rounded-full bg-stone-100 px-2 py-0.5 text-[11px] text-stone-400">
-                no location
-              </span>
-            ) : null}
+        {/* Frosted plate rather than a block of card below the photo. Everything
+            the card has to say fits in two lines over the image, so the picture
+            is the card — the old layout gave more height to text than to the
+            photo, which reads as clunky in a feed of images. A scrim under the
+            blur keeps white type legible over a bright photo. */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0">
+          <div className="bg-gradient-to-t from-black/55 via-black/25 to-transparent px-3 pb-3 pt-8 backdrop-blur-[2px]">
+            {/* The name gets the full width of the card. It shared a row with
+                the distance chip, and on a rail card that turned "Hamburger
+                Haven" into "Hamburge Haven" — the chip is a detail, the name
+                is the thing you are reading. */}
+            <h3 className="line-clamp-2 text-[15px] font-semibold leading-tight text-white drop-shadow-sm">
+              {name}
+            </h3>
+            <div className="mt-1 flex items-center gap-1.5">
+              {miles != null ? (
+                <span className="shrink-0 whitespace-nowrap rounded-full bg-white/25 px-2 py-0.5 font-mono text-[11px] font-semibold text-white ring-1 ring-white/25 backdrop-blur-md">
+                  <MapPin className="mr-0.5 inline h-3 w-3" />
+                  {milesLabel(miles)}
+                </span>
+              ) : hasPosition ? (
+                // We know where the reader is but not where this business is.
+                // Saying nothing here would imply it is close by.
+                <span className="shrink-0 whitespace-nowrap rounded-full bg-black/30 px-2 py-0.5 text-[11px] text-white/70 backdrop-blur-md">
+                  no location
+                </span>
+              ) : null}
+              {subtitle && (
+                <p className="min-w-0 truncate text-[11px] text-white/80">{subtitle}</p>
+              )}
+            </div>
           </div>
-        )}
-
-        {(p.category || p.subcategory) && (
-          <div className="text-xs text-stone-500">
-            {p.category as string}
-            {p.category && p.subcategory && <span className="mx-1">·</span>}
-            {p.subcategory as string}
-          </div>
-        )}
-
-        {blurb && (
-          <p className="line-clamp-2 text-sm text-stone-700">{blurb}</p>
-        )}
-
-        {matchedOn && matchedOn.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 pt-1">
-            {matchedOn.map((chip) => (
-              <span
-                key={chip}
-                className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-800 ring-1 ring-emerald-200"
-                title="matched this filter"
-              >
-                {chip}
-              </span>
-            ))}
-          </div>
-        )}
-
-        {tags.length > 0 && (
-          <div className="mt-auto flex flex-wrap gap-1.5 pt-2">
-            {tags.map((t) => (
-              <span
-                key={t}
-                className="rounded-full bg-stone-100 px-2.5 py-0.5 text-xs text-stone-700"
-              >
-                {t}
-              </span>
-            ))}
-          </div>
-        )}
+        </div>
       </div>
+
+      {/* Only ever rendered on the match surfaces, where WHY a card is here is
+          the whole point. Everywhere else the card is image and nothing else. */}
+      {matchedOn && matchedOn.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 px-3 py-2.5">
+          {matchedOn.map((chip) => (
+            <span
+              key={chip}
+              className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-800 ring-1 ring-emerald-200"
+              title="matched this filter"
+            >
+              {chip}
+            </span>
+          ))}
+        </div>
+      )}
     </Link>
   );
 }
@@ -152,13 +134,7 @@ export function MemberCard({
 export function MemberCardSkeleton() {
   return (
     <div className="card-soft flex animate-pulse flex-col overflow-hidden">
-      <div className="aspect-[16/10] w-full bg-stone-200" />
-      <div className="space-y-3 p-4">
-        <div className="h-5 w-2/3 rounded bg-stone-200" />
-        <div className="h-3 w-1/2 rounded bg-stone-200" />
-        <div className="h-3 w-1/3 rounded bg-stone-200" />
-        <div className="h-12 w-full rounded bg-stone-100" />
-      </div>
+      <div className="aspect-[4/5] w-full bg-stone-200" />
     </div>
   );
 }
