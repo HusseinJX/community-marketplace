@@ -1,5 +1,9 @@
 import { task, schedules, logger } from '@trigger.dev/sdk'
 import { syncVendorCatalog, getConnectedMemberIds } from '@/lib/composio-commerce'
+// Registers the worker's global failure hook (no-op without SENTRY_DSN). Imported
+// from every task file so the module is loaded whichever entrypoint runs first;
+// ES module caching means it registers exactly once.
+import './sentry'
 
 // On-demand catalog sync for a single connected vendor.
 //

@@ -10,6 +10,42 @@ All notable changes to this project are documented here.
 > ad pixels still inert (`fbq`/`gtag` undefined — the ATT statement to App Review stays
 > true), 0 console errors. No native change, so no Xcode rebuild was needed.
 
+### Added — Sentry for errors, PostHog keeps analytics + replay, and our own traffic is flaggable — 2026-08-10
+- **Sentry owns errors end to end; `capture_exceptions` is now `false` in PostHog.** Running both filed one
+  crash as two unrelated issues in two dashboards. The July note said PostHog's exception capture made
+  Sentry unnecessary — **that was half wrong**: `capture_exceptions` is posthog-js, so it only ever saw the
+  browser. Throws in API routes, the Stripe and Uber webhooks, server components and the nightly Trigger.dev
+  sweep reported to nothing at all, which is exactly the silence the sweep failed in for weeks.
+- Wiring: `instrumentation.ts` (`register()` + `onRequestError = Sentry.captureRequestError`),
+  `sentry.server.config.ts`, **`sentry.edge.config.ts` separately** — `middleware.ts` runs on the edge
+  runtime and cannot load the Node SDK — and `instrumentation-client.ts`, which runs before the app is
+  interactive and so catches a crash during first paint that a React-mounted provider would miss.
+- **The Trigger.dev worker is a separate deploy target** (`trigger/sentry.ts`, `@sentry/node`, registered
+  with `tasks.onFailure`; `config.onFailure` is deprecated). Instrumenting Next.js does nothing for it. It
+  fires only once retries are exhausted, and `flush(2000)`s because the runtime exits the moment a run
+  settles. Its DSN must be set on Trigger.dev's **prod** environment — a `tr_dev_` key locally means
+  everything you set from this machine lands in dev.
+- **A Sentry issue links to the PostHog replay of the person who hit it** (`beforeSend` attaches the replay
+  URL with a timestamp offset). It has to **import `posthog` as a module** — the app imports posthog-js so
+  `window.posthog` is never set, and reading the global attached nothing at all. That was caught only
+  because it was tested rather than assumed.
+- **No Sentry Session Replay, deliberately.** PostHog already records, and its recorder is the one carrying
+  the `data-private` masking; a second rrweb would double script weight inside the iOS WKWebView and
+  capture the conversation text we just finished masking.
+- **Verified against a local sink**, not by inspection: a real throw in a route handler and a real browser
+  throw each produced an `event` envelope, and the PostHog context attached. **`tunnelRoute: "/monitoring"`
+  is UNVERIFIED** — with a fake DSN the client posted straight to the DSN host, so it may engage only for a
+  real sentry.io DSN.
+- **Everything no-ops without a DSN, including the build** (`withSentryConfig` skips source-map upload with
+  no auth token). That is deliberate: this build is also an App Store release, and a missing analytics
+  token must never be able to block a deploy. `NEXT_PUBLIC_SENTRY_DSN` is **baked at build time** — same
+  trap as the demo-mode flag.
+- **`/?internal=1` marks a device as ours** (`?internal=0` undoes it), setting `is_internal` on the PostHog
+  person and on every event. Filtering our own sessions out by email only works while signed in, and most
+  dogfooding is signed out — worse, one person is several "new people" to PostHog, because Safari, Chrome,
+  an incognito window and the iOS app's WKWebView each have their own cookie jar and so their own
+  `distinct_id`. At current volume that was most of the data. One "Internal" cohort now filters it.
+
 ### Changed — business cards are the photo, and the home header is search-then-tabs — 2026-08-10
 - **`MemberCard` is image-forward.** Portrait 4/5 photo with the name, distance and
   "neighbourhood · category" on a frosted gradient plate **over** the bottom of the image;

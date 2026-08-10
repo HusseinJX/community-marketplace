@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
   // Emit a self-contained server bundle so the Docker/CapRover image stays small.
@@ -78,4 +79,30 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// Sentry wraps the config to (a) upload source maps at build time, so a prod
+// stack trace names our functions instead of minified letters, and (b) mount the
+// tunnel route.
+//
+// It stays SAFE WHEN UNCONFIGURED: with no SENTRY_AUTH_TOKEN it skips the upload
+// and the build succeeds — which matters because this build is also an App Store
+// release, and a missing analytics token must never be able to block a deploy.
+export default withSentryConfig(nextConfig, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  // Same reasoning as PostHog's /ingest rewrite: ad blockers drop requests to
+  // sentry.io by hostname, and a silently-dropped error report is worse than no
+  // error reporter, because you believe you have one.
+  tunnelRoute: "/monitoring",
+  // Don't let the build shout when there's no token to upload with.
+  silent: true,
+  // NOTE: no `disableLogger` — the SDK deprecates it in favour of
+  // `webpack.treeshake.removeDebugLogging`, which its own warning says is "not
+  // supported with Turbopack". This project builds with Turbopack, so the
+  // replacement would be a no-op that reads like a setting. Left off rather
+  // than pretending.
+  sourcemaps: {
+    // Uploaded for readable traces, then deleted so they aren't served publicly.
+    deleteSourcemapsAfterUpload: true,
+  },
+});

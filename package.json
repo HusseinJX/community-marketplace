@@ -18,6 +18,8 @@
     "@radix-ui/react-label": "^2.1.8",
     "@radix-ui/react-separator": "^1.1.8",
     "@radix-ui/react-slot": "^1.2.4",
+    "@sentry/nextjs": "^10.69.0",
+    "@sentry/node": "^10.69.0",
     "@stripe/react-stripe-js": "^6.3.0",
     "@stripe/stripe-js": "^9.4.0",
     "@supabase/supabase-js": "^2.105.3",

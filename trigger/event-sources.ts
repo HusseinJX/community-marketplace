@@ -15,6 +15,10 @@ import { SOURCES, byId } from '@/lib/sources/registry'
 import { persistScraped, pruneFinished, persistAudience, unlabelledScraped } from '@/lib/sources/persist'
 import type { EventAudience } from '@/lib/reco/audience'
 import type { ScrapedEvent } from '@/lib/sources/types'
+// Registers the worker's global failure hook (no-op without SENTRY_DSN). Imported
+// from every task file so the module is loaded whichever entrypoint runs first;
+// ES module caching means it registers exactly once.
+import './sentry'
 
 /** How often each source is worth re-reading, in days. */
 const INTERVAL_DAYS: Record<string, number> = {
