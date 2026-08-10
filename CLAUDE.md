@@ -237,7 +237,12 @@ dashboards, and PostHog only ever saw the browser half anyway.
   has the worst track record in the repo (the nightly sweep failed for weeks in silence). It fires only
   after retries are exhausted, and `flush(2000)`s because the runtime exits the moment a run settles.
   **`SENTRY_DSN` must be set on the Trigger.dev PROD environment** — a `tr_dev_` key in `.env.local` means
-  everything you set from this machine lands in DEV.
+  everything you set from this machine lands in DEV. **DONE 2026-08-10**, and the worker was redeployed as
+  **v20260810.1** (4 tasks) so the hook actually reaches prod — setting the env var alone changes nothing
+  until a deploy. **`npm run trigger:deploy` pins the CLI to the installed SDK (4.4.6)**: `@latest` aborts
+  with "Version mismatch detected while running in CI", and upgrading the SDK to match would be a change
+  to a pipeline whose version is currently known-good. Re-confirmed on this deploy: the composio
+  `sync-all-catalogs` cron is still commented out and did NOT switch on as a side effect.
 - **Everything no-ops without a DSN**, including the build: `withSentryConfig` skips source-map upload with
   no `SENTRY_AUTH_TOKEN`, which matters because this build is also an App Store release and a missing
   analytics token must never block a deploy.

@@ -8,8 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "trigger:dev": "npx trigger.dev@latest dev",
-    "trigger:deploy": "npx trigger.dev@latest deploy"
+    "trigger:dev": "npx trigger.dev@4.4.6 dev",
+    "trigger:deploy": "npx trigger.dev@4.4.6 deploy"
   },
   "dependencies": {
     "@apple/app-store-server-library": "^3.1.0",
