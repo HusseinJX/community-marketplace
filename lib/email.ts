@@ -81,6 +81,66 @@ export async function sendInviteEmail(opts: {
   return sendEmail({ to: opts.to, subject, html, text })
 }
 
+// The tickets themselves, as an email.
+//
+// For a guest buyer with no account this email IS the ticket — there is no
+// other place their purchase exists from their side — so it carries the QR
+// inline (as a hosted image, since Gmail strips data: URIs) AND the short code
+// as text, for the case where images are blocked at the door.
+export async function sendTicketEmail(opts: {
+  to: string | null
+  eventTitle: string
+  eventWhen: string | null
+  eventWhere: string | null
+  hostName: string | null
+  tickets: { token: string; code: string; typeName: string | null }[]
+  ticketUrlFor: (token: string) => string
+  manageUrl: string
+}): Promise<boolean> {
+  if (!emailConfigured() || !opts.to || opts.tickets.length === 0) return false
+
+  const n = opts.tickets.length
+  const subject = `${n === 1 ? 'Your ticket' : `Your ${n} tickets`} — ${opts.eventTitle}`
+  const when = opts.eventWhere || opts.eventWhen
+    ? `<p style="margin:0 0 20px;color:#57534e">${escapeHtml([opts.eventWhen, opts.eventWhere].filter(Boolean).join(' · '))}</p>`
+    : ''
+
+  const cards = opts.tickets
+    .map((t, i) => {
+      const url = opts.ticketUrlFor(t.token)
+      return `<table role="presentation" width="100%" style="border:1px solid #e7e5e4;border-radius:14px;margin:0 0 12px">
+        <tr><td style="padding:18px;text-align:center">
+          ${n > 1 ? `<p style="margin:0 0 6px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#a8a29e">Ticket ${i + 1} of ${n}</p>` : ''}
+          ${t.typeName ? `<p style="margin:0 0 12px;font-weight:600">${escapeHtml(t.typeName)}</p>` : ''}
+          <img src="${escapeHtml(url)}/qr.png" width="200" height="200" alt="Ticket QR code" style="display:block;margin:0 auto 12px;border-radius:8px" />
+          <p style="margin:0 0 4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:18px;letter-spacing:.1em;font-weight:600">${escapeHtml(t.code)}</p>
+          <p style="margin:0 0 14px;color:#a8a29e;font-size:13px">Show this code if the QR won't scan</p>
+          <a href="${escapeHtml(url)}" style="display:inline-block;background:#1c1917;color:#fff;text-decoration:none;padding:10px 18px;border-radius:10px;font-weight:600;font-size:14px">Open ticket</a>
+        </td></tr>
+      </table>`
+    })
+    .join('')
+
+  const html = `<div style="font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.55;color:#1c1917;max-width:480px">
+    <p style="margin:0 0 6px;font-size:20px;font-weight:700">${escapeHtml(opts.eventTitle)}</p>
+    ${when}
+    ${cards}
+    <p style="margin:16px 0 0;color:#57534e;font-size:14px">Save this email — the link above works without an account. <a href="${escapeHtml(opts.manageUrl)}" style="color:#4f46e5">See all your tickets</a>.</p>
+    <p style="margin:16px 0 0;color:#a8a29e;font-size:13px">${opts.hostName ? `${escapeHtml(opts.hostName)} · ` : ''}WhatsLocal AI</p>
+  </div>`
+
+  const text = [
+    opts.eventTitle,
+    [opts.eventWhen, opts.eventWhere].filter(Boolean).join(' · '),
+    '',
+    ...opts.tickets.map((t, i) => `${n > 1 ? `Ticket ${i + 1}: ` : ''}${t.code}\n${opts.ticketUrlFor(t.token)}`),
+  ]
+    .filter((l) => l !== null)
+    .join('\n')
+
+  return sendEmail({ to: opts.to, subject, html, text })
+}
+
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, '&amp;')

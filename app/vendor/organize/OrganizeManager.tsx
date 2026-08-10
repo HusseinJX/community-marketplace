@@ -13,9 +13,10 @@ import { PeoplePicker } from "@/components/match/PeoplePicker";
 import { AutoFillLineup } from "@/components/organize/AutoFillLineup";
 import { EventThread } from "@/components/organize/EventThread";
 import { EventAttendees } from "@/components/organize/EventAttendees";
+import { EventTickets } from "@/components/organize/EventTickets";
 import { EventPreview } from "@/components/organize/EventPreview";
 
-type Tab = "lineup" | "messages" | "attendees" | "preview";
+type Tab = "lineup" | "messages" | "tickets" | "attendees" | "preview";
 
 // Illustrative events for the Admin demo (no real backend).
 const DEMO_EVENTS: VendorEvent[] = [
@@ -174,6 +175,7 @@ export function OrganizeManager({
                 {([
                   ["lineup", "Lineup"],
                   ["messages", "Messages"],
+                  ["tickets", "Tickets"],
                   ["attendees", "Attendees"],
                   ["preview", "Event page"],
                 ] as [Tab, string][]).map(([k, label]) => (
@@ -201,6 +203,8 @@ export function OrganizeManager({
                   emailReady={emailReady}
                   demo={demo}
                 />
+              ) : tab === "tickets" ? (
+                <EventTickets key={`t-${selected.id}`} event={selected} demo={demo} />
               ) : tab === "preview" ? (
                 <EventPreview key={`p-${selected.id}`} event={selected} isAdmin={isAdmin} memberId={memberId} />
               ) : (

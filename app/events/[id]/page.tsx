@@ -14,7 +14,7 @@ import { isEventOrganizer } from "@/lib/org-focus";
 import { EventActionBar } from "./EventActionBar";
 import { BackToHome } from "@/components/BackToHome";
 import { MemoriesGrid } from "@/components/posts/MemoriesGrid";
-import { RsvpButton } from "@/components/events/RsvpButton";
+import { TicketBox } from "@/components/events/TicketBox";
 import { EventLocationMap } from "@/components/events/EventLocationMap";
 import { NearbyBusinesses } from "@/components/events/NearbyBusinesses";
 
@@ -465,7 +465,11 @@ export default async function EventDetailPage({
             <div className="card-soft p-4">
               <p className="section-label mb-4">Attendance</p>
               {isOrganizerEvent ? (
-                <RsvpButton eventId={event.id} />
+                // TicketBox renders the tier picker when the organizer has defined
+                // ticket types, and falls back to the plain RSVP button when they
+                // haven't — the visitor shouldn't have to know which kind of event
+                // this is.
+                <TicketBox eventId={event.id} />
               ) : (
                 <>
                   <div className="flex -space-x-2 mb-3">

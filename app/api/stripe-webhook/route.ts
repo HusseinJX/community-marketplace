@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe-server'
-import { updateVendorConnectStatus, createOrder, getOrderByPaymentIntent, updateOrderStatus } from '@/lib/vendor-connect'
+import { updateVendorConnectStatus, createOrder, getOrderByPaymentIntent, updateOrderStatus, getVendorEventById } from '@/lib/vendor-connect'
+import { issuePaidTickets, linesFromMetadata } from '@/lib/ticket-issue'
+import { cancelTicketsForPaymentIntent } from '@/lib/tickets'
 import { pushOrderToStore } from '@/lib/composio-commerce'
 import Stripe from 'stripe'
 
@@ -44,6 +46,35 @@ export async function POST(request: Request) {
       case 'payment_intent.succeeded': {
         const pi = event.data.object as Stripe.PaymentIntent
         const meta = pi.metadata ?? {}
+
+        // Ticket sales are a different shape of order — no catalog items, no
+        // fulfillment, and the goods are minted rather than shipped. This is
+        // the durability path for them: if the buyer's browser closed before
+        // /api/tickets/confirm ran, the tickets still get issued and emailed.
+        // issuePaidTickets is idempotent against that route (the order row's
+        // unique payment_intent_id is the lock), so both landing is fine.
+        if (meta.kind === 'tickets') {
+          const ticketEvent = await getVendorEventById(meta.eventId ?? '')
+          const lines = linesFromMetadata(meta.lines)
+          if (ticketEvent && lines.length > 0) {
+            await issuePaidTickets({
+              event: ticketEvent,
+              lines,
+              buyerEmail: meta.buyerEmail ?? pi.receipt_email ?? '',
+              buyerName: meta.buyerName || null,
+              attendeeId: meta.attendeeId ?? '',
+              paymentIntentId: pi.id,
+              subtotalCents: parseInt(meta.subtotal_cents ?? '0', 10) || pi.amount,
+              platformFeeCents: parseInt(meta.platform_fee_cents ?? '0', 10),
+              vendorAmountCents: parseInt(meta.vendor_amount_cents ?? '0', 10),
+            })
+            console.log(`Tickets issued via webhook for payment_intent ${pi.id}`)
+          } else {
+            console.error(`Ticket payment ${pi.id} has no resolvable event/lines`)
+          }
+          break
+        }
+
         const existing = await getOrderByPaymentIntent(pi.id)
         if (!existing) {
           const items = meta.items ? JSON.parse(meta.items) : []
@@ -101,6 +132,9 @@ export async function POST(request: Request) {
             await updateOrderStatus(order.id, 'refunded')
             console.log(`Order ${order.order_number} marked refunded`)
           }
+          // A refunded ticket must stop working at the door — the QR is still
+          // on the buyer's phone and would otherwise scan green.
+          await cancelTicketsForPaymentIntent(charge.payment_intent as string, 'refunded')
         }
         break
       }

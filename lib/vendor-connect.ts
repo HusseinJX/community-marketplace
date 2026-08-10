@@ -298,7 +298,7 @@ export interface OrderItem {
   product_id?: string
 }
 
-export type FulfillmentType = 'pickup' | 'delivery'
+export type FulfillmentType = 'pickup' | 'delivery' | 'ticket'
 
 export interface Order {
   id: string
@@ -314,6 +314,8 @@ export interface Order {
   vendor_amount_cents: number
   /** Chosen by the buyer BEFORE payment, so the delivery fee can be charged. */
   fulfillment_type: FulfillmentType
+  /** Set on ticket orders — which event the buyer is being admitted to. */
+  event_id?: string | null
   delivery_requested: boolean
   delivery_address?: DeliveryAddressJson | null
   /** Latest quote (re-quoted at dispatch, since Uber quotes expire in 15 min). */
@@ -344,6 +346,27 @@ export async function createOrder(order: Omit<Order, 'id' | 'created_at' | 'upda
     .single()
 
   if (error || !data) throw new Error(`Failed to create order: ${error?.message}`)
+  return data as Order
+}
+
+/**
+ * Insert an order, or return null if one already exists for this PaymentIntent.
+ *
+ * This is a LOCK, not a convenience. createOrder upserts, so it happily lets two
+ * callers both "succeed" — fine when the only effect is a row, fatal for
+ * ticketing, where the browser's confirm and the Stripe webhook race and the
+ * loser would mint a second set of tickets for one payment. The unique index on
+ * payment_intent_id is the arbiter: exactly one caller gets a row back.
+ */
+export async function createOrderIfAbsent(
+  order: Omit<Order, 'id' | 'created_at' | 'updated_at'>
+): Promise<Order | null> {
+  const { data, error } = await supabase.from('orders').insert(order).select().single()
+  if (error) {
+    // 23505 = unique_violation: someone else won the race.
+    if (error.code === '23505') return null
+    throw new Error(`Failed to create order: ${error.message}`)
+  }
   return data as Order
 }
 
