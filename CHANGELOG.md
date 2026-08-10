@@ -10,6 +10,15 @@ All notable changes to this project are documented here.
 > ad pixels still inert (`fbq`/`gtag` undefined — the ATT statement to App Review stays
 > true), 0 console errors. No native change, so no Xcode rebuild was needed.
 
+> **Deployed to CapRover prod 2026-08-10**: the image-forward cards + reordered home header,
+> the session-replay masking, and Sentry (client + server + edge). Gates re-run and all passed —
+> `/vendor` **307 → /vendor/sign-in** (demo mode off), `pk_live` baked with no real `pk_test` key
+> in the bundle (the `pk_test_` string that shows up is Clerk's own prefix constant), **0** `.map`
+> files in `.next/static`, and 1,742 source-map files uploaded to Sentry. Verified live afterwards:
+> home 200, `/vendor` 307, a real thrown error on `whatslocal.ai` reported through the
+> `/monitoring` tunnel (200), and `data-private` present on the assistant chat and absent on Shop
+> — masking where conversations are, nowhere else. No native change, so no Xcode rebuild.
+
 ### Added — Sentry for errors, PostHog keeps analytics + replay, and our own traffic is flaggable — 2026-08-10
 - **Sentry owns errors end to end; `capture_exceptions` is now `false` in PostHog.** Running both filed one
   crash as two unrelated issues in two dashboards. The July note said PostHog's exception capture made
