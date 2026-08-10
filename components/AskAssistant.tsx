@@ -133,7 +133,7 @@ export function AskAssistant({
             <VoiceCall memberId={memberId} memberName={memberName} onClose={() => setInCall(false)} />
           ) : (
             <>
-              <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
+              <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4" data-private>
                 {messages.length === 0 && (
                   <div className="text-sm text-stone-500">
                     Hi! I&apos;m the assistant for <span className="font-medium text-stone-700">{memberName}</span>.

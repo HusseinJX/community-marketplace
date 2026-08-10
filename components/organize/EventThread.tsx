@@ -118,7 +118,7 @@ export function EventThread({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-private>
       {/* Chat bubbles, like every other conversation in the app. Blasts render
           as a centred system line — they're a log of what went out, not a turn
           in the conversation. */}

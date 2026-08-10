@@ -104,7 +104,7 @@ export function AgentTuner({ onUpdated }: { onUpdated: (config: TunerConfig) => 
         </button>
       </div>
 
-      <div ref={scrollRef} className="max-h-80 min-h-[7rem] space-y-3 overflow-y-auto px-5 py-4">
+      <div ref={scrollRef} className="max-h-80 min-h-[7rem] space-y-3 overflow-y-auto px-5 py-4" data-private>
         {messages.length === 0 && !applying && (
           <div className="space-y-3">
             <p className="text-sm text-stone-500">

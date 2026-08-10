@@ -30,6 +30,19 @@ function ensureInit() {
     // PostHog's Error Tracking, tied to the same person/session — so no separate
     // tool (Sentry) is needed yet.
     capture_exceptions: true,
+    // Session replay is ON at the project level (PostHog remote config returns a
+    // sessionRecording object, not `false`) — so these masking rules are live,
+    // not preparation for a switch someone still has to flip.
+    //
+    // `maskAllInputs` only covers the box someone is TYPING into. Text already
+    // rendered on screen is captured unless it matches `maskTextSelector`, so
+    // **every surface that renders what a person said carries `data-private`**
+    // on the container: the vendor customer inbox (incl. the list previews), the
+    // assistant chats, community rooms, collab/event threads, and the onboarding
+    // and join interviews. rrweb masks the matched element and its descendants,
+    // so one attribute on the list wrapper covers every bubble inside it.
+    //
+    // Adding a new conversation surface? Mark it here or it gets recorded.
     session_recording: {
       maskAllInputs: true,
       maskTextSelector: "[data-private]",

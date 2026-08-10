@@ -332,7 +332,7 @@ function TextInterview({
   return (
     <div className="space-y-3">
       <h1 className="text-xl font-bold text-stone-900">Tell me about {bizName}</h1>
-      <div ref={scrollRef} className="max-h-[46vh] space-y-3 overflow-y-auto rounded-2xl border border-stone-200 bg-stone-50 p-3">
+      <div ref={scrollRef} className="max-h-[46vh] space-y-3 overflow-y-auto rounded-2xl border border-stone-200 bg-stone-50 p-3" data-private>
         {messages.map((m, i) => (
           <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
             <div

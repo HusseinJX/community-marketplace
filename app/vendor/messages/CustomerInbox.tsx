@@ -93,7 +93,7 @@ export function CustomerInbox({
               </p>
             </div>
           </div>
-          <div className="space-y-3 px-4 py-5">
+          <div className="space-y-3 px-4 py-5" data-private>
             {loadingTx && <p className="text-center text-sm text-stone-400">Loading…</p>}
             {!loadingTx &&
               transcript.map((m, i) => (
@@ -152,12 +152,15 @@ export function CustomerInbox({
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center justify-between gap-2">
-                    <span className="truncate text-sm font-semibold text-stone-900">
+                    <span className="truncate text-sm font-semibold text-stone-900" data-private>
                       {t.customerName || 'Customer'}
                     </span>
                     <span className="shrink-0 text-[11px] text-stone-400">{timeAgo(t.lastAt)}</span>
                   </span>
-                  <span className="mt-0.5 block truncate text-xs text-stone-500">{t.preview}</span>
+                  {/* The preview is the last thing the customer said. */}
+                  <span className="mt-0.5 block truncate text-xs text-stone-500" data-private>
+                    {t.preview}
+                  </span>
                 </span>
                 {unread > 0 && (
                   <span

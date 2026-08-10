@@ -162,7 +162,7 @@ export function CommunityChatRoom({ chat }: { chat: CommunityChat }) {
       ) : (
         <>
           {/* Transcript — the only scrolling region on the page. */}
-          <div className="mx-auto w-full max-w-2xl flex-1 space-y-3 overflow-y-auto px-4 py-5">
+          <div className="mx-auto w-full max-w-2xl flex-1 space-y-3 overflow-y-auto px-4 py-5" data-private>
             <div className="mb-4 flex items-center gap-2 rounded-xl bg-stone-50 px-3 py-2.5 text-xs text-stone-500">
               <Users className="h-3.5 w-3.5 shrink-0" />
               <span>

@@ -98,7 +98,7 @@ export function OnboardChat({ eventId, eventName }: { eventId: string | null; ev
 
   return (
     <div className="flex h-[60vh] flex-col rounded-2xl border border-stone-200 bg-white">
-      <div className="flex-1 space-y-3 overflow-y-auto p-4">
+      <div className="flex-1 space-y-3 overflow-y-auto p-4" data-private>
         {messages.map((m, i) => (
           <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
             <div className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm ${m.role === "user" ? "bg-indigo-600 text-white" : "bg-stone-100 text-stone-800"}`}>

@@ -96,7 +96,7 @@ export function GroupChat({ communityName }: { communityName: string }) {
         </div>
       </div>
 
-      <div className="max-h-96 space-y-4 overflow-y-auto px-4 py-4">
+      <div className="max-h-96 space-y-4 overflow-y-auto px-4 py-4" data-private>
         {messages.map((m) => (
           <div key={m.id} className={`flex gap-3 ${m.you ? "flex-row-reverse" : ""}`}>
             <div className={`flex h-8 w-8 flex-none items-center justify-center rounded-full text-xs font-semibold ${m.color}`}>

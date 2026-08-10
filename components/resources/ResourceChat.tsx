@@ -135,7 +135,7 @@ export function ResourceChat({
             </div>
           </div>
 
-          <div ref={scrollRef} className="flex-1 overflow-y-auto">
+          <div ref={scrollRef} className="flex-1 overflow-y-auto" data-private>
             <div className="mx-auto w-full max-w-3xl space-y-4 px-4 py-4">
               {messages.length === 0 && (
                 <div className="space-y-3">
