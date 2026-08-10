@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { stripe, calculateFees } from '@/lib/stripe-server'
 import { getVendorConnectAccount, getVendorSettings, getProductsByMember, type DeliveryAddressJson } from '@/lib/vendor-connect'
 import { effectiveDeliveryMode, selfDeliveryRules, quoteSelfDelivery } from '@/lib/fulfillment'
+import { basketFulfillment } from '@/lib/product-kind'
 import { rateLimit } from '@/lib/rate-limit'
 
 interface CartItem {
@@ -42,7 +43,7 @@ export async function POST(request: Request) {
     }: {
       items: CartItem[]
       memberId: string
-      fulfillmentType?: 'pickup' | 'delivery'
+      fulfillmentType?: 'pickup' | 'delivery' | 'digital' | 'service'
       deliveryAddress?: DeliveryAddressJson
       deliveryFeeCents?: number
       uberQuoteId?: string
@@ -68,10 +69,25 @@ export async function POST(request: Request) {
       )
     }
 
+    // The catalog is the authority on both price and KIND, so it's fetched
+    // before anything is decided. What's in the basket determines what can be
+    // fulfilled — a basket of downloads cannot be a delivery no matter what the
+    // client asks for, and a client claiming "digital" for a sandwich must not
+    // get out of arranging a handover.
+    const catalog = await getProductsByMember(memberId)
+    const basket = basketFulfillment(items.map((i) => catalog.find((p) => p.name === i.name)?.kind))
+
     // Delivery is only real when the vendor offers it in a way that can
     // actually happen. Enforced server-side: the buyer's client can't talk us
     // into a delivery order against a pickup-only vendor.
-    const fulfillment: 'pickup' | 'delivery' = fulfillmentType === 'delivery' ? 'delivery' : 'pickup'
+    const fulfillment: 'pickup' | 'delivery' | 'digital' | 'service' =
+      basket === 'digital'
+        ? 'digital'
+        : basket === 'service'
+          ? 'service'
+          : fulfillmentType === 'delivery'
+            ? 'delivery'
+            : 'pickup'
     const settings = fulfillment === 'delivery' ? await getVendorSettings(memberId) : null
     const mode = effectiveDeliveryMode(settings)
 
@@ -100,7 +116,6 @@ export async function POST(request: Request) {
     // currently on sale — otherwise a tampered `items[].price` lets a buyer pay
     // any amount. Cart lines match a product by name within the member (the cart
     // id is `${memberId}__${productName}`).
-    const catalog = await getProductsByMember(memberId)
     const priced = items.map((item) => {
       const product = catalog.find((p) => p.name === item.name)
       if (!product) return null

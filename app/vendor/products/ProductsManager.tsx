@@ -5,6 +5,7 @@ import { Plus, Trash2, Check } from 'lucide-react'
 import { ImageCaptureUploader } from '@/components/ImageCaptureUploader'
 import { UpgradePrompt, upgradeFrom } from '@/components/billing/UpgradePrompt'
 import { demoProducts } from '@/lib/demo-catalog'
+import { KIND_DEFS, type ProductKind } from '@/lib/product-kind'
 
 interface Product {
   id: string
@@ -31,7 +32,7 @@ export function ProductsManager({
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
-  const [form, setForm] = useState({ name: '', description: '', price: '' })
+  const [form, setForm] = useState({ name: '', description: '', price: '', kind: 'good' as ProductKind })
   const [upgrade, setUpgrade] = useState<'member' | 'pro' | null>(null)
 
   const load = useCallback(async () => {
@@ -80,10 +81,10 @@ export function ProductsManager({
     if (!form.name.trim()) return
     if (adminDemo) {
       setProducts((p) => [
-        { id: `demo-prod-${Date.now()}`, name: form.name, description: form.description || null, price: Math.round(parseFloat(form.price || '0') * 100), currency: 'usd', image_url: null, active: true, source: 'manual' },
+        { id: `demo-prod-${Date.now()}`, name: form.name, description: form.description || null, price: Math.round(parseFloat(form.price || '0') * 100), currency: 'usd', image_url: null, active: true, source: 'manual', kind: form.kind },
         ...p,
       ])
-      setForm({ name: '', description: '', price: '' })
+      setForm({ name: '', description: '', price: '', kind: 'good' })
       setShowAdd(false)
       return
     }
@@ -97,6 +98,7 @@ export function ProductsManager({
         price: Math.round(parseFloat(form.price || '0') * 100),
         active: true,
         source: 'manual',
+        kind: form.kind,
       }),
     })
     // Commerce is a Pro capability — surface an upgrade prompt on 402.
@@ -106,7 +108,7 @@ export function ProductsManager({
       return
     }
     setUpgrade(null)
-    setForm({ name: '', description: '', price: '' })
+    setForm({ name: '', description: '', price: '', kind: 'good' })
     setShowAdd(false)
     load()
   }
@@ -144,6 +146,33 @@ export function ProductsManager({
             <span className="text-sm text-stone-500">$</span>
             <input value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} type="number" placeholder="0.00" className="w-32 rounded-lg border border-stone-200 px-3 py-2 text-sm" />
           </div>
+          {/* What kind of thing this is decides how it gets fulfilled — a
+              service must never reach the buyer as "Pick up".
+
+              Tickets are excluded: they're sold on the event, not the catalog.
+              DIGITAL is excluded too, deliberately: the schema, the checkout
+              copy and the order lifecycle all handle it, but nothing stores a
+              file or emails a download link yet — so offering it here would
+              promise the buyer an email that never arrives. Add it back in the
+              same change that builds delivery, not before. */}
+          <div className="flex flex-wrap gap-1.5">
+            {(['good', 'service'] as const).map((k) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setForm({ ...form, kind: k })}
+                className={
+                  'rounded-lg border px-3 py-1.5 text-[13px] font-medium transition ' +
+                  (form.kind === k
+                    ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                    : 'border-stone-200 text-stone-600 hover:border-stone-300')
+                }
+              >
+                {KIND_DEFS[k].label}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-stone-500">{KIND_DEFS[form.kind].blurb}</p>
           <button onClick={addManual} className="rounded-lg bg-indigo-600 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-indigo-700">Save</button>
         </div>
       )}

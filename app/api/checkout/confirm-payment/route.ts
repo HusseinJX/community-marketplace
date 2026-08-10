@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe-server'
-import { createOrder, getOrderByPaymentIntent } from '@/lib/vendor-connect'
+import { createOrder, getOrderByPaymentIntent, type FulfillmentType } from '@/lib/vendor-connect'
+import { terminalStatusFor } from '@/lib/product-kind'
+
+// The vocabulary orders may be created with, checked against PI metadata.
+const FULFILLMENT_TYPES: string[] = ['pickup', 'delivery', 'ticket', 'digital', 'service']
 import { rateLimit } from '@/lib/rate-limit'
 
 function generateOrderNumber() {
@@ -47,7 +51,12 @@ export async function POST(request: Request) {
     // of what the buyer chose AND what they were charged for delivery. Defaults
     // to pickup: intents created before this change carry no fulfillment_type,
     // and pickup is the safe read (it never dispatches a courier).
-    const fulfillmentType = meta.fulfillment_type === 'delivery' ? 'delivery' : 'pickup'
+    // Widened for non-physical baskets. Anything unrecognised falls back to
+    // pickup, which is the safe read: it never dispatches a courier and never
+    // marks something delivered that nobody sent.
+    const fulfillmentType = FULFILLMENT_TYPES.includes(meta.fulfillment_type ?? '')
+      ? (meta.fulfillment_type as FulfillmentType)
+      : 'pickup'
     const deliveryFeeCents = parseInt(meta.delivery_fee_cents ?? '0', 10) || 0
     const deliveryAddress = meta.delivery_address ? JSON.parse(meta.delivery_address) : null
     const isDelivery = fulfillmentType === 'delivery'
@@ -60,7 +69,9 @@ export async function POST(request: Request) {
       payment_intent_id: paymentIntentId,
       member_id: memberId,
       buyer_email: paymentIntent.receipt_email ?? null,
-      status: 'paid',
+      // A download needs no vendor action, so it must never sit in a queue
+      // waiting for one — it is delivered the moment the payment lands.
+      status: fulfillmentType === 'digital' ? terminalStatusFor('digital') : 'paid',
       items,
       subtotal_cents: subtotalCents,
       platform_fee_cents: platformFeeCents,

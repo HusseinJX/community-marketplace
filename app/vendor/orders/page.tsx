@@ -15,7 +15,7 @@ interface Order {
   status: string
   items: OrderItem[]
   subtotal_cents: number
-  fulfillment_type: 'pickup' | 'delivery' | 'ticket'
+  fulfillment_type: 'pickup' | 'delivery' | 'ticket' | 'digital' | 'service'
   /** Which kind of delivery — decides whether there's a courier to call. */
   delivery_provider: 'uber' | 'self' | null
   delivery_requested: boolean
@@ -32,6 +32,9 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.
   collected: { label: 'Collected', color: 'bg-emerald-50 text-emerald-700', icon: <CheckCircle className="h-3.5 w-3.5" /> },
   dispatched: { label: 'Dispatched', color: 'bg-indigo-50 text-indigo-700', icon: <Truck className="h-3.5 w-3.5" /> },
   delivered: { label: 'Delivered', color: 'bg-emerald-50 text-emerald-700', icon: <CheckCircle className="h-3.5 w-3.5" /> },
+  // A service is "completed", never "collected" — you don't collect an hour of
+  // someone's time.
+  completed: { label: 'Completed', color: 'bg-emerald-50 text-emerald-700', icon: <CheckCircle className="h-3.5 w-3.5" /> },
   refunded: { label: 'Refunded', color: 'bg-stone-100 text-stone-500', icon: <XCircle className="h-3.5 w-3.5" /> },
 }
 
@@ -217,7 +220,20 @@ export default function VendorOrdersPage() {
                         Track with Uber
                       </a>
                     )}
-                    {order.status === 'paid' && (
+                    {/* A download is already delivered and a service has
+                        nothing to prepare, so neither gets a Ready button. The
+                        service gets the one action it does have: saying it's
+                        done. */}
+                    {order.status === 'paid' && order.fulfillment_type === 'service' && (
+                      <button
+                        onClick={() => setStatus(order, 'completed')}
+                        disabled={updating === order.id}
+                        className="rounded-lg bg-emerald-600 px-3 py-1.5 text-[13px] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50"
+                      >
+                        {updating === order.id ? 'Updating…' : 'Mark completed'}
+                      </button>
+                    )}
+                    {order.status === 'paid' && (order.fulfillment_type === 'pickup' || order.fulfillment_type === 'delivery') && (
                       <button
                         onClick={() => markReady(order)}
                         disabled={updating === order.id}

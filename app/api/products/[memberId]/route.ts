@@ -8,6 +8,7 @@ import {
 } from '@/lib/vendor-connect'
 import { resolveActor } from '@/lib/admin'
 import { gateCapability } from '@/lib/gate'
+import { kindOf } from '@/lib/product-kind'
 
 // GET — public list (active only). With ?include_drafts=1, requires the owner
 // (or an admin) and returns drafts too for the approval queue.
@@ -58,6 +59,10 @@ export async function POST(
         image_url: p.image_url ?? null,
         active: p.active ?? false, // default to draft for review
         source: p.source ?? 'manual',
+        // Unrecognised values fall back to a physical good — see kindOf. That's
+        // what every AI-scanned menu item and POS import is, and it's the only
+        // reading that can't skip a handover the buyer expects.
+        kind: kindOf(p.kind),
       })
     )
   }
@@ -80,7 +85,7 @@ export async function PATCH(
   if (!body.id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
 
   const fields: Record<string, unknown> = {}
-  for (const k of ['name', 'description', 'price', 'currency', 'image_url', 'active', 'source'] as const) {
+  for (const k of ['name', 'description', 'price', 'currency', 'image_url', 'active', 'source', 'kind'] as const) {
     if (k in body) fields[k] = k === 'price' ? Math.max(0, Math.round(body[k])) : body[k]
   }
   await updateProduct(String(body.id), memberId, fields)

@@ -1,10 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Store, Truck, Loader2 } from 'lucide-react'
+import { Store, Truck, Loader2, Download, CalendarClock } from 'lucide-react'
 
 export interface Fulfillment {
-  type: 'pickup' | 'delivery'
+  type: 'pickup' | 'delivery' | 'digital' | 'service'
   /** Delivery only — quoted before payment so the fee can actually be charged. */
   address?: DeliveryAddress
   feeCents?: number
@@ -31,6 +31,8 @@ interface SelfRules {
 }
 
 interface Options {
+  /** What the basket needs. Non-physical baskets have nothing to arrange. */
+  basket?: 'physical' | 'digital' | 'service'
   deliveryMode: DeliveryMode
   deliveryAvailable: boolean
   selfDelivery: SelfRules | null
@@ -73,14 +75,17 @@ export function FulfillmentPicker({
 
   useEffect(() => {
     let alive = true
-    fetch(`/api/checkout/fulfillment/${memberId}`)
+    const query = (items ?? []).map(i => `item=${encodeURIComponent(i.name)}`).join('&')
+    fetch(`/api/checkout/fulfillment/${memberId}${query ? `?${query}` : ''}`)
       .then(r => r.json())
       .then(d => {
         if (!alive) return
         setOpts(d)
-        // Pickup is the default and the fallback: if a vendor doesn't deliver,
-        // there's nothing to choose and the buyer just gets an address.
-        onChange({ type: 'pickup' })
+        // A basket with nothing to hand over is payable immediately — there is
+        // no address to take and no time to arrange, so asking for either would
+        // be inventing a step. Otherwise pickup is the default and the
+        // fallback: if a vendor doesn't deliver, the buyer just gets an address.
+        onChange({ type: d.basket === 'digital' ? 'digital' : d.basket === 'service' ? 'service' : 'pickup' })
       })
       .catch(() => alive && setOpts({ deliveryMode: 'none', deliveryAvailable: false, selfDelivery: null, pickupAddress: null }))
     return () => { alive = false }
@@ -160,6 +165,35 @@ export function FulfillmentPicker({
 
   if (!opts) {
     return <p className="text-sm text-stone-400">Checking options…</p>
+  }
+
+  // Nothing to fulfil in the physical sense. Say what actually happens next
+  // instead of the old "Pick up / collect from…", which was the lie this whole
+  // `kind` column exists to stop.
+  if (opts.basket === 'digital') {
+    return (
+      <div className="rounded-xl bg-stone-50 p-3">
+        <p className="flex items-center gap-2 text-sm font-medium text-stone-800">
+          <Download className="h-4 w-4 text-stone-400" /> Instant download
+        </p>
+        <p className="mt-1 text-sm text-stone-600">
+          We&apos;ll email your download link as soon as the payment goes through.
+        </p>
+      </div>
+    )
+  }
+
+  if (opts.basket === 'service') {
+    return (
+      <div className="rounded-xl bg-stone-50 p-3">
+        <p className="flex items-center gap-2 text-sm font-medium text-stone-800">
+          <CalendarClock className="h-4 w-4 text-stone-400" /> Booked with the business
+        </p>
+        <p className="mt-1 text-sm text-stone-600">
+          They&apos;ll be in touch to arrange a time once you&apos;ve paid.
+        </p>
+      </div>
+    )
   }
 
   // Nothing to choose — say where to collect and move on.

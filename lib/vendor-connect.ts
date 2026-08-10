@@ -53,6 +53,8 @@ export interface SupabaseProduct {
   image_url: string | null
   active: boolean
   source?: string
+  /** good | service | digital | ticket. Read via kindOf() — see lib/product-kind.ts. */
+  kind?: string
 }
 
 export async function getProductsByMember(memberId: string): Promise<SupabaseProduct[]> {
@@ -87,6 +89,7 @@ export interface NewProduct {
   image_url?: string | null
   active?: boolean // false = draft pending approval
   source?: string // manual | ai_menu | ai_counter | shopify | square
+  kind?: string // good (default) | service | digital | ticket
 }
 
 export async function createProduct(
@@ -106,6 +109,7 @@ export async function createProduct(
       image_url: p.image_url ?? null,
       active: p.active ?? true,
       source: p.source ?? 'manual',
+      kind: p.kind ?? 'good',
     })
     .select()
     .single()
@@ -298,7 +302,7 @@ export interface OrderItem {
   product_id?: string
 }
 
-export type FulfillmentType = 'pickup' | 'delivery' | 'ticket'
+export type FulfillmentType = 'pickup' | 'delivery' | 'ticket' | 'digital' | 'service'
 
 export interface Order {
   id: string

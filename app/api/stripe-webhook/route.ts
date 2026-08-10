@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe-server'
-import { updateVendorConnectStatus, createOrder, getOrderByPaymentIntent, updateOrderStatus, getVendorEventById } from '@/lib/vendor-connect'
+import { updateVendorConnectStatus, createOrder, getOrderByPaymentIntent, updateOrderStatus, getVendorEventById, type FulfillmentType } from '@/lib/vendor-connect'
 import { issuePaidTickets, linesFromMetadata } from '@/lib/ticket-issue'
 import { cancelTicketsForPaymentIntent } from '@/lib/tickets'
 import { pushOrderToStore } from '@/lib/composio-commerce'
@@ -83,7 +83,11 @@ export async function POST(request: Request) {
           // confirm-payment), so hardcoding pickup here would silently turn a
           // delivery the buyer paid for into a pickup — with the fee collected
           // and no courier ever dispatched.
-          const fulfillmentType = meta.fulfillment_type === 'delivery' ? 'delivery' : 'pickup'
+          const fulfillmentType = (['pickup', 'delivery', 'ticket', 'digital', 'service'] as const).includes(
+            meta.fulfillment_type as never
+          )
+            ? (meta.fulfillment_type as FulfillmentType)
+            : 'pickup'
           const isDelivery = fulfillmentType === 'delivery'
           // Same read as confirm-payment: uber is the safe default, since it
           // was the only kind of delivery before self-delivery existed.
@@ -94,7 +98,7 @@ export async function POST(request: Request) {
             payment_intent_id: pi.id,
             member_id: meta.memberId ?? '',
             buyer_email: pi.receipt_email ?? null,
-            status: 'paid',
+            status: fulfillmentType === 'digital' ? 'delivered' : 'paid',
             items,
             subtotal_cents: parseInt(meta.subtotal_cents ?? '0', 10) || pi.amount,
             platform_fee_cents: parseInt(meta.platform_fee_cents ?? '0', 10),

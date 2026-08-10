@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { getVendorSettings } from '@/lib/vendor-connect'
+import { getVendorSettings, getProductsByMember } from '@/lib/vendor-connect'
+import { basketFulfillment, type BasketFulfillment } from '@/lib/product-kind'
 import { effectiveDeliveryMode, selfDeliveryRules, pickupAddressFor } from '@/lib/fulfillment'
 
 // What fulfillment options does this vendor actually offer?
@@ -11,10 +12,33 @@ import { effectiveDeliveryMode, selfDeliveryRules, pickupAddressFor } from '@/li
 // Public: it returns only what a shopper is about to be shown anyway, and the
 // pickup address is already on the vendor's public profile page.
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ memberId: string }> }
 ) {
   const { memberId } = await params
+
+  // What's in the basket decides whether there's anything to fulfil at all: a
+  // basket of downloads has nothing to collect, and a service has nobody to
+  // collect from. The names come in on the query string; prices are irrelevant
+  // here, so nothing needs trusting.
+  const names = new URL(request.url).searchParams.getAll('item')
+  let basket: BasketFulfillment = 'physical'
+  if (names.length > 0) {
+    const catalog = await getProductsByMember(memberId)
+    basket = basketFulfillment(
+      names.map((n) => catalog.find((p) => p.name === n)?.kind)
+    )
+  }
+
+  if (basket !== 'physical') {
+    return NextResponse.json({
+      basket,
+      deliveryMode: 'none',
+      deliveryAvailable: false,
+      selfDelivery: null,
+      pickupAddress: null,
+    })
+  }
 
   const settings = await getVendorSettings(memberId)
   const mode = effectiveDeliveryMode(settings)
@@ -28,6 +52,7 @@ export async function GET(
   const self = mode === 'self' ? selfDeliveryRules(settings) : null
 
   return NextResponse.json({
+    basket,
     deliveryMode: mode,
     // Kept for older clients that only understand a boolean.
     deliveryAvailable: mode !== 'none',
