@@ -15,6 +15,8 @@ type Props = {
   indicators?: boolean;
   fallbackGradient?: string;
   sizes?: string;
+  /** JPEG/WebP quality. Default 75; posters justify more. */
+  quality?: number;
   priority?: boolean;
 };
 
@@ -44,6 +46,7 @@ export function ImageCarousel({
   indicators = true,
   fallbackGradient,
   sizes,
+  quality,
   priority,
 }: Props) {
   const [i, setI] = useState(0);
@@ -90,7 +93,7 @@ export function ImageCarousel({
                 className="object-cover"
                 loading={idx === 0 && priority ? "eager" : idx === 0 ? "eager" : "lazy"}
                 priority={idx === 0 && priority}
-                quality={aspect === "wide" ? 90 : 75}
+                quality={quality ?? (aspect === "wide" ? 90 : 75)}
                 draggable={false}
                 onError={() => setBroken((b) => { const n = new Set(b); n.add(idx); return n; })}
               />

@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
+import { REMOTE_IMAGE_HOSTS } from "./lib/image-hosts";
 
 const nextConfig: NextConfig = {
   // Emit a self-contained server bundle so the Docker/CapRover image stays small.
@@ -23,36 +24,18 @@ const nextConfig: NextConfig = {
     staleTimes: { dynamic: 30, static: 300 },
   },
   images: {
-    remotePatterns: [
-      { protocol: "https", hostname: "images.unsplash.com" },
-      // Supabase Storage (marketplace-media) — uploads, product + profile images
-      { protocol: "https", hostname: "xbbnvkvlrucrzobhopgh.supabase.co" },
-      // ProLocalIQ DigitalOcean Spaces — imported business hero photos
-      { protocol: "https", hostname: "zahabbucket.nyc3.digitaloceanspaces.com" },
-      { protocol: "https", hostname: "zahabbucket.nyc3.cdn.digitaloceanspaces.com" },
-      // SF Legacy Business heroes (some imports point here when Spaces missing)
-      { protocol: "https", hostname: "legacybusiness.org" },
-      // Google Places photos (Oakland harvest, future imports)
-      { protocol: "https", hostname: "lh3.googleusercontent.com" },
-      { protocol: "https", hostname: "maps.googleapis.com" },
-
-      // ── Scraped-event posters (one per watched calendar in lib/sources/registry.ts)
-      //
-      // These are safe to enumerate BECAUSE the source list is hand-curated —
-      // this is not the open web. An unlisted host is not a soft failure:
-      // next/image throws outright in dev, and in production every optimizer
-      // request 400s, which is how 546 harvested events shipped with broken
-      // posters. ADDING A SOURCE MEANS ADDING ITS IMAGE HOST HERE.
-      { protocol: "https", hostname: "cdn.funcheap.com" },
-      { protocol: "https", hostname: "fortmason.org" },
-      { protocol: "https", hostname: "localist-images.azureedge.net" }, // UCSF / Localist
-      { protocol: "https", hostname: "gggp.org" },
-      { protocol: "https", hostname: "img.ctykit.com" }, // Downtown SF
-      { protocol: "https", hostname: "ybgfestival.org" },
-      { protocol: "https", hostname: "images.lumacdn.com" }, // TIAT / Luma
-      { protocol: "https", hostname: "images.squarespace-cdn.com" }, // La Cocina
-    ],
+    // Derived from lib/image-hosts.ts — the same list the display filter
+    // reads, so a host can never be allowed here yet dropped there.
+    remotePatterns: REMOTE_IMAGE_HOSTS.map((hostname) => ({
+      protocol: "https" as const,
+      hostname,
+    })),
     formats: ["image/avif", "image/webp"],
+    // REQUIRED in Next 16: a quality not on this list is silently ignored and
+    // served at the default instead. That is how the profile hero's
+    // `quality={90}` had been coming out at 75 — the prop was set, the pixels
+    // were not. 88 is the event poster; 90 the wide hero.
+    qualities: [75, 88, 90],
     deviceSizes: [400, 640, 768, 1024, 1280],
     imageSizes: [128, 256, 400, 640, 768],
     minimumCacheTTL: 31536000,

@@ -9,7 +9,7 @@
 //                  at an event page carrying its own JSON-LD. This is how
 //                  Funcheap works: ~24 curated free events per day.
 
-import { fetchText, pooled, toText, absolute } from '../fetch'
+import { fetchText, pooled, toText, absolute, fullSizeWordPressImage } from '../fetch'
 import type { ScrapedEvent, SourceDef } from '../types'
 
 interface LdPlace { name?: string; address?: unknown }
@@ -128,6 +128,26 @@ function toEvent(node: Record<string, unknown>, src: SourceDef, pageUrl: string)
   }
 }
 
+/**
+ * Replace every WordPress derivative with its original, in parallel.
+ *
+ * Runs once over the finished list rather than inside toEvent(), which is sync
+ * and called from two places — one pass here beats threading async through both.
+ */
+async function upsizeImages(events: ScrapedEvent[]): Promise<ScrapedEvent[]> {
+  const urls = [...new Set(events.map((e) => e.imageUrl).filter((u): u is string => !!u))]
+  const resolved = new Map<string, string | null>()
+  // Deduped: the same poster is reused across an event's repeat dates, and one
+  // HEAD per distinct image is the difference between 10 requests and 220.
+  await pooled(urls, async (u) => {
+    resolved.set(u, await fullSizeWordPressImage(u))
+    return null
+  }, 8)
+  return events.map((e) =>
+    e.imageUrl ? { ...e, imageUrl: resolved.get(e.imageUrl) ?? e.imageUrl } : e,
+  )
+}
+
 export async function scrapeJsonLd(src: SourceDef): Promise<ScrapedEvent[]> {
   const mode = String(src.config.mode ?? 'listing')
   const base = String(src.config.base).replace(/\/$/, '')
@@ -136,9 +156,11 @@ export async function scrapeJsonLd(src: SourceDef): Promise<ScrapedEvent[]> {
   if (mode === 'listing') {
     const url = base + String(src.config.path ?? '/events')
     const html = await fetchText(url, { timeoutMs: 25_000, browserUa })
-    return extractLdNodes(html).filter(isEvent)
-      .map((n) => toEvent(n, src, url))
-      .filter((e): e is ScrapedEvent => e !== null)
+    return upsizeImages(
+      extractLdNodes(html).filter(isEvent)
+        .map((n) => toEvent(n, src, url))
+        .filter((e): e is ScrapedEvent => e !== null),
+    )
   }
 
   // archive mode: walk /YYYY/MM/DD/ indexes, then each linked event page.
@@ -164,5 +186,5 @@ export async function scrapeJsonLd(src: SourceDef): Promise<ScrapedEvent[]> {
     return node ? toEvent(node, src, u) : null
   }, 6)
 
-  return pages.filter((e): e is ScrapedEvent => e !== null)
+  return upsizeImages(pages.filter((e): e is ScrapedEvent => e !== null))
 }

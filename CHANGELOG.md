@@ -57,6 +57,36 @@ All notable changes to this project are documented here.
   an incognito window and the iOS app's WKWebView each have their own cookie jar and so their own
   `distinct_id`. At current volume that was most of the data. One "Internal" cohort now filters it.
 
+### Fixed — the events feed had images all along and threw every one away — 2026-08-10
+- **`lib/image-utils.ts` trusted three hosts**, none of them an event source, so `usableImages()` dropped
+  every harvested poster, `ImageCarousel` returned `null`, and the card rendered as chips with no picture.
+  The images were in the database and in the API payload the whole time. `next.config.ts` had the scraped
+  hosts enumerated correctly — **the two lists disagreed**, which is the actual bug. Both now read
+  **`lib/image-hosts.ts`**, so a host cannot be allowed for optimisation yet dropped at display again.
+  `legacybusiness.org` stays deliberately tolerated-but-not-shown; that distrust was intentional.
+- **`PersonalizedEvents` never rendered `image` at all** — the field was declared on `FeedEvent` (line 47)
+  and used nowhere. Events now lead with a full-bleed poster, title and time on a frosted plate over it,
+  when/distance badges on the image's top-right. Matches the business cards, so the app reads as one system.
+- **Next 16 requires `images.qualities`.** A quality not on that allowlist is silently ignored and served at
+  the default — so the profile hero's `quality={90}` had been coming out at **75** since the upgrade. Now
+  `[75, 88, 90]`; posters ask for 88 and get it (verified `q=88` on all 51 prod requests).
+- `ImageCarousel`'s default `sizes` for this aspect claims 320px, but the event card is 672px at
+  `max-w-2xl` — on desktop that served a half-width file and upscaled it. The card states its real width.
+
+### Added — every event has a real photo: 332/581 → 724/728 — 2026-08-10
+- **SFPL had none at all** (249 events, the single biggest source, 43% of the feed). Its listing page turned
+  out to carry a per-event picture as Drupal style variants, so the widest on offer was 620px. Stripping
+  `styles/<name>/public/` gives the ORIGINAL — ~950×475, measured — and it costs **zero extra requests**,
+  because the adapter already downloads that page. The `itok` query signs the derivative only, so dropping
+  it is required rather than tidy: kept on the original path it 404s.
+- **Funcheap stored 80×80 admin thumbnails.** WordPress names derivatives `<name>-WIDTHxHEIGHT.<ext>` beside
+  the original, so `Emporium-80x80.png` (80×80) → `Emporium.png` (**747×490**). `fullSizeWordPressImage()`
+  **verifies with a HEAD** rather than assuming — that suffix pattern also matches ordinary filenames, and a
+  guessed URL that 404s is worse than a small image because next/image then renders nothing. Deduped, at
+  ingest only, never on a read path.
+- Coverage after re-scraping both sources: **724/728 (99%)**, up from 332/581 (57%), and **zero** thumbnails
+  left in the table.
+
 ### Changed — business cards are the photo, and the home header is search-then-tabs — 2026-08-10
 - **`MemberCard` is image-forward.** Portrait 4/5 photo with the name, distance and
   "neighbourhood · category" on a frosted gradient plate **over** the bottom of the image;

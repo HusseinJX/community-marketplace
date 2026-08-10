@@ -17,15 +17,40 @@ import { fetchText, pooled, toText } from '../fetch'
 import { parseIcs, splitStamp, shiftHours } from '../ics'
 import type { Access, ScrapedEvent, SourceDef } from '../types'
 
-interface Card { id: string; url: string; venue: string | null; tags: string[] }
+interface Card { id: string; url: string; venue: string | null; tags: string[]; imageUrl: string | null }
 
 const rx = {
   card: /<article about="\/events\//g,
   quickview: /href="\/quickview\/(\d+)"/,
   venue: /location--short-label"[\s\S]*?field__item">([\s\S]*?)<\/div>/,
   topic: /topic_target_id=\d+"[^>]*>([^<]+)<\/a>/g,
+  // Drupal renders each card's picture as style variants; the widest offered is
+  // 620px, which is a thumbnail on a phone at 3x. The path tells us where the
+  // ORIGINAL lives, so we take that instead — see originalFrom().
+  image: /src="(\/sites\/default\/files\/styles\/[^"]+)"/,
   audience: /audience_target_id=\d+"[^>]*>([^<]+)<\/a>/g,
   total: /of ([\d,]+) results/,
+}
+
+/**
+ * Drupal image-style URL → the original file.
+ *
+ * `/sites/default/files/styles/2_1_medium/public/2026-06/30356.png?h=…&itok=…`
+ * becomes
+ * `/sites/default/files/2026-06/30356.png`
+ *
+ * The style segment and the cache-busting query are the derivative; everything
+ * after `public/` is the real path. Measured: the original is ~950x475 where the
+ * widest offered variant is 620w and the one in `src` is 89w. `itok` is a
+ * signature for the DERIVATIVE only, so dropping the query is required, not
+ * merely tidy — keeping it on the original path 404s.
+ *
+ * Returns null rather than a guess if the URL isn't shaped like a style path,
+ * so a Drupal change degrades to "no image" instead of a broken one.
+ */
+function originalFrom(styled: string, base: string): string | null {
+  const m = /^\/sites\/default\/files\/styles\/[^/]+\/public\/(.+)$/.exec(styled.split('?')[0])
+  return m ? `${base}/sites/default/files/${m[1]}` : null
 }
 
 function usDate(d: Date): string {
@@ -67,6 +92,10 @@ export async function scrapeDrupalIcs(src: SourceDef): Promise<ScrapedEvent[]> {
         id,
         url: `${base}/events/${slug}`,
         venue: toText(rx.venue.exec(block)?.[1]) || null,
+        imageUrl: (() => {
+          const styled = rx.image.exec(block)?.[1]
+          return styled ? originalFrom(styled, base) : null
+        })(),
         tags: [
           ...[...block.matchAll(rx.topic)].map((m) => m[1]),
           ...[...block.matchAll(rx.audience)].map((m) => m[1]),
@@ -102,7 +131,7 @@ export async function scrapeDrupalIcs(src: SourceDef): Promise<ScrapedEvent[]> {
       location: ics.location ?? null,
       description: toText(ics.description).slice(0, 400) || null,
       url: c.url,
-      imageUrl: null,
+      imageUrl: c.imageUrl,
       access,
       tags: c.tags,
       free: true, // library programmes are free by policy

@@ -1,18 +1,16 @@
+import { DISPLAYABLE_IMAGE_HOSTS } from "./image-hosts";
+
 const PLACEHOLDER_HINTS = [
   "photo-1441986300917-64674bd600d8", // prolocaliq seed unsplash garbage
 ];
 
-// Only trust images served from hosts we control or have intentionally curated.
-// Everything else (legacybusiness.org hotlinks, random scraped URLs from the
-// importer, etc.) is treated as "no image" so cards/profiles fall back to a
-// gradient instead of showing a third-party link we don't control. Note: the
-// prolocaliq Unsplash placeholder is still caught separately by
-// PLACEHOLDER_HINTS so it doesn't slip through via the unsplash whitelist.
-const TRUSTED_IMAGE_HOSTS = [
-  "zahabbucket.nyc3.digitaloceanspaces.com", // our DO Spaces bucket
-  "images.unsplash.com",                     // hand-curated MEMBER_HERO_IMAGES set
-  "xbbnvkvlrucrzobhopgh.supabase.co",        // our Supabase Storage (marketplace-media): profile/product uploads + hero art
-];
+// Only show images from hosts we control or have deliberately curated —
+// everything else falls back to a gradient rather than rendering a third-party
+// link we don't control. The list lives in lib/image-hosts.ts because
+// next.config.ts needs the same facts; keeping a second copy here is what made
+// every scraped event poster invisible. The Unsplash placeholder is still
+// caught separately by PLACEHOLDER_HINTS so it can't slip through.
+const TRUSTED_IMAGE_HOSTS: readonly string[] = DISPLAYABLE_IMAGE_HOSTS;
 
 function isTrustedHost(url: string): boolean {
   try {

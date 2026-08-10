@@ -17,6 +17,7 @@ import Link from "next/link";
 import { MapPin, Loader2, X, LocateFixed, Clock, Building2, ChevronDown, ExternalLink } from "lucide-react";
 import { cachedPosition, getHomePosition, refreshHomePosition } from "@/lib/home-position";
 import { usePersonalizedEvents } from "@/lib/data-hooks";
+import { ImageCarousel } from "@/components/ImageCarousel";
 
 const TOPIC_CHIPS: { id: string; label: string }[] = [
   { id: "music", label: "Music" },
@@ -94,6 +95,59 @@ function whenBadge(
   if (m < 60) return { label: `in ${m}m`, tone: "now" };
   const hours = Math.round(m / 60);
   return { label: `in ${hours}h`, tone: hours <= 3 ? "soon" : "next" };
+}
+
+/**
+ * When and where — the two facts that decide whether something is even
+ * possible, so they carry colour while the reason chips stay grey.
+ *
+ * Extracted because the card renders them in two positions now: over the poster
+ * (top-right, where they read as an overlay on the image) or in the header row
+ * for the handful of events with no picture.
+ */
+function EventBadges({
+  e,
+  agedMin,
+  hasHome,
+}: {
+  e: FeedEvent;
+  agedMin: number;
+  /** We know where the reader is — lets "no pin" mean something. */
+  hasHome: boolean;
+}) {
+  const w = whenBadge(e, agedMin);
+  const tone =
+    w?.tone === "now"
+      ? "bg-rose-50 text-rose-700"
+      : w?.tone === "soon"
+        ? "bg-amber-50 text-amber-800"
+        : w?.tone === "past"
+          ? "bg-stone-100 text-stone-400 line-through decoration-stone-300"
+          : "bg-stone-100 text-stone-600";
+  return (
+    <>
+      {w && (
+        <span
+          className={`inline-flex items-center gap-0.5 whitespace-nowrap rounded-full px-2 py-0.5 font-mono text-[11px] font-semibold shadow-sm ${tone}`}
+        >
+          <Clock className="h-3 w-3" />
+          {w.label}
+        </span>
+      )}
+      {e.miles != null ? (
+        <span className="whitespace-nowrap rounded-full bg-emerald-50 px-2 py-0.5 font-mono text-[11px] font-semibold text-emerald-800 shadow-sm">
+          <MapPin className="mr-0.5 inline h-3 w-3" />
+          {e.miles < 0.2 ? "here" : `${e.miles} mi`}
+        </span>
+      ) : hasHome ? (
+        // We know where the reader is but not where this is. Saying nothing
+        // would imply it is nearby.
+        <span className="whitespace-nowrap rounded-full bg-stone-100 px-2 py-0.5 text-[11px] text-stone-400 shadow-sm">
+          no pin
+        </span>
+      ) : null}
+    </>
+  );
 }
 
 interface Result {
@@ -474,7 +528,12 @@ export function PersonalizedEvents({
               {dayLabel(day)}
             </h2>
             <ul className="space-y-2">
-              {evs.map((e) => (
+              {evs.map((e) => {
+                // Built once per card and rendered in ONE of two places: over
+                // the poster when there is one, in the header row when there
+                // isn't. Two copies of this markup would drift.
+                const badges = <EventBadges e={e} agedMin={agedMin} hasHome={!!home} />;
+                return (
                 // TAP THE CARD to open it in place; tap the TITLE to leave for
                 // the event page. Deciding to go is usually a two-step: is this
                 // even worth a look, then take me there. The card used to be one
@@ -496,10 +555,62 @@ export function PersonalizedEvents({
                       toggleCard(e.id);
                     }
                   }}
-                  className="group relative cursor-pointer rounded-xl border border-stone-200 bg-white p-3 transition hover:border-stone-300 hover:shadow-sm"
+                  className="group relative cursor-pointer overflow-hidden rounded-xl border border-stone-200 bg-white transition hover:border-stone-300 hover:shadow-sm"
                 >
-                  <div>
-                    <div className="flex items-start justify-between gap-3">
+                  {/* The poster, edge to edge. Every event here already had one
+                      in the API payload — the card simply never rendered it,
+                      which is why a feed of concerts and exhibitions read as a
+                      spreadsheet. Title and time sit on a frosted plate over it
+                      so the picture keeps the full height it was given. */}
+                  {e.image && (
+                    <div className="relative">
+                      <ImageCarousel
+                        images={[e.image]}
+                        alt={e.title}
+                        aspect="video"
+                        rounded="rounded-none"
+                        showCounter={false}
+                        indicators={false}
+                        // The card is 672px at its widest (max-w-2xl), but the
+                        // carousel's default for this aspect claims 320px — so
+                        // next/image would serve a half-width file and upscale
+                        // it on any desktop. State the real width.
+                        sizes="(min-width: 768px) 672px, 100vw"
+                        // A poster IS the card here; 75 shows its compression
+                        // on flat colour and type, which most event art is.
+                        quality={88}
+                        // Without a fallback the carousel returns null on a bad
+                        // URL, the absolutely-positioned title plate has nothing
+                        // to sit on, and the card renders as chips with no name.
+                        fallbackGradient="from-stone-200 to-stone-300"
+                      />
+                      <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/45 to-transparent px-3 pb-2.5 pt-12">
+                        <Link
+                          href={`/events/${e.id}`}
+                          onClick={(ev) => ev.stopPropagation()}
+                          className="pointer-events-auto relative z-10 block"
+                        >
+                          <h3 className="line-clamp-2 text-[15px] font-semibold leading-tight text-white drop-shadow-sm">
+                            {e.title}
+                          </h3>
+                        </Link>
+                        <p className="mt-0.5 truncate text-[11px] text-white/80">
+                          {[e.time, e.venue].filter(Boolean).join(" · ") || e.source}
+                        </p>
+                      </div>
+
+                      {/* On the poster, top-right. Left below it they sat alone
+                          on a row of their own with the title already told on
+                          the image — a band of white saying nothing. */}
+                      <div className="pointer-events-none absolute right-2 top-2 flex items-center gap-1">
+                        {badges}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className={e.image ? "px-3 pb-3 pt-2.5" : "p-3"}>
+                    <div className={`flex items-start gap-3 ${e.image ? "hidden" : "justify-between"}`}>
+                      <>
                       <div className="min-w-0">
                         {/* The title is the way OUT of the feed. stopPropagation
                             so tapping it navigates instead of also toggling the
@@ -519,45 +630,8 @@ export function PersonalizedEvents({
                             .join(" · ") || e.source}
                         </p>
                       </div>
-                      {/* When and where — the two facts that decide whether
-                          something is even possible, so they sit together at
-                          the top right with colour, not in the grey reason
-                          pills below. */}
-                      <div className="flex shrink-0 items-center gap-1">
-                        {(() => {
-                          const w = whenBadge(e, agedMin);
-                          if (!w) return null;
-                          const tone =
-                            w.tone === "now"
-                              ? "bg-rose-50 text-rose-700"
-                              : w.tone === "soon"
-                                ? "bg-amber-50 text-amber-800"
-                                : w.tone === "past"
-                                  ? "bg-stone-100 text-stone-400 line-through decoration-stone-300"
-                                  : "bg-stone-100 text-stone-600";
-                          return (
-                            <span
-                              className={`inline-flex items-center gap-0.5 whitespace-nowrap rounded-full px-2 py-0.5 font-mono text-[11px] font-semibold ${tone}`}
-                            >
-                              <Clock className="h-3 w-3" />
-                              {w.label}
-                            </span>
-                          );
-                        })()}
-
-                        {e.miles != null ? (
-                          <span className="whitespace-nowrap rounded-full bg-emerald-50 px-2 py-0.5 font-mono text-[11px] font-semibold text-emerald-800">
-                            <MapPin className="mr-0.5 inline h-3 w-3" />
-                            {e.miles < 0.2 ? "here" : `${e.miles} mi`}
-                          </span>
-                        ) : home ? (
-                          // We know where the reader is but not where this is.
-                          // Saying nothing would imply it is nearby.
-                          <span className="whitespace-nowrap rounded-full bg-stone-100 px-2 py-0.5 text-[11px] text-stone-400">
-                            no pin
-                          </span>
-                        ) : null}
-                      </div>
+                      </>
+                      <div className="flex shrink-0 items-center gap-1">{badges}</div>
                     </div>
 
                     {e.why.length > 0 && (
@@ -647,7 +721,8 @@ export function PersonalizedEvents({
                     }`}
                   />
                 </li>
-              ))}
+                );
+              })}
             </ul>
           </section>
         ))}

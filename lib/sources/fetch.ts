@@ -116,3 +116,32 @@ export function absolute(base: string, href: string): string {
     return href
   }
 }
+
+/**
+ * WordPress serves a RESIZED derivative in its JSON-LD; this returns the original.
+ *
+ * Funcheap's `Event.image` is the 80x80 admin thumbnail — literally 80 pixels
+ * square, which on a full-bleed card is a smear. WordPress names derivatives
+ * `<name>-WIDTHxHEIGHT.<ext>` beside the original `<name>.<ext>`, so dropping
+ * that suffix is the whole trick: `Emporium-80x80.png` (80x80) → `Emporium.png`
+ * (747x490), measured.
+ *
+ * It VERIFIES rather than assumes. The suffix pattern also matches perfectly
+ * ordinary filenames, and a guessed URL that 404s is worse than a small image:
+ * next/image 400s on a fetch failure, so the card would show nothing at all.
+ * One HEAD per image, at ingest only — never on a read path.
+ *
+ * Scoped to `/wp-content/uploads/` so it cannot touch a CDN whose sizes are
+ * path segments rather than derivative files.
+ */
+export async function fullSizeWordPressImage(url: string | null): Promise<string | null> {
+  if (!url || !url.includes('/wp-content/uploads/')) return url
+  const full = url.replace(/-\d+x\d+(\.\w+)(\?.*)?$/, '$1$2')
+  if (full === url) return url
+  try {
+    const res = await fetch(full, { method: 'HEAD', signal: AbortSignal.timeout(8000) })
+    return res.ok ? full : url
+  } catch {
+    return url // network hiccup — keep the small one rather than risk a 404
+  }
+}
