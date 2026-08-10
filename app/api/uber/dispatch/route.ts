@@ -40,6 +40,16 @@ export async function POST(request: Request) {
     if (order.fulfillment_type !== 'delivery' || !order.delivery_address) {
       return NextResponse.json({ error: 'This is a pickup order.' }, { status: 400 })
     }
+    // A self-delivery order has no courier to call, and its fee was paid out to
+    // the vendor — dispatching one would buy an Uber the platform never
+    // collected for. Enforced here as well as in the UI, since this is the
+    // endpoint that spends money.
+    if (order.delivery_provider === 'self') {
+      return NextResponse.json(
+        { error: "You're delivering this one yourself — mark it out for delivery instead." },
+        { status: 400 }
+      )
+    }
     if (order.uber_delivery_id) {
       return NextResponse.json({ error: 'Already dispatched.' }, { status: 409 })
     }

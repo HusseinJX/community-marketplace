@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { stripe, calculateFees } from '@/lib/stripe-server'
 import { getVendorConnectAccount, getVendorSettings, getProductsByMember, type DeliveryAddressJson } from '@/lib/vendor-connect'
-import { uberConfigured } from '@/lib/uber-direct'
+import { effectiveDeliveryMode, selfDeliveryRules, quoteSelfDelivery } from '@/lib/fulfillment'
 import { rateLimit } from '@/lib/rate-limit'
 
 interface CartItem {
@@ -68,19 +68,26 @@ export async function POST(request: Request) {
       )
     }
 
-    // Delivery is only real when the vendor opted in AND the platform can
-    // actually dispatch. Enforced server-side: the buyer's client can't talk us
+    // Delivery is only real when the vendor offers it in a way that can
+    // actually happen. Enforced server-side: the buyer's client can't talk us
     // into a delivery order against a pickup-only vendor.
     const fulfillment: 'pickup' | 'delivery' = fulfillmentType === 'delivery' ? 'delivery' : 'pickup'
+    const settings = fulfillment === 'delivery' ? await getVendorSettings(memberId) : null
+    const mode = effectiveDeliveryMode(settings)
+
     if (fulfillment === 'delivery') {
-      const settings = await getVendorSettings(memberId)
-      if (!settings?.uber_direct_enabled || !uberConfigured()) {
+      if (mode === 'none') {
         return NextResponse.json(
           { error: 'DELIVERY_UNAVAILABLE', message: 'This vendor is pickup only.' },
           { status: 400 }
         )
       }
-      if (!deliveryAddress?.street || !uberQuoteId || typeof deliveryFeeCents !== 'number') {
+      if (!deliveryAddress?.street) {
+        return NextResponse.json({ error: 'Delivery needs an address.' }, { status: 400 })
+      }
+      // Only the courier path needs a quote id — a self-delivery fee comes from
+      // the vendor's own rules and is computed below, not quoted by anyone.
+      if (mode === 'uber' && (!uberQuoteId || typeof deliveryFeeCents !== 'number')) {
         return NextResponse.json(
           { error: 'Delivery needs an address and a fresh quote.' },
           { status: 400 }
@@ -111,12 +118,35 @@ export async function POST(request: Request) {
     // Trust the server's own arithmetic for the fee, never the client's number:
     // deliveryFeeCents arrives from the browser, so clamp it to >= 0 and only
     // honour it on a delivery order.
-    const feeCents = fulfillment === 'delivery' ? Math.max(0, Math.round(deliveryFeeCents ?? 0)) : 0
+    let feeCents = 0
+    if (fulfillment === 'delivery') {
+      if (mode === 'self') {
+        // Recomputed from the vendor's rules — the client's number is never
+        // trusted, and here it also decides whether the order clears a minimum
+        // or earns free delivery.
+        const quote = quoteSelfDelivery(selfDeliveryRules(settings), itemsCents, deliveryAddress?.zip)
+        if (!quote.ok) {
+          return NextResponse.json({ error: quote.reason, message: quote.message }, { status: 409 })
+        }
+        feeCents = quote.feeCents
+      } else {
+        feeCents = Math.max(0, Math.round(deliveryFeeCents ?? 0))
+      }
+    }
     const totalCents = itemsCents + feeCents
 
-    // Platform cut is on items only — the courier fee is a pass-through.
+    // Platform cut is on items only — the delivery fee is a pass-through either
+    // way, so it is never taxed.
     const { platformFee, vendorAmount } = calculateFees(itemsCents)
-    const applicationFee = platformFee + feeCents
+
+    // WHO KEEPS THE DELIVERY FEE, and it is not cosmetic:
+    //   uber → the PLATFORM pays the courier, so the fee is added to the
+    //          application fee and stays with us.
+    //   self → the VENDOR is the courier. The fee must flow through to them,
+    //          so it is deliberately NOT added to the application fee.
+    // Adding it in both branches would silently skim every self-delivering
+    // vendor's fee, which is exactly the bug this comment exists to prevent.
+    const applicationFee = mode === 'uber' ? platformFee + feeCents : platformFee
 
     const paymentIntent = await stripe.paymentIntents.create({
       amount: totalCents,
@@ -132,8 +162,9 @@ export async function POST(request: Request) {
         platform_fee_cents: String(platformFee),
         vendor_amount_cents: String(vendorAmount),
         fulfillment_type: fulfillment,
+        delivery_provider: fulfillment === 'delivery' ? mode : '',
         delivery_fee_cents: String(feeCents),
-        uber_quote_id: uberQuoteId ?? '',
+        uber_quote_id: mode === 'uber' ? (uberQuoteId ?? '') : '',
         // Stripe metadata values cap at 500 chars — an address is well under.
         delivery_address: fulfillment === 'delivery' ? JSON.stringify(deliveryAddress) : '',
       },

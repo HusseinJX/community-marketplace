@@ -228,7 +228,11 @@ function VendorCheckoutCard({ group, onVendorPaid }: VendorCheckoutCardProps) {
                 {/* Chosen before payment — the courier fee has to be in the
                     PaymentIntent, and a pickup-only vendor should never see
                     their customer asked for a dropoff address. */}
-                <FulfillmentPicker memberId={group.memberId} onChange={setFulfillment} />
+                <FulfillmentPicker
+                  memberId={group.memberId}
+                  items={group.items.map(i => ({ name: i.name, quantity: i.qty ?? 1 }))}
+                  onChange={setFulfillment}
+                />
 
                 {deliveryFee > 0 && (
                   <div className="flex justify-between text-sm text-stone-600">

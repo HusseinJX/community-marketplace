@@ -51,6 +51,9 @@ export async function POST(request: Request) {
     const deliveryFeeCents = parseInt(meta.delivery_fee_cents ?? '0', 10) || 0
     const deliveryAddress = meta.delivery_address ? JSON.parse(meta.delivery_address) : null
     const isDelivery = fulfillmentType === 'delivery'
+    // Which kind of delivery. Defaults to uber for intents created before
+    // self-delivery existed — that was the only kind at the time.
+    const deliveryProvider = isDelivery ? (meta.delivery_provider === 'self' ? 'self' : 'uber') : null
 
     const order = await createOrder({
       order_number: generateOrderNumber(),
@@ -63,6 +66,7 @@ export async function POST(request: Request) {
       platform_fee_cents: platformFeeCents,
       vendor_amount_cents: vendorAmountCents,
       fulfillment_type: fulfillmentType,
+      delivery_provider: deliveryProvider,
       // delivery_requested predates fulfillment_type; keep it in step so the
       // vendor dashboard and dispatch guard keep working off either.
       delivery_requested: isDelivery,

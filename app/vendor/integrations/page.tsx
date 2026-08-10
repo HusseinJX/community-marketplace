@@ -8,9 +8,15 @@ import { StripeConnectCard, type StripeStatus } from '@/components/vendor/Stripe
 interface Settings {
   composio_connection_id: string | null
   composio_platform: string | null
+  delivery_mode?: 'none' | 'self' | 'uber'
   uber_direct_enabled: boolean
   uber_pickup_address: string | null
   uber_pickup_phone: string | null
+  self_delivery_fee_cents?: number
+  self_delivery_free_over_cents?: number | null
+  self_delivery_min_order_cents?: number | null
+  self_delivery_zips?: string[] | null
+  self_delivery_notes?: string | null
 }
 
 export default function VendorIntegrationsPage() {
@@ -245,10 +251,18 @@ export default function VendorIntegrationsPage() {
       </div>
 
       <DeliveryCard
-        enabled={!!settings?.uber_direct_enabled}
+        // delivery_mode is the source of truth, but rows written before it
+        // existed only have the boolean — fall back so those vendors don't
+        // see their delivery silently switched off.
+        mode={settings?.delivery_mode ?? (settings?.uber_direct_enabled ? 'uber' : 'none')}
         pickupAddress={settings?.uber_pickup_address ?? null}
         pickupPhone={settings?.uber_pickup_phone ?? null}
-        available={uberAvailable}
+        uberAvailable={uberAvailable}
+        selfFeeCents={settings?.self_delivery_fee_cents ?? 0}
+        selfFreeOverCents={settings?.self_delivery_free_over_cents ?? null}
+        selfMinOrderCents={settings?.self_delivery_min_order_cents ?? null}
+        selfZips={settings?.self_delivery_zips ?? []}
+        selfNotes={settings?.self_delivery_notes ?? null}
       />
     </div>
   )

@@ -314,6 +314,12 @@ export interface Order {
   vendor_amount_cents: number
   /** Chosen by the buyer BEFORE payment, so the delivery fee can be charged. */
   fulfillment_type: FulfillmentType
+  /**
+   * uber | self on a delivery order, null otherwise. Decides who fulfils it AND
+   * who kept the fee: uber orders route the fee to the platform (it pays the
+   * courier), self orders route it to the vendor (they drive).
+   */
+  delivery_provider?: 'uber' | 'self' | null
   /** Set on ticket orders — which event the buyer is being admitted to. */
   event_id?: string | null
   delivery_requested: boolean
@@ -426,9 +432,25 @@ export async function updateOrderUber(
 
 export interface VendorSettings {
   member_id: string
+  /**
+   * How this vendor delivers, and the source of truth (migration
+   * `20260810130000`). `self` = the vendor drives and KEEPS the fee; `uber` =
+   * the platform dispatches and keeps the fee because it pays the courier.
+   * Resolve with `effectiveDeliveryMode` — never read it raw, since `uber`
+   * means nothing without platform credentials.
+   */
+  delivery_mode?: 'none' | 'self' | 'uber'
+  /** Legacy flag, kept in step on write. Prefer delivery_mode. */
   uber_direct_enabled: boolean
   uber_pickup_address: string | null
   uber_pickup_phone: string | null
+  /** Self-delivery rules. Read them through `selfDeliveryRules()`. */
+  self_delivery_fee_cents?: number
+  self_delivery_free_over_cents?: number | null
+  self_delivery_min_order_cents?: number | null
+  /** NULL or empty = delivers anywhere. */
+  self_delivery_zips?: string[] | null
+  self_delivery_notes?: string | null
   composio_connection_id: string | null
   composio_platform: string | null
   assistant_enabled?: boolean

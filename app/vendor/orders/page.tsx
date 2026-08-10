@@ -15,7 +15,9 @@ interface Order {
   status: string
   items: OrderItem[]
   subtotal_cents: number
-  fulfillment_type: 'pickup' | 'delivery'
+  fulfillment_type: 'pickup' | 'delivery' | 'ticket'
+  /** Which kind of delivery — decides whether there's a courier to call. */
+  delivery_provider: 'uber' | 'self' | null
   delivery_requested: boolean
   delivery_fee_cents: number | null
   uber_tracking_url: string | null
@@ -83,8 +85,10 @@ export default function VendorOrdersPage() {
     })
 
     // Pickup stops at `ready` — the customer collects, then the vendor marks it
-    // collected. Only a delivery order calls a courier.
-    if (order.fulfillment_type !== 'delivery') {
+    // collected. SELF-delivery also stops here: the vendor is the courier, so
+    // there is nobody to dispatch; they mark it out for delivery when they
+    // actually leave. Only an Uber order calls a courier.
+    if (order.fulfillment_type !== 'delivery' || order.delivery_provider !== 'uber') {
       setOrders(prev => prev.map(o => (o.id === order.id ? { ...o, status: 'ready' } : o)))
       setUpdating(null)
       return
@@ -141,6 +145,14 @@ export default function VendorOrdersPage() {
         <div className="space-y-4">
           {orders.map(order => {
             const cfg = STATUS_CONFIG[order.status] ?? STATUS_CONFIG.paid
+            // Same status, different actor: `dispatched` means a courier has it
+            // on an Uber order and "the vendor is driving it over" on a self
+            // one. The label has to say which, or the vendor reads their own
+            // order as though someone else picked it up.
+            const statusLabel =
+              order.status === 'dispatched' && order.delivery_provider === 'self'
+                ? 'Out for delivery'
+                : cfg.label
             return (
               <div key={order.id} className="card-soft p-4 space-y-4">
                 <div className="flex items-start justify-between gap-4">
@@ -158,7 +170,7 @@ export default function VendorOrdersPage() {
                   </div>
                   <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${cfg.color}`}>
                     {cfg.icon}
-                    {cfg.label}
+                    {statusLabel}
                   </span>
                 </div>
 
@@ -231,7 +243,18 @@ export default function VendorOrdersPage() {
                     )}
                     {/* A delivery that failed to dispatch is back at `ready` —
                         let them retry rather than stranding it. */}
-                    {order.status === 'ready' && order.fulfillment_type === 'delivery' && (
+                    {/* The vendor IS the courier here — "I'm out delivering it"
+                        replaces a dispatch call that has nobody to call. */}
+                    {order.status === 'ready' && order.fulfillment_type === 'delivery' && order.delivery_provider === 'self' && (
+                      <button
+                        onClick={() => setStatus(order, 'dispatched')}
+                        disabled={updating === order.id}
+                        className="rounded-lg bg-indigo-600 px-3 py-1.5 text-[13px] font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
+                      >
+                        {updating === order.id ? 'Updating…' : 'Out for delivery'}
+                      </button>
+                    )}
+                    {order.status === 'ready' && order.fulfillment_type === 'delivery' && order.delivery_provider === 'uber' && (
                       <button
                         onClick={() => markReady(order)}
                         disabled={updating === order.id}

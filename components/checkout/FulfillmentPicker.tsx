@@ -20,9 +20,25 @@ export interface DeliveryAddress {
   phone: string
 }
 
+export type DeliveryMode = 'none' | 'self' | 'uber'
+
+interface SelfRules {
+  feeCents: number
+  freeOverCents: number | null
+  minOrderCents: number | null
+  zips: string[]
+  notes: string | null
+}
+
 interface Options {
+  deliveryMode: DeliveryMode
   deliveryAvailable: boolean
+  selfDelivery: SelfRules | null
   pickupAddress: string | null
+}
+
+function money(cents: number) {
+  return `$${(cents / 100).toFixed(2)}`
 }
 
 // Pickup or delivery, chosen BEFORE payment.
@@ -34,9 +50,16 @@ interface Options {
 // silently absorbed by the platform.
 export function FulfillmentPicker({
   memberId,
+  items,
   onChange,
 }: {
   memberId: string
+  /**
+   * The basket, needed for self-delivery: the fee depends on the subtotal
+   * (free over X, minimum order), and the server re-prices from the catalog
+   * rather than trusting a number the browser calculated.
+   */
+  items?: { name: string; quantity: number }[]
   onChange: (f: Fulfillment | null) => void
 }) {
   const [opts, setOpts] = useState<Options | null>(null)
@@ -59,7 +82,7 @@ export function FulfillmentPicker({
         // there's nothing to choose and the buyer just gets an address.
         onChange({ type: 'pickup' })
       })
-      .catch(() => alive && setOpts({ deliveryAvailable: false, pickupAddress: null }))
+      .catch(() => alive && setOpts({ deliveryMode: 'none', deliveryAvailable: false, selfDelivery: null, pickupAddress: null }))
     return () => { alive = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [memberId])
@@ -77,7 +100,35 @@ export function FulfillmentPicker({
     }
   }
 
+  // Self-delivery: no external call, no quote id — the vendor's own rule
+  // applied to the basket. The server still recomputes it at payment, so this
+  // is the buyer seeing the same arithmetic in advance rather than a promise.
+  async function getSelfQuote() {
+    setQuoting(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/checkout/self-delivery', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ memberId, items: items ?? [], zip: addr.zip }),
+      })
+      const data = await res.json()
+      if (!res.ok || data.error) {
+        setError(data.message ?? "This vendor isn't delivering to that address.")
+        onChange(null)
+      } else {
+        setQuote({ feeCents: data.feeCents, quoteId: '' })
+        onChange({ type: 'delivery', address: addr, feeCents: data.feeCents })
+      }
+    } catch {
+      setError('Could not price that delivery.')
+      onChange(null)
+    }
+    setQuoting(false)
+  }
+
   async function getQuote() {
+    if (opts?.deliveryMode === 'self') return getSelfQuote()
     setQuoting(true)
     setError(null)
     try {
@@ -157,6 +208,29 @@ export function FulfillmentPicker({
         </p>
       ) : (
         <div className="space-y-2 rounded-xl bg-stone-50 p-3">
+          {/* State the vendor's own terms BEFORE the address form. The fee is
+              knowable from the basket alone, so making someone fill in six
+              fields to discover a $5 charge (or a minimum they haven't met) is
+              the exact friction this replaces. */}
+          {opts.selfDelivery && (
+            <div className="rounded-lg bg-white p-2.5 text-xs text-stone-600">
+              <p className="font-medium text-stone-800">
+                {opts.selfDelivery.feeCents === 0
+                  ? 'Free delivery'
+                  : `${money(opts.selfDelivery.feeCents)} delivery`}
+                {opts.selfDelivery.freeOverCents != null &&
+                  ` · free over ${money(opts.selfDelivery.freeOverCents)}`}
+              </p>
+              {opts.selfDelivery.minOrderCents != null && (
+                <p className="mt-0.5">Minimum order {money(opts.selfDelivery.minOrderCents)}</p>
+              )}
+              {opts.selfDelivery.zips.length > 0 && (
+                <p className="mt-0.5">Delivers to {opts.selfDelivery.zips.join(', ')}</p>
+              )}
+              {opts.selfDelivery.notes && <p className="mt-0.5">{opts.selfDelivery.notes}</p>}
+              <p className="mt-1 text-stone-400">Delivered by the business themselves.</p>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-2">
             <input placeholder="Name" value={addr.name} onChange={e => { setAddr({ ...addr, name: e.target.value }); setQuote(null); onChange(null) }} className="col-span-2 rounded-md border border-stone-300 px-2.5 py-1.5 text-sm outline-none focus:border-indigo-400" />
             <input placeholder="Street address" value={addr.street} onChange={e => { setAddr({ ...addr, street: e.target.value }); setQuote(null); onChange(null) }} className="col-span-2 rounded-md border border-stone-300 px-2.5 py-1.5 text-sm outline-none focus:border-indigo-400" />
@@ -168,8 +242,10 @@ export function FulfillmentPicker({
 
           {quote ? (
             <p className="text-sm font-medium text-stone-800">
-              Delivery fee: ${(quote.feeCents / 100).toFixed(2)}
-              <span className="ml-1 font-normal text-stone-500">— added to your total</span>
+              {quote.feeCents === 0 ? 'Delivery: free' : `Delivery fee: ${money(quote.feeCents)}`}
+              {quote.feeCents > 0 && (
+                <span className="ml-1 font-normal text-stone-500">— added to your total</span>
+              )}
             </p>
           ) : (
             <button
@@ -178,7 +254,7 @@ export function FulfillmentPicker({
               className="inline-flex items-center gap-2 rounded-lg bg-stone-900 px-3.5 py-1.5 text-[13px] font-semibold text-white transition hover:bg-stone-800 disabled:opacity-40"
             >
               {quoting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-              {quoting ? 'Pricing…' : 'Get delivery price'}
+              {quoting ? 'Pricing…' : opts.deliveryMode === 'self' ? 'Check this address' : 'Get delivery price'}
             </button>
           )}
 

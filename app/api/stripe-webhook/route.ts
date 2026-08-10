@@ -85,6 +85,9 @@ export async function POST(request: Request) {
           // and no courier ever dispatched.
           const fulfillmentType = meta.fulfillment_type === 'delivery' ? 'delivery' : 'pickup'
           const isDelivery = fulfillmentType === 'delivery'
+          // Same read as confirm-payment: uber is the safe default, since it
+          // was the only kind of delivery before self-delivery existed.
+          const deliveryProvider = isDelivery ? (meta.delivery_provider === 'self' ? 'self' : 'uber') : null
           const deliveryFeeCents = parseInt(meta.delivery_fee_cents ?? '0', 10) || 0
           await createOrder({
             order_number: generateOrderNumber(),
@@ -97,6 +100,7 @@ export async function POST(request: Request) {
             platform_fee_cents: parseInt(meta.platform_fee_cents ?? '0', 10),
             vendor_amount_cents: parseInt(meta.vendor_amount_cents ?? '0', 10),
             fulfillment_type: fulfillmentType,
+            delivery_provider: deliveryProvider,
             delivery_requested: isDelivery,
             delivery_address: isDelivery && meta.delivery_address ? JSON.parse(meta.delivery_address) : null,
             delivery_fee_cents: isDelivery ? deliveryFeeCents : null,
