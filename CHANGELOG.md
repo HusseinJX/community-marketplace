@@ -19,6 +19,37 @@ All notable changes to this project are documented here.
 > `/monitoring` tunnel (200), and `data-private` present on the assistant chat and absent on Shop
 > — masking where conversations are, nowhere else. No native change, so no Xcode rebuild.
 
+### Added — the phone agent does things now, not just takes messages — 2026-08-11
+- **Answering questions about products, prices and descriptions needed NOTHING built** — `buildBusinessContext`
+  has always emitted a `## Products for sale` block (name, price, description) plus events, hours and owner
+  FAQs straight into the prompt. No tool call, which is also *faster* than one on a live call. Verified in the
+  live payload: all 4 tees with prices, all 3 Atlas events.
+- **`request_booking`** (`/api/voice/booking`) — the first real action. Writes the SAME `booking_requests` rows
+  as the web form, so a phoned-in booking lands in the existing `/vendor/bookings` inbox. Request-to-book takes
+  no payment by design, which is exactly why it's the right first action: **the agent must never take a card.**
+- **`check_availability`** (`/api/voice/availability`) — for Square Appointments vendors, real open slots, and
+  the picked slot is **taken outright** (`confirmed`), not requested. **No Composio needed** — Square shipped
+  last week with `searchAvailability`/`createBooking`; this mirrors the web flow so the two can't drift.
+- **A spoken "Thursday" is not a date.** `/api/voice/context` now hands the agent **`today_date`** (city-local,
+  never UTC — after 5pm Pacific a UTC date is already tomorrow and would book people a day out). A non-ISO or
+  past date is **rejected, never guessed**: a wrong date sends someone to a shop on the wrong day.
+- **A picked slot IS the date** — derived from the instant, city-local, NOT from the model's separate
+  `requested_date`, or the row and the Square calendar disagree about which day someone turns up. Same rule as
+  prices and fulfilment: the server derives, the caller never decides.
+- **Every Square failure degrades to a plain request**, never an error — the slot may have gone mid-sentence,
+  scopes may be wrong, Square may be down. A business with no Square gets `real_calendar: false`, which is the
+  normal answer; the caller never learns which kind they rang.
+- **"Request", not "booked"** unless Square actually reserved it. Email preferred but not required (spelling an
+  address aloud is painful) — phone-only is accepted and the agent then says they'll be *called* back. Some
+  channel is mandatory: a booking only one party knows about is worse than none.
+- **Verified:** `scripts/voice-booking-smoke.mts`, **21 checks** against the real DB with cleanup — including a
+  slot sent to a non-Square business degrading to a request without telling the caller they're booked, and a
+  deliberately wrong `requested_date` losing to the slot's own day.
+- ⚠️ **Square's live API is STILL unverified** (no account has ever connected), so `real_calendar: true` is
+  exercised in shape only. Sandbox-testable: `npx tsx scripts/square-smoke.mts <sandbox-token>`.
+- ⚠️ **SMS is unavailable** — carrier registration (10DLC / toll-free) not passed — so email is the only
+  outbound channel and no phone action may be designed around texting a link yet.
+
 ### Fixed — a forwarded call now reaches the business the caller actually rang — 2026-08-11
 - **One shared number can serve every business.** A business points their existing number at ours
   instead of voicemail, and the carrier stamps the originally-dialled number into a SIP Diversion
