@@ -4,8 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import Image from "next/image";
-import { LayoutGrid, Map as MapIcon, CalendarDays, MapPin } from "lucide-react";
-import { useBroadcasts, useEventsFeed } from "@/lib/data-hooks";
+import { LayoutGrid, Map as MapIcon, CalendarDays, MapPin, Star } from "lucide-react";
+import { useBroadcasts, useEventsFeed, useSavedEvents } from "@/lib/data-hooks";
+import { SaveEventButton } from "@/components/events/SaveEventButton";
 import { isLive, eventLabel, timeLeftLabel } from "@/lib/live-events";
 import { themeOf } from "@/lib/event-themes";
 import type { FeedEvent } from "@/app/api/events/feed/route";
@@ -67,6 +68,9 @@ export function WhatsOn() {
   const { events, loading: eLoading } = useEventsFeed();
   const [view, setView] = useState<"feed" | "map">("feed");
   const [tag, setTag] = useState("all");
+  // Starring an event is only half the feature — it has to be findable again.
+  const { saved } = useSavedEvents();
+  const [savedOnly, setSavedOnly] = useState(false);
   // Time-dependent bucketing must not run during SSR (hydration mismatch).
   const [nowTs, setNowTs] = useState(0);
   useEffect(() => setNowTs(Date.now()), []);
@@ -111,8 +115,11 @@ export function WhatsOn() {
     return Array.from(set).filter(Boolean).sort();
   }, [liveNow, byBucket]);
 
-  const matchB = (b: LiveBroadcast) => tag === "all" || eventLabel(b.event_slug) === tag;
-  const matchE = (e: FeedEvent) => tag === "all" || themeOf(e) === tag;
+  // A live venue broadcast can't be starred (it's a place being live right now,
+  // not a dated event), so "Saved" hides that section rather than filtering it.
+  const matchB = (b: LiveBroadcast) => !savedOnly && (tag === "all" || eventLabel(b.event_slug) === tag);
+  const matchE = (e: FeedEvent) =>
+    (tag === "all" || themeOf(e) === tag) && (!savedOnly || saved.has(e.eventId));
 
   const shownLive = liveNow.filter(matchB);
   const shownToday = byBucket.today.filter(matchE);
@@ -152,8 +159,22 @@ export function WhatsOn() {
       </div>
 
       {/* One filter row */}
-      {tags.length > 0 && (
+      {(tags.length > 0 || saved.size > 0) && (
         <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1">
+          {saved.size > 0 && (
+            <button
+              onClick={() => setSavedOnly((v) => !v)}
+              aria-pressed={savedOnly}
+              className={
+                "inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-medium transition " +
+                (savedOnly ? "bg-amber-500 text-white" : "bg-amber-50 text-amber-700 hover:bg-amber-100")
+              }
+            >
+              <Star className={"h-3.5 w-3.5 " + (savedOnly ? "fill-white" : "fill-amber-500 text-amber-500")} />
+              Saved
+              <span className={savedOnly ? "text-white/80" : "text-amber-600/70"}>{saved.size}</span>
+            </button>
+          )}
           {["all", ...tags].map((t) => (
             <button
               key={t}
@@ -180,7 +201,9 @@ export function WhatsOn() {
         </div>
       ) : empty ? (
         <p className="py-16 text-center text-sm text-stone-400">
-          Nothing on right now. Check back tonight.
+          {savedOnly
+            ? "None of your saved events are coming up. Saves disappear from here once the date passes."
+            : "Nothing on right now. Check back tonight."}
         </p>
       ) : (
         <div className="mt-5 space-y-8">
@@ -269,6 +292,7 @@ function EventCard({ e }: { e: FeedEvent }) {
   return (
     <Link href={`/events/${e.eventId}`} className="card-soft card-hover flex h-full flex-col overflow-hidden">
       <div className="relative aspect-[16/9] bg-stone-100">
+        <SaveEventButton eventId={e.eventId} />
         {e.image ? (
           <Image src={e.image} alt={e.title} fill sizes="(max-width:640px) 90vw, 320px" className="object-cover" />
         ) : (

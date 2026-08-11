@@ -15,6 +15,7 @@ import { EventActionBar } from "./EventActionBar";
 import { BackToHome } from "@/components/BackToHome";
 import { MemoriesGrid } from "@/components/posts/MemoriesGrid";
 import { TicketBox } from "@/components/events/TicketBox";
+import { SaveEventButton } from "@/components/events/SaveEventButton";
 import { EventLocationMap } from "@/components/events/EventLocationMap";
 import { NearbyBusinesses } from "@/components/events/NearbyBusinesses";
 
@@ -264,9 +265,14 @@ export default async function EventDetailPage({
             )}
           </div>
 
-          <h1 className="text-3xl sm:text-4xl font-bold text-stone-900 mb-4 leading-tight">
-            {title}
-          </h1>
+          <div className="mb-4 flex items-start justify-between gap-4">
+            <h1 className="text-3xl sm:text-4xl font-bold text-stone-900 leading-tight">
+              {title}
+            </h1>
+            {/* Not everyone who opens an event is ready to RSVP — a star lets
+                them keep it without committing to a ticket. */}
+            <SaveEventButton eventId={event.id} variant="inline" className="mt-1.5 shrink-0" />
+          </div>
 
           <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-stone-600 mb-4">
             {event.date && (

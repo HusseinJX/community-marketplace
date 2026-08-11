@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useMemo } from "react";
 import useSWR from "swr";
 import type { Member } from "@/lib/types";
 import type { LiveBroadcast } from "@/components/live/types";
@@ -138,6 +139,48 @@ export function useCollaborations(memberId: string | null | undefined, isAdmin: 
     { refreshInterval: 30_000 },
   );
   return { collaborations: data?.collaborations ?? EMPTY_COLLABS, loaded: !!data };
+}
+
+/**
+ * The viewer's starred events, as a Set of event ids.
+ *
+ * ONE request for the whole list, shared by every card on the page through the
+ * SWR key — the alternative (each star asking the server about itself) turns a
+ * 60-card feed into 60 requests. `toggle` writes optimistically and rolls back
+ * on failure, because a star that waits for a round trip before filling in
+ * feels broken even when it works.
+ */
+export function useSavedEvents() {
+  const { data, mutate, isLoading } = useSWR<{ eventIds?: string[] }>("/api/saved-events");
+  const ids = data?.eventIds ?? NONE;
+  const saved = useMemo(() => new Set(ids), [ids]);
+
+  const toggle = useCallback(
+    async (eventId: string) => {
+      const next = !saved.has(eventId);
+      const optimistic = next
+        ? [eventId, ...ids.filter((id) => id !== eventId)]
+        : ids.filter((id) => id !== eventId);
+      // No revalidate on the optimistic write: the server is about to be asked
+      // anyway, and a concurrent GET would race the POST and flicker it back.
+      await mutate({ eventIds: optimistic }, { revalidate: false });
+      try {
+        const res = await fetch("/api/saved-events", {
+          method: next ? "POST" : "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ eventId }),
+        });
+        if (!res.ok) throw new Error("failed");
+        return next;
+      } catch {
+        await mutate(); // roll back to the truth
+        return !next;
+      }
+    },
+    [saved, ids, mutate],
+  );
+
+  return { saved, savedIds: ids, toggle, loading: isLoading && !data };
 }
 
 // Stable identity so consumers' useMemo deps don't churn on every render.

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Calendar, MapPin } from "lucide-react";
 import type { EventFeedItem } from "@/lib/demo-feed";
 import { ImageCarousel } from "@/components/ImageCarousel";
+import { SaveEventButton } from "@/components/events/SaveEventButton";
 
 export function EventFeedCard({ item }: { item: EventFeedItem }) {
   // A harvested event's "author" is a public calendar, not a business with a
@@ -62,6 +63,7 @@ export function EventFeedCard({ item }: { item: EventFeedItem }) {
           >
             View details →
           </Link>
+          <SaveEventButton eventId={item.eventId} variant="inline" className="-ml-2" />
           {scraped && item.eventUrl && (
             <a
               href={item.eventUrl}
