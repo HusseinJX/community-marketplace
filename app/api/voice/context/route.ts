@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { buildBusinessContext } from '@/lib/business-context'
-import { memberIdForNumber, normalizePhone } from '@/lib/business-phone'
+import { resolveBusinessForCall, normalizePhone } from '@/lib/business-phone'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -31,6 +31,20 @@ function extractDialed(body: Record<string, unknown>, url: URL): string | null {
       b?.call?.to ||
       url.searchParams.get('to')
   )
+}
+
+// The SIP Diversion header, present only when the call was FORWARDED to us.
+// Telnyx surfaces it on assistant.initialization; it is not persisted anywhere
+// afterwards, so this is the only chance to read it.
+function extractDiversion(body: Record<string, unknown>): string | null {
+  const b = body as any
+  const v =
+    b?.data?.payload?.telnyx_sip_header_diversion ||
+    b?.payload?.telnyx_sip_header_diversion ||
+    b?.telnyx_sip_header_diversion ||
+    b?.data?.payload?.sip_headers?.Diversion ||
+    b?.sip_headers?.Diversion
+  return typeof v === 'string' && v.trim() ? v : null
 }
 
 function extractCaller(body: Record<string, unknown>): string | null {
@@ -66,9 +80,24 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}))
   const dialed = extractDialed(body, url)
   const caller = extractCaller(body)
-  const memberId = memberIdForNumber(dialed)
+  const diversion = extractDiversion(body)
 
-  let vars = { ...FALLBACK, caller_phone: caller ?? '' }
+  // Forwarded calls route on the number the caller ORIGINALLY dialed, not on
+  // the number the carrier handed the call to (which is always ours).
+  const { memberId, businessNumber, viaForward } = resolveBusinessForCall({
+    dialed,
+    diversion,
+  })
+
+  // business_number is minted HERE and handed to the model so the capture_lead
+  // tool can pass it back — a value we set is trustworthy in a way the model's
+  // own recollection of a member id is not, and on a forwarded call the tool
+  // cannot re-derive it from the dialed number.
+  let vars = {
+    ...FALLBACK,
+    caller_phone: caller ?? '',
+    business_number: businessNumber ?? '',
+  }
 
   if (memberId) {
     try {
@@ -92,6 +121,7 @@ export async function POST(req: Request) {
           business_tone: 'Be brief and polite.',
           greeting_line: `Thanks for calling ${ctx.businessName}. I'm their AI assistant — I can take a message and have someone get back to you.`,
           caller_phone: caller ?? '',
+          business_number: businessNumber ?? '',
         }
       } else {
         vars = {
@@ -104,11 +134,17 @@ export async function POST(req: Request) {
           // off on this assistant for the same reason.
           greeting_line: `Thanks for calling ${ctx.businessName}. I'm their AI assistant — how can I help you today?`,
           caller_phone: caller ?? '',
+          business_number: businessNumber ?? '',
         }
       }
     } catch (err) {
       console.error('voice/context lookup failed:', err)
     }
+  } else if (viaForward) {
+    // Someone forwarded a number we don't know to us. Answering as the shared
+    // number's business would impersonate a business the caller never rang, so
+    // we deliberately fall through to the generic message-taker.
+    console.warn('voice/context: forwarded call from unmapped number', businessNumber)
   } else {
     console.warn('voice/context: no business mapped to dialed number', dialed)
   }

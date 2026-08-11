@@ -19,6 +19,8 @@ export const dynamic = 'force-dynamic'
 interface Body {
   member_id?: string
   dialed_number?: string
+  /** The business's own number, minted by /api/voice/context and echoed back. */
+  business_number?: string
   caller_phone?: string
   name?: string
   contact?: string
@@ -33,9 +35,19 @@ export async function POST(req: Request) {
 
   const body = (await req.json().catch(() => ({}))) as Body
 
-  // Trust the routing table over anything the model says: the model can
-  // hallucinate a member_id, the dialed number is a fact from the carrier.
-  const memberId = memberIdForNumber(body.dialed_number) || body.member_id
+  // Resolve through the routing table wherever possible: the model can
+  // hallucinate a member_id, whereas a number resolves to exactly one business.
+  //
+  // business_number comes FIRST because it is the only one that survives call
+  // forwarding — on a forwarded call `dialed_number` is our shared number, so
+  // trusting it would file the message under whichever business owns that
+  // number rather than the one the caller actually rang. /api/voice/context
+  // mints business_number from the SIP Diversion header and hands it to the
+  // model, so it is our value coming home, not the model's invention.
+  const memberId =
+    memberIdForNumber(body.business_number) ||
+    memberIdForNumber(body.dialed_number) ||
+    body.member_id
   if (!memberId) {
     return NextResponse.json({ ok: false, error: 'unknown_business' }, { status: 400 })
   }
