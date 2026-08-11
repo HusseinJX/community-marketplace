@@ -168,7 +168,31 @@ interface Result {
   generatedAt?: number;
 }
 
-/** How many events one "screen" of the feed reveals. */
+/**
+ * How many events one "screen" of the feed reveals.
+ *
+ * This is a MEMORY knob as much as a UX one. 60 cards is 60 posters, and on iOS
+ * the app is a WKWebView whose content process gets killed for memory — which
+ * the user sees as the app crashing and reloading. That happened once already
+ * (fixed in `044861a`: every carousel was eager-loading its first image, so all
+ * 60 posters fetched on mount instead of on scroll).
+ *
+ * IF IT HAPPENS AGAIN, the levers in order of value-for-effort:
+ *
+ *   1. Cap the mobile image variant (below, on the ImageCarousel `sizes`).
+ *      Decoded bitmap cost is width x height x 4 bytes, so it falls
+ *      QUADRATICALLY: ~1200px wide is ~3.6MB per poster, 800px is ~1.6MB,
+ *      640px is ~1.0MB. One line, biggest single win, costs some sharpness.
+ *   2. Lower this number. Fewer cards mounted, so fewer posters can accumulate
+ *      as someone scrolls. One line, no visual cost beyond more "Show more".
+ *   3. Virtualise the list (render only what is near the viewport). The real
+ *      ceiling-raiser, because unmounting a card frees its decoded image
+ *      outright rather than hoping WebKit evicts it — but actual work.
+ *
+ * NOT a lever: `quality`. It shrinks the file over the wire, but a decoded
+ * bitmap costs the same RAM at quality 50 as at 88 — only pixel DIMENSIONS
+ * matter. Turning quality down to save memory is a no-op that just looks worse.
+ */
 const PAGE = 60;
 
 /** Local calendar date as `YYYY-MM-DD` (never UTC — toISOString shifts the day). */
@@ -575,6 +599,14 @@ export function PersonalizedEvents({
                         // carousel's default for this aspect claims 320px — so
                         // next/image would serve a half-width file and upscale
                         // it on any desktop. State the real width.
+                        //
+                        // MEMORY LEVER #1 (see PAGE above). The mobile branch is
+                        // `100vw`, which on a 390px phone at DPR 3 resolves to
+                        // ~1170px — so a 390px-wide card gets a ~1200px file,
+                        // ~3.6MB once decoded. Replacing `100vw` with a fixed
+                        // cap trades sharpness for RAM, quadratically: `800px`
+                        // is ~2.2x less, `640px` ~3.5x less. Change it here if
+                        // the events feed ever OOMs the iOS webview again.
                         sizes="(min-width: 768px) 672px, 100vw"
                         // A poster IS the card here; 75 shows its compression
                         // on flat colour and type, which most event art is.
