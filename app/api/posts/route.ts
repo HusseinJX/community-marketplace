@@ -3,6 +3,8 @@ import { auth, currentUser } from '@clerk/nextjs/server'
 import { createPost, getPosts, getPostsByMemberId, getPostsByEventId, getReactionsForPosts } from '@/lib/posts'
 import { isDemoMode } from '@/lib/demo-admin'
 import { rateLimit } from '@/lib/rate-limit'
+import { screen } from '@/lib/ai-moderation'
+import { logModerationEvent, attachModerationContentId } from '@/lib/moderation'
 
 // GET — public feed of share posts. `?member=` / `?event=` scope to one entity's
 // "memories" (everyone's media tagged to that business or event). Each post is
@@ -75,6 +77,37 @@ export async function POST(request: Request) {
   // Both or neither: half a coordinate places nothing.
   const placed = lat !== null && lng !== null && !(lat === 0 && lng === 0)
 
+  // AI screening, before anything is published. Text and images go to the
+  // screener together; `block` never reaches the table, `review` is written
+  // hidden. Videos are NOT screened — the moderation API takes images only, so
+  // a video post is still covered by the reactive report path alone.
+  const verdict = await screen({ text: body, imageUrls })
+  let heldEventId: string | null = null
+  if (verdict.action !== 'allow') {
+    heldEventId = await logModerationEvent({
+      surface: 'post',
+      authorId: userId ?? 'demo',
+      action: verdict.action,
+      categories: verdict.categories,
+      scores: verdict.scores,
+      text: body,
+      imageCount: imageUrls.length,
+      flaggedImages: verdict.flaggedImages,
+    })
+    if (verdict.action === 'block') {
+      // The member is told what happened, but not which category or score —
+      // publishing the thresholds is publishing the way around them.
+      return NextResponse.json(
+        {
+          error:
+            "This post looks like it breaks our content rules, so it wasn't published. If you think that's wrong, contact support.",
+          blocked: true,
+        },
+        { status: 422 },
+      )
+    }
+  }
+
   try {
     const post = await createPost({
       author_id: userId ?? 'demo',
@@ -90,8 +123,12 @@ export async function POST(request: Request) {
       location,
       lat: placed ? lat : null,
       lng: placed ? lng : null,
+      moderation_status: verdict.action === 'review' ? 'pending' : 'allowed',
     })
-    return NextResponse.json({ post })
+    if (heldEventId) void attachModerationContentId(heldEventId, post.id)
+    // `pending` tells the composer to say "we're checking this" instead of
+    // dropping the author into a feed their own post is missing from.
+    return NextResponse.json({ post, pending: verdict.action === 'review' })
   } catch (err) {
     // In demo mode the `posts` table may not be pushed yet — soft-succeed so the
     // composer flow works end-to-end. Real (non-demo) usage surfaces the error.

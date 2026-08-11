@@ -4,11 +4,12 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Shield, UserPlus, FileText, Search, Check, Package, Calendar, ExternalLink, Star, PenSquare, ImagePlus, X, Loader2, Store, Radio, Globe, ChevronDown, ClipboardCheck } from "lucide-react";
+import { Shield, UserPlus, FileText, Search, Check, Package, Calendar, ExternalLink, Star, PenSquare, ImagePlus, X, Loader2, Store, Radio, Globe, ChevronDown, ClipboardCheck, ShieldAlert } from "lucide-react";
 import { OnboardManager } from "../onboard/OnboardManager";
 import { FeaturedManager } from "../featured/FeaturedManager";
 import { LineupImportManager } from "@/components/admin/LineupImportManager";
 import { EventDrafts } from "@/components/admin/EventDrafts";
+import { ModerationQueue } from "@/components/admin/ModerationQueue";
 // The REAL sourcing panel: the registry that actually runs, plus counts from
 // the events it wrote. This used to import SourcingAdmin from the prototype,
 // which rendered six invented sources with invented run stats — so the screen
@@ -22,9 +23,9 @@ const TYPES = ["vendor", "artist", "organizer", "shopper", "influencer"] as cons
 // "Add by transcript" is no longer a tab — it lives as an expandable panel at
 // the top of the Create-profile content (both create members, so they belong
 // together).
-type Tab = "create" | "behalf" | "sourcing" | "drafts" | "organizer" | "post" | "featured";
+type Tab = "create" | "behalf" | "sourcing" | "drafts" | "moderation" | "organizer" | "post" | "featured";
 // "post" and "featured" are parked (disabled) — kept at the END of the order.
-const TABS: Tab[] = ["create", "behalf", "sourcing", "drafts", "organizer", "post", "featured"];
+const TABS: Tab[] = ["create", "behalf", "sourcing", "drafts", "moderation", "organizer", "post", "featured"];
 const DISABLED_TABS: Tab[] = ["post", "featured"];
 
 export function AdminPanel({ ownerMemberId }: { ownerMemberId: string }) {
@@ -74,6 +75,8 @@ export function AdminPanel({ ownerMemberId }: { ownerMemberId: string }) {
           <TabButton active={tab === "sourcing"} onClick={() => setTab("sourcing")} icon={Globe} label="Sourcing" />
           {/* Sits beside Sourcing: it reviews what Sourcing brings in. */}
           <TabButton active={tab === "drafts"} onClick={() => setTab("drafts")} icon={ClipboardCheck} label="Scraped drafts" />
+          {/* Reports + anything the AI screener held. Apple gives us 24h. */}
+          <TabButton active={tab === "moderation"} onClick={() => setTab("moderation")} icon={ShieldAlert} label="Moderation" />
           <TabButton active={tab === "organizer"} onClick={() => setTab("organizer")} icon={Calendar} label="Organizer" />
           <TabButton active={tab === "post"} onClick={() => setTab("post")} icon={PenSquare} label="Add post" disabled />
           <TabButton active={tab === "featured"} onClick={() => setTab("featured")} icon={Star} label="Featured lists" disabled />
@@ -114,6 +117,8 @@ export function AdminPanel({ ownerMemberId }: { ownerMemberId: string }) {
       {tab === "sourcing" && <SourcingPanel onDetailChange={setSourcingDetail} />}
 
       {tab === "drafts" && <EventDrafts />}
+
+      {tab === "moderation" && <ModerationQueue />}
       {/* Same toolkit as the footer "Run an event" page (/organizers): a
           no-login demo preview on sample data — nothing persists. */}
       {tab === "organizer" && (

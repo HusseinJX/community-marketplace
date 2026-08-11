@@ -93,6 +93,137 @@ export async function unblockUser(blockerId: string, blockedId: string): Promise
   await db().from('user_blocks').delete().eq('blocker_id', blockerId).eq('blocked_id', blockedId)
 }
 
+// ── AI screening: persistence + queue ───────────────────────────────────────────
+//
+// The decision itself is made in lib/ai-moderation.ts (pure, no DB). This is
+// where it becomes a durable record. Everything the screener stops is logged,
+// including what it merely held — a queue that only shows blocks can't tell you
+// whether the thresholds are too tight.
+
+export interface ModerationEvent {
+  id: string
+  surface: string
+  content_id: string | null
+  author_id: string | null
+  action: string
+  categories: string[]
+  scores: Record<string, number> | null
+  excerpt: string | null
+  image_count: number
+  flagged_images: boolean
+  status: string
+  created_at: string
+}
+
+/**
+ * Record a non-allow screening decision. Best-effort by design: this is called
+ * on the write path, and a logging failure must not cost a member their post.
+ * Returns the row id when it stuck, so a caller that later inserts the content
+ * can attach the real content_id to it.
+ */
+export async function logModerationEvent(args: {
+  surface: 'post' | 'chat'
+  contentId?: string | null
+  authorId?: string | null
+  action: 'block' | 'review'
+  categories: string[]
+  scores?: Record<string, number>
+  text?: string | null
+  imageCount?: number
+  flaggedImages?: boolean
+}): Promise<string | null> {
+  try {
+    const { data } = await db()
+      .from('moderation_events')
+      .insert({
+        surface: args.surface,
+        content_id: args.contentId ?? null,
+        author_id: args.authorId ?? null,
+        action: args.action,
+        categories: args.categories,
+        scores: args.scores ?? null,
+        excerpt: (args.text ?? '').slice(0, 500) || null,
+        image_count: args.imageCount ?? 0,
+        flagged_images: args.flaggedImages ?? false,
+      })
+      .select('id')
+      .single()
+
+    // A block is the one a member feels immediately and cannot appeal in-app,
+    // so it pages a human the same way a report does. Holds accumulate quietly
+    // in the queue instead — that is the point of holding rather than blocking.
+    if (args.action === 'block') {
+      void notifyDeveloper(
+        `AI blocked ${args.surface} content`,
+        `Categories: ${args.categories.join(', ') || 'unspecified'}. Author: ${args.authorId ?? 'unknown'}. Images: ${args.imageCount ?? 0}${args.flaggedImages ? ' (an image was flagged)' : ''}.\n\nExcerpt: ${(args.text ?? '—').slice(0, 300)}\n\nReview at /vendor/admin (Moderation).`,
+      )
+    }
+    return (data as { id: string } | null)?.id ?? null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * The held post behind a screening event, for the review queue.
+ *
+ * The event row stores a text excerpt and an image COUNT — enough to triage,
+ * useless for judging, because the thing most likely to be objectionable is a
+ * photo the log never held. A moderator has to see the actual media before
+ * upholding a takedown, so the queue joins back to the post.
+ */
+export async function getPostsForModeration(
+  postIds: string[],
+): Promise<Record<string, { body: string | null; image_urls: string[]; author_name: string | null }>> {
+  const out: Record<string, { body: string | null; image_urls: string[]; author_name: string | null }> = {}
+  if (postIds.length === 0) return out
+  const { data } = await db().from('posts').select('id, body, image_urls, author_name').in('id', postIds)
+  for (const p of (data as { id: string; body: string | null; image_urls: string[] | null; author_name: string | null }[]) ?? []) {
+    out[p.id] = { body: p.body, image_urls: p.image_urls ?? [], author_name: p.author_name }
+  }
+  return out
+}
+
+/** Attach the content id once the row exists (a held post is inserted after it is screened). */
+export async function attachModerationContentId(eventId: string, contentId: string): Promise<void> {
+  try {
+    await db().from('moderation_events').update({ content_id: contentId }).eq('id', eventId)
+  } catch {
+    /* best-effort: the log row is still useful without the join */
+  }
+}
+
+export async function listModerationEvents(status = 'pending'): Promise<ModerationEvent[]> {
+  const { data } = await db()
+    .from('moderation_events')
+    .select('*')
+    .eq('status', status)
+    .order('created_at', { ascending: false })
+    .limit(200)
+  return (data as ModerationEvent[]) ?? []
+}
+
+/**
+ * A human overrules the screener: publish the held post and close the event.
+ * The post becomes 'cleared' rather than 'allowed' so the queue keeps a record
+ * that a person looked, which is exactly what 'allowed' cannot express.
+ */
+export async function clearHeldPost(postId: string): Promise<void> {
+  await db().from('posts').update({ moderation_status: 'cleared', removed: false }).eq('id', postId)
+  await db().from('moderation_events').update({ status: 'dismissed' }).eq('content_id', postId)
+}
+
+/** A human agrees with the screener. The post stays hidden; the event closes. */
+export async function upholdHeldPost(postId: string): Promise<void> {
+  await db().from('posts').update({ removed: true }).eq('id', postId)
+  await db().from('moderation_events').update({ status: 'actioned' }).eq('content_id', postId)
+}
+
+/** Close an event with no post attached (a block, or a chat message). */
+export async function resolveModerationEvent(eventId: string, status: 'actioned' | 'dismissed'): Promise<void> {
+  await db().from('moderation_events').update({ status }).eq('id', eventId)
+}
+
 // ── Moderator actions (isAdmin-gated routes) ────────────────────────────────────
 
 export interface ReportRow {

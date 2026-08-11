@@ -32,6 +32,10 @@ export interface Post {
   // A null here must never be treated as "nearby".
   lat: number | null
   lng: number | null
+  // AI pre-publish screening verdict: 'allowed' | 'pending' | 'cleared'.
+  // 'pending' hides the post everywhere until a human looks — see the
+  // 20260811120000_ai_moderation migration for why it is not just `removed`.
+  moderation_status?: string
   created_at: string
   // attached by the API layer (not columns on the row)
   reactions?: number
@@ -84,8 +88,9 @@ export async function createPost(p: NewPost): Promise<Post> {
 }
 
 // Drop content the viewer should never see (App Store 1.2): globally-removed
-// posts are filtered in SQL; banned authors + the viewer's blocked users are
-// filtered here (small sets). Pass the viewer's clerk_user_id to apply blocks.
+// posts and those the AI screener is holding for review are filtered in SQL;
+// banned authors + the viewer's blocked users are filtered here (small sets).
+// Pass the viewer's clerk_user_id to apply blocks.
 async function withoutModerated(posts: Post[], viewerId?: string | null): Promise<Post[]> {
   const [blocked, banned] = await Promise.all([getBlockedAuthorIds(viewerId), getBannedAuthorIds()])
   if (blocked.size === 0 && banned.size === 0) return posts
@@ -97,6 +102,7 @@ export async function getPosts(limit = 50, viewerId?: string | null): Promise<Po
     .from('posts')
     .select('*')
     .eq('removed', false)
+    .neq('moderation_status', 'pending')
     .order('created_at', { ascending: false })
     .limit(limit)
   if (error || !data) return []
@@ -110,6 +116,7 @@ export async function getPostsByMemberId(memberId: string, limit = 100, viewerId
     .select('*')
     .eq('tagged_member_id', memberId)
     .eq('removed', false)
+    .neq('moderation_status', 'pending')
     .order('created_at', { ascending: false })
     .limit(limit)
   if (error || !data) return []
@@ -124,6 +131,7 @@ export async function getPostsByEventId(eventId: string, limit = 100, viewerId?:
     .select('*')
     .eq('tagged_event_id', eventId)
     .eq('removed', false)
+    .neq('moderation_status', 'pending')
     .order('created_at', { ascending: false })
     .limit(limit)
   if (error || !data) return []

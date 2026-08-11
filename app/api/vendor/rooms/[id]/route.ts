@@ -4,6 +4,8 @@ import { getMember } from '@/lib/api'
 import { getMessages, sendMessage, isRoomMember, ensureRoomMembers } from '@/lib/collab-network'
 import { demoMessages, addDemoMessage, isDemoRoomId } from '@/lib/demo-collab'
 import { notifyMemberSafe } from '@/lib/push'
+import { screen } from '@/lib/ai-moderation'
+import { logModerationEvent, attachModerationContentId } from '@/lib/moderation'
 
 // GET — messages in a room (members only).
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -36,6 +38,31 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   }
 
+  // AI screening. A collab room is a private 1:1 between two businesses, so the
+  // held-for-review verdict behaves differently here than on a public post:
+  // holding a message back would break a live conversation over a score nobody
+  // has looked at yet. So `review` DELIVERS and flags for a moderator, and only
+  // `block` stops the message. Public content gets the cautious treatment;
+  // private conversation gets the honest one.
+  const verdict = await screen({ text })
+  let heldEventId: string | null = null
+  if (verdict.action !== 'allow') {
+    heldEventId = await logModerationEvent({
+      surface: 'chat',
+      authorId: actor.memberId,
+      action: verdict.action,
+      categories: verdict.categories,
+      scores: verdict.scores,
+      text,
+    })
+    if (verdict.action === 'block') {
+      return NextResponse.json(
+        { error: "That message wasn't sent — it looks like it breaks our content rules.", blocked: true },
+        { status: 422 },
+      )
+    }
+  }
+
   let senderName: string | null = null
   try {
     const v = await getMember(actor.memberId)
@@ -45,6 +72,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
 
   const message = await sendMessage({ room_id: id, sender_id: actor.memberId, sender_name: senderName, text })
+  // A flagged-but-delivered message: point the log row at the message a
+  // moderator will have to read in context.
+  if (heldEventId) void attachModerationContentId(heldEventId, message.id)
 
   // Notify every other room member (1:1 rooms are seeded lazily). Best-effort.
   void ensureRoomMembers(id)
