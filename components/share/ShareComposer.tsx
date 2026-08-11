@@ -225,7 +225,7 @@ export function ShareComposer() {
     if (fileRef.current) fileRef.current.value = "";
   }
 
-  async function useCurrentLocation() {
+  async function applyCurrentLocation() {
     setLocSource("current");
     setLocating(true);
     setLocError(null);
@@ -265,7 +265,7 @@ export function ShareComposer() {
     setLocating(false);
   }
 
-  function useBusinessLocation() {
+  function applyBusinessLocation() {
     if (!bizLocation) return;
     setLocSource("business");
     setLocError(null);
@@ -294,7 +294,7 @@ export function ShareComposer() {
     })();
     // Auto-capture current location (auto location tag). If denied, the user
     // can retry / pick business location; posting stays blocked until one is set.
-    void useCurrentLocation();
+    void applyCurrentLocation();
     return () => {
       alive = false;
     };
@@ -659,7 +659,7 @@ export function ShareComposer() {
             <div className="mb-2 inline-flex rounded-full bg-stone-100 p-0.5 text-[13px] font-medium">
               <button
                 type="button"
-                onClick={useCurrentLocation}
+                onClick={applyCurrentLocation}
                 className={
                   "rounded-full px-3 py-1 transition " +
                   (locSource === "current" ? "bg-white text-stone-900 shadow-sm" : "text-stone-500 hover:text-stone-700")
@@ -669,7 +669,7 @@ export function ShareComposer() {
               </button>
               <button
                 type="button"
-                onClick={useBusinessLocation}
+                onClick={applyBusinessLocation}
                 className={
                   "rounded-full px-3 py-1 transition " +
                   (locSource === "business" ? "bg-white text-stone-900 shadow-sm" : "text-stone-500 hover:text-stone-700")
@@ -688,7 +688,7 @@ export function ShareComposer() {
               </span>
               <button
                 type="button"
-                onClick={useCurrentLocation}
+                onClick={applyCurrentLocation}
                 disabled={locating}
                 aria-label="Refresh current location"
                 className="text-emerald-500 hover:text-emerald-700 disabled:opacity-50"
@@ -699,7 +699,7 @@ export function ShareComposer() {
           ) : (
             <button
               type="button"
-              onClick={useCurrentLocation}
+              onClick={applyCurrentLocation}
               disabled={locating}
               className="flex w-full items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2.5 text-left text-base text-amber-800 transition hover:bg-amber-100 disabled:opacity-60"
             >

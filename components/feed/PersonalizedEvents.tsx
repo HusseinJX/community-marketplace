@@ -337,7 +337,7 @@ export function PersonalizedEvents({
   // Every control below just sets state. The SWR key is derived from that
   // state, so changing a filter fetches (or reads cache) on its own — there is
   // no imperative "go and refetch" left to forget to call.
-  async function useMyLocation() {
+  async function requestMyLocation() {
     setLocating(true);
     setGeoError(null);
     try {
@@ -478,7 +478,7 @@ export function PersonalizedEvents({
           and, in its place, the one line that asks the reader for something. */}
       {!home && locationOff ? (
         <button
-          onClick={() => void useMyLocation()}
+          onClick={() => void requestMyLocation()}
           disabled={locating}
           className="mt-2 inline-flex items-center gap-1 text-xs text-indigo-600 underline underline-offset-2 hover:text-indigo-800 disabled:opacity-60"
         >

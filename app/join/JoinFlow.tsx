@@ -286,7 +286,7 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
   }
 
   // Pick a listing → create the (unclaimed) member from it → send ownership OTP.
-  async function useListing(p: Place) {
+  async function chooseListing(p: Place) {
     setResults([]);
     setPq(p.name);
     setBusy(true);
@@ -631,7 +631,7 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
           </div>
 
           {results.map((r) => (
-            <button key={r.placeId} onClick={() => useListing(r)} disabled={busy} className="flex w-full flex-col items-start rounded-lg border border-stone-200 px-3 py-2 text-left hover:bg-stone-50 disabled:opacity-50">
+            <button key={r.placeId} onClick={() => chooseListing(r)} disabled={busy} className="flex w-full flex-col items-start rounded-lg border border-stone-200 px-3 py-2 text-left hover:bg-stone-50 disabled:opacity-50">
               <span className="text-sm font-medium text-stone-900">{r.name}</span>
               <span className="text-xs text-stone-500">{r.address}</span>
               {/* Already paid for with the search — so show it: it's how you tell
