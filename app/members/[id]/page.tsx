@@ -382,6 +382,61 @@ export default async function MemberProfilePage({
             )
           )}
 
+          {/* Hours, address and the map sit DIRECTLY under About.
+              They used to live in the sidebar, which on desktop is fine but on
+              mobile stacks after everything in the main column — so the two
+              facts a visitor most often wants ("when are they open, where are
+              they") landed below the memories wall and the whole shop. Moved
+              for every breakpoint rather than duplicated behind `lg:hidden`,
+              because a second copy would mount MiniMap twice and Leaflet would
+              build a whole second map (plus tiles) to keep one of them hidden. */}
+          {hasBusiness && (
+            <div className="card-soft p-4">
+              <div className="section-label">Business</div>
+              {/* The business NAME is not repeated here — it is the page title
+                  two inches above. Nor is "Visit website": the action row at the
+                  top of the profile already carries it. */}
+              {(p.businessCategory || p.businessType) && (
+                <div className="mt-2 text-xs text-stone-500 capitalize">
+                  {(p.businessCategory || p.businessType) as string}
+                </div>
+              )}
+              {p.businessAddress && (
+                <div className="mt-3 text-sm text-stone-600">{p.businessAddress as string}</div>
+              )}
+              {p.businessHours && (
+                <div className="mt-3">
+                  <div className="section-label">Hours</div>
+                  <div className="mt-1 text-sm text-stone-700">{p.businessHours as string}</div>
+                </div>
+              )}
+              {p.businessPhone && (
+                <a href={`tel:${p.businessPhone}`} className="mt-3 block text-sm text-stone-700 hover:text-indigo-700">
+                  {p.businessPhone as string}
+                </a>
+              )}
+              {/* Leave-a-review moved to the profile action row (ActionBar's
+                  "Leave a Google review"); hidden here to avoid duplication. */}
+            </div>
+          )}
+
+          {hasLocation && (
+            <div className="card-soft overflow-hidden">
+              <div className="section-label px-5 pt-5 pb-4">Location</div>
+              {location && <div className="px-5 pb-4 -mt-2 text-sm text-stone-600">{location}</div>}
+              <MiniMap lat={p.latitude as number} lng={p.longitude as number} color={pinColor} />
+              {p.googleMapsUrl && (
+                <a
+                  href={p.googleMapsUrl as string}
+                  target="_blank" rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-1.5 border-t border-stone-100 py-3 text-xs text-indigo-700 hover:bg-stone-50 transition"
+                >
+                  Open in Google Maps →
+                </a>
+              )}
+            </div>
+          )}
+
           {p.reviewsSummary && (
             <Section title="What people say">
               <blockquote className="border-l-2 border-indigo-200 pl-4 italic text-stone-700">
@@ -620,45 +675,6 @@ export default async function MemberProfilePage({
             </div>
           )}
 
-          {hasBusiness && (
-            <div className="card-soft p-4">
-              <div className="section-label">Business</div>
-              {p.businessName && (
-                <div className="mt-2 text-base font-semibold text-stone-900">{p.businessName as string}</div>
-              )}
-              {(p.businessCategory || p.businessType) && (
-                <div className="text-xs text-stone-500 capitalize">
-                  {(p.businessCategory || p.businessType) as string}
-                </div>
-              )}
-              {p.businessAddress && (
-                <div className="mt-3 text-sm text-stone-600">{p.businessAddress as string}</div>
-              )}
-              {p.businessHours && (
-                <div className="mt-3">
-                  <div className="section-label">Hours</div>
-                  <div className="mt-1 text-sm text-stone-700">{p.businessHours as string}</div>
-                </div>
-              )}
-              {p.businessPhone && (
-                <a href={`tel:${p.businessPhone}`} className="mt-3 block text-sm text-stone-700 hover:text-indigo-700">
-                  {p.businessPhone as string}
-                </a>
-              )}
-              {p.websiteUrl && (
-                <a
-                  href={(p.websiteUrl as string).startsWith("http") ? p.websiteUrl as string : `https://${p.websiteUrl}`}
-                  target="_blank" rel="noopener noreferrer"
-                  className="mt-3 inline-flex items-center gap-1 text-sm text-indigo-700 hover:underline"
-                >
-                  Visit website →
-                </a>
-              )}
-              {/* Leave-a-review moved to the profile action row (ActionBar's
-                  "Leave a Google review"); hidden here to avoid duplication. */}
-            </div>
-          )}
-
           {hasSocials && (
             <div className="card-soft p-4">
               <div className="section-label">Find them online</div>
@@ -685,22 +701,6 @@ export default async function MemberProfilePage({
             </div>
           )}
 
-          {hasLocation && (
-            <div className="card-soft overflow-hidden">
-              <div className="section-label px-5 pt-5 pb-4">Location</div>
-              {location && <div className="px-5 pb-4 -mt-2 text-sm text-stone-600">{location}</div>}
-              <MiniMap lat={p.latitude as number} lng={p.longitude as number} color={pinColor} />
-              {p.googleMapsUrl && (
-                <a
-                  href={p.googleMapsUrl as string}
-                  target="_blank" rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-1.5 border-t border-stone-100 py-3 text-xs text-indigo-700 hover:bg-stone-50 transition"
-                >
-                  Open in Google Maps →
-                </a>
-              )}
-            </div>
-          )}
         </aside>
       </div>
 

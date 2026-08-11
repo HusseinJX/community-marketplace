@@ -97,26 +97,33 @@ export function ShopSection({
             const grad = productGradient(sp.name);
             const priceStr = `$${(sp.price / 100).toFixed(2)}`;
             return (
-              <div key={sp.id} className="overflow-hidden rounded-xl border border-stone-100 bg-stone-50">
-                <div className="relative aspect-square w-full">
+              // A thumbnail beside the text, not a full-bleed square above it.
+              // A product photo is a label here, not the content — at
+              // `aspect-square w-full` one product filled a phone screen, and a
+              // gradient PLACEHOLDER filled it while saying nothing at all.
+              <div key={sp.id} className="flex items-start gap-3 overflow-hidden rounded-xl border border-stone-100 bg-stone-50 p-3">
+                <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg">
                   {sp.image_url ? (
                     <Image
                       src={sp.image_url}
                       alt={sp.name}
                       fill
                       className="object-cover"
-                      sizes="(max-width: 640px) 100vw, 50vw"
+                      // Fixed 80px box, so ask the optimizer for that and not a
+                      // viewport-width file (see the memory note in
+                      // PersonalizedEvents — decoded RAM scales with pixels).
+                      sizes="80px"
                     />
                   ) : (
                     <div className={`h-full w-full bg-gradient-to-br ${grad}`} />
                   )}
                 </div>
-                <div className="p-4">
-                  <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="font-medium text-stone-900">{sp.name}</div>
+                      <div className="text-sm font-medium text-stone-900">{sp.name}</div>
                       {sp.description && (
-                        <div className="mt-1 text-sm text-stone-600">{sp.description}</div>
+                        <div className="mt-0.5 line-clamp-2 text-xs text-stone-600">{sp.description}</div>
                       )}
                     </div>
                     <div className="flex items-center gap-2">
@@ -140,8 +147,8 @@ export function ShopSection({
                       </button>
                     </div>
                   </div>
-                  <div className="mt-3 text-sm font-semibold text-emerald-700">{priceStr}</div>
-                  <div className="mt-1 text-[11px] text-stone-400">by {memberName}</div>
+                  <div className="mt-1.5 text-sm font-semibold text-emerald-700">{priceStr}</div>
+                  <div className="mt-0.5 text-[11px] text-stone-400">by {memberName}</div>
                 </div>
               </div>
             );
@@ -157,12 +164,12 @@ export function ShopSection({
             const fav = isFavorite(prod.id);
             const grad = productGradient(featuredProduct);
             return (
-              <div className="mt-4 overflow-hidden rounded-xl border border-stone-100 bg-stone-50">
-                <div className={`aspect-square w-full bg-gradient-to-br ${grad}`} />
-                <div className="p-4">
+              <div className="mt-4 flex items-start gap-3 overflow-hidden rounded-xl border border-stone-100 bg-stone-50 p-3">
+                <div className={`h-20 w-20 shrink-0 rounded-lg bg-gradient-to-br ${grad}`} />
+                <div className="min-w-0 flex-1">
                   <p className="section-label">Featured</p>
-                  <div className="mt-2 flex items-center justify-between gap-3">
-                    <p className="font-medium text-stone-900">{featuredProduct}</p>
+                  <div className="mt-1 flex items-center justify-between gap-3">
+                    <p className="min-w-0 truncate text-sm font-medium text-stone-900">{featuredProduct}</p>
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => toggleFavorite(prod)}
@@ -184,7 +191,7 @@ export function ShopSection({
                       </button>
                     </div>
                   </div>
-                  <div className="mt-1 text-[11px] text-stone-400">by {memberName}</div>
+                  <div className="mt-0.5 text-[11px] text-stone-400">by {memberName}</div>
                 </div>
               </div>
             );
@@ -198,11 +205,11 @@ export function ShopSection({
                 const fav = isFavorite(prod.id);
                 const grad = productGradient(productName);
                 return (
-                  <div key={productName} className="overflow-hidden rounded-xl border border-stone-100 bg-stone-50">
-                    <div className={`aspect-square w-full bg-gradient-to-br ${grad}`} />
-                    <div className="p-4">
+                  <div key={productName} className="flex items-start gap-3 overflow-hidden rounded-xl border border-stone-100 bg-stone-50 p-3">
+                    <div className={`h-20 w-20 shrink-0 rounded-lg bg-gradient-to-br ${grad}`} />
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-3">
-                        <div className="font-medium text-stone-900">{productName}</div>
+                        <div className="min-w-0 truncate text-sm font-medium text-stone-900">{productName}</div>
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => toggleFavorite(prod)}

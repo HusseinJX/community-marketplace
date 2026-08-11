@@ -691,7 +691,10 @@ export function PersonalizedEvents({
                       page) and "take me there" (the event page). Deliberately
                       NOT a second copy of the badges above it. */}
                   {expanded.has(e.id) && (
-                    <div className="mt-2.5 border-t border-stone-100 pt-2.5">
+                    // px-3 matches the collapsed body above. Without it this
+                    // block, a SIBLING of that padded div rather than a child,
+                    // ran its blurb and buttons flush to the card edges.
+                    <div className="mt-2.5 border-t border-stone-100 px-3 pb-1 pt-2.5">
                       {e.blurb && (
                         <p className="text-[13px] leading-snug text-stone-600">
                           {e.blurb}
@@ -727,13 +730,17 @@ export function PersonalizedEvents({
                       most often wants more of — tapping it shows everything
                       that organiser has on. `relative` lifts it above the
                       stretched link covering the card. */}
+                  {/* Wrapped, because the button is a sibling of the padded body
+                      above and so sat flush in the bottom-left corner. pr-10
+                      keeps a long organiser name clear of the chevron. */}
+                  <div className="pb-3 pl-3 pr-10 pt-2">
                   <button
                     type="button"
                     onClick={() => {
                       const next = organizer === e.source ? null : e.source;
                       setOrganizer(next);
                     }}
-                    className={`relative z-10 mt-2 inline-flex max-w-full items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium transition ${
+                    className={`relative z-10 inline-flex max-w-full items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium transition ${
                       organizer === e.source
                         ? "border-indigo-600 bg-indigo-600 text-white"
                         : "border-stone-200 bg-stone-50 text-stone-600 hover:border-indigo-400 hover:bg-white hover:text-indigo-700"
@@ -742,6 +749,7 @@ export function PersonalizedEvents({
                     <Building2 className="h-3 w-3 shrink-0" />
                     <span className="truncate">{e.source}</span>
                   </button>
+                  </div>
 
                   {/* The only hint that the card does anything when tapped.
                       Bottom-right, out of the way of the badges, rotating so
