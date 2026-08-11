@@ -164,6 +164,14 @@ In demo, gated vendor pages resolve a representative demo member via `lib/demo-s
 
 ## Pending / TODO
 
+### ▶ START HERE (set 2026-08-10) — three verification actions
+The gap is no longer code. Seven commerce features are shipped, deployed and correct in arithmetic, in code and against the real database; three have never been proven against reality. In order:
+1. **Charge ONE real card** — validates ticketing, shop pickup, self-delivery AND digital delivery at once. ⚠️ `.env.local` holds **live** Stripe keys, so a local checkout charges for real; add `sk_test_`/`pk_test_` first to rehearse.
+2. **Verify Square with a SANDBOX token** — `npx tsx scripts/square-smoke.mts <sandbox-token>`. Free, zero risk, do it **before any vendor connects**. Needs FOUR scopes: `APPOINTMENTS_READ`, `APPOINTMENTS_WRITE`, `ITEMS_READ`, `CUSTOMERS_WRITE`.
+3. **Connect Printify** (Integrations → Print on demand) — the first real connect IS the test.
+
+**Rules that must not be relaxed** (every bug in that session came from relaxing one): the **server derives, the client never decides** (prices from the catalog, fulfillment from the basket, fees from the vendor's rules); and **whoever pays the carrier keeps the fee** (uber → platform, self → vendor, printify → vendor), with the 5% on **items only, always**. After any commerce change, audit specifically for the two shapes that produced silent bugs: **trusting a caller for something the server can derive**, and **an active-only product lookup used AFTER payment** (`getProductsByMember` filters `active`; delivery must use `getAllProductsByMember` — they paid, so whether it's still listed is irrelevant).
+
 ### ⚠️ Outstanding TESTS (2026-08-10) — what is built but not proven
 Ordered by risk. Everything below is correct in code and against the database; these are the gaps between that and reality.
 1. **NO REAL CARD HAS EVER BEEN CHARGED.** Ticketing, shop pickup, self-delivery, Printify postage and digital delivery all compute money correctly in arithmetic and in code, and none has ever moved a cent through Stripe. **ONE live purchase validates four of them at once** — it is the highest-value ten minutes available. ⚠️ **`.env.local` holds LIVE Stripe keys (`sk_live_`/`pk_live_`)**, so a local checkout test creates a REAL charge; add `sk_test_`/`pk_test_` locally to rehearse safely (same trap as the Clerk `pk_live`-on-localhost gotcha).
