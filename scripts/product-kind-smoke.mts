@@ -56,5 +56,19 @@ check('a delivery is delivered', terminalStatusFor('delivery') === 'delivered')
 check('a download is delivered', terminalStatusFor('digital') === 'delivered')
 check('a service is COMPLETED, never collected', terminalStatusFor('service') === 'completed')
 
+console.log('\nRegression: a client cannot pick its way out of fulfillment')
+// create-payment-intent derives fulfillment from the CATALOG, not from the
+// request's fulfillmentType. These assert the derivation the route relies on;
+// the route additionally forces delivery for a print-on-demand basket, which
+// scripts/printify-smoke.mts covers.
+check(
+  'a physical basket stays physical however it is labelled',
+  basketFulfillment(['good']) === 'physical'
+)
+check(
+  'claiming digital for a physical item changes nothing',
+  basketFulfillment(['good', 'good']) === 'physical'
+)
+
 console.log(`\n${pass} passed, ${fail} failed\n`)
 process.exit(fail === 0 ? 0 : 1)

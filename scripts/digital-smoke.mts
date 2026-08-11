@@ -139,6 +139,28 @@ try {
   const expired = await digital.redeemGrant(token)
   check('an expired grant is refused', !expired.ok && expired.reason === 'expired')
 
+  console.log('\nRegression: delivery must survive the product being taken off sale')
+  // getProductsByMember filters active=true. Delivery used to use it, so a
+  // vendor deactivating a product between payment and the webhook left the
+  // buyer with nothing AND no error — the lookup simply missed.
+  await db.from('products').update({ active: false }).eq('id', product!.id)
+  const { data: offSale } = await db
+    .from('orders')
+    .insert({
+      order_number: `OFF-${Date.now()}`, payment_intent_id: `pi_offsale_${Date.now()}`,
+      member_id: MEMBER, buyer_email: 'buyer@example.com', status: 'delivered',
+      items: [{ name: 'Recipe ebook', qty: 1, price_cents: 800 }],
+      subtotal_cents: 800, platform_fee_cents: 40, vendor_amount_cents: 760,
+      fulfillment_type: 'digital', delivery_requested: false,
+    })
+    .select()
+    .single()
+  const offSaleDelivered = await deliverDigitalItems(offSale!, { buyerEmail: 'buyer@example.com' })
+  check('a de-listed product is STILL delivered to whoever paid for it', offSaleDelivered === 1)
+  await db.from('digital_grants').delete().eq('payment_intent_id', offSale!.payment_intent_id)
+  await db.from('orders').delete().eq('id', offSale!.id)
+  await db.from('products').update({ active: true }).eq('id', product!.id)
+
   console.log('\nMixed baskets — the one that silently swallows a download')
   const { data: good } = await db
     .from('products')

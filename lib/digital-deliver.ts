@@ -1,4 +1,4 @@
-import { getProductsByMember, type Order } from './vendor-connect'
+import { getAllProductsByMember, type Order } from './vendor-connect'
 import { grantDigitalAccess, downloadUrl, type GrantSpec } from './digital'
 import { sendDigitalEmail } from './email'
 import { kindOf } from './product-kind'
@@ -23,7 +23,11 @@ export async function deliverDigitalItems(
 ): Promise<number> {
   const email = opts.buyerEmail ?? order.buyer_email ?? null
 
-  const catalog = await getProductsByMember(order.member_id)
+  // getAllProductsByMember, NOT getProductsByMember: the latter filters to
+  // active rows, so a vendor who took a product off sale between payment and
+  // delivery would leave the buyer with nothing and no error — the loop below
+  // simply wouldn't find it. They paid; whether it's still listed is irrelevant.
+  const catalog = await getAllProductsByMember(order.member_id)
   const specs: GrantSpec[] = []
   for (const line of order.items ?? []) {
     const product = catalog.find((p) => p.name === line.name)

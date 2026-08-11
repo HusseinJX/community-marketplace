@@ -114,7 +114,7 @@ export async function DELETE(request: Request) {
 function messageFor(e: unknown): string {
   if (e instanceof SquareError) {
     if (e.code === 'INSUFFICIENT_SCOPES' || e.status === 403) {
-      return "That token can't manage bookings. It needs the APPOINTMENTS_READ and APPOINTMENTS_WRITE permissions — the Square connection used for catalog syncing doesn't have them."
+      return "That token can't manage bookings. It needs APPOINTMENTS_READ, APPOINTMENTS_WRITE, ITEMS_READ (to find your bookable services) and CUSTOMERS_WRITE (Square requires a customer on every booking). The Square connection used for catalog syncing has none of these."
     }
     if (e.status === 401) return "Square didn't accept that token. Check you copied it in full, and that it matches the environment you picked."
     return `Square said: ${e.message}`

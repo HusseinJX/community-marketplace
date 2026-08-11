@@ -78,6 +78,18 @@ export async function POST(request: Request) {
     const catalog = await getProductsByMember(memberId)
     const basket = basketFulfillment(items.map((i) => catalog.find((p) => p.name === i.name)?.kind))
 
+    // A print-on-demand basket is printed and posted by Printify, so it can be
+    // neither collected from a counter nor driven over by the vendor. Resolved
+    // per BASKET (one shop can sell both) and BEFORE the fulfillment choice,
+    // because it OVERRIDES that choice.
+    //
+    // This must not be computed only for baskets the client already called a
+    // delivery: `fulfillmentType` comes from the browser, so a request naming
+    // 'pickup' over POD items would otherwise skip postage entirely and leave
+    // the vendor owing a customer an item Printify ships — with the postage
+    // never collected. Same rule as prices: the basket decides, not the caller.
+    const isPod = !!(await printifyLinesFor(memberId, items.map((i) => ({ name: i.name, quantity: i.quantity }))))
+
     // Delivery is only real when the vendor offers it in a way that can
     // actually happen. Enforced server-side: the buyer's client can't talk us
     // into a delivery order against a pickup-only vendor.
@@ -86,16 +98,10 @@ export async function POST(request: Request) {
         ? 'digital'
         : basket === 'service'
           ? 'service'
-          : fulfillmentType === 'delivery'
+          : isPod || fulfillmentType === 'delivery'
             ? 'delivery'
             : 'pickup'
-    const settings = fulfillment === 'delivery' ? await getVendorSettings(memberId) : null
-    // A print-on-demand basket is produced and posted by Printify, so it can be
-    // neither collected nor driven over — it overrides whatever the vendor
-    // picked, and is resolved per BASKET because one shop can sell both.
-    const isPod =
-      fulfillment === 'delivery' &&
-      !!(await printifyLinesFor(memberId, items.map((i) => ({ name: i.name, quantity: i.quantity }))))
+    const settings = fulfillment === 'delivery' && !isPod ? await getVendorSettings(memberId) : null
     const mode = isPod ? 'printify' : effectiveDeliveryMode(settings)
 
     if (fulfillment === 'delivery') {

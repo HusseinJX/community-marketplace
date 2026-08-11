@@ -121,11 +121,17 @@ export function SquareBookingsCard({ memberId }: { memberId?: string } = {}) {
               </button>
             ))}
           </div>
-          {/* The predictable failure, said before it happens: the Square link
-              used for catalog syncing has no appointments permission. */}
+          {/* The predictable failure, said before it happens. All four scopes,
+              not just the obvious two: availability is read from the
+              CATALOG (service variations), and Square requires a customer on a
+              booking, so we create one. Listing only APPOINTMENTS_* would send
+              vendors back for a second token. */}
           <p className="text-xs text-stone-400">
-            The token needs <strong>Appointments read &amp; write</strong> permissions. The Square
-            connection used for catalog syncing doesn&apos;t have them — this is a separate token.
+            The token needs <strong>Appointments read &amp; write</strong>, plus{' '}
+            <strong>Items read</strong> (to find your bookable services) and{' '}
+            <strong>Customers write</strong> (Square requires a customer on every booking).
+            The Square connection used for catalog syncing doesn&apos;t have these — this is a
+            separate token.
           </p>
           <button
             onClick={connect}
