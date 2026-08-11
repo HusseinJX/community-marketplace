@@ -91,8 +91,19 @@ export function ImageCarousel({
                 fill
                 sizes={sizes ?? defaultSizes[aspect]}
                 className="object-cover"
-                loading={idx === 0 && priority ? "eager" : idx === 0 ? "eager" : "lazy"}
-                priority={idx === 0 && priority}
+                // Eager ONLY when the caller declares this above the fold.
+                //
+                // This was `idx === 0 && priority ? "eager" : idx === 0 ? "eager" : "lazy"`
+                // — a ternary whose two branches for idx===0 are identical, so
+                // `priority` did nothing and the first slide of EVERY carousel
+                // loaded immediately, wherever it sat on the page. Harmless
+                // while the event feed showed no posters; the moment it did
+                // (a43e9b3), the For-you feed mounted 60 cards and fetched 60
+                // full-width posters at once. ~200MB of decoded bitmaps kills
+                // the iOS WKWebView content process, which the native app shows
+                // as a crash-and-reload. `priority` implies eager on its own,
+                // so there is nothing to pass but this.
+                priority={idx === 0 && !!priority}
                 quality={quality ?? (aspect === "wide" ? 90 : 75)}
                 draggable={false}
                 onError={() => setBroken((b) => { const n = new Set(b); n.add(idx); return n; })}
