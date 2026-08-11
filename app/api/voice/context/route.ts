@@ -67,8 +67,10 @@ const FALLBACK = {
   business_name: 'this business',
   business_context: 'No business information is available right now.',
   business_tone: 'Be warm, concise, and helpful.',
+  // Same "AI assistant first" shape as the real greeting, minus a name we
+  // couldn't resolve — the disclosure leads even when the lookup failed.
   greeting_line:
-    "Hi, thanks for calling. I'm an AI assistant. I'm having trouble pulling up our information right now — can I take your name and number so someone can call you back?",
+    "This is an AI assistant. I'm having trouble pulling up our information right now — can I take your name and number so someone can call you back?",
 }
 
 export async function POST(req: Request) {
@@ -125,7 +127,7 @@ export async function POST(req: Request) {
           business_context:
             'The AI assistant is turned OFF for this business. Do not answer questions about it. Politely take a message and nothing else.',
           business_tone: 'Be brief and polite.',
-          greeting_line: `Thanks for calling ${ctx.businessName}. I'm their AI assistant — I can take a message and have someone get back to you.`,
+          greeting_line: `This is an AI assistant for ${ctx.businessName}. I can take a message and have someone get back to you.`,
           caller_phone: caller ?? '',
           business_number: businessNumber ?? '',
           today_date: sfToday(),
@@ -139,7 +141,7 @@ export async function POST(req: Request) {
           // Disclosing "AI assistant" up front is deliberate: California is a
           // two-party-consent state and callers deserve to know. Recording is
           // off on this assistant for the same reason.
-          greeting_line: `Thanks for calling ${ctx.businessName}. I'm their AI assistant — how can I help you today?`,
+          greeting_line: `This is an AI assistant for ${ctx.businessName}. What can I help you with?`,
           caller_phone: caller ?? '',
           business_number: businessNumber ?? '',
           today_date: sfToday(),
