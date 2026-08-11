@@ -6,9 +6,9 @@ import { demoInvites } from '@/lib/demo-collab'
 import { sendInviteEmail } from '@/lib/email'
 import { getMemberContacts } from '@/lib/event-comms'
 import { gateCapability } from '@/lib/gate'
-import { notifyMemberSafe } from '@/lib/push'
 import { rateLimit } from '@/lib/rate-limit'
 import { SITE_URL } from '@/lib/seo'
+import { notifyMemberUserSafe } from '@/lib/notify'
 
 // GET — the acting member's invites (incoming + outgoing).
 export async function GET(req: Request) {
@@ -66,7 +66,7 @@ export async function POST(req: Request) {
       occasion_label: body.occasionLabel ? String(body.occasionLabel).trim() : null,
     })
     // Notify the invitee (best-effort; no-ops until APNs env is set).
-    void notifyMemberSafe(toId, {
+    void notifyMemberUserSafe(toId, {
       title: 'New collab invite',
       body: fromName ? `${fromName} wants to collaborate` : 'You have a new collaboration invite',
       url: '/vendor/messages?tab=collabs',

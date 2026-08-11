@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { resolveActor } from '@/lib/admin'
 import { acceptInvite, declineInvite, getInvite } from '@/lib/collab-network'
-import { notifyMemberSafe } from '@/lib/push'
+import { notifyMemberUserSafe } from '@/lib/notify'
 
 // PATCH — invitee accepts or declines. Body: { status: 'accepted' | 'declined', memberId? }
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -22,7 +22,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         return NextResponse.json({ error: 'Invite not found' }, { status: 404 })
       }
       if (invite) {
-        void notifyMemberSafe(invite.from_id, {
+        void notifyMemberUserSafe(invite.from_id, {
           title: 'Invite accepted',
           body: invite.to_name ? `${invite.to_name} accepted your invite` : 'Your collaboration invite was accepted',
           url: room ? '/vendor/messages?tab=collabs' : '/vendor/organize',
