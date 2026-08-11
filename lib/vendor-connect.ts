@@ -330,7 +330,9 @@ export interface Order {
    * who kept the fee: uber orders route the fee to the platform (it pays the
    * courier), self orders route it to the vendor (they drive).
    */
-  delivery_provider?: 'uber' | 'self' | null
+  delivery_provider?: 'uber' | 'self' | 'printify' | null
+  /** Printify's id for the production order, once pushed. */
+  printify_order_id?: string | null
   /** Set on ticket orders — which event the buyer is being admitted to. */
   event_id?: string | null
   delivery_requested: boolean

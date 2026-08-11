@@ -20,7 +20,7 @@ export interface DeliveryAddress {
   phone: string
 }
 
-export type DeliveryMode = 'none' | 'self' | 'uber'
+export type DeliveryMode = 'none' | 'self' | 'uber' | 'printify'
 
 interface SelfRules {
   feeCents: number
@@ -33,6 +33,8 @@ interface SelfRules {
 interface Options {
   /** What the basket needs. Non-physical baskets have nothing to arrange. */
   basket?: 'physical' | 'digital' | 'service'
+  /** Printify: it's posted to them, so there is no pickup to offer. */
+  shippingOnly?: boolean
   deliveryMode: DeliveryMode
   deliveryAvailable: boolean
   selfDelivery: SelfRules | null
@@ -85,6 +87,13 @@ export function FulfillmentPicker({
         // no address to take and no time to arrange, so asking for either would
         // be inventing a step. Otherwise pickup is the default and the
         // fallback: if a vendor doesn't deliver, the buyer just gets an address.
+        if (d.shippingOnly) {
+          // Posted, so delivery is the only mode — and it isn't payable until
+          // postage has been quoted for a real address.
+          setType('delivery')
+          onChange(null)
+          return
+        }
         onChange({ type: d.basket === 'digital' ? 'digital' : d.basket === 'service' ? 'service' : 'pickup' })
       })
       .catch(() => alive && setOpts({ deliveryMode: 'none', deliveryAvailable: false, selfDelivery: null, pickupAddress: null }))
@@ -132,8 +141,35 @@ export function FulfillmentPicker({
     setQuoting(false)
   }
 
+  // Postage, straight from Printify. Same shape as the courier quote — it's a
+  // real upstream call that can fail, unlike the vendor's own flat rule.
+  async function getPrintifyQuote() {
+    setQuoting(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/checkout/printify-shipping', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ memberId, items: items ?? [], address: addr }),
+      })
+      const data = await res.json()
+      if (!res.ok || data.error) {
+        setError(data.message ?? 'Could not work out postage for that address.')
+        onChange(null)
+      } else {
+        setQuote({ feeCents: data.feeCents, quoteId: '' })
+        onChange({ type: 'delivery', address: addr, feeCents: data.feeCents })
+      }
+    } catch {
+      setError('Could not work out postage for that address.')
+      onChange(null)
+    }
+    setQuoting(false)
+  }
+
   async function getQuote() {
     if (opts?.deliveryMode === 'self') return getSelfQuote()
+    if (opts?.deliveryMode === 'printify') return getPrintifyQuote()
     setQuoting(true)
     setError(null)
     try {
@@ -214,9 +250,14 @@ export function FulfillmentPicker({
 
   const addrComplete = addr.street && addr.city && addr.state && addr.zip && addr.phone
 
+  // Nothing to toggle: it's made to order and posted, so "Pick up" would be an
+  // option the vendor cannot honour. The mode is set when the options load, in
+  // the fetch callback — never during render.
+  const shippingOnly = !!opts.shippingOnly
+
   return (
     <div className="space-y-3">
-      <div className="flex gap-2">
+      <div className={'flex gap-2 ' + (shippingOnly ? 'hidden' : '')}>
         {(['pickup', 'delivery'] as const).map(t => (
           <button
             key={t}
@@ -246,6 +287,12 @@ export function FulfillmentPicker({
               knowable from the basket alone, so making someone fill in six
               fields to discover a $5 charge (or a minimum they haven't met) is
               the exact friction this replaces. */}
+          {shippingOnly && (
+            <p className="rounded-lg bg-white p-2.5 text-xs text-stone-600">
+              <span className="font-medium text-stone-800">Made to order and posted to you.</span>{' '}
+              Postage is worked out from your address.
+            </p>
+          )}
           {opts.selfDelivery && (
             <div className="rounded-lg bg-white p-2.5 text-xs text-stone-600">
               <p className="font-medium text-stone-800">

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getVendorSettings, getProductsByMember } from '@/lib/vendor-connect'
 import { basketFulfillment, type BasketFulfillment } from '@/lib/product-kind'
+import { printifyLinesFor } from '@/lib/printify-commerce'
 import { effectiveDeliveryMode, selfDeliveryRules, pickupAddressFor } from '@/lib/fulfillment'
 
 // What fulfillment options does this vendor actually offer?
@@ -35,6 +36,21 @@ export async function GET(
       basket,
       deliveryMode: 'none',
       deliveryAvailable: false,
+      selfDelivery: null,
+      pickupAddress: null,
+    })
+  }
+
+  // A print-on-demand basket is produced and posted by Printify, so pickup and
+  // vendor-driven delivery are both impossible for it regardless of what the
+  // vendor set. Resolved per basket — one shop can sell both.
+  const pod = names.length > 0 && !!(await printifyLinesFor(memberId, names.map((n) => ({ name: n, quantity: 1 }))))
+  if (pod) {
+    return NextResponse.json({
+      basket: 'physical',
+      deliveryMode: 'printify',
+      deliveryAvailable: true,
+      shippingOnly: true,
       selfDelivery: null,
       pickupAddress: null,
     })

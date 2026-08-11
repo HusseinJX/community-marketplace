@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Plug, RefreshCw, CheckCircle, Store } from 'lucide-react'
 import { DeliveryCard } from '@/components/vendor/DeliveryCard'
+import { PrintifyCard } from '@/components/vendor/PrintifyCard'
 import { StripeConnectCard, type StripeStatus } from '@/components/vendor/StripeConnectCard'
 
 interface Settings {
@@ -249,6 +250,8 @@ export default function VendorIntegrationsPage() {
           appear in your marketplace shop automatically.
         </p>
       </div>
+
+      <PrintifyCard />
 
       <DeliveryCard
         // delivery_mode is the source of truth, but rows written before it

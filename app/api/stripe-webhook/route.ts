@@ -4,6 +4,7 @@ import { updateVendorConnectStatus, createOrder, getOrderByPaymentIntent, update
 import { issuePaidTickets, linesFromMetadata } from '@/lib/ticket-issue'
 import { cancelTicketsForPaymentIntent } from '@/lib/tickets'
 import { deliverDigitalItems } from '@/lib/digital-deliver'
+import { pushOrderToPrintify } from '@/lib/printify-commerce'
 import { pushOrderToStore } from '@/lib/composio-commerce'
 import Stripe from 'stripe'
 
@@ -92,7 +93,7 @@ export async function POST(request: Request) {
           const isDelivery = fulfillmentType === 'delivery'
           // Same read as confirm-payment: uber is the safe default, since it
           // was the only kind of delivery before self-delivery existed.
-          const deliveryProvider = isDelivery ? (meta.delivery_provider === 'self' ? 'self' : 'uber') : null
+          const deliveryProvider = isDelivery ? (meta.delivery_provider === 'self' ? 'self' : meta.delivery_provider === 'printify' ? 'printify' : 'uber') : null
           const deliveryFeeCents = parseInt(meta.delivery_fee_cents ?? '0', 10) || 0
           await createOrder({
             order_number: generateOrderNumber(),
@@ -117,6 +118,11 @@ export async function POST(request: Request) {
           console.log(`Order created via webhook for payment_intent ${pi.id}`)
           const created = await getOrderByPaymentIntent(pi.id)
           if (created) {
+            // Durability path for production too. pushOrderToPrintify is
+            // idempotent (our order number is Printify's external_id, so a
+            // duplicate is refused rather than printed twice), which is what
+            // makes it safe for both this and confirm-payment to call it.
+            if (created.delivery_provider === 'printify') await pushOrderToPrintify(created)
             // Durability path for downloads too: if the buyer's browser closed
             // before confirm-payment ran, the links still get emailed.
             await deliverDigitalItems(created, { buyerEmail: pi.receipt_email ?? null })

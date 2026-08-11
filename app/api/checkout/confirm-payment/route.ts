@@ -3,6 +3,7 @@ import { stripe } from '@/lib/stripe-server'
 import { createOrder, getOrderByPaymentIntent, type FulfillmentType } from '@/lib/vendor-connect'
 import { terminalStatusFor } from '@/lib/product-kind'
 import { deliverDigitalItems } from '@/lib/digital-deliver'
+import { pushOrderToPrintify } from '@/lib/printify-commerce'
 
 // The vocabulary orders may be created with, checked against PI metadata.
 const FULFILLMENT_TYPES: string[] = ['pickup', 'delivery', 'ticket', 'digital', 'service']
@@ -63,7 +64,7 @@ export async function POST(request: Request) {
     const isDelivery = fulfillmentType === 'delivery'
     // Which kind of delivery. Defaults to uber for intents created before
     // self-delivery existed — that was the only kind at the time.
-    const deliveryProvider = isDelivery ? (meta.delivery_provider === 'self' ? 'self' : 'uber') : null
+    const deliveryProvider = isDelivery ? (meta.delivery_provider === 'self' ? 'self' : meta.delivery_provider === 'printify' ? 'printify' : 'uber') : null
 
     const order = await createOrder({
       order_number: generateOrderNumber(),
@@ -91,6 +92,11 @@ export async function POST(request: Request) {
       uber_delivery_id: null,
       uber_tracking_url: null,
     })
+
+    // A print-on-demand order goes into production now. Fire-and-forget: the
+    // buyer has paid either way, and a Printify outage must not turn a
+    // successful payment into an error on their screen.
+    if (deliveryProvider === 'printify') void pushOrderToPrintify(order)
 
     // Any digital line in the basket is delivered now — including one bought
     // alongside a physical item, which is why this isn't gated on

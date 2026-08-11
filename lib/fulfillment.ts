@@ -80,7 +80,7 @@ export async function deliveryAvailableFor(memberId: string): Promise<boolean> {
 
 // ── Delivery mode ────────────────────────────────────────────────────────────
 
-export type DeliveryMode = 'none' | 'self' | 'uber'
+export type DeliveryMode = 'none' | 'self' | 'uber' | 'printify'
 
 /**
  * The delivery mode this vendor can ACTUALLY offer right now.
@@ -90,6 +90,14 @@ export type DeliveryMode = 'none' | 'self' | 'uber'
  * since Uber is blocked on account activation. Self-delivery has no such
  * dependency: the vendor is the courier, so it works the moment they switch it
  * on. That asymmetry is the whole reason this feature exists.
+ */
+/**
+ * Printify overrides the vendor's own delivery setting for a POD basket.
+ *
+ * It isn't a preference — a print-on-demand item is produced and posted by
+ * Printify, so it cannot be collected from a counter or driven over by the
+ * vendor no matter what they picked. Resolved per basket, not per vendor,
+ * because the same shop can sell both.
  */
 export function effectiveDeliveryMode(settings: VendorSettings | null): DeliveryMode {
   if (!settings) return 'none'

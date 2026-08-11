@@ -3,6 +3,7 @@ import { stripe, calculateFees } from '@/lib/stripe-server'
 import { getVendorConnectAccount, getVendorSettings, getProductsByMember, type DeliveryAddressJson } from '@/lib/vendor-connect'
 import { effectiveDeliveryMode, selfDeliveryRules, quoteSelfDelivery } from '@/lib/fulfillment'
 import { basketFulfillment } from '@/lib/product-kind'
+import { printifyLinesFor, quotePrintifyShipping } from '@/lib/printify-commerce'
 import { rateLimit } from '@/lib/rate-limit'
 
 interface CartItem {
@@ -89,7 +90,13 @@ export async function POST(request: Request) {
             ? 'delivery'
             : 'pickup'
     const settings = fulfillment === 'delivery' ? await getVendorSettings(memberId) : null
-    const mode = effectiveDeliveryMode(settings)
+    // A print-on-demand basket is produced and posted by Printify, so it can be
+    // neither collected nor driven over — it overrides whatever the vendor
+    // picked, and is resolved per BASKET because one shop can sell both.
+    const isPod =
+      fulfillment === 'delivery' &&
+      !!(await printifyLinesFor(memberId, items.map((i) => ({ name: i.name, quantity: i.quantity }))))
+    const mode = isPod ? 'printify' : effectiveDeliveryMode(settings)
 
     if (fulfillment === 'delivery') {
       if (mode === 'none') {
@@ -135,7 +142,32 @@ export async function POST(request: Request) {
     // honour it on a delivery order.
     let feeCents = 0
     if (fulfillment === 'delivery') {
-      if (mode === 'self') {
+      if (mode === 'printify') {
+        // Postage comes from Printify at payment time. Quoting it afterwards is
+        // the exact bug that made the platform eat every courier fee — here it
+        // would be the VENDOR eating it, since Printify bills them for postage.
+        try {
+          const postage = await quotePrintifyShipping(
+            memberId,
+            items.map((i) => ({ name: i.name, quantity: i.quantity })),
+            deliveryAddress!,
+            null
+          )
+          if (postage == null) {
+            return NextResponse.json(
+              { error: 'SHIPPING_UNAVAILABLE', message: 'Could not work out postage for that address.' },
+              { status: 409 }
+            )
+          }
+          feeCents = postage
+        } catch (e) {
+          console.error('printify shipping quote failed:', e)
+          return NextResponse.json(
+            { error: 'SHIPPING_UNAVAILABLE', message: 'Could not work out postage for that address. Please check it and try again.' },
+            { status: 409 }
+          )
+        }
+      } else if (mode === 'self') {
         // Recomputed from the vendor's rules — the client's number is never
         // trusted, and here it also decides whether the order clears a minimum
         // or earns free delivery.
@@ -154,13 +186,16 @@ export async function POST(request: Request) {
     // way, so it is never taxed.
     const { platformFee, vendorAmount } = calculateFees(itemsCents)
 
-    // WHO KEEPS THE DELIVERY FEE, and it is not cosmetic:
-    //   uber → the PLATFORM pays the courier, so the fee is added to the
-    //          application fee and stays with us.
-    //   self → the VENDOR is the courier. The fee must flow through to them,
-    //          so it is deliberately NOT added to the application fee.
-    // Adding it in both branches would silently skim every self-delivering
-    // vendor's fee, which is exactly the bug this comment exists to prevent.
+    // WHO KEEPS THE DELIVERY FEE, and it is not cosmetic. The rule is simply
+    // "whoever pays the carrier keeps the fee":
+    //   uber     → the PLATFORM pays the courier, so the fee is added to the
+    //              application fee and stays with us.
+    //   self     → the VENDOR is the courier, so it flows through to them.
+    //   printify → PRINTIFY bills the VENDOR for production and postage, so the
+    //              postage must reach the vendor too — otherwise they pay it
+    //              twice, once to us and once to Printify.
+    // Adding it in every branch would silently skim every vendor who isn't
+    // using our courier, which is exactly the bug this comment exists to stop.
     const applicationFee = mode === 'uber' ? platformFee + feeCents : platformFee
 
     const paymentIntent = await stripe.paymentIntents.create({
