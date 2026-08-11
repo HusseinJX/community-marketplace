@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server'
 import { createBookingRequest, guestCustomerId } from '@/lib/bookings'
 import { resolveBusinessForCall, normalizePhone } from '@/lib/business-phone'
 import { notifyMemberUserSafe } from '@/lib/notify'
-import { sfToday } from '@/lib/sf-date'
+import { sfToday, CITY_TZ } from '@/lib/sf-date'
+import { getSquareCreds, listBookableServices, ensureCustomer, createBooking } from '@/lib/square-appointments'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -32,6 +33,10 @@ interface Body {
   requested_time?: string
   service?: string
   note?: string
+  /** A real Square slot the caller picked, echoed back from check_availability. */
+  slot_start_at?: string
+  service_variation_id?: string
+  team_member_id?: string
 }
 
 /**
@@ -52,6 +57,14 @@ function isoDate(raw: string | undefined): string | null {
   // real request. Compared city-local, like every other date in this app.
   if (s < sfToday()) return null
   return s
+}
+
+/** The calendar day an instant falls on, in the CITY's timezone (not UTC). */
+function cityDate(iso: string): string | null {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return null
+  // en-CA formats as YYYY-MM-DD, which is what the column stores.
+  return new Intl.DateTimeFormat('en-CA', { timeZone: CITY_TZ }).format(d)
 }
 
 export async function POST(req: Request) {
@@ -86,7 +99,14 @@ export async function POST(req: Request) {
     })
   }
 
-  const date = isoDate(body.requested_date)
+  // A picked slot IS the date. Deriving it from the instant rather than
+  // trusting the model's separate `requested_date` keeps the row and the Square
+  // calendar from disagreeing about which day someone is coming — the same rule
+  // the rest of this app follows for prices and fulfilment: the server derives,
+  // the caller never decides. City-local, because the appointment happens where
+  // the business is.
+  const slotDate = body.slot_start_at ? cityDate(body.slot_start_at) : null
+  const date = slotDate ?? isoDate(body.requested_date)
   if (!date) {
     return NextResponse.json({
       ok: false,
@@ -100,6 +120,57 @@ export async function POST(req: Request) {
     // stable handle we have, so it identifies them instead. Same shape either
     // way, so their bookings still group together across calls.
     const customerId = hasEmail ? guestCustomerId(email) : guestCustomerId(`phone:${phone}`)
+
+    // ── A real slot from a real calendar ─────────────────────────────────────
+    // Same rule as the web form: when the caller picked a genuinely open Square
+    // slot it is TAKEN, not requested, and the row lands `confirmed` — asking
+    // the owner to re-approve a time Square already reserved is theatre.
+    //
+    // Every Square failure falls through to an ordinary request instead of
+    // erroring: the slot may have gone while they were talking, the scopes may
+    // be wrong, Square may be down. The caller still gets to ask, which is what
+    // every other business offers anyway.
+    let square: {
+      squareBookingId: string
+      squareServiceVariationId: string
+      squareTeamMemberId: string | null
+      startsAt: string
+    } | null = null
+
+    if (body.slot_start_at) {
+      try {
+        const creds = await getSquareCreds(memberId)
+        if (creds?.locationId) {
+          const services = await listBookableServices(creds)
+          const service =
+            services.find((s) => s.variationId === body.service_variation_id) ?? services[0]
+          if (service) {
+            const sqCustomer = await ensureCustomer(creds, {
+              email: hasEmail ? email : `${customerId}@phone.invalid`,
+              name: body.name?.trim() || null,
+              phone,
+            })
+            const { bookingId } = await createBooking(creds, {
+              startAt: String(body.slot_start_at),
+              customerId: sqCustomer,
+              serviceVariationId: service.variationId,
+              serviceVariationVersion: service.version,
+              teamMemberId: body.team_member_id ? String(body.team_member_id) : null,
+              durationMinutes: service.durationMinutes,
+              note: 'Booked by phone with the AI assistant',
+            })
+            square = {
+              squareBookingId: bookingId,
+              squareServiceVariationId: service.variationId,
+              squareTeamMemberId: body.team_member_id ? String(body.team_member_id) : null,
+              startsAt: String(body.slot_start_at),
+            }
+          }
+        }
+      } catch (e) {
+        console.error('square booking failed on a phone call, falling back to a request:', e)
+      }
+    }
 
     const booking = await createBookingRequest({
       memberId,
@@ -115,11 +186,13 @@ export async function POST(req: Request) {
       note: [body.note?.trim(), '(booked by phone with the AI assistant)']
         .filter(Boolean)
         .join(' '),
+      ...(square ?? {}),
+      status: square ? 'confirmed' : 'requested',
     })
 
     void notifyMemberUserSafe(memberId, {
-      title: 'New booking request (by phone)',
-      body: `${body.name?.trim() || phone || 'A caller'} asked for ${date}${
+      title: square ? 'New booking (by phone)' : 'New booking request (by phone)',
+      body: `${body.name?.trim() || phone || 'A caller'} ${square ? 'booked' : 'asked for'} ${date}${
         body.requested_time ? ` ${body.requested_time.trim()}` : ''
       }`,
       url: '/vendor/bookings',
@@ -131,9 +204,15 @@ export async function POST(req: Request) {
     return NextResponse.json({
       ok: true,
       booking_id: booking.id,
-      result: hasEmail
-        ? `Request sent for ${date}. Tell them the business will confirm by email, and that it isn't final until they do.`
-        : `Request sent for ${date}. They gave no email, so tell them the business will call this number back to confirm.`,
+      confirmed: !!square,
+      // A taken Square slot IS the appointment, so the agent may say so. A
+      // request is not, and saying "you're booked" would send someone to a
+      // closed door.
+      result: square
+        ? `Booked for ${date}. This slot is confirmed on their calendar — tell them it's set.`
+        : hasEmail
+          ? `Request sent for ${date}. Tell them the business will confirm by email, and that it isn't final until they do.`
+          : `Request sent for ${date}. They gave no email, so tell them the business will call this number back to confirm.`,
     })
   } catch (err) {
     console.error('voice/booking failed:', err)

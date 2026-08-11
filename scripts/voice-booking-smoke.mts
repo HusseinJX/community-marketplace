@@ -57,3 +57,61 @@ const { data: after } = await db.from('booking_requests').select('id').in('id', 
 t('cleaned up', (after ?? []).length === 0)
 
 console.log(`\n${pass} passed, ${fail} failed`)
+
+// ── check_availability ──────────────────────────────────────────────────────
+// Xeno has no Square account, so this exercises the path EVERY vendor takes
+// today: "no live calendar" is a normal answer, never an error, and it must
+// hand the agent back to the free-text request.
+{
+  const { POST: AV } = await import('../app/api/voice/availability/route')
+  const av = async (body: unknown, secret = S) => {
+    const r = await AV(new Request('https://x/api/voice/availability', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-voice-tool-secret': secret },
+      body: JSON.stringify(body),
+    }))
+    return { status: r.status, json: await r.json() as any }
+  }
+
+  console.log('')
+  t('availability: wrong secret → 401', (await av({}, 'nope')).status === 401)
+  t('availability: unknown business → 400', (await av({ business_number: '+19998887777' })).status === 400)
+
+  const none = await av({ business_number: BIZ, date: iso(2) })
+  t('no Square → real_calendar:false, NOT an error', none.status === 200 && none.json.ok === true && none.json.real_calendar === false)
+  t('…and points the agent at request_booking', /request_booking/.test(none.json.result || ''), none.json.result?.slice(0, 60))
+
+  const past = await av({ business_number: BIZ, date: iso(-2) })
+  t('past day refused', /already passed/i.test(past.json.result || ''))
+
+  // A slot for a business with no Square must NOT silently become "confirmed".
+  const fakeSlot = await call({
+    business_number: BIZ, caller_phone: '+14155551212', email: 'slot@example.com',
+    slot_start_at: new Date(Date.now() + 5 * 864e5).toISOString(), requested_date: iso(5),
+  })
+  t('slot on a non-Square business degrades to a REQUEST', fakeSlot.json.ok === true && fakeSlot.json.confirmed === false)
+  t('…and does not tell the caller they are booked', !/it's set|confirmed on their calendar/i.test(fakeSlot.json.result || ''))
+
+  // The server must derive the day from the slot, not from what it was told.
+  const mismatch = await call({
+    business_number: BIZ, caller_phone: '+14155551212', email: 'slot2@example.com',
+    slot_start_at: new Date(Date.now() + 6 * 864e5).toISOString(),
+    requested_date: iso(30), // deliberately wrong
+  })
+  const { data: rows } = await db.from('booking_requests').select('*').in('id', [fakeSlot.json.booking_id, mismatch.json.booking_id].filter(Boolean))
+  const m = (rows ?? []).find((r: any) => r.id === mismatch.json.booking_id)
+  // Expected day must be computed CITY-LOCAL, not from toISOString(). An
+  // evening-in-SF slot is already the next day in UTC, so a UTC expectation
+  // fails against correct code — the same trap this app hit when UTC "today"
+  // hid every evening's events from the feed.
+  const slotIso = new Date(Date.now() + 6 * 864e5).toISOString()
+  const expected = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles' }).format(new Date(slotIso))
+  t('date derived from the SLOT, not the claimed date', m?.requested_date === expected, `stored ${m?.requested_date}, expected ${expected}, claimed ${iso(30)}`)
+
+  const cleanup = [fakeSlot.json.booking_id, mismatch.json.booking_id].filter(Boolean)
+  if (cleanup.length) await db.from('booking_requests').delete().in('id', cleanup)
+  const { data: gone } = await db.from('booking_requests').select('id').in('id', cleanup)
+  t('cleaned up', (gone ?? []).length === 0)
+}
+
+console.log(`\nTOTAL: ${pass} passed, ${fail} failed`)
