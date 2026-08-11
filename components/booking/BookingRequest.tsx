@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CalendarClock, CheckCircle2 } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import { sfToday } from "@/lib/sf-date";
@@ -11,10 +11,11 @@ import { sfToday } from "@/lib/sf-date";
  * Replaces the `BookFlow` prototype that used to open here — hardcoded venues,
  * no API calls, nothing stored, nobody notified.
  *
- * There is no slot grid because there is no availability to show: we don't have
- * the business's diary, and inventing slots would be a worse lie than asking.
- * The time is free text on purpose — "afternoon" and "after 5" are real answers
- * and a strict picker just makes people lie to the form.
+ * Two shapes, one form. A business running Square Appointments has a real diary,
+ * so its open slots are offered and picking one books it outright. Everyone else
+ * gets a free-text request — "afternoon" and "after 5" are real answers, and a
+ * strict picker over availability we don't have would just make people lie to
+ * the form. The customer never has to know which kind they're on.
  */
 export function BookingRequest({
   memberId,
@@ -41,6 +42,30 @@ export function BookingRequest({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
+
+  // Real slots, when the business runs Square Appointments. Everyone else keeps
+  // the free-text request — the customer never has to know which they're on.
+  const [realCalendar, setRealCalendar] = useState(false);
+  const [slots, setSlots] = useState<string[]>([]);
+  const [serviceId, setServiceId] = useState<string | null>(null);
+  const [slot, setSlot] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/bookings/availability", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ memberId, date: date || undefined }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!d?.realCalendar) return;
+        setRealCalendar(true);
+        setServiceId(d.serviceId ?? null);
+        setSlots(Array.isArray(d.slots) ? d.slots : []);
+      })
+      .catch(() => {});
+  }, [memberId, date]);
 
   const accountEmail = user?.emailAddresses?.[0]?.emailAddress ?? "";
   const effectiveEmail = (email || accountEmail).trim();
@@ -49,6 +74,9 @@ export function BookingRequest({
     e.preventDefault();
     setError(null);
     if (!date) return setError("Pick a day that suits you.");
+    if (realCalendar && slots.length > 0 && !slot) {
+      return setError("Pick one of the open times.");
+    }
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(effectiveEmail)) {
       return setError("We need an email so they can get back to you.");
     }
@@ -67,6 +95,10 @@ export function BookingRequest({
           phone: phone.trim() || undefined,
           requestedDate: date,
           requestedTime: time.trim() || undefined,
+          // A picked slot is a real opening, so the server books it outright
+          // instead of asking.
+          slotStartAt: slot ?? undefined,
+          serviceVariationId: slot ? serviceId ?? undefined : undefined,
           altDate: altDate || undefined,
           note: note.trim() || undefined,
         }),
@@ -75,6 +107,7 @@ export function BookingRequest({
       if (!res.ok) setError(d.error ?? "Could not send that request.");
       else {
         setSent(true);
+        setConfirmed(!!d.confirmed);
         onDone?.();
       }
     } catch {
@@ -87,9 +120,13 @@ export function BookingRequest({
     return (
       <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-center">
         <CheckCircle2 className="mx-auto h-8 w-8 text-emerald-600" />
-        <p className="mt-2 font-semibold text-stone-900">Request sent</p>
+        <p className="mt-2 font-semibold text-stone-900">
+          {confirmed ? "You're booked in" : "Request sent"}
+        </p>
         <p className="mt-1 text-sm text-stone-600">
-          {memberName || "They"} will confirm by email. Nothing is booked until they say yes.
+          {confirmed
+            ? "It's in their calendar. Check your email for the details."
+            : `${memberName || "They"} will confirm by email. Nothing is booked until they say yes.`}
         </p>
       </div>
     );
@@ -99,10 +136,45 @@ export function BookingRequest({
     <form onSubmit={submit} className="space-y-3">
       <p className="flex items-center gap-2 text-sm text-stone-600">
         <CalendarClock className="h-4 w-4 text-stone-400" />
-        Suggest a time and {memberName || "they"} will confirm.
+        {realCalendar && slots.length > 0
+          ? `Pick a time that suits you — it's confirmed straight away.`
+          : `Suggest a time and ${memberName || "they"} will confirm.`}
       </p>
 
-      <div className="grid grid-cols-2 gap-2">
+      {realCalendar && slots.length > 0 && (
+        <div>
+          <span className="text-xs text-stone-600">Open times</span>
+          <div className="mt-1 flex flex-wrap gap-1.5">
+            {slots.slice(0, 24).map((s) => {
+              const d = new Date(s);
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => {
+                    setSlot(s);
+                    setDate(s.slice(0, 10));
+                  }}
+                  className={
+                    "rounded-lg border px-2.5 py-1.5 text-xs font-medium transition " +
+                    (slot === s
+                      ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                      : "border-stone-200 text-stone-600 hover:border-stone-300")
+                  }
+                >
+                  {d.toLocaleDateString([], { weekday: "short", day: "numeric" })}{" "}
+                  {d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-1.5 text-xs text-stone-400">
+            These are really open — picking one books it straight away.
+          </p>
+        </div>
+      )}
+
+      <div className={"grid grid-cols-2 gap-2 " + (realCalendar && slots.length > 0 ? "hidden" : "")}>
         <label className="block">
           <span className="text-xs text-stone-600">Day</span>
           <input
@@ -188,12 +260,14 @@ export function BookingRequest({
         disabled={busy}
         className="w-full rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
       >
-        {busy ? "Sending…" : "Request this time"}
+        {busy ? "Sending…" : slot ? "Book this time" : "Request this time"}
       </button>
       <p className="text-center text-xs text-stone-500">
-        {isSignedIn
-          ? "Nothing is booked until they confirm."
-          : "No account needed — nothing is booked until they confirm."}
+        {slot
+          ? "No account needed — this time is confirmed straight away."
+          : isSignedIn
+            ? "Nothing is booked until they confirm."
+            : "No account needed — nothing is booked until they confirm."}
       </p>
     </form>
   );

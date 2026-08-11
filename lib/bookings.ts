@@ -35,6 +35,11 @@ export interface BookingRequest {
   confirmed_time: string | null
   vendor_note: string | null
   order_id: string | null
+  /** Set when the slot came from a real calendar (Square Appointments). */
+  square_booking_id: string | null
+  square_service_variation_id: string | null
+  square_team_member_id: string | null
+  starts_at: string | null
   created_at: string
   updated_at: string
 }
@@ -58,6 +63,13 @@ export async function createBookingRequest(input: {
   altTime?: string | null
   note?: string | null
   orderId?: string | null
+  /** Present only when a real slot was taken — see square-appointments. */
+  squareBookingId?: string | null
+  squareServiceVariationId?: string | null
+  squareTeamMemberId?: string | null
+  startsAt?: string | null
+  /** A slot taken from a real calendar is already agreed; nothing to confirm. */
+  status?: BookingStatus
 }): Promise<BookingRequest> {
   const { data, error } = await db()
     .from('booking_requests')
@@ -75,7 +87,15 @@ export async function createBookingRequest(input: {
       alt_time: input.altTime ?? null,
       note: input.note?.slice(0, 1000) ?? null,
       order_id: input.orderId ?? null,
-      status: 'requested',
+      square_booking_id: input.squareBookingId ?? null,
+      square_service_variation_id: input.squareServiceVariationId ?? null,
+      square_team_member_id: input.squareTeamMemberId ?? null,
+      starts_at: input.startsAt ?? null,
+      // A slot booked into a real calendar is confirmed on arrival — asking the
+      // vendor to re-approve a time Square already reserved would be theatre.
+      status: input.status ?? 'requested',
+      confirmed_date: input.status === 'confirmed' ? input.requestedDate ?? null : null,
+      confirmed_time: input.status === 'confirmed' ? input.requestedTime ?? null : null,
     })
     .select()
     .single()
@@ -153,8 +173,29 @@ export async function cancelBooking(id: string, customerId: string): Promise<boo
     .eq('id', id)
     .eq('customer_id', customerId)
     .in('status', ['requested', 'confirmed'])
-    .select('id')
-  return (data ?? []).length > 0
+    .select('*')
+  const row = (data ?? [])[0] as BookingRequest | undefined
+  if (!row) return false
+  // A booking cancelled here but left standing in Square means the business
+  // holds a slot for someone who isn't coming — the diary has to agree.
+  void releaseSquareSlot(row)
+  return true
+}
+
+/**
+ * Give a real calendar slot back. Best-effort and fire-and-forget: the
+ * cancellation in our own records has already succeeded, and a Square outage
+ * must not make it look like it failed.
+ */
+export async function releaseSquareSlot(booking: BookingRequest): Promise<void> {
+  if (!booking.square_booking_id) return
+  try {
+    const { getSquareCreds, cancelBooking: cancelSquare } = await import('./square-appointments')
+    const creds = await getSquareCreds(booking.member_id)
+    if (creds) await cancelSquare(creds, booking.square_booking_id)
+  } catch (e) {
+    console.error('could not release the Square slot:', e)
+  }
 }
 
 /** How a booking's agreed time should read, falling back to what was asked. */

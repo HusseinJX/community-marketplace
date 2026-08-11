@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { resolveActor } from '@/lib/admin'
-import { getBookingsForMember, setBookingStatus, getBooking, bookingWhen, type BookingStatus } from '@/lib/bookings'
+import { getBookingsForMember, setBookingStatus, getBooking, bookingWhen, releaseSquareSlot, type BookingStatus } from '@/lib/bookings'
 import { sendEmail } from '@/lib/email'
 import { SITE_URL } from '@/lib/seo'
 
@@ -36,6 +36,10 @@ export async function PATCH(request: Request) {
     vendorNote: body.vendorNote ?? null,
   })
   if (!booking) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+  // Declining or cancelling a booking that Square is holding has to release the
+  // slot, or the business keeps a gap for someone who isn't coming.
+  if (status === 'declined' || status === 'cancelled') void releaseSquareSlot(booking)
 
   // Tell the customer. A request answered into silence is the same as one that
   // was never answered — and this is the half the prototype never had.

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { createBookingRequest, getBookingsForCustomer, guestCustomerId, cancelBooking } from '@/lib/bookings'
 import { notifyMemberUserSafe } from '@/lib/notify'
+import { getSquareCreds, listBookableServices, ensureCustomer, createBooking } from '@/lib/square-appointments'
 import { rateLimit } from '@/lib/rate-limit'
 
 // Ask a business for a time.
@@ -30,6 +31,51 @@ export async function POST(request: Request) {
     }
 
     const name = String(body.name ?? user?.firstName ?? '').trim() || null
+    const phone = body.phone ? String(body.phone).slice(0, 40) : null
+
+    // ── A real slot from a real calendar ─────────────────────────────────────
+    // When the business runs Square Appointments the customer picked a time
+    // that is genuinely open, so it is TAKEN here rather than requested. If
+    // Square refuses (the slot went in the meantime, scopes are wrong, they're
+    // down), fall through to an ordinary request instead of failing — the
+    // customer still gets to ask, which is what every other business offers.
+    let square: {
+      squareBookingId: string
+      squareServiceVariationId: string
+      squareTeamMemberId: string | null
+      startsAt: string
+    } | null = null
+
+    if (body.slotStartAt) {
+      try {
+        const creds = await getSquareCreds(memberId)
+        if (creds?.locationId) {
+          const services = await listBookableServices(creds)
+          const service =
+            services.find((s) => s.variationId === body.serviceVariationId) ?? services[0]
+          if (service) {
+            const customerId = await ensureCustomer(creds, { email, name, phone })
+            const { bookingId } = await createBooking(creds, {
+              startAt: String(body.slotStartAt),
+              customerId,
+              serviceVariationId: service.variationId,
+              serviceVariationVersion: service.version,
+              teamMemberId: body.teamMemberId ? String(body.teamMemberId) : null,
+              durationMinutes: service.durationMinutes,
+              note: body.note ? String(body.note) : null,
+            })
+            square = {
+              squareBookingId: bookingId,
+              squareServiceVariationId: service.variationId,
+              squareTeamMemberId: body.teamMemberId ? String(body.teamMemberId) : null,
+              startsAt: String(body.slotStartAt),
+            }
+          }
+        }
+      } catch (e) {
+        console.error('square booking failed, falling back to a request:', e)
+      }
+    }
 
     const booking = await createBookingRequest({
       memberId,
@@ -38,23 +84,27 @@ export async function POST(request: Request) {
       customerId: userId ?? guestCustomerId(email),
       customerName: name,
       customerEmail: email,
-      customerPhone: body.phone ? String(body.phone).slice(0, 40) : null,
+      customerPhone: phone,
       requestedDate: String(body.requestedDate),
       requestedTime: body.requestedTime ? String(body.requestedTime).slice(0, 60) : null,
       altDate: body.altDate ? String(body.altDate) : null,
       altTime: body.altTime ? String(body.altTime).slice(0, 60) : null,
       note: body.note ? String(body.note) : null,
+      ...(square ?? {}),
+      status: square ? 'confirmed' : 'requested',
     })
 
     // The whole point of the feature: somebody is actually told. The prototype
     // this replaces notified nobody at all.
     void notifyMemberUserSafe(memberId, {
-      title: 'New booking request',
-      body: `${name || 'Someone'} asked for ${[booking.requested_date, booking.requested_time].filter(Boolean).join(' at ')}`,
+      title: square ? 'New booking' : 'New booking request',
+      body: `${name || 'Someone'} ${square ? 'booked' : 'asked for'} ${[booking.requested_date, booking.requested_time].filter(Boolean).join(' at ')}`,
       url: '/vendor/bookings',
     })
 
-    return NextResponse.json({ ok: true, id: booking.id })
+    // `confirmed` tells the customer UI to say "you're booked" rather than
+    // "they'll confirm" — the difference the real calendar buys.
+    return NextResponse.json({ ok: true, id: booking.id, confirmed: !!square })
   } catch (error: unknown) {
     console.error('booking create failed:', error)
     return NextResponse.json({ error: 'Could not send that request. Please try again.' }, { status: 500 })
