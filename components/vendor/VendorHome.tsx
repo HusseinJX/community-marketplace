@@ -10,6 +10,7 @@ import { PLAN_KEY, PlanSwitch, type Tier } from '@/components/vendor/PlanSwitch'
 import { CollabMatchHero } from '@/components/vendor/CollabMatchHero'
 import { Opportunities } from '@/components/vendor/Opportunities'
 import { UpcomingCollabs, useUpcomingCollabs } from '@/components/vendor/ActiveCollabs'
+import { MyLineups } from '@/components/vendor/MyLineups'
 // Kept while its render block is commented out below — deleting it would make
 // restoring the feature a two-file change instead of uncommenting one block.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -137,6 +138,10 @@ export function VendorHome({
         </div>
       )}
       */}
+
+      {/* Commitments before discovery: an event you already said yes to
+          outranks anything you might browse. Self-hides when you're on none. */}
+      <MyLineups memberId={memberId ?? undefined} />
 
       {/* ── The wedge, front and center. One "Collabs" section, two columns:
              people to team up with on one side, events to join on the other.

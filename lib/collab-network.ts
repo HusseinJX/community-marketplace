@@ -1,4 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
+import type { VendorEvent } from './vendor-connect'
 
 // Collaborator network data layer (invites + self-contained rooms).
 let client: SupabaseClient | null = null
@@ -483,6 +484,50 @@ export async function setEventInviteStatus(
 export async function getInvite(id: string): Promise<CollabInvite | null> {
   const { data } = await db().from('collab_invites').select('*').eq('id', id).maybeSingle()
   return (data as CollabInvite) ?? null
+}
+
+/**
+ * Which events is THIS member on the lineup for?
+ *
+ * Every other lineup query asks "who is on this event?" (`getEventInvites`,
+ * `getAcceptedLineup`) — keyed by event id, for the organizer. Nothing asked the
+ * question from the vendor's side, so once someone accepted an invite the event
+ * vanished from their view entirely: their "My events" lists only what they
+ * HOST, and the event itself lives on the organizer's screen and the public
+ * page. They had signed up for something with nowhere to see it.
+ *
+ * Returns the events themselves, soonest first, so the caller doesn't have to
+ * stitch invites to events.
+ */
+export async function getEventsImOn(memberId: string): Promise<
+  { event: VendorEvent; role: string | null; hostName: string | null }[]
+> {
+  const { data: invites } = await db()
+    .from('collab_invites')
+    .select('scope_id, role, from_name')
+    .eq('to_id', memberId)
+    .eq('scope_type', 'event')
+    .eq('status', 'accepted')
+  const rows = (invites ?? []) as { scope_id: string; role: string | null; from_name: string | null }[]
+  if (rows.length === 0) return []
+
+  // A self-join (from_id === to_id) that the host approved counts too — it is
+  // the same accepted lineup row, just initiated from the other end.
+  const { data: events } = await db()
+    .from('vendor_events')
+    .select('*')
+    .in('id', rows.map((r) => r.scope_id))
+  const byId = new Map(((events ?? []) as VendorEvent[]).map((e) => [e.id, e]))
+
+  return rows
+    .map((r) => {
+      const event = byId.get(r.scope_id)
+      return event ? { event, role: r.role, hostName: r.from_name } : null
+    })
+    .filter((x): x is { event: VendorEvent; role: string | null; hostName: string | null } => !!x)
+    // Soonest first. A date we can't read sorts last rather than first, so an
+    // unparseable one never squats at the top of the list.
+    .sort((a, b) => (a.event.event_date || '9999').localeCompare(b.event.event_date || '9999'))
 }
 
 export async function getInvitesFor(memberId: string): Promise<{ incoming: CollabInvite[]; outgoing: CollabInvite[] }> {
