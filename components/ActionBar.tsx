@@ -3,8 +3,7 @@
 import { useEffect, useState } from "react";
 import { UserPlus, HandHeart, MessageSquare, Check, MapPin, Heart, Apple, DollarSign, CreditCard, X, Globe, CalendarClock, Bookmark } from "lucide-react";
 import { GoogleReviewButton } from "@/components/GoogleReviewButton";
-import { BookFlow } from "@/app/prototype/host/page";
-import type { Venue } from "@/lib/prototype-data";
+import { BookingRequest } from "@/components/booking/BookingRequest";
 
 export interface SocialLinkItem {
   href: string;
@@ -53,25 +52,6 @@ export function ActionBar({
   const reviewPill =
     "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-stone-200 bg-white px-3.5 py-2 text-[13px] font-medium text-stone-700 transition hover:border-amber-300 hover:text-amber-600";
 
-  // The booking flow opens straight on THIS business's slots (the space is
-  // pre-selected — no "find a space" browse step). Demo slots for now (UI-only).
-  const bookingVenue: Venue = {
-    id: memberId,
-    name: memberName || businessName || "This space",
-    kind: "Booking",
-    gradient: "linear-gradient(135deg,#0f766e,#14b8a6)",
-    emoji: "📍",
-    minCap: 2,
-    maxCap: 60,
-    costPerEvent: 0,
-    neighborhood: businessAddress || "",
-    perks: [],
-    openSlots: [
-      { id: "s1", day: "Tue", date: "May 6", time: "7:00–10:00 PM" },
-      { id: "s2", day: "Wed", date: "May 7", time: "6:00–9:00 PM" },
-      { id: "s3", day: "Sun", date: "May 11", time: "2:00–5:00 PM" },
-    ],
-  };
 
   const storageKey = `visits:${memberId}`;
   useEffect(() => {
@@ -290,12 +270,18 @@ export function ActionBar({
                 Book with {memberName || "this business"}
               </h2>
               <p className="mt-1 text-sm text-white/90">
-                Pick a slot and set up your event.
+                Suggest a time — they&apos;ll confirm.
               </p>
             </div>
-            {/* Full booking flow, opened on THIS business's slots (space pre-selected). */}
+            {/* A real request against THIS business. This used to open BookFlow
+                from app/prototype — hardcoded venues, no API calls, nothing
+                stored and nobody notified, on every live business profile. */}
             <div className="max-h-[70vh] overflow-y-auto p-4">
-              <BookFlow startVenue={bookingVenue} />
+              <BookingRequest
+                memberId={memberId}
+                memberName={memberName}
+                onDone={() => setTimeout(() => setBookOpen(false), 2500)}
+              />
             </div>
           </div>
         </div>
