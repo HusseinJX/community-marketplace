@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { buildBusinessContext } from '@/lib/business-context'
 import { resolveBusinessForCall, normalizePhone } from '@/lib/business-phone'
+import { sfToday } from '@/lib/sf-date'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -93,10 +94,15 @@ export async function POST(req: Request) {
   // tool can pass it back — a value we set is trustworthy in a way the model's
   // own recollection of a member id is not, and on a forwarded call the tool
   // cannot re-derive it from the dialed number.
+  // today_date lets the agent turn "Thursday" into a calendar date when taking
+  // a booking. City-local, never UTC — after 5pm Pacific a UTC date is already
+  // tomorrow, which would book people a day out (the same bug that once hid
+  // every evening's events from the feed).
   let vars = {
     ...FALLBACK,
     caller_phone: caller ?? '',
     business_number: businessNumber ?? '',
+    today_date: sfToday(),
   }
 
   if (memberId) {
@@ -122,6 +128,7 @@ export async function POST(req: Request) {
           greeting_line: `Thanks for calling ${ctx.businessName}. I'm their AI assistant — I can take a message and have someone get back to you.`,
           caller_phone: caller ?? '',
           business_number: businessNumber ?? '',
+          today_date: sfToday(),
         }
       } else {
         vars = {
@@ -135,6 +142,7 @@ export async function POST(req: Request) {
           greeting_line: `Thanks for calling ${ctx.businessName}. I'm their AI assistant — how can I help you today?`,
           caller_phone: caller ?? '',
           business_number: businessNumber ?? '',
+          today_date: sfToday(),
         }
       }
     } catch (err) {
