@@ -19,6 +19,42 @@ All notable changes to this project are documented here.
 > `/monitoring` tunnel (200), and `data-private` present on the assistant chat and absent on Shop
 > — masking where conversations are, nowhere else. No native change, so no Xcode rebuild.
 
+### Fixed — a forwarded call now reaches the business the caller actually rang — 2026-08-11
+- **One shared number can serve every business.** A business points their existing number at ours
+  instead of voicemail, and the carrier stamps the originally-dialled number into a SIP Diversion
+  header. Captured live from a real forwarded call:
+  `<sip:+16287261846@…>;privacy=off;screen=no;reason=no-answer;counter=1`. So provisioning a vendor
+  is a routing-table row, **not** a $1/mo number each.
+- **The bug this fixes:** on a forwarded call `to` / `telnyx_agent_target` is always OUR number, so
+  routing on it answered every forwarded call as whichever business owns the shared number.
+  `resolveBusinessForCall()` (`lib/business-phone.ts`) now reads the diversion header first and falls
+  back to the dialled number. `memberIdForNumber()` is unchanged, so nothing else moved.
+- **An unrecognised forwarder resolves to NULL, deliberately** — falling back to the dialled number
+  would confidently answer as the shared number's business to someone who rang a different one. A
+  generic "I can take a message" is the only honest answer to a call we can't attribute.
+- **The header exists only on `assistant.initialization` and is NOT persisted on the conversation
+  record**, so `/api/voice/context` mints a `business_number` dynamic variable from it; the Telnyx
+  `capture_lead` tool now passes it back and `/api/voice/lead` resolves from it first. `dialed_number`
+  would have filed the message under the wrong business.
+- **The trap that cost an hour: the forward timer races the carrier's voicemail.** `**61*…*11*20#`
+  never fired — Boost voicemail answered at ~16s and won, while the phone's interrogation screen still
+  said *Enabled*, because the rule **was** registered and simply never got a turn. `*11*5#` worked
+  first try. Measured: a 5s setting actually forwards at **10–11s** — carriers round up, so the value
+  you set is a floor, not a promise.
+- **New: `docs/phone-forwarding-by-carrier.md`** — vendor-facing setup, leading with the voicemail race
+  because it's the failure everyone will hit. Boost is documented as *tested*; every other carrier is
+  marked standard-but-unverified, on purpose.
+- **Verified:** 13 unit tests on header parsing and routing (incl. multi-hop, where the ORIGINAL number
+  is the *last* entry), plus the real route handler run against the captured payload —
+  forwarded-from-known routes correctly, forwarded-from-unknown refuses to impersonate, direct calls
+  unchanged. Two live forwarded calls answered by the agent, one of them listened to end to end.
+- **Not verified: only ONE carrier.** Boost, one handset. The Diversion header is standard, but carriers
+  differ — some strip it, some use `History-Info` instead (which `extractDiversion` does **not** parse).
+  Confirm on AT&T / Verizon / T-Mobile before betting a sales pitch on "works with any business".
+- ⚠️ **The Telnyx tool change is LIVE but the code that reads it is not deployed.** The extra field is
+  ignored rather than erroring, and direct calls are unaffected — but forwarded-call lead capture stays
+  wrong until this ships.
+
 ### Added — Sentry for errors, PostHog keeps analytics + replay, and our own traffic is flaggable — 2026-08-10
 - **Sentry owns errors end to end; `capture_exceptions` is now `false` in PostHog.** Running both filed one
   crash as two unrelated issues in two dashboards. The July note said PostHog's exception capture made
