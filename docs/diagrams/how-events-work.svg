@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 1010" width="1440" height="1010" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+<defs>
+  <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <path d="M0 0 L10 5 L0 10 z" fill="#a8a29e"/>
+  </marker>
+  <style>
+    .t    { font-size:36px; font-weight:700; fill:#1c1917 }
+    .sub  { font-size:16px; fill:#78716c }
+    .band { font-size:12px; font-weight:700; fill:#a8a29e; letter-spacing:1.6px }
+    .h    { font-size:16px; font-weight:650; fill:#1c1917 }
+    .d    { font-size:13px; fill:#57534e }
+    .dm   { font-size:13px; fill:#a8a29e }
+    .chip { font-size:12.5px; font-weight:600; fill:#292524 }
+    .bdg  { font-size:9.5px; font-weight:700; letter-spacing:1px; fill:#92400e }
+    .note { font-size:13.5px; fill:#57534e }
+    .noteb{ font-size:13.5px; font-weight:700; fill:#1c1917 }
+  </style>
+</defs>
+
+<rect width="1440" height="1010" fill="#fbfbfa"/>
+
+<text class="t"   x="50" y="60">How events work</text>
+<text class="sub" x="50" y="90">Put on an event · fill the lineup · sell or give away tickets · scan people in. Hosting needs <tspan font-weight="700" fill="#7c3aed">Organizer $10/mo</tspan>; charging for tickets needs a connected bank.</text>
+
+<!-- ══ BAND 1 ══ -->
+<text class="band" x="50" y="146">1 — MAKE THE EVENT</text>
+
+<g><rect x="50" y="162" width="425" height="112" rx="14" fill="#fff" stroke="#e7e5e4" stroke-width="1.5"/>
+<circle cx="70" cy="191" r="5" fill="#7c3aed"/><text class="h" x="84" y="196">Fill in the form</text>
+<text class="d" x="70" y="224">Title, date, time, place, and how many people</text><text class="d" x="70" y="242">can come (leave it blank for unlimited).</text></g>
+
+<g><rect x="507" y="162" width="426" height="112" rx="14" fill="#fff" stroke="#e7e5e4" stroke-width="1.5"/>
+<circle cx="527" cy="191" r="5" fill="#7c3aed"/><text class="h" x="541" y="196">Or photograph the flyer</text>
+<text class="d" x="527" y="224">AI reads the poster and fills the form in for you.</text><text class="d" x="527" y="242">You check it before it goes live.</text>
+<text class="dm" x="527" y="260">OpenAI vision</text></g>
+
+<g><rect x="965" y="162" width="425" height="112" rx="14" fill="#fff" stroke="#e7e5e4" stroke-width="1.5"/>
+<circle cx="985" cy="191" r="5" fill="#2563eb"/><text class="h" x="999" y="196">Or we already found it</text>
+<text class="d" x="985" y="224">Around 800 events pulled nightly from SF</text><text class="d" x="985" y="242">calendars, libraries and venues.</text>
+<text class="dm" x="985" y="260">scraped sources · no work from you</text></g>
+
+<g stroke="#a8a29e" stroke-width="1.5" fill="none">
+  <path d="M262 274 L262 292 M720 274 L720 292 M1178 274 L1178 292"/>
+  <path d="M262 292 L1178 292"/>
+</g>
+<path d="M720 292 L720 306" stroke="#a8a29e" stroke-width="1.5" marker-end="url(#a)" fill="none"/>
+
+<g><rect x="50" y="312" width="1340" height="78" rx="14" fill="#f5f3ff" stroke="#c4b5fd" stroke-width="1.5"/>
+<text class="h" x="76" y="344">The event page</text>
+<text class="d" x="76" y="368">One public page carrying the lineup, the map pin, the ticket box and the photo wall. It shows up in the community feed, on the map, and on every business page in the lineup.</text></g>
+
+<!-- ══ BAND 2 ══ -->
+<text class="band" x="50" y="446">2 — WHO TURNS UP</text>
+
+<g><rect x="50" y="462" width="425" height="152" rx="14" fill="#fff" stroke="#e7e5e4" stroke-width="1.5"/>
+<circle cx="70" cy="491" r="5" fill="#7c3aed"/><text class="h" x="84" y="496">Build the lineup</text>
+<text class="d" x="70" y="524">Search local businesses, tick several, invite them</text><text class="d" x="70" y="542">all at once. Their role — food, performer, sponsor,</text><text class="d" x="70" y="560">volunteer — is worked out from what they are.</text>
+<text class="d" x="70" y="586">Accepted businesses show grouped by role on</text><text class="d" x="70" y="604">the public page.</text></g>
+
+<g><rect x="507" y="462" width="426" height="152" rx="14" fill="#fff" stroke="#e7e5e4" stroke-width="1.5"/>
+<circle cx="527" cy="491" r="5" fill="#d97706"/><text class="h" x="541" y="496">Or they join themselves</text>
+<text class="d" x="527" y="524">Print the event's QR code and put it on the table.</text>
+<text class="d" x="527" y="550">A business already with us asks to join and you</text><text class="d" x="527" y="568">approve. One that isn't gets interviewed by the</text><text class="d" x="527" y="586">AI on their phone and a profile is built from</text><text class="d" x="527" y="604">the conversation.</text></g>
+
+<g><rect x="965" y="462" width="425" height="152" rx="14" fill="#fff" stroke="#e7e5e4" stroke-width="1.5"/>
+<circle cx="985" cy="491" r="5" fill="#2563eb"/><text class="h" x="999" y="496">Tell everyone at once</text>
+<text class="d" x="985" y="524">One message to the whole accepted lineup.</text>
+<rect x="985" y="540" width="130" height="30" rx="8" fill="#f5f5f4"/><text class="chip" x="1050" y="559" text-anchor="middle">Group chat</text>
+<rect x="1123" y="540" width="130" height="30" rx="8" fill="#f5f5f4"/><text class="chip" x="1188" y="559" text-anchor="middle">Email · Resend</text>
+<rect x="1261" y="540" width="109" height="30" rx="8" fill="#f5f5f4"/><text class="chip" x="1315" y="559" text-anchor="middle">Text message</text>
+<text class="dm" x="985" y="592">Everyone invited also gets a phone notification</text><text class="dm" x="985" y="608">and an email, so nothing is missed.</text></g>
+
+<!-- ══ BAND 3 ══ -->
+<text class="band" x="50" y="672">3 — TICKETS AND THE DOOR</text>
+
+<g><rect x="50" y="688" width="425" height="164" rx="14" fill="#fff" stroke="#e7e5e4" stroke-width="1.5"/>
+<circle cx="70" cy="717" r="5" fill="#d97706"/><text class="h" x="84" y="722">Free — just RSVP</text>
+<text class="d" x="70" y="750">They tap Going and say how many are coming.</text>
+<text class="d" x="70" y="776">A free event still issues <tspan font-weight="700">real scannable tickets</tspan>,</text><text class="d" x="70" y="794">so the door works exactly the same way as it</text><text class="d" x="70" y="812">does at a paid one.</text>
+<text class="dm" x="70" y="838">no card, no bank account needed</text></g>
+
+<g><rect x="507" y="688" width="426" height="164" rx="14" fill="#ecfdf5" stroke="#6ee7b7" stroke-width="1.5"/>
+<circle cx="527" cy="717" r="5" fill="#059669"/><text class="h" x="541" y="722">Paid — set your tiers</text>
+<text class="d" x="527" y="750">Early bird, general, VIP — each with its own price,</text><text class="d" x="527" y="768">how many exist, and when sales stop.</text>
+<text class="d" x="527" y="794">Buyers need <tspan font-weight="700">no account</tspan> — email only. Money goes</text><text class="d" x="527" y="812">to your bank, platform keeps 5%.</text>
+<text class="dm" x="527" y="838">same bank connection as the shop · Stripe</text></g>
+
+<path d="M933 770 L962 770" stroke="#a8a29e" stroke-width="1.5" marker-end="url(#a)"/>
+
+<g><rect x="965" y="688" width="425" height="164" rx="14" fill="#fff" stroke="#e7e5e4" stroke-width="1.5"/>
+<circle cx="985" cy="717" r="5" fill="#7c3aed"/><text class="h" x="999" y="722">Scan them in at the door</text>
+<text class="d" x="985" y="750">Open the scanner on your phone. Point it at their</text><text class="d" x="985" y="768">QR — green, and they're in.</text>
+<text class="d" x="985" y="794"><tspan font-weight="700">A second scan is refused</tspan>, showing when that ticket</text><text class="d" x="985" y="812">already came in — so a screenshot passed to a</text><text class="d" x="985" y="830">friend doesn't get anybody through twice.</text></g>
+
+<!-- footer -->
+<line x1="50" y1="890" x2="1390" y2="890" stroke="#e7e5e4" stroke-width="1.5"/>
+<text class="noteb" x="50" y="922">Worth knowing</text>
+<text class="note"  x="50" y="946">A party of four arrives as <tspan font-weight="700">four separate tickets</tspan>, because the door counts people, not receipts.</text>
+<text class="note"  x="50" y="968">Refund someone and their ticket stops scanning. Your attendee list, capacity and blasts all keep working the same whether tickets were free or paid.</text>
+<text class="dm"    x="50" y="994">Every business you put on the lineup sees the event on their own dashboard, with the role they agreed to turn up as.</text>
+</svg>
