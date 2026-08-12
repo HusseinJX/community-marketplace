@@ -242,6 +242,17 @@ export interface RankOpts {
   facts: PersonaFacts
   profileVector?: number[]
   vectors?: Record<string, number[]>
+  /**
+   * Cosine similarity per event uid, already computed.
+   *
+   * The production path supplies this instead of `vectors`: the vectors live in
+   * Postgres and the similarity is computed there (see the `event_similarity`
+   * function), because shipping 1200 x 1536 floats into Node to produce 1200
+   * numbers is about 20MB of JSON per request. Offline callers — the persona
+   * script the prototype was built on — still pass raw vectors, and both land
+   * on the same scoring maths below.
+   */
+  similarities?: Record<string, number>
   audience: Record<string, EventAudience>
   home?: { lat: number; lng: number } | null
   horizonDays?: number
@@ -257,7 +268,7 @@ export interface RankResult {
 }
 
 export function rankEvents(events: ScrapedEvent[], opts: RankOpts): RankResult {
-  const { facts: p, profileVector, vectors, audience, home } = opts
+  const { facts: p, profileVector, vectors, similarities, audience, home } = opts
   const radius = p.maxMiles ?? 8
   const horizon = opts.horizonDays ?? 30
   const words = opts.keywords ?? []
@@ -265,7 +276,7 @@ export function rankEvents(events: ScrapedEvent[], opts: RankOpts): RankResult {
   // Keywords stand in for embedding similarity when no vectors are supplied.
   // They occupy the same slot rather than adding a new one, so the weights
   // still sum to 1 and scores stay comparable between the two modes.
-  const haveVectors = !!profileVector && !!vectors
+  const haveVectors = !!similarities || (!!profileVector && !!vectors)
 
   // Weight what the person actually gave us.
   //
@@ -302,7 +313,14 @@ export function rankEvents(events: ScrapedEvent[], opts: RankOpts): RankResult {
     const tScore = topicScore(p.topics, have)
 
     const v = vectors?.[e.uid]
-    const sim = profileVector && v ? cosine(profileVector, v) : 0
+    const sim = similarities
+      ? // An event with no vector scores 0 rather than being dropped: it is
+        // still a real event, and "we haven't embedded it yet" is a fact about
+        // us, not a reason to hide it from someone standing next door to it.
+        similarities[e.uid] ?? 0
+      : profileVector && v
+        ? cosine(profileVector, v)
+        : 0
     const simNorm = haveVectors
       ? Math.max(0, Math.min(1, (sim - 0.05) / 0.4))
       : keywordScore(words, e, a)

@@ -19,6 +19,47 @@ All notable changes to this project are documented here.
 > `/monitoring` tunnel (200), and `data-private` present on the assistant chat and absent on Shop
 > — masking where conversations are, nowhere else. No native change, so no Xcode rebuild.
 
+### Added — semantic personalisation: the events feed matches meaning, and remembers you — 2026-08-11
+- **The embedding pipeline already existed and was DEAD CODE.** `lib/reco/embed.ts` was complete,
+  `lib/reco/profile.ts` defined a whole `ShopperProfile`, and `rank.ts` had accepted a `profileVector`
+  since day one — with exactly one caller, `scripts/try-personas.ts`, reading a 23MB JSON on one laptop.
+  That script is what produced the "One feed, six people" artifact on Aug 2. **Production meanwhile ranked
+  on literal word overlap** (`keywordScore`) and stored **nothing** about any shopper. This wires it in.
+- **Migration `20260811140000`** (applied + registered): pgvector, `vendor_events.embedding vector(1536)`
+  + `embed_model`, a `shopper_taste` table, and an `event_similarity()` SQL function.
+- **Backfilled 697 events for $0.0009** — 323 replayed **free** from the prototype's own `embeddings.json`,
+  374 sent to the API. `scripts/embed-stored-events.ts --from-file`, same two-path shape as `label-events.ts`.
+- **Similarity is computed in Postgres, never in Node.** Selecting 1200 × 1536 floats to produce 1200 numbers
+  is ~20MB of JSON per request; the function returns `(id, sim)` and the vectors stay put. `rankEvents` gained
+  a `similarities` option beside the existing `vectors` one, so the offline persona script and production run
+  identical maths.
+- **NO ivfflat/hnsw index, deliberately** (said out loud in the migration so it doesn't read as an oversight).
+  An ANN top-K answers "the 20 nearest", but similarity is 1 of 6 weighted signals — a pre-truncated list would
+  silently override proximity. Full scan at ~700 rows is milliseconds.
+- **The profile is a paragraph the person can read, edit and delete — never an embedded transcript.** The chat
+  tuner (`/api/shopper/taste/chat`, tool-loop modelled on the vendor agent tuner) writes the SAME `about` text
+  and chips shown on `/shopper`. A raw accumulating transcript drifts, over-weights whatever was said last, and
+  cannot be corrected by the person it describes.
+- **Works signed-out**, keyed on a browser-minted `device:<uuid>`. A Clerk id always wins and a caller-supplied
+  id is ignored once signed in, so nobody can name a stranger's row. Most shoppers never sign in — an account
+  gate would have shipped this to almost nobody.
+- **A search stays one-off unless "Remember this" is tapped** — otherwise "tickets for my mum's birthday" shapes
+  a feed forever. It **appends** (never clobbers) and is idempotent. When a saved profile IS used the feed says
+  so, with a link to change or delete it.
+- **A typed sentence beats the saved profile but does not erase it** — `blend(sentence, profile, 0.7)`,
+  re-normalised, because cosine against an un-normalised query silently compresses every score toward zero.
+- **`shopper_taste` is service-role only, no anon grants** — it holds what people said about their children and
+  their money. Verified with a real anon client: read **and** write refused, while `vendor_events` stayed
+  readable, which is the whole argument for the split.
+- **Cost rule held:** once per new event at ingest (`embedNew()` beside `labelNew()` in the nightly sweep), once
+  per *changed* profile (an `embedded_text` comparison makes an unchanged save free).
+- **Verified:** `npx tsx scripts/taste-smoke.mts` — 25 checks against the real DB (identity spoofing refused,
+  model-mismatch guard, emptying clears the vector, delete removes the row, every live event scored, an
+  unembedded event scores 0 rather than vanishing). Plus HTTP probes showing the feed change from generic to
+  family/free after one save, and a browser walk of the chips, the text box, the chat and "Remember this".
+  `"learn to code"` now returns *Computer Basics* and *Introduction to Unix Command Line* — neither containing
+  a word from the query.
+
 ### Added — the phone agent does things now, not just takes messages — 2026-08-11
 - **Answering questions about products, prices and descriptions needed NOTHING built** — `buildBusinessContext`
   has always emitted a `## Products for sale` block (name, price, description) plus events, hours and owner

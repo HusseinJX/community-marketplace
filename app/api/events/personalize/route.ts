@@ -6,8 +6,11 @@
 // per-person feed affordable at all (see scraping.md).
 
 import { NextResponse } from 'next/server'
+import { auth } from '@clerk/nextjs/server'
 import { createClient } from '@supabase/supabase-js'
 import { extractPersona, type PersonaFacts } from '@/lib/reco/audience'
+import { embedOne, toPgVector, blend } from '@/lib/reco/embed'
+import { subjectFor, tasteVector } from '@/lib/reco/taste'
 import { rankEvents, diversify, keywordsFrom } from '@/lib/reco/rank'
 import { prepare, FEED_COLUMNS, type EventRow } from '@/lib/reco/from-db'
 import { rateLimit } from '@/lib/rate-limit'
@@ -42,6 +45,10 @@ export interface PersonalizeBody {
   /** Show only this organiser's events. Matched on the display name, which is
    *  the one identifier a harvested calendar and a real member both have. */
   organizer?: string | null
+  /** This browser's own taste id (`device:…`). Ignored when signed in — the
+   *  Clerk id is the identity then, and a caller-supplied one could name
+   *  somebody else's. */
+  tasteId?: string | null
 }
 
 export async function POST(req: Request) {
@@ -72,16 +79,45 @@ export async function POST(req: Request) {
   }
   let parseFailed = false
 
+  // Who is asking, for the stored taste profile. A Clerk id wins; a signed-out
+  // browser supplies its own device id. Neither is required — a first-time
+  // visitor with no profile gets exactly the feed they got before this existed.
+  const { userId } = await auth().catch(() => ({ userId: null }) as { userId: string | null })
+  const subject = subjectFor(userId ?? null, body.tasteId)
+
+  // Three model-ish reads, all independent, so they run together rather than in
+  // series — the embedding is small but a sequential chain would add its
+  // latency to every search.
+  const [factsResult, sentenceVector, storedVector] = await Promise.all([
+    text ? extractPersona(text).catch(() => null) : Promise.resolve(null),
+    // Each failure below degrades a signal; none may take the feed down.
+    text && process.env.OPENAI_API_KEY
+      ? embedOne(text).catch(() => null)
+      : Promise.resolve(null),
+    subject ? tasteVector(subject).catch(() => null) : Promise.resolve(null),
+  ])
+
   if (text) {
-    try {
-      facts = await extractPersona(text)
-    } catch {
+    if (factsResult) facts = factsResult
+    else {
       // A dead model must not take the feed down with it: fall back to keyword
       // ranking over the same events rather than showing an error page.
       parseFailed = true
       facts.summary = 'Showing what matches your words.'
     }
   }
+
+  // The query vector: what they typed, what they saved, or a blend weighted
+  // toward what they typed. See `blend` for why the sentence wins.
+  let queryVector: string | null = null
+  if (sentenceVector && storedVector) {
+    try {
+      queryVector = toPgVector(blend(sentenceVector, JSON.parse(storedVector) as number[], 0.7))
+    } catch {
+      queryVector = toPgVector(sentenceVector)
+    }
+  } else if (sentenceVector) queryVector = toPgVector(sentenceVector)
+  else if (storedVector) queryVector = storedVector
 
   // Explicit UI controls WIN over the sentence. If someone typed "free stuff"
   // and then unticked Free, the tick-box is the more recent, more deliberate
@@ -147,6 +183,11 @@ export async function POST(req: Request) {
         ? names[0]
         : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
     facts.summary = `${list.charAt(0).toUpperCase()}${list.slice(1)}${home ? ', nearest first' : ''}.`
+  } else if (storedVector && !text) {
+    // Say it plainly when a saved profile is doing the work. "Everything
+    // happening near you" over a feed ranked by someone's stored interests is
+    // the same untruth as the default line over a filtered one.
+    facts.summary = `Picked from what you told us you're into${home ? ', nearest first' : ''}.`
   }
 
   let candidates = organizer ? events.filter((e) => e.sourceLabel === organizer) : events
@@ -161,10 +202,33 @@ export async function POST(req: Request) {
     })
   }
 
+  // Semantic similarity, computed in Postgres against the stored event vectors.
+  //
+  // Only the scores travel: the vectors stay in the database because 1200 of
+  // them is ~20MB of JSON to produce 1200 numbers. A failure here leaves
+  // `similarities` null, and the ranker silently falls back to literal keyword
+  // matching — which is exactly what this endpoint did before embeddings
+  // existed, so an outage costs relevance, never the feed.
+  let similarities: Record<string, number> | undefined
+  if (queryVector) {
+    const { data: sims, error: simError } = await supabase().rpc('event_similarity', {
+      q: queryVector,
+      from_date: today,
+      max_rows: CANDIDATES,
+    })
+    if (simError) {
+      console.error('[personalize] similarity lookup failed', simError.message)
+    } else if (sims) {
+      similarities = {}
+      for (const r of sims as { id: string; sim: number }[]) similarities[r.id] = r.sim
+    }
+  }
+
   const { ranked, filtered } = rankEvents(candidates, {
     facts,
     audience,
     home,
+    similarities,
     horizonDays: body.horizonDays ?? 45,
     keywords: text ? keywordsFrom(text) : [],
   })
@@ -192,6 +256,12 @@ export async function POST(req: Request) {
   return NextResponse.json({
     summary: facts.summary,
     parseFailed,
+    /** Whether the reader's SAVED profile shaped this feed. The UI says so out
+     *  loud — a feed quietly reordered by something you told it months ago and
+     *  cannot see is the thing people rightly resent about recommenders. */
+    usedTaste: !!storedVector,
+    /** False when ranking fell back to literal word matching. */
+    semantic: !!similarities,
     facts: {
       topics: facts.topics,
       energies: facts.energies,

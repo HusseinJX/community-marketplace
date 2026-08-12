@@ -177,6 +177,82 @@ export async function unlabelledScraped(limit = 2000) {
   return data ?? []
 }
 
+export interface EmbeddableRow {
+  id: string
+  external_uid: string | null
+  title: string
+  description: string | null
+  tags: string[] | null
+  location: string | null
+  neighborhood: string | null
+}
+
+/**
+ * Events with no usable embedding yet.
+ *
+ * NOT restricted to scraped events, unlike `unlabelledScraped`. An organiser's
+ * own event competes for the same slots in the same personalised feed, and one
+ * that never gets embedded can only ever be matched by literal word overlap —
+ * it would quietly rank below harvested events forever.
+ *
+ * "No usable embedding" includes one written by a different model: vectors from
+ * two models are not comparable, so a model change makes the old ones garbage
+ * rather than merely stale.
+ */
+export async function unembeddedEvents(limit = 1000, model?: string): Promise<EmbeddableRow[]> {
+  const cols = 'id, external_uid, title, description, tags, location, neighborhood'
+  const q = db().from('vendor_events').select(cols).limit(limit)
+  const { data, error } = model
+    ? await q.or(`embedding.is.null,embed_model.neq.${model}`)
+    : await q.is('embedding', null)
+  if (error) throw new Error(`could not read unembedded events: ${error.message}`)
+  return (data ?? []) as unknown as EmbeddableRow[]
+}
+
+/**
+ * Write event vectors.
+ *
+ * One UPDATE per row. There is no bulk path because upserting `vendor_events`
+ * would require supplying every NOT NULL column, so a bulk write of one column
+ * risks clobbering the rest — and the volume this runs at is a handful of new
+ * events per nightly sweep. The one-off backfill of the full table is the only
+ * time the row count is interesting, and it takes seconds.
+ *
+ * Failures accumulate rather than abort: an event without a vector still
+ * appears in the feed and still ranks (on keywords), so one bad row must not
+ * cost the rest of the batch.
+ */
+export async function persistEmbeddings(
+  vectors: { id: string; embedding: string }[],
+  model: string,
+  opts: { log?: (s: string) => void } = {}
+): Promise<{ updated: number; failed: number }> {
+  let updated = 0
+  let failed = 0
+  const CONCURRENCY = 10
+
+  for (let i = 0; i < vectors.length; i += CONCURRENCY) {
+    const slice = vectors.slice(i, i + CONCURRENCY)
+    const results = await Promise.all(
+      slice.map(({ id, embedding }) =>
+        db()
+          .from('vendor_events')
+          .update({ embedding, embed_model: model })
+          .eq('id', id)
+          .select('id')
+      )
+    )
+    for (const r of results) {
+      if (r.error) {
+        failed++
+        opts.log?.(`  embedding write failed: ${r.error.message}`)
+      } else updated += r.data?.length ?? 0
+    }
+  }
+
+  return { updated, failed }
+}
+
 export interface PersistResult {
   written: number
   published: number

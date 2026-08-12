@@ -5,6 +5,7 @@ import { Show, UserButton, useUser, useClerk } from "@clerk/nextjs";
 import { Heart, ShoppingBag, Users, ArrowRight, PenLine, Store, MessageCircle, LogOut } from "lucide-react";
 import { PushTestButton } from "@/components/PushTestButton";
 import { StarredCommunityChats } from "@/components/community/StarredCommunityChats";
+import { TasteTuner } from "@/components/shopper/TasteTuner";
 import { DeleteAccountButton } from "@/components/account/DeleteAccountButton";
 import { useLogin } from "@/components/auth/ClerkAuthProvider";
 import { useIsNativeApp } from "@/lib/native";
@@ -103,6 +104,12 @@ export function ShopperClient() {
           <ArrowRight className="h-4 w-4 shrink-0 text-stone-400" />
         </Link>
       </div>
+
+      {/* What ranks the events feed. Placed above the community sections
+          because it changes what every other surface shows them, and works
+          signed-out — the profile is keyed on the browser until there's an
+          account to move it to. */}
+      <TasteTuner />
 
       {/* Rooms you starred while you were standing in them. Self-hides when
           empty — see StarredCommunityChats. */}

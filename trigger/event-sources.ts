@@ -12,7 +12,14 @@
 import { schedules, task, logger } from '@trigger.dev/sdk'
 import { runAll, runSource, locate } from '@/lib/sources/run'
 import { SOURCES, byId } from '@/lib/sources/registry'
-import { persistScraped, pruneFinished, persistAudience, unlabelledScraped } from '@/lib/sources/persist'
+import {
+  persistScraped,
+  pruneFinished,
+  persistAudience,
+  unlabelledScraped,
+  unembeddedEvents,
+  persistEmbeddings,
+} from '@/lib/sources/persist'
 import type { EventAudience } from '@/lib/reco/audience'
 import type { ScrapedEvent } from '@/lib/sources/types'
 // Registers the worker's global failure hook (no-op without SENTRY_DSN). Imported
@@ -91,6 +98,54 @@ async function labelNew(): Promise<{ labelled: number; pending: number; skipped?
   return { labelled: res.updated, pending: pending.length - res.updated }
 }
 
+/**
+ * Embed whatever arrived without a vector.
+ *
+ * Same shape and same reasoning as labelNew(), and the same cost rule: only
+ * events with no vector are paid for, so a nightly sweep embeds the handful
+ * that are new (fractions of a cent) rather than the whole table.
+ *
+ * Skipped without an API key, and a failure here is reported but never thrown.
+ * An unembedded event still appears in the feed and still ranks — on literal
+ * word overlap instead of meaning — so this degrades personalisation rather
+ * than breaking it, and a scrape that worked must not be reported as failed
+ * because embedding could not run.
+ */
+async function embedNew(): Promise<{ embedded: number; pending: number; skipped?: string }> {
+  const { EMBED_MODEL, embedAll, eventToText, toPgVector } = await import('@/lib/reco/embed')
+
+  const pending = await unembeddedEvents(500, EMBED_MODEL)
+  if (!pending.length) return { embedded: 0, pending: 0 }
+
+  if (!process.env.OPENAI_API_KEY) {
+    logger.warn('OPENAI_API_KEY not set — new events left unembedded', { pending: pending.length })
+    return { embedded: 0, pending: pending.length, skipped: 'no OPENAI_API_KEY' }
+  }
+
+  try {
+    const vecs = await embedAll(
+      pending.map((r) =>
+        eventToText({
+          title: r.title,
+          tags: r.tags ?? [],
+          venue: r.location,
+          neighborhood: r.neighborhood,
+          description: r.description,
+        })
+      )
+    )
+    const res = await persistEmbeddings(
+      pending.map((r, n) => ({ id: r.id, embedding: toPgVector(vecs[n]) })),
+      EMBED_MODEL,
+      { log: (s) => logger.info(s) }
+    )
+    return { embedded: res.updated, pending: pending.length - res.updated }
+  } catch (err) {
+    logger.error('Embedding failed', { error: err instanceof Error ? err.message : String(err) })
+    return { embedded: 0, pending: pending.length, skipped: 'embedding error' }
+  }
+}
+
 /** Scrape one source on demand — the "Run now" button and the confirm-time first run. */
 export const scrapeEventSourceTask = task({
   id: 'scrape-event-source',
@@ -122,7 +177,12 @@ export const scrapeEventSourceTask = task({
     const labels = await labelNew()
     logger.info('Labelling done', { ...labels })
 
-    return { ...report, ...result, ...labels }
+    // Both report a `pending`, so they are not spread together — a collision
+    // would silently report one subsystem's backlog as the other's.
+    const embeds = await embedNew()
+    logger.info('Embedding done', { ...embeds })
+
+    return { ...report, ...result, ...labels, embedded: embeds.embedded, embedPending: embeds.pending }
   },
 })
 
@@ -169,12 +229,13 @@ export const sweepEventSourcesTask = schedules.task({
     if (result.failed) logger.error('Some events failed to persist', { ...result })
 
     const labels = await labelNew()
+    const embeds = await embedNew()
 
-    logger.info('Sweep complete', {
-      due: due.length, kept: events.length, pruned, ...result, ...labels, failed: failed.length,
-    })
-    return {
-      due: due.length, kept: events.length, pruned, ...result, ...labels, failed: failed.length,
+    const summary = {
+      due: due.length, kept: events.length, pruned, ...result, ...labels,
+      embedded: embeds.embedded, embedPending: embeds.pending, failed: failed.length,
     }
+    logger.info('Sweep complete', summary)
+    return summary
   },
 })

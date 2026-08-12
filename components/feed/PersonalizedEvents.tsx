@@ -14,9 +14,10 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { MapPin, Loader2, X, LocateFixed, Clock, Building2, ChevronDown, ExternalLink } from "lucide-react";
+import { MapPin, Loader2, X, LocateFixed, Clock, Building2, ChevronDown, ExternalLink, Sparkles, Check } from "lucide-react";
 import { cachedPosition, getHomePosition, refreshHomePosition } from "@/lib/home-position";
 import { usePersonalizedEvents } from "@/lib/data-hooks";
+import { tasteId } from "@/lib/taste-id";
 import { ImageCarousel } from "@/components/ImageCarousel";
 
 const TOPIC_CHIPS: { id: string; label: string }[] = [
@@ -153,6 +154,8 @@ function EventBadges({
 interface Result {
   summary: string;
   parseFailed: boolean;
+  /** The reader's saved profile shaped this feed. Said out loud in the UI. */
+  usedTaste?: boolean;
   facts: {
     topics: string[];
     energies: string[];
@@ -255,6 +258,13 @@ export function PersonalizedEvents({
   // Location unavailable or refused — distances simply do not render.
   const [locationOff, setLocationOff] = useState(false);
 
+  // The saved-taste id. Only knowable in the browser, so it arrives one render
+  // late; the feed simply isn't personalised for that first paint, which is the
+  // same feed everyone got before profiles existed.
+  const [taste, setTaste] = useState<string | null>(null);
+  useEffect(() => setTaste(tasteId()), []);
+  const [remembered, setRemembered] = useState<string | null>(null);
+
   // The feed itself. SWR keyed on the request, so coming back to an unchanged
   // feed paints from cache with no network at all, and every filter combination
   // keeps its own cached answer.
@@ -269,6 +279,7 @@ export function PersonalizedEvents({
     // first and every card says how far, so hiding events past a line was a
     // control that could only ever make the evening emptier.
     maxMiles: null,
+    tasteId: taste,
   }) as { data: Result | undefined; loading: boolean; error: Error | undefined };
 
   // The search button lives a level up now, so it has to be told when the feed
@@ -490,9 +501,51 @@ export function PersonalizedEvents({
       {belowFilters && <div className="mt-3">{belowFilters}</div>}
 
       {/* ── what we heard ─────────────────────────────────────────────── */}
-      {result && (query || topics.length > 0 || organizer) && (
+      {result && (query || topics.length > 0 || organizer || result.usedTaste) && (
         <div className="mt-4 rounded-xl border border-stone-200 bg-stone-50 px-4 py-3">
           <p className="text-[15px] font-medium text-stone-900">{result.summary}</p>
+
+          {/* A one-off search stays a one-off unless they say otherwise.
+              Folding every search into the profile automatically is how
+              "tickets for my mum's birthday" ends up shaping someone's feed
+              forever — so this is a button, not a side effect. */}
+          {query && taste && (
+            <div className="mt-2">
+              {remembered === query ? (
+                <span className="inline-flex items-center gap-1 text-xs text-teal-700">
+                  <Check className="h-3.5 w-3.5" /> Added to your profile — your feed will lean this
+                  way from now on
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    // Optimistic: this is additive and re-running it is a no-op
+                    // server-side, so a failure costs nothing worth a spinner.
+                    setRemembered(query);
+                    await fetch("/api/shopper/taste", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ id: taste, text: query }),
+                    }).catch(() => setRemembered(null));
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-stone-300 bg-white px-3 py-1.5 text-xs font-medium text-stone-700 transition hover:border-teal-500 hover:text-teal-700"
+                >
+                  <Sparkles className="h-3.5 w-3.5 text-teal-500" />
+                  Remember this
+                </button>
+              )}
+            </div>
+          )}
+
+          {result.usedTaste && !query && (
+            <p className="mt-1 text-xs text-stone-500">
+              Ranked using what you saved ·{" "}
+              <Link href="/shopper" className="underline underline-offset-2 hover:text-stone-700">
+                change or delete it
+              </Link>
+            </p>
+          )}
           {result.parseFailed && (
             <p className="mt-1 text-xs text-amber-700">
               Couldn&apos;t read that closely — matching on your words instead.

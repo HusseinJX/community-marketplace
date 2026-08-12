@@ -198,6 +198,12 @@ export interface PersonalizeParams {
   lat: number | null;
   lng: number | null;
   maxMiles: number | null;
+  /**
+   * This browser's saved-taste id, when it has one. Part of the SWR key on
+   * purpose: two profiles must not share a cached feed, and clearing the
+   * profile has to be able to invalidate it.
+   */
+  tasteId?: string | null;
 }
 
 /**

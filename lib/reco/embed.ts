@@ -23,7 +23,13 @@ export const EMBED_DIMS = 1536
  * often boilerplate ("This program is sponsored by Friends of the Library…")
  * that would otherwise drag every library event toward the same point in space.
  */
-export function eventToText(e: ScrapedEvent): string {
+export function eventToText(
+  // Structural, not `ScrapedEvent`, so a database row can produce the SAME text
+  // as the scrape did. If the two ever diverged, a backfilled vector and a
+  // freshly-ingested one would describe the same event differently — and
+  // nothing would report it, because both are valid vectors.
+  e: Pick<ScrapedEvent, 'title' | 'tags' | 'venue' | 'neighborhood' | 'description'>
+): string {
   const parts = [
     e.title,
     e.title,
@@ -61,6 +67,38 @@ export async function embedAll(
 export async function embedOne(text: string): Promise<number[]> {
   const [v] = await embedAll([text])
   return v
+}
+
+/**
+ * Weighted blend of two vectors, re-normalised.
+ *
+ * Used when someone with a saved profile also types a sentence. Both describe
+ * what they want, over different timespans, and the sentence wins: what you
+ * asked for thirty seconds ago is a better guide than what you told us in
+ * March. Blending rather than replacing is what stops "anything tonight?" from
+ * throwing away everything the profile knows — the vegetarian with a toddler
+ * is still a vegetarian with a toddler.
+ *
+ * Re-normalising matters: the sum of two unit vectors is not a unit vector, and
+ * cosine against an un-normalised query silently compresses every score toward
+ * zero, which reads as "the recommender stopped being confident".
+ */
+export function blend(a: number[], b: number[], weightA = 0.7): number[] {
+  const out = a.map((x, i) => x * weightA + (b[i] ?? 0) * (1 - weightA))
+  const norm = Math.sqrt(out.reduce((s, x) => s + x * x, 0))
+  return norm ? out.map((x) => x / norm) : out
+}
+
+/**
+ * Serialise a vector the way pgvector's input parser expects: `[0.1,0.2,…]`.
+ *
+ * Sent as a STRING rather than a JSON array on purpose. PostgREST maps a JSON
+ * array onto an array column, not onto `vector`, so passing `number[]` fails at
+ * the boundary with a type error that reads like a schema problem. A string is
+ * cast by pgvector itself, which is also where a wrong dimension gets caught.
+ */
+export function toPgVector(v: number[]): string {
+  return `[${v.join(',')}]`
 }
 
 /**
