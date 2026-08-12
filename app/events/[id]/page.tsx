@@ -196,13 +196,31 @@ export default async function EventDetailPage({
     );
   }
 
-  // Fetch host member
+  // Fetch host member — but NOT for a harvested event.
+  //
+  // A scraped event's host is a synthetic id (`source:sfpl`), minted precisely
+  // because there is no business behind it. 669 of the 672 live events carry
+  // one, so this call was made on 99.6% of event pages, could never resolve,
+  // blocked the render while it tried, and had its result thrown away — the
+  // byline falls back to `event.memberName` for exactly these events anyway.
+  //
+  // It also cost more than it looked. The connector fetch is cached for 300s,
+  // and an expired entry does NOT serve stale here (that is the full-route
+  // cache, and these pages are dynamic) — it blocks. So every five minutes one
+  // visitor paid ~1.9s for an answer we already knew was nothing: measured
+  // 1.0s warm, 2.83s on the first request after the window lapsed.
+  //
+  // `scrapedHost` is computed here rather than further down, where it was only
+  // being used to decide whether the byline should be a link.
+  const scrapedHost = isScrapedHost(event.memberId);
   let member: Member | null = null;
-  try {
-    const res = await getMember(event.memberId);
-    member = res.member;
-  } catch {
-    // silently fall back
+  if (!scrapedHost) {
+    try {
+      const res = await getMember(event.memberId);
+      member = res.member;
+    } catch {
+      // silently fall back
+    }
   }
 
   const profile = member?.profile ?? {};
@@ -263,7 +281,9 @@ export default async function EventDetailPage({
   // Funcheap SF" with an avatar and a bio card states something false: they
   // listed it, they aren't putting it on. So for these the host card goes and
   // the credit is a single line that says what actually happened.
-  const scrapedHost = isScrapedHost(event.memberId);
+  //
+  // (`scrapedHost` is declared above, where it now also decides whether the
+  // host lookup is worth making at all.)
 
   // "What to expect" is gone: it restated the time, the place and the host —
   // all of which are already in the header three inches above — inside four

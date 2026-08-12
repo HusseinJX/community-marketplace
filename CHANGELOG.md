@@ -32,6 +32,22 @@ All notable changes to this project are documented here.
 > `next-server`. A stale one survived a rebuild underneath it and 404'd the new routes, which looked
 > exactly like a broken build. Use `lsof -ti:PORT | xargs kill -9`.*
 
+### Fixed — every event page fetched a host that cannot exist — 2026-08-11
+- A harvested event's host is a SYNTHETIC id (`source:sfpl`), minted precisely because there is no
+  business behind it. **669 of the 672 live events carry one** — and the page called
+  `getMember(event.memberId)` on all of them: a connector lookup that could never resolve, awaited
+  before the render, whose result was then discarded (the byline falls back to `member_name` for
+  exactly these events). The page already computed `isScrapedHost` — eighty lines *below* the fetch,
+  where it only decided whether the byline should be a link.
+- **This is what produced the recurring slow load, and it was NOT a cold-start problem.** The
+  connector fetch is cached for 300s, and an expired entry does not serve stale here — the
+  stale-while-revalidate in the ISR docs describes the *full-route* cache, and these pages are
+  dynamic, so the request blocks on the refresh. Measured on prod: **1.0s warm, 2.83s on the first
+  request after the 300s window lapsed, 1.0s immediately after.** So every five minutes, one visitor
+  paid ~1.9s for an answer we already knew was nothing.
+- Verified both paths: a scraped event still shows "San Francisco Public Library" with no lookup, and
+  an organiser event still resolves its real host, names Xeno, and links to `/members/…`.
+
 ### Performance — opening an event, and the Shop tab — 2026-08-11
 > **Deployed to CapRover prod 2026-08-11.** Gate passed (`/vendor` 307, home 200). Measured warm on
 > `whatslocal.ai` afterwards: event page **288KB / ~0.70s TTFB** (was 670KB / 0.86–1.26s) and full
