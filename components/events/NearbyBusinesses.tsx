@@ -2,6 +2,7 @@ import { MemberCard } from "@/components/MemberCard";
 import { fetchAllMembers } from "@/lib/landing";
 import { groupMembers } from "@/lib/browse-groups";
 import { milesTo, byDistance } from "@/lib/proximity";
+import { slimMember } from "@/lib/member-slim";
 import type { Member } from "@/lib/types";
 
 // "While you're there" — the businesses closest to the event.
@@ -19,8 +20,16 @@ import type { Member } from "@/lib/types";
 const MAX_MI = 5;
 /** The lead rail: the closest handful, whatever they are. */
 const LIMIT = 8;
-/** Per category rail. */
-const PER_GROUP = 12;
+/**
+ * Per category rail. Was 12.
+ *
+ * These are horizontal rails, so past the first three or four cards everything
+ * is off-screen until someone swipes — and with a dozen categories that tail
+ * was most of the page weight. At 12 this section alone was ~600KB of the
+ * event page's 670KB. Six still fills the rail on a phone and leaves something
+ * to swipe to.
+ */
+const PER_GROUP = 6;
 
 /** People, not places you can walk into. */
 const VISITABLE = new Set(["vendor", "artist", "organizer"]);
@@ -111,7 +120,10 @@ function Rail({
     <div className="-mx-4 mt-4 flex gap-4 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:-mx-8 md:px-8">
       {members.map((m) => (
         <div key={m.id} className="w-44 shrink-0 sm:w-52">
-          <MemberCard member={m} miles={milesById.get(m.id) ?? null} hasPosition />
+          {/* Slimmed at the boundary. Whatever is handed to a card here is
+              serialised into the RSC payload verbatim — full profiles made
+              each of these ~4.9KB, most of it prose the card never draws. */}
+          <MemberCard member={slimMember(m)} miles={milesById.get(m.id) ?? null} hasPosition compact />
         </div>
       ))}
     </div>

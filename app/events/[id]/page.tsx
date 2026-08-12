@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { Calendar, MapPin, Clock, UserRound, ExternalLink } from "lucide-react";
 import { isScrapedHost } from "@/lib/sources/persist";
@@ -29,6 +30,29 @@ const gradients = [
   "from-sky-300 to-blue-500",
   "from-lime-300 to-emerald-500",
 ];
+
+/**
+ * Placeholder while the nearby rail streams in.
+ *
+ * Deliberately quiet — no heading. `NearbyBusinesses` returns null when the
+ * event has nothing within five miles, and a skeleton headed "Nearby
+ * businesses" would announce a section that is about to disappear.
+ */
+function NearbyBusinessesSkeleton() {
+  return (
+    <div className="mt-12 border-t border-stone-100 pt-8">
+      <div className="h-6 w-48 animate-pulse rounded bg-stone-100" />
+      <div className="-mx-4 mt-4 flex gap-4 overflow-hidden px-4 md:-mx-8 md:px-8">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="w-44 shrink-0 sm:w-52">
+            <div className="aspect-square animate-pulse rounded-xl bg-stone-100" />
+            <div className="mt-2 h-4 w-3/4 animate-pulse rounded bg-stone-100" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function gradientFor(s: string) {
   let h = 0;
@@ -97,12 +121,17 @@ export default async function EventDetailPage({
   let eventLng: number | null = null;
   /** The source's own listing, for harvested events. */
   let sourceUrl: string | null = null;
-  if (!event) {
-    const { events } = await listEvents();
-    event = events.find((e) => e.id === id);
-  }
-  // Fall back to a self-serve organizer event (vendor_events). These get free
-  // RSVP; connector/demo events keep the synthetic attendance display.
+  // `vendor_events` FIRST, connector second — the reverse of how this read.
+  //
+  // 694 of the 697 live events are rows in vendor_events (every harvested
+  // event, every organiser event); the connector holds a handful. Asking the
+  // connector first meant fetching its ENTIRE event list, ~600ms, finding
+  // nothing, and only then doing the single indexed lookup that was always
+  // going to answer — on essentially every event page load.
+  //
+  // Ids do not collide: the two sources are deduped into one feed, and where a
+  // record exists in both, the vendor_events row is the richer one (poster,
+  // coordinates, source URL), so preferring it is also the better answer.
   if (!event) {
     const ve = await getVendorEventById(id);
     if (ve) {
@@ -145,6 +174,15 @@ export default async function EventDetailPage({
         status: "approved",
       };
     }
+  }
+
+  // The connector's own events — a handful, and the only ones not in
+  // vendor_events. Now a LAST resort rather than the first thing tried: this
+  // fetches its whole event list, so it only runs for an id nothing else
+  // claimed, instead of on every page view.
+  if (!event) {
+    const { events } = await listEvents();
+    event = events.find((e) => e.id === id);
   }
 
   if (!event) {
@@ -501,8 +539,17 @@ export default async function EventDetailPage({
         {/* What else is on that block when you get there. Full width under both
             columns, and it self-hides when the event has no pin or nothing is
             close — an empty "nearby" rail is worse than no rail. */}
+        {/* STREAMED, not awaited inline. This section reads the whole member
+            directory and renders dozens of cards — roughly 600KB of the ~670KB
+            this page used to weigh — and none of it is the event. Awaited in
+            place it held the FIRST BYTE of the page hostage: the title, date and
+            RSVP button were ready in milliseconds and sat behind a rail nobody
+            has scrolled to yet. Inside Suspense the event paints immediately and
+            this arrives when it's ready. */}
         {pinLat != null && pinLng != null && (
-          <NearbyBusinesses lat={pinLat} lng={pinLng} excludeMemberId={event.memberId} />
+          <Suspense fallback={<NearbyBusinessesSkeleton />}>
+            <NearbyBusinesses lat={pinLat} lng={pinLng} excludeMemberId={event.memberId} />
+          </Suspense>
         )}
       </div>
     </main>

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { listMembers } from "@/lib/api";
 import { fetchAllMembers } from "@/lib/landing";
 import type { Member } from "@/lib/types";
+import { slimMember as slim } from "@/lib/member-slim";
 
 // Server-side directory proxy. The home "Who's local" rail and /explore used to
 // call listMembers() directly from the browser, which (a) exposed the connector
@@ -57,12 +58,15 @@ function searchMembers(all: Member[], termRaw: string, limit: number): Member[] 
 export async function GET(req: Request) {
   const search = new URL(req.url).searchParams.get("search")?.trim();
   try {
+    // Slimmed on the way OUT, never before matching: `searchMembers` reads
+    // description-ish fields (specialties, services, address) that the cards
+    // never draw, so trimming first would quietly narrow what is findable.
     if (search) {
       const all = await fetchAllMembers();
-      return NextResponse.json({ members: searchMembers(all, search, 60) });
+      return NextResponse.json({ members: searchMembers(all, search, 60).map(slim) });
     }
     const { members } = await listMembers({ limit: 100 });
-    return NextResponse.json({ members: members ?? [] });
+    return NextResponse.json({ members: (members ?? []).map(slim) });
   } catch {
     // Connector down / slow — return empty so callers keep their prior/demo data.
     return NextResponse.json({ members: [] });

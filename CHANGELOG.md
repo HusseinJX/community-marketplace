@@ -32,6 +32,36 @@ All notable changes to this project are documented here.
 > `next-server`. A stale one survived a rebuild underneath it and 404'd the new routes, which looked
 > exactly like a broken build. Use `lsof -ti:PORT | xargs kill -9`.*
 
+### Performance — opening an event, and the Shop tab — 2026-08-11
+Measured first, on prod: event page **~0.9s TTFB warm / 2.1s cold and 670KB of HTML** for one event;
+Shop tab **167KB** of JSON for 99 businesses; opening a business ~270ms warm but **4.1s cold**.
+
+- **The event page held its first byte hostage to a rail nobody had scrolled to.** `NearbyBusinesses`
+  reads the whole member directory and renders dozens of cards — ~600KB of the 670KB, none of it the
+  event. It is now inside `<Suspense>`: **23.8KB** (the event itself) arrives immediately and the rail
+  streams in after. The title, date and RSVP button were always ready in milliseconds.
+- **The event lookup asked the wrong source first.** 694 of 697 events are `vendor_events` rows, but
+  the page fetched the connector's ENTIRE event list (~600ms, returning **0**) before doing the single
+  indexed lookup that was always going to answer. Supabase is now tried first, the connector last.
+- **Cards were drawing 106 images between them.** Each nearby card rendered its full carousel (most
+  businesses carry three) with a six-entry `srcSet` of ~150-character URLs — the markup outweighed the
+  data it came from. Rail cards are now `compact`: one image, and a `sizes` matching the real 176–208px
+  card instead of the default `100vw`, which had phones fetching full-viewport files for thumbnails —
+  the same oversized-decode that OOM'd the iOS webview once already.
+- **`PER_GROUP` 12 → 6.** Past the first few cards a horizontal rail is off-screen anyway.
+- **The directory shipped prose no card draws** — `approvedBlurb`, `personalNote`,
+  `businessDescription`, `vibe` were the four fattest fields on a member and 62% of the response.
+  `lib/member-slim.ts` is now the one list of what a card needs, shared by `/api/directory` and the
+  nearby rail. Slimmed on the way OUT, never before matching: name search reads several of the dropped
+  fields, so trimming first would have quietly narrowed what is findable.
+- **Result:** event page **670KB → 288KB**, with only **23.8KB** blocking first paint (was all 670KB);
+  directory **167KB → 69KB**; images per event page **106 → 40**.
+- Verified after: 44 nearby cards still render, **0 broken images**, Shop tab 90 cards with name, type,
+  neighbourhood, city and category all intact, and name search still returns the same results.
+- *Noticed, not fixed: `businessSize` and `ownershipTags` are set on **0 of 99** members upstream, so
+  the facet filter sidebar currently has nothing to filter on. Pre-existing — confirmed against the
+  unslimmed prod response before trusting the trim.*
+
 ### Fixed — the save star was missing from the feed the index actually opens on — 2026-08-11
 - `SaveEventButton` was on the What's-on cards, the Feed cards and the event page — but **not on the
   For-you cards**, which is what `/` renders by default. So the star was on every events surface

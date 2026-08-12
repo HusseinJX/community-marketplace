@@ -24,11 +24,28 @@ export function MemberCard({
   // can't measure this" from "we don't know where you are" — without it, a
   // silent gap where a distance should be reads as "nearby".
   hasPosition = false,
+  compact = false,
 }: {
   member: Member;
   matchedOn?: string[];
   miles?: number | null;
   hasPosition?: boolean;
+  /**
+   * A small card inside a horizontal rail (~176–208px), rather than a full
+   * grid tile. Two consequences, both about weight:
+   *
+   *  - ONE image, not the carousel. Most businesses carry three, and 44 rail
+   *    cards on the event page rendered 106 `<img>` between them — each with a
+   *    six-entry srcSet of ~150-character URLs. That markup alone was ~400KB,
+   *    far more than the member data it was drawn from. Swiping a 176px card
+   *    inside a horizontally-scrolling rail fights the rail's own gesture
+   *    anyway, so the carousel was never really usable at this size.
+   *  - A `sizes` that matches the real card width. The default declares
+   *    `100vw`, so on a phone the browser fetches a full-viewport-width file
+   *    for a card a fifth that wide — the same oversized-decode that OOM'd the
+   *    iOS webview once already (see ImageCarousel MEMORY LEVER notes).
+   */
+  compact?: boolean;
 }) {
   const p = member.profile ?? {};
   const name = p.name || "Anonymous member";
@@ -42,7 +59,8 @@ export function MemberCard({
   //   4) coloured gradient
   const curated = MEMBER_HERO_IMAGES[member.id];
   const profileImages = Array.isArray(p.images) ? usableImages(p.images) : [];
-  const carouselImages = curated && curated.length ? curated : (profileImages.length ? profileImages : null);
+  const allImages = curated && curated.length ? curated : (profileImages.length ? profileImages : null);
+  const carouselImages = compact && allImages ? allImages.slice(0, 1) : allImages;
 
   const subtitle = [location, p.category as string | undefined].filter(Boolean).join(" · ");
 
@@ -61,6 +79,9 @@ export function MemberCard({
             showCounter={carouselImages.length > 1}
             // The name plate owns the bottom edge — dots would sit underneath it.
             indicators={false}
+            // Matches `w-44 sm:w-52` on the rail wrappers. Stated so next/image
+            // stops offering (and phones stop fetching) full-width candidates.
+            sizes={compact ? "(min-width:640px) 208px, 176px" : undefined}
             fallbackGradient={gradient}
           />
         ) : (
