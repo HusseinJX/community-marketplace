@@ -77,4 +77,38 @@ for _ in $(seq 1 60); do
   esac
 done
 
+# ── Warm the caches ──────────────────────────────────────────────────────────
+#
+# A deploy is the ONLY thing that produces a genuinely cold cache. Expiry does
+# not: Next serves the stale value immediately and refreshes in the background,
+# so nobody waits for a merely-out-of-date entry. An EMPTY cache is different —
+# whoever arrives first blocks on the real fetch, and the connector's member
+# list is ~2s (fetchAllMembers loops it, 24h key), which is why the first hit
+# after a deploy measured 2.1s on an event page and 4.1s on a business while
+# every subsequent hit was 0.2–0.7s.
+#
+# So the fix is not more caching, it is not being the first visitor. Three
+# requests populate every shared key: the directory (fetchAllMembers, used by
+# the Shop tab, /explore AND the event page's nearby rail), the home feed, and
+# one event page.
+#
+# Deliberately non-fatal. The deploy has already succeeded by this point; a
+# warming request that fails means one slow page view, and must never be
+# reported as a failed release.
+echo "==> Warming caches (so the first real visitor isn't the one who pays)…"
+BASE="${WARM_URL:-https://whatslocal.ai}"
+warm() {
+  local label="$1" url="$2"
+  local t
+  t="$(curl -s -o /dev/null -m 30 -w '%{time_starttransfer}' "$url" 2>/dev/null || echo '-')"
+  echo "    ${label}: ${t}s"
+}
+warm "home       " "$BASE/"
+warm "directory  " "$BASE/api/directory"
+# Any single event page pulls the whole member directory for its nearby rail.
+EV="$(curl -s -m 30 -X POST "$BASE/api/events/personalize" \
+      -H 'Content-Type: application/json' -d '{}' 2>/dev/null \
+      | python3 -c 'import sys,json;e=json.load(sys.stdin).get("events") or [];print(e[0]["id"] if e else "")' 2>/dev/null || true)"
+[ -n "$EV" ] && warm "event page " "$BASE/events/$EV" || echo "    event page : skipped (no event returned)"
+
 echo "==> Done → https://whatslocal.ai  (and https://$APP.whatslocal.ai)"
