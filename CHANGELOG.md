@@ -32,6 +32,24 @@ All notable changes to this project are documented here.
 > `next-server`. A stale one survived a rebuild underneath it and 404'd the new routes, which looked
 > exactly like a broken build. Use `lsof -ti:PORT | xargs kill -9`.*
 
+### Fixed — the save star was missing from the feed the index actually opens on — 2026-08-11
+- `SaveEventButton` was on the What's-on cards, the Feed cards and the event page — but **not on the
+  For-you cards**, which is what `/` renders by default. So the star was on every events surface
+  except the one most people see first.
+- Added in both card shapes: **top-LEFT overlay** on the poster (the badges own top-right), and in
+  the badge row for **posterless** cards — an event you can't save because it happens to have no
+  picture is the worse bug.
+- `SaveEventButton` gained a `corner` prop instead of taking `left-2` through `className`. Both set
+  the same CSS property, so which one won would have depended on the order Tailwind emitted them in:
+  a silent, layout-dependent coin flip.
+- **Saving stays a pure bookmark and does NOT feed the taste embedding** — deliberate. A star that
+  quietly reshaped your feed would be exactly the invisible-recommender behaviour the taste profile
+  is built to avoid; teaching it is what "Remember this" and the `/shopper` editor are for.
+- Verified in a browser: star renders on all 60 cards, clicking it does **not** navigate or expand
+  the card (the card is one big click target, so `stopPropagation` is the thing that breaks first),
+  and signed-out it opens the sign-in sheet. *Caveat: every event in the live feed currently has a
+  poster, so the posterless branch was verified by unhiding that row in the DOM, not from real data.*
+
 ### Added — semantic personalisation: the events feed matches meaning, and remembers you — 2026-08-11
 - **The embedding pipeline already existed and was DEAD CODE.** `lib/reco/embed.ts` was complete,
   `lib/reco/profile.ts` defined a whole `ShopperProfile`, and `rank.ts` had accepted a `profileVector`

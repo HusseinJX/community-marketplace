@@ -14,11 +14,20 @@ import { useSavedEvents } from "@/lib/data-hooks";
 export function SaveEventButton({
   eventId,
   variant = "overlay",
+  corner = "right",
   className = "",
 }: {
   eventId: string;
   /** `overlay` floats on a card image; `inline` sits in a row of controls. */
   variant?: "overlay" | "inline";
+  /**
+   * Which top corner the overlay sits in. A real prop rather than a `left-2`
+   * passed through `className`: both would set the same CSS property, and which
+   * one won would depend on the order Tailwind happened to emit them in — a
+   * silent, layout-dependent coin flip. The For-you cards put their badges top
+   * -right, so the star goes left there.
+   */
+  corner?: "left" | "right";
   className?: string;
 }) {
   const { isSignedIn } = useAuth();
@@ -69,7 +78,7 @@ export function SaveEventButton({
       className={
         // Sits over a photo that may be any colour, so it carries its own
         // backdrop rather than relying on contrast with the image.
-        "absolute right-2 top-2 z-10 grid h-8 w-8 place-items-center rounded-full bg-white/85 shadow-sm backdrop-blur transition hover:bg-white active:scale-95 " +
+        `absolute ${corner === "left" ? "left-2" : "right-2"} top-2 z-10 grid h-8 w-8 place-items-center rounded-full bg-white/85 shadow-sm backdrop-blur transition hover:bg-white active:scale-95 ` +
         className
       }
     >

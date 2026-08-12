@@ -19,6 +19,7 @@ import { cachedPosition, getHomePosition, refreshHomePosition } from "@/lib/home
 import { usePersonalizedEvents } from "@/lib/data-hooks";
 import { tasteId } from "@/lib/taste-id";
 import { ImageCarousel } from "@/components/ImageCarousel";
+import { SaveEventButton } from "@/components/events/SaveEventButton";
 
 const TOPIC_CHIPS: { id: string; label: string }[] = [
   { id: "music", label: "Music" },
@@ -690,6 +691,13 @@ export function PersonalizedEvents({
                       <div className="pointer-events-none absolute right-2 top-2 flex items-center gap-1">
                         {badges}
                       </div>
+
+                      {/* Star, top-LEFT — the badges own the other corner.
+                          This feed was the one place an event could not be
+                          saved: the star is on What's-on, the Feed cards and
+                          the event page, and For you is what the index opens
+                          on, so the default surface was the one without it. */}
+                      <SaveEventButton eventId={e.id} corner="left" />
                     </div>
                   )}
 
@@ -716,7 +724,14 @@ export function PersonalizedEvents({
                         </p>
                       </div>
                       </>
-                      <div className="flex shrink-0 items-center gap-1">{badges}</div>
+                      {/* Posterless cards have no image to float a star over,
+                          so it joins the badge row. Same control, still on
+                          every card — an event you cannot save because it
+                          happens to have no picture is the worse bug. */}
+                      <div className="flex shrink-0 items-center gap-1">
+                        {badges}
+                        <SaveEventButton eventId={e.id} variant="inline" />
+                      </div>
                     </div>
 
                     {e.why.length > 0 && (
