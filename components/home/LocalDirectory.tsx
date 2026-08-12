@@ -80,7 +80,10 @@ export function LocalDirectory({
   }
 
   return (
-    <section className="mx-auto max-w-6xl border-t border-stone-100 px-4 pb-12 pt-8 md:px-8">
+    // No top rule: on the Shop tab this is the first section under the city
+    // name, so the divider read as a line drawn under the page title rather
+    // than as a separator between two things.
+    <section className="mx-auto max-w-6xl px-4 pb-12 pt-6 md:px-8">
       {/* The floor, not the pitch — a plain way to browse everyone. */}
       <div className="mb-2 flex items-center justify-between gap-3">
         <h2 className="text-xl font-semibold tracking-tight text-stone-900">

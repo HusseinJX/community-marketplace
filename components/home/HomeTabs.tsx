@@ -204,12 +204,20 @@ export function HomeTabs() {
       {/* Body — only the active tab mounts, keeping the page light per view. */}
       {tab === "feed" && (
         <>
-          <div className="mx-auto max-w-6xl px-4 pt-3 md:px-8">{supplyLink}</div>
           <LiveFeed />
-          <section className="mx-auto max-w-6xl border-t border-stone-100 px-4 pb-24 pt-4 md:px-8">
-            <h2 className="mb-5 text-xl font-semibold tracking-tight text-stone-900">
+          {/* No top rule. It landed directly under the city name — the first
+              thing below the page title was a divider, which reads as the end
+              of something rather than the start of the feed. */}
+          <section className="mx-auto max-w-6xl px-4 pb-24 pt-4 md:px-8">
+            <h2 className="text-xl font-semibold tracking-tight text-stone-900">
               From the community
             </h2>
+            {/* The "add your business" ask sits under the heading it belongs
+                to, not at the top of the tab. Above the feed it was the first
+                thing a reader met — a request, before anything worth reading —
+                and it pushed the actual content down. Same placement the Shop
+                tab already uses (LocalDirectory `belowHeader`). */}
+            <div className="mb-5 mt-1">{supplyLink}</div>
             <CommunityFeed layout="feed" />
           </section>
         </>

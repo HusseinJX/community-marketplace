@@ -32,6 +32,15 @@ All notable changes to this project are documented here.
 > `next-server`. A stale one survived a rebuild underneath it and 404'd the new routes, which looked
 > exactly like a broken build. Use `lsof -ti:PORT | xargs kill -9`.*
 
+### Changed — home tab tidy-up — 2026-08-11
+- **The rule under the city name is gone**, on both Feed and Shop. It was the `border-t` on the first
+  section, which landed immediately below "San Francisco" — so the first thing under the page title
+  was a divider, reading as the end of something rather than the start of the feed.
+- **"Own a local business?" moved out of the top slot on Feed** to sit under the "From the community"
+  heading it belongs to. At the top it was the first thing a reader met — a request, before anything
+  worth reading — and it pushed the feed down. Same placement the Shop tab already used
+  (`LocalDirectory belowHeader`).
+
 ### Fixed — every event page fetched a host that cannot exist — 2026-08-11
 > **Deployed + verified on prod 2026-08-11.** Re-ran the same experiment after the fix: **0.55s warm,
 > 0.74s at the 5.7-minute mark** (was 1.0s / **2.83s**), 0.51s immediately after — the five-minute
