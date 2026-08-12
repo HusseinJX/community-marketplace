@@ -33,6 +33,11 @@ All notable changes to this project are documented here.
 > exactly like a broken build. Use `lsof -ti:PORT | xargs kill -9`.*
 
 ### Performance — opening an event, and the Shop tab — 2026-08-11
+> **Deployed to CapRover prod 2026-08-11.** Gate passed (`/vendor` 307, home 200). Measured warm on
+> `whatslocal.ai` afterwards: event page **288KB / ~0.70s TTFB** (was 670KB / 0.86–1.26s) and full
+> browser load **~950ms** (was 2465ms); directory **69KB / 60ms** (was 167KB). 0 console errors, 0
+> broken images, ad pixels still inert. Opening a business is unchanged warm (~250ms) — it was never
+> the slow one; its 4.1s was a cold cache.
 Measured first, on prod: event page **~0.9s TTFB warm / 2.1s cold and 670KB of HTML** for one event;
 Shop tab **167KB** of JSON for 99 businesses; opening a business ~270ms warm but **4.1s cold**.
 
