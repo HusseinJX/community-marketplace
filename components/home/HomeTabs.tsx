@@ -89,10 +89,10 @@ export function HomeTabs() {
   // is made of — the supply gap there is events, not listings — but both land
   // on the same /join.
   //
-  // It sits where the "Nearest first, measured from where you are" line used to,
-  // under the filters: that line explained a mechanic the cards already show by
-  // printing a distance on each one, and this is the one thing on the screen
-  // that asks the reader for something.
+  // Every tab renders it directly under that tab's heading, never inside the
+  // feed component below it. It is an ask, so it belongs to the section rather
+  // than to whatever is currently filtered — and one placement means it cannot
+  // drift between the two Events views.
   const supplyLink = (
     <Link
       href="/join"
@@ -264,6 +264,13 @@ export function HomeTabs() {
                 ))}
               </div>
             </div>
+            {/* Under the heading it belongs to, not under the filters. Below the
+                pills it read as a footnote to whatever had just been filtered,
+                moved every time the view or the topics changed, and disappeared
+                entirely once someone scrolled the pills out of view. Here it is
+                in the same place on both views — the same placement Feed and
+                Shop (LocalDirectory `belowHeader`) already use. */}
+            <div className="mt-1">{supplyLink}</div>
           </div>
 
           {eventsView === "foryou" ? (
@@ -272,12 +279,10 @@ export function HomeTabs() {
                 query={eventQuery}
                 onClearQuery={clearEventSearch}
                 onLoadingChange={setEventsLoading}
-                belowFilters={supplyLink}
               />
             </div>
           ) : (
             <div className="pt-2">
-              <div className="mx-auto max-w-2xl px-4 md:px-8">{supplyLink}</div>
               <CommunityEventsLive hideHeading />
             </div>
           )}

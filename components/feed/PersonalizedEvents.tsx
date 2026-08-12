@@ -12,7 +12,7 @@
 // reason inferred from a similarity score — that is how an earlier version
 // told someone a job-hunting talk "matched your interest in art".
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { MapPin, Loader2, X, LocateFixed, Clock, Building2, ChevronDown, ExternalLink, Sparkles, Check } from "lucide-react";
 import { cachedPosition, getHomePosition, refreshHomePosition } from "@/lib/home-position";
@@ -230,14 +230,11 @@ export function PersonalizedEvents({
   query = "",
   onClearQuery,
   onLoadingChange,
-  belowFilters,
 }: {
   query?: string;
   onClearQuery?: () => void;
   /** Lets the lifted search button show the feed's own loading state. */
   onLoadingChange?: (loading: boolean) => void;
-  /** One line under the filters, where the "nearest first" caption used to be. */
-  belowFilters?: ReactNode;
 } = {}) {
   const [topics, setTopics] = useState<string[]>([]);
   // Which cards are open. A Set rather than a single id: opening one should not
@@ -486,8 +483,9 @@ export function PersonalizedEvents({
       {/* "Nearest first, measured from where you are" is gone: it explained a
           sort that every card demonstrates by printing its own distance, and
           the "Near me" radius pill it belonged to went with it. What is left is
-          the half that can still be acted on — an offer to turn location on —
-          and, in its place, the one line that asks the reader for something. */}
+          the half that can still be acted on — an offer to turn location on.
+          (The "Hosting something?" ask that briefly sat here now lives under
+          the tab heading in HomeTabs, so it reads the same on both views.) */}
       {!home && locationOff ? (
         <button
           onClick={() => void requestMyLocation()}
@@ -498,8 +496,6 @@ export function PersonalizedEvents({
           Turn on location to sort by distance
         </button>
       ) : null}
-
-      {belowFilters && <div className="mt-3">{belowFilters}</div>}
 
       {/* ── what we heard ─────────────────────────────────────────────── */}
       {result && (query || topics.length > 0 || organizer || result.usedTaste) && (
