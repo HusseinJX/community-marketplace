@@ -19,6 +19,19 @@ All notable changes to this project are documented here.
 > `/monitoring` tunnel (200), and `data-private` present on the assistant chat and absent on Shop
 > — masking where conversations are, nowhere else. No native change, so no Xcode rebuild.
 
+> **Deployed to CapRover prod 2026-08-11**: semantic personalisation. Gate re-run and passed —
+> `/vendor` **307 → /vendor/sign-in** (demo mode off), home 200. Verified live on `whatslocal.ai`
+> afterwards with a full round trip: a feed with no profile returned generic events, saving a
+> profile (`hasVector: true`) flipped the same request to `semantic: true` / `usedTaste: true` and
+> returned *Lunch at the Library · Social: Game Night · Crafternoon*, then the test profile was
+> deleted. Trigger.dev worker redeployed as **v20260812.1** so `embedNew()` runs in the nightly
+> sweep — still **4 tasks**, i.e. the commented-out composio `sync-all-catalogs` cron did NOT switch
+> on as a side effect. No native change, so no Xcode rebuild.
+>
+> *Gotcha worth remembering: `pkill -f "next start"` does NOT kill the server — the process is named
+> `next-server`. A stale one survived a rebuild underneath it and 404'd the new routes, which looked
+> exactly like a broken build. Use `lsof -ti:PORT | xargs kill -9`.*
+
 ### Added — semantic personalisation: the events feed matches meaning, and remembers you — 2026-08-11
 - **The embedding pipeline already existed and was DEAD CODE.** `lib/reco/embed.ts` was complete,
   `lib/reco/profile.ts` defined a whole `ShopperProfile`, and `rank.ts` had accepted a `profileVector`
