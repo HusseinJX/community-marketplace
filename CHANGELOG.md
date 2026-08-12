@@ -33,6 +33,11 @@ All notable changes to this project are documented here.
 > exactly like a broken build. Use `lsof -ti:PORT | xargs kill -9`.*
 
 ### Fixed — every event page fetched a host that cannot exist — 2026-08-11
+> **Deployed + verified on prod 2026-08-11.** Re-ran the same experiment after the fix: **0.55s warm,
+> 0.74s at the 5.7-minute mark** (was 1.0s / **2.83s**), 0.51s immediately after — the five-minute
+> cliff is gone, and the steady-state page is roughly twice as fast as well, since the wasted lookup
+> was on every render. An organiser event, which still resolves a real host, measured 0.57s.
+
 - A harvested event's host is a SYNTHETIC id (`source:sfpl`), minted precisely because there is no
   business behind it. **669 of the 672 live events carry one** — and the page called
   `getMember(event.memberId)` on all of them: a connector lookup that could never resolve, awaited
