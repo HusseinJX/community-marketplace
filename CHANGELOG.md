@@ -33,6 +33,11 @@ All notable changes to this project are documented here.
 > exactly like a broken build. Use `lsof -ti:PORT | xargs kill -9`.*
 
 ### Changed — home tab tidy-up — 2026-08-11
+> **Deployed to CapRover prod 2026-08-11.** Gate passed (`/vendor` 307, home 200). Verified live:
+> Feed reads "From the community" → the business link → posts, Shop keeps its own heading, **0**
+> sections with a top border on either tab, 0 console errors. The deploy script's new warming step
+> absorbed the cold cache itself (1.15s home, 1.12s directory) so no visitor did.
+
 - **The rule under the city name is gone**, on both Feed and Shop. It was the `border-t` on the first
   section, which landed immediately below "San Francisco" — so the first thing under the page title
   was a divider, reading as the end of something rather than the start of the feed.
