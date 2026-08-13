@@ -1,8 +1,9 @@
 "use client";
 
-import { MapContainer, TileLayer, Popup, Marker } from "react-leaflet";
+import { MapContainer, Popup, Marker } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { BaseTiles } from "@/components/map/BaseTiles";
 import Link from "next/link";
 import { MapPin } from "lucide-react";
 import { eventEmoji, eventLabel, timeLeftLabel } from "@/lib/live-events";
@@ -96,10 +97,7 @@ export default function WhatsOnMapInner({
     <>
       <style>{`@keyframes wo-ping{0%{transform:scale(1);opacity:.25}70%{transform:scale(2.2);opacity:0}100%{transform:scale(2.2);opacity:0}}`}</style>
       <MapContainer center={center} zoom={12} style={{ height: "520px", width: "100%", borderRadius: "1rem" }} className="z-0">
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
+        <BaseTiles />
 
         {/* Live venues — pulsing */}
         {venues.map((b) => (

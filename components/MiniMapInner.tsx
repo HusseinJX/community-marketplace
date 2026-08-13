@@ -1,7 +1,8 @@
 "use client";
 
-import { MapContainer, TileLayer, CircleMarker } from "react-leaflet";
+import { MapContainer, CircleMarker } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
+import { BaseTiles } from "@/components/map/BaseTiles";
 
 export default function MiniMapInner({
   lat,
@@ -23,7 +24,7 @@ export default function MiniMapInner({
       style={{ height: "180px", width: "100%", borderRadius: "0.75rem" }}
       className="z-0"
     >
-      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+      <BaseTiles />
       <CircleMarker
         center={[lat, lng]}
         radius={9}

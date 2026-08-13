@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { UserPlus, HandHeart, MessageSquare, Check, MapPin, Heart, Apple, DollarSign, CreditCard, X, Globe, CalendarClock, Bookmark } from "lucide-react";
 import { GoogleReviewButton } from "@/components/GoogleReviewButton";
 import { BookingRequest } from "@/components/booking/BookingRequest";
+import { DirectionsButton } from "@/components/map/DirectionsButton";
 
 export interface SocialLinkItem {
   href: string;
@@ -21,6 +22,8 @@ export function ActionBar({
   placeId,
   businessName,
   businessAddress,
+  lat,
+  lng,
   socials = [],
 }: {
   memberName?: string;
@@ -33,6 +36,9 @@ export function ActionBar({
   placeId?: string;
   businessName?: string;
   businessAddress?: string;
+  /** The pin already drawn on this profile's map — the exact destination. */
+  lat?: number | null;
+  lng?: number | null;
   socials?: SocialLinkItem[];
 }) {
   const [following, setFollowing] = useState(false);
@@ -76,6 +82,14 @@ export function ActionBar({
           business below the fold. Bleeding to the screen edge (-mx-4) is the
           cue that it scrolls. Desktop has the width to wrap, so it still does. */}
       <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] md:mx-0 md:flex-wrap md:overflow-visible md:px-0 md:pb-0 [&::-webkit-scrollbar]:hidden">
+      {/* Directions FIRST. Someone on a business profile on their phone is
+          often trying to get there, and that was the one thing this row could
+          not do — the address was static text and the map was a picture. It
+          self-hides when we hold no location at all. */}
+      <DirectionsButton
+        destination={{ lat, lng, address: businessAddress, label: businessName || memberName }}
+      />
+
       <button
         onClick={() => setFollowing((v) => !v)}
         className={

@@ -355,6 +355,8 @@ export default async function MemberProfilePage({
           placeId={p.placeId as string | undefined}
           businessName={(p.businessName as string) || name}
           businessAddress={p.businessAddress as string | undefined}
+          lat={typeof p.latitude === "number" ? p.latitude : null}
+          lng={typeof p.longitude === "number" ? p.longitude : null}
           socials={socialLinks}
         />
       </header>

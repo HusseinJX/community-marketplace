@@ -18,6 +18,7 @@ import { MemoriesGrid } from "@/components/posts/MemoriesGrid";
 import { TicketBox } from "@/components/events/TicketBox";
 import { SaveEventButton } from "@/components/events/SaveEventButton";
 import { EventLocationMap } from "@/components/events/EventLocationMap";
+import { DirectionsButton } from "@/components/map/DirectionsButton";
 import { NearbyBusinesses } from "@/components/events/NearbyBusinesses";
 
 // ─── Gradient helpers ────────────────────────────────────────────────────────
@@ -502,6 +503,19 @@ export default async function EventDetailPage({
                     label={event.location || hostName}
                   />
                 )}
+                {/* The map above is a picture — it cannot route anyone
+                    anywhere. This is the only control on the page that gets
+                    you to the venue, so it sits directly under it and opens
+                    the phone's own maps app. */}
+                <DirectionsButton
+                  variant="link"
+                  destination={{
+                    lat: pinLat,
+                    lng: pinLng,
+                    address: event.location,
+                    label: event.title || event.location,
+                  }}
+                />
                 <div className="flex items-start gap-2.5">
                   <UserRound className="size-4 text-stone-400 shrink-0 mt-0.5" />
                   <div>

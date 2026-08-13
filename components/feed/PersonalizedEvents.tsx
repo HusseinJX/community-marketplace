@@ -20,6 +20,7 @@ import { usePersonalizedEvents } from "@/lib/data-hooks";
 import { tasteId } from "@/lib/taste-id";
 import { ImageCarousel } from "@/components/ImageCarousel";
 import { SaveEventButton } from "@/components/events/SaveEventButton";
+import { DirectionsButton } from "@/components/map/DirectionsButton";
 
 const TOPIC_CHIPS: { id: string; label: string }[] = [
   { id: "music", label: "Music" },
@@ -45,6 +46,8 @@ interface FeedEvent {
   date: string;
   time: string | null;
   venue: string | null;
+  lat: number | null;
+  lng: number | null;
   source: string;
   sourceId: string | null;
   image: string | null;
@@ -730,8 +733,15 @@ export function PersonalizedEvents({
                       </div>
                     </div>
 
-                    {e.why.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-1.5">
+                    {(e.why.length > 0 || e.venue || e.lat != null) && (
+                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                        {/* Sits with the reason chips, because "how do I get
+                            there" is the next question after "why is this
+                            here". Self-hides if we hold no location at all. */}
+                        <DirectionsButton
+                          variant="chip"
+                          destination={{ lat: e.lat, lng: e.lng, address: e.venue, label: e.title }}
+                        />
                         {e.why.map((w, i) => (
                           <span
                             key={i}

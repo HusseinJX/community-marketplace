@@ -1,8 +1,9 @@
 "use client";
 
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import { MapContainer, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { BaseTiles } from "@/components/map/BaseTiles";
 
 // A calm pin (event 📅) — no pulse, this is a static "here's the venue" map.
 function pinIcon(): L.DivIcon {
@@ -30,10 +31,7 @@ export default function EventLocationMapInner({
       style={{ height: "10rem", width: "100%", borderRadius: "0.75rem" }}
       className="z-0"
     >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
+      <BaseTiles />
       <Marker position={[lat, lng]} icon={pinIcon()}>
         {label && <Popup>{label}</Popup>}
       </Marker>

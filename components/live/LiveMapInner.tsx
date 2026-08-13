@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { MapContainer, TileLayer, Popup, Marker } from "react-leaflet";
+import { MapContainer, Popup, Marker } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { BaseTiles } from "@/components/map/BaseTiles";
 import Link from "next/link";
 import { eventEmoji, eventLabel, timeLeftLabel } from "@/lib/live-events";
 import type { LiveBroadcast } from "./types";
@@ -52,19 +53,7 @@ export default function LiveMapInner({ broadcasts }: { broadcasts: LiveBroadcast
           style={{ height: "520px", width: "100%", borderRadius: "1rem" }}
           className="z-0"
         >
-          {process.env.NEXT_PUBLIC_MAPBOX_TOKEN ? (
-            <TileLayer
-              attribution='&copy; <a href="https://www.mapbox.com/about/maps/" target="_blank" rel="noreferrer">Mapbox</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>'
-              url={`https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/{z}/{x}/{y}@2x?access_token=${process.env.NEXT_PUBLIC_MAPBOX_TOKEN}`}
-              tileSize={512}
-              zoomOffset={-1}
-            />
-          ) : (
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-          )}
+          <BaseTiles />
 
           {pinned.map((b) => (
             <Marker

@@ -1,9 +1,10 @@
 "use client";
 
 import { useMemo, useRef } from "react";
-import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
+import { MapContainer, Marker, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { BaseTiles } from "@/components/map/BaseTiles";
 
 const SF: [number, number] = [37.7749, -122.4194];
 
@@ -43,10 +44,7 @@ export default function EventLocationPickerInner({
       style={{ height: "11rem", width: "100%", borderRadius: "0.75rem" }}
       className="z-0"
     >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
+      <BaseTiles />
       <ClickToPlace onChange={onChange} />
       <Marker
         position={pos}

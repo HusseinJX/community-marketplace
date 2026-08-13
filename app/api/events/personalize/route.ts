@@ -289,6 +289,10 @@ export async function POST(req: Request) {
       date: s.event.date,
       time: s.event.start,
       venue: s.event.venue,
+      // Shipped so a card can offer directions without a second request. Two
+      // floats per event; negligible next to the title and blurb already here.
+      lat: s.event.lat,
+      lng: s.event.lng,
       source: s.event.sourceLabel,
       sourceId: s.event.sourceId === 'community' ? null : s.event.sourceId,
       image: s.event.imageUrl,
