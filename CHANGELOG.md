@@ -33,6 +33,13 @@ All notable changes to this project are documented here.
 > exactly like a broken build. Use `lsof -ti:PORT | xargs kill -9`.*
 
 ### Added — maps, directions, saved businesses, event filters — 2026-08-13
+> **Deployed to CapRover prod 2026-08-13** (second deploy of the day). Gate passed before upload —
+> `/vendor` **307 → /vendor/sign-in** (demo mode off), home 200, `pk_live` baked, ad pixels still
+> absent so the ATT statement to App Review stays true. Verified live on `whatslocal.ai`: three
+> event toggles incl. Map, `/api/events/feed` returning coordinates on **108 of 120** events,
+> `/api/saved-members` answering, the Google-blue Directions control on a real profile, `/whatson`
+> 200, `/vendor` 307. The `saved_members` migration was applied and registered BEFORE this deploy,
+> so the schema never lagged the code. No native change, so no Xcode rebuild.
 
 **One basemap.** There were two map systems: /browse and Live drew Mapbox `streets-v12`, while the
 member profile, event page, /whatson, the events map and the vendor location picker drew raw
