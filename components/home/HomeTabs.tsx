@@ -90,8 +90,10 @@ export function HomeTabs() {
   // city line uses the same value, so "San Francisco" and "Events near you"
   // start on the same left edge instead of the city sitting out at the 6xl
   // margin while the heading was indented to 2xl.
-  const titleWidth =
-    tab === "events" && eventsView === "browse" ? "max-w-2xl" : "max-w-6xl";
+  // One width for the whole Events tab now that the dated list is a two-column
+  // grid on desktop rather than a single narrow ribbon. Switching views no
+  // longer changes how wide the page is.
+  const titleWidth = "max-w-6xl";
 
   const pick = (next: HomeTab) => {
     setTab(next);
@@ -313,7 +315,7 @@ export function HomeTabs() {
               <EventsMapView />
             </div>
           ) : eventsView === "browse" ? (
-            <div className="mx-auto max-w-2xl px-4 pt-4 md:px-8">
+            <div className="mx-auto max-w-6xl px-4 pt-4 md:px-8">
               <PersonalizedEvents
                 query={eventQuery}
                 onClearQuery={clearEventSearch}

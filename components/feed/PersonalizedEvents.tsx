@@ -622,7 +622,12 @@ export function PersonalizedEvents({
             >
               {dayLabel(day)}
             </h2>
-            <ul className="space-y-2">
+            {/* Two columns from lg, one below. The list used to be a 2xl
+                column inside a 6xl page, so on a desktop it was a narrow ribbon
+                with half the window empty beside it — and switching to For you
+                jumped the content width. items-start so an expanded card grows
+                on its own instead of stretching its neighbour to match. */}
+            <ul className="grid items-start gap-2 lg:grid-cols-2">
               {evs.map((e) => {
                 // Built once per card and rendered in ONE of two places: over
                 // the poster when there is one, in the header row when there
@@ -678,7 +683,7 @@ export function PersonalizedEvents({
                         // cap trades sharpness for RAM, quadratically: `800px`
                         // is ~2.2x less, `640px` ~3.5x less. Change it here if
                         // the events feed ever OOMs the iOS webview again.
-                        sizes="(min-width: 768px) 672px, 100vw"
+                        sizes="(min-width: 1024px) 560px, (min-width: 768px) 672px, 100vw"
                         // A poster IS the card here; 75 shows its compression
                         // on flat colour and type, which most event art is.
                         quality={88}
