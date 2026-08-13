@@ -7,6 +7,7 @@ import { ImageCarousel } from "./ImageCarousel";
 import { HeroMedia } from "./HeroMedia";
 import { memberImages } from "@/lib/member-images";
 import { DirectionsButton } from "@/components/map/DirectionsButton";
+import { SaveBusinessButton } from "@/components/SaveBusinessButton";
 
 const TYPE_GRADIENTS: Record<string, string> = {
   vendor: "from-blue-300 to-indigo-400",
@@ -131,12 +132,13 @@ export function MemberCard({
                 is pointer-events-none so taps fall through to the card link;
                 this one control has to catch its own. */}
             {!compact && (hasCoords || address) && (
-              <div className="pointer-events-auto mt-1.5 flex">
+              <div className="pointer-events-auto mt-1.5 flex flex-wrap gap-1.5">
                 <DirectionsButton
                   asButton
                   variant="chip"
                   destination={{ lat: p.latitude as number, lng: p.longitude as number, address, label: name }}
                 />
+                <SaveBusinessButton memberId={member.id} variant="chip" />
               </div>
             )}
           </div>

@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { UserPlus, HandHeart, MessageSquare, Check, MapPin, Heart, Apple, DollarSign, CreditCard, X, Globe, CalendarClock, Bookmark } from "lucide-react";
+import { UserPlus, HandHeart, MessageSquare, Check, MapPin, Heart, Apple, DollarSign, CreditCard, X, Globe, CalendarClock } from "lucide-react";
 import { GoogleReviewButton } from "@/components/GoogleReviewButton";
 import { BookingRequest } from "@/components/booking/BookingRequest";
+import { SaveBusinessButton } from "@/components/SaveBusinessButton";
 import { DirectionsButton } from "@/components/map/DirectionsButton";
 
 export interface SocialLinkItem {
@@ -47,7 +48,6 @@ export function ActionBar({
   const [supportOpen, setSupportOpen] = useState(false);
   const [supportAmount, setSupportAmount] = useState(50);
   const [bookOpen, setBookOpen] = useState(false);
-  const [saved, setSaved] = useState(false);
 
   const websiteHref = websiteUrl
     ? websiteUrl.startsWith("http")
@@ -105,18 +105,10 @@ export function ActionBar({
 
       {/* Subscribe removed — Follow already covers it. */}
 
-      <button
-        onClick={() => setSaved((v) => !v)}
-        className={
-          "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 py-2 text-[13px] font-medium transition " +
-          (saved
-            ? "border-indigo-200 bg-indigo-50 text-indigo-700"
-            : "border-stone-200 bg-white text-stone-700 hover:border-indigo-300 hover:text-indigo-700")
-        }
-      >
-        <Bookmark className={`h-4 w-4 ${saved ? "fill-indigo-600 text-indigo-600" : ""}`} />
-        {saved ? "Saved" : "Save"}
-      </button>
+      {/* Was local useState — it looked saved until you reloaded and wrote
+          nothing anywhere. Now the same control, and the same list, as the
+          bookmark on the shop card. */}
+      <SaveBusinessButton memberId={memberId} />
 
       {isVendor && (
         <button

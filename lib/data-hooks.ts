@@ -184,6 +184,46 @@ export function useSavedEvents() {
   return { saved, savedIds: ids, toggle, loading: isLoading && !data };
 }
 
+/**
+ * Saved businesses — the bookmark on a shop card and on a business profile.
+ *
+ * Deliberately identical in shape to useSavedEvents: one shared SWR key holds
+ * the whole id list, so ~80 directory cards ask once between them and every
+ * card re-paints together when one is toggled.
+ */
+export function useSavedMembers() {
+  const { data, mutate, isLoading } = useSWR<{ memberIds?: string[] }>("/api/saved-members");
+  const ids = data?.memberIds ?? NONE;
+  const saved = useMemo(() => new Set(ids), [ids]);
+
+  const toggle = useCallback(
+    async (memberId: string) => {
+      const next = !saved.has(memberId);
+      const optimistic = next
+        ? [memberId, ...ids.filter((id) => id !== memberId)]
+        : ids.filter((id) => id !== memberId);
+      // No revalidate on the optimistic write: the server is about to be asked
+      // anyway, and a concurrent GET would race the POST and flicker it back.
+      await mutate({ memberIds: optimistic }, { revalidate: false });
+      try {
+        const res = await fetch("/api/saved-members", {
+          method: next ? "POST" : "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ memberId }),
+        });
+        if (!res.ok) throw new Error("failed");
+        return next;
+      } catch {
+        await mutate(); // roll back to the truth
+        return !next;
+      }
+    },
+    [saved, ids, mutate],
+  );
+
+  return { saved, savedIds: ids, toggle, loading: isLoading && !data };
+}
+
 // Stable identity so consumers' useMemo deps don't churn on every render.
 const NONE: never[] = [];
 const EMPTY: Activity[] = [];
