@@ -1,0 +1,34 @@
+# Supabase tables (xeno project) — full
+
+## Supabase Tables (xeno project)
+| Table | Purpose |
+|---|---|
+| `vendor_profiles` | `clerk_user_id → member_id` + verification state |
+| `stripe_connect_accounts` | `member_id → stripe_account_id` + status |
+| `booking_requests` | request-to-book (+ `square_booking_id`/`starts_at` when the slot came from a real Square calendar, in which case it lands `confirmed`) — customer proposes `requested_date`/`requested_time` (free text), business answers with `confirmed_*` + `vendor_note`; `status` requested/confirmed/declined/cancelled/completed. NOT a calendar: no availability or slots (migration `20260810170000`) |
+| `vendor_secrets` | vendor API credentials (Printify token + shop id; Square Appointments token + location + `square_env`) — **service_role ONLY, no anon/authenticated grants**, deliberately separate from the anon-readable `vendor_settings` (migration `20260810160000`) |
+| `digital_grants` | one row per (buyer, digital product) purchase — `token` (the emailed credential), `file_path`, `download_count`/`max_downloads` (NULL = unlimited), `expires_at`; redeemed for a 5-min signed URL (migration `20260810150000`) |
+| `products` | vendor catalog; **`kind`** (good/service/digital/ticket — read via `lib/product-kind.ts kindOf()`, fails safe to `good`), `source` (manual/shopify/square), `external_id` for Composio sync (migration `20260810140000`); `digital_file_path` points into the PRIVATE `digital-goods` bucket (`20260810150000`) |
+| `orders` | one row per payment intent; full item/fee breakdown + delivery fields |
+| `vendor_settings` | per-vendor feature flags: **`delivery_mode`** (none/self/uber — source of truth, read via `effectiveDeliveryMode`) + `self_delivery_*` rules (fee, free-over, minimum, `zips[]` where **empty = anywhere**, notes), legacy `uber_direct_enabled`, Composio connection, pickup address overrides, `assistant_enabled` + `assistant_persona` (migration `20260810130000`) |
+| `business_knowledge` | owner-authored FAQs/notes fed into the AI assistant's context |
+| `chat_conversations` / `chat_messages` | AI assistant transcripts (analytics + owner inbox + future RAG) |
+| `chat_leads` | contacts the assistant captured via `capture_lead` |
+| `vendor_events` | self-serve / AI-captured events (poster image, `active` draft flag, `source`) |
+| `broadcasts` | "Live Now" — venue announces what it's showing now (`event_slug`, `whats_on`, `supports_team`, `image_urls[]`, `livestream_url`, `starts_at`/`ends_at` window, denormalized lat/lng+name); future `starts_at` = scheduled; auto-expires |
+| `broadcast_saves` | shopper "save / interested" reactions on a broadcast (`clerk_user_id` + `broadcast_id`) |
+| `featured_lists` | superadmin-curated home rails ("Where to watch the NBA Finals near you") — `event_slug` (+ optional `supports_team`), pinned `member_ids[]`, `sort_order`, `active`; auto-filled from live broadcasts |
+| `posts` | social "share" posts — `body`, `image_urls[]`/`video_urls[]`, optional `tagged_member_id`/`tagged_event_id`, `livestream_url`, `author_id` (migration `20260628120000`; event index `20260628130000`). Aggregated into per-entity "memories" walls |
+| `community_contributions` | community giving — vendor logs a gift to an org (`kind` funds/goods/time/other, `description`, `amount_cents`), org confirms (`status` pending/confirmed/declined); confirmed = public "Gives back" badge (migration `20260628140000`) |
+| `collab_invites` / `collab_rooms` / `collab_messages` | collaborator network — invite (pending/accepted/declined) → on accept a 1:1 room + polling chat (migration `20260628150000`). `collab_invites` also scopes to events (`scope_type`/`scope_id`/`role`, migration `20260628160000`): accepted `event` invites = a `vendor_events` lineup |
+| `event_messages` | organizer event thread — group chat + a log of SMS/email blasts (`channel` chat/sms/email, `recipients` count) keyed by `vendor_events.id` (migration `20260628160000`) |
+| `event_attendees` | free RSVP for organizer events — `event_id`, `attendee_id` (Clerk user, or `guest:<hash>`), `party_size`, `status` going/cancelled; `vendor_events.capacity` caps it (migration `20260628170000`). Ticket buyers are upserted here too, so the organizer's Attendees tab + SMS/email blasts keep working unchanged |
+| `event_ticket_types` | what an organizer SELLS — a price tier (`price_cents`, 0 = free), optional `quantity` (null = unlimited), `max_per_order`, `sales_end`, `active` (migration `20260810120000`) |
+| `event_tickets` | what a person HOLDS — **one row per admitted head**. `token` (unguessable, in the QR + email link = the credential), `code` (short, human-readable), `status` issued/checked_in/cancelled/refunded, `checked_in_at`/`_by`, `payment_intent_id` (idempotency), `attendee_id` (Clerk id or guest hash). Free RSVPs mint these too |
+| `event_join_requests` | "add my business" requests from the event join link for vendors not yet in the directory — `name`/`category`/`contact`/`note`, `status` pending/added/dismissed (migration `20260628180000`) |
+| `member_tags` | organizer-scoped grouping tags applied at onboarding (e.g. "farmers market") — `owner_id`/`member_id`/`tag_slug`/`tag_label`; powers "tagged groups" + bulk-add-to-lineup (migration `20260628190000`) |
+| `ai_image_credits` | per-member AI product-image quota — `generated_count` (lifetime), `premium` flag, rolling-window (`window_start`/`window_count`); gates `gpt-image-1` generation in `/api/ai/detect-products` (migration `20260628200000`) |
+| `vendor_events` *(scraped cols)* | harvested events share this table: `source_id` (registry id; NULL = made in-app), `external_uid` (dedupe key), `event_url`, `end_date`, `tags[]`, `free`, `access`, `topics[]`, `energy`, `ideal_audience`, `audience` jsonb. Unique on (`source_id`,`external_uid`) — NOT partial, or `ON CONFLICT` cannot use it (migrations `20260804120000`/`130000`/`140000`) |
+| `device_tokens` | native push — one row per APNs device token (`token` unique, `platform`, optional `clerk_user_id`); registered by the iOS app, targeted by `sendPushToUser` (migration `20260703120000`) |
+| `shopper_taste` | the shopper's saved taste — `subject_id` (Clerk id, or `device:<uuid>` for signed-out), `interests[]` (chip ids), `about` (free prose, the strongest signal), `embedding vector(1536)` + `embedded_text`/`embed_model`. **service_role ONLY, no anon grants** — it holds what people said about their children and their money (migration `20260811140000`) |
+| `vendor_events` *(embedding cols)* | `embedding vector(1536)` + `embed_model`, written once per new event at ingest. **No ivfflat/hnsw index on purpose** — similarity is 1 of 6 ranked signals, so every candidate needs a score and a top-K ANN would silently override proximity. Read via the `event_similarity(q, from_date, max_rows)` SQL function, never by selecting vectors into Node |

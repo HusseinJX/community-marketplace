@@ -32,6 +32,54 @@ All notable changes to this project are documented here.
 > `next-server`. A stale one survived a rebuild underneath it and 404'd the new routes, which looked
 > exactly like a broken build. Use `lsof -ti:PORT | xargs kill -9`.*
 
+### Changed — home tabs, curated listings, posting is vendors-only — 2026-08-13
+
+**Home tabs are now `Events · Shops · Products`.**
+- **Feed is hidden, not deleted** — out of `HOME_TABS`, body still renders at `/?tab=feed`. It has
+  nothing in it yet (`features/community-feed-seeding.md`) and a tab that asks the visitor to go
+  first teaches them the app is empty. Restore = one entry in `lib/home-tab.ts`.
+- **Shop → "Shops"** (the local business directory), and the marketplace gets its own **Products**
+  tab instead of a small basket icon hidden on the Shops heading. `app/shop/page.tsx` moved to
+  `components/shop/Marketplace.tsx`; `/shop` and the tab render the same component (`embedded`
+  drops the back link), so the two can't drift.
+- **Events toggle: calendar first and default.** The chronological list needs no input and costs no
+  model call, so it is what someone who has said nothing lands on; the ranked view is opt-in.
+  `?tab=foryou` / `?tab=whatson` still name a view.
+
+**Curated-out members (`lib/hidden-members.ts`).** The inline reviewer-demo exception in `lib/api.ts`
+became a shared list and gained **Xeno** (our own founder profile, which was sitting in the directory
+competing with the local businesses the directory is for). Read by `listMembers` (directory,
+`/explore`, `/city`, `/category`, sitemap, search), `getPublicEvents` / `getMemberEvents`, the For-you
+feed's own query, **and** the connector branch of `/api/events/feed` — a second source that would
+otherwise have let a hidden member back in through the side door. Filtered in SQL, not after the
+fetch, so hidden rows can't eat slots out of the `limit` and shrink the feed. Hidden ≠ deleted: still
+reachable by direct id, still signed in, still runs its own portal.
+
+**The Shops tab requires a photo.** A business with nothing to show rendered as a coloured gradient
+with a name on it — a broken-looking card on a wall of image tiles. `hasMemberImage()` lives next to
+`MEMBER_HERO_IMAGES` and is the same list `MemberCard` draws from, so the directory can't hide a
+business whose photo would have rendered, or promise a photo and show a gradient. 80 of 89 named
+businesses survive it; the other 9 stay findable by search and keep their profile pages.
+
+**Posting is a business action, so the door and the control now agree.**
+- The top-nav **"+" is vendors only** (`useMyMemberId` in `lib/data-hooks.ts`, reading the
+  already-existing-but-unused `GET /api/vendor/profile`). Keyed on the endpoint so the whole app
+  shares one answer per session, and gated on `isSignedIn` so signed-out visitors — most of the
+  traffic — spend no request learning they are nobody (that endpoint also 401s, which the default
+  SWR fetcher throws on). Hidden until known, so it fades in for a vendor rather than flashing up
+  and being taken away from a shopper. Admin surfaces show it regardless.
+- **`/share` bounces server-side**, because a hidden control is not access control — the URL is
+  still typeable and sitting in history. It is **two doors**: bare (`/share`, `?vendor=1`) is the
+  business composer, vendors only; **tagged** (`?business=`, `?event=`) is the memories flow behind
+  "Been here? Post a photo" / "Tag" / "Post your vibe", open to any signed-in person, because those
+  walls exist to gather what the crowd posted and vendor-gating them would quietly empty the feature
+  they feed. Signed-out goes home either way — answering a photo prompt with a business login is a
+  worse dead end. The admin demo passes through; its writes already no-op.
+
+*Known gap: a signed-out visitor tapping a memories CTA now lands home. Previously they reached the
+composer, filled it in, and were refused with "Sign in to post" at the end — less wasted effort now,
+but still no sign-in prompt in that path.*
+
 ### Changed — home tab tidy-up — 2026-08-11
 > **Deployed to CapRover prod 2026-08-11.** Gate passed (`/vendor` 307, home 200). Verified live:
 > Feed reads "From the community" → the business link → posts, Shop keeps its own heading, **0**
