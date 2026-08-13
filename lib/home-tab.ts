@@ -12,7 +12,7 @@
 // Session-scoped on purpose: this is "where I just was", not a preference. A new
 // tab starts fresh on Events rather than inheriting a stale tab from hours ago.
 
-export type HomeTab = "events" | "feed" | "shop";
+export type HomeTab = "events" | "feed" | "shop" | "products";
 
 // Events leads because it is the reason to open the app on a given day — what's
 // on, near you, right now. For you / What's on are a toggle INSIDE it, not two
@@ -20,19 +20,37 @@ export type HomeTab = "events" | "feed" | "shop";
 // spent two of four tab slots on one idea and pushed Feed and Shop to the edge
 // of a phone. Chats is not here either — it lives as a pill inside Feed, since
 // a community chat is a kind of community post, not a separate destination.
-export const HOME_TABS: { id: HomeTab; label: string }[] = [
-  { id: "events", label: "Events" },
-  { id: "feed", label: "Feed" },
-  { id: "shop", label: "Shop" },
-];
+//
+// Feed is HIDDEN, not deleted (2026-08-13). It has nothing in it yet — the
+// seeding plan is features/community-feed-seeding.md — and a tab that asks the
+// visitor to go first teaches them the app is empty. The body still renders,
+// so `/?tab=feed` reaches it for testing; restore it by putting the entry back
+// in this list (and unhiding it in BackToHome's default).
+//
+// Shops = the local business directory. Products = the marketplace grid. Two
+// tabs because they answer different questions ("who is near me" vs "what can
+// I buy"), and one used to be a small icon button hidden on the other's header.
+const TAB_LABELS: Record<HomeTab, string> = {
+  events: "Events",
+  feed: "Feed",
+  shop: "Shops",
+  products: "Products",
+};
+
+/** The tabs the selector actually draws, in order. */
+export const HOME_TABS: { id: HomeTab; label: string }[] = (
+  ["events", "shop", "products"] as const
+).map((id) => ({ id, label: TAB_LABELS[id] }));
 
 // Both spellings are in the wild — `?tab=events` from before the split, and
 // `?tab=foryou` / `?tab=whatson` from while it was split. All three mean the
 // events tab; which VIEW they land on is the toggle's business, not the URL's.
 const LEGACY: Record<string, HomeTab> = { foryou: "events", whatson: "events" };
 
+// Every id the app can RENDER, which is a superset of the ones it offers —
+// `feed` is hidden from the selector but still reachable by URL.
 export function isHomeTab(v: string | null | undefined): v is HomeTab {
-  return HOME_TABS.some((t) => t.id === v);
+  return !!v && Object.prototype.hasOwnProperty.call(TAB_LABELS, v);
 }
 
 /** A tab id from anywhere untrusted (URL, storage), old names included. */
@@ -69,7 +87,7 @@ export function homeTabTarget(tab: HomeTab): { href: string; label: string } {
   return {
     // "/" IS the Events tab, so it is the one without a query param.
     href: tab === "events" ? "/" : `/?tab=${tab}`,
-    label: HOME_TABS.find((t) => t.id === tab)?.label ?? "Events",
+    label: TAB_LABELS[tab] ?? "Events",
   };
 }
 

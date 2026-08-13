@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo } from "react";
 import useSWR from "swr";
+import { useAuth } from "@clerk/nextjs";
 import type { Member } from "@/lib/types";
 import type { LiveBroadcast } from "@/components/live/types";
 import type { FeedEvent } from "@/app/api/events/feed/route";
@@ -245,4 +246,40 @@ export function usePersonalizedEvents(p: PersonalizeParams) {
     },
   );
   return { data, loading: isLoading, error: error as Error | undefined };
+}
+
+/**
+ * The signed-in user's linked business, if they have one.
+ *
+ * A `vendor_profiles` row is the app's single "this person runs a business"
+ * signal — vendors, artists and community orgs all get one at the end of
+ * onboarding, shoppers never do. Everywhere else this is read on the server and
+ * passed down as a prop; the app shell can't do that, because it is a client
+ * component that renders on every route including ones that never touch auth.
+ *
+ * Keyed on the endpoint, so the whole app shares ONE answer for the session —
+ * asking again per navigation would be a Supabase read on every page view.
+ *
+ * The key is gated on being signed in for two reasons: most visitors are
+ * signed out and would otherwise spend a request learning they are nobody, and
+ * `GET /api/vendor/profile` answers a signed-out caller with 401, which the
+ * default fetcher throws on.
+ */
+export function useMyMemberId(): { memberId: string | null; loading: boolean } {
+  const { isSignedIn, isLoaded } = useAuth();
+  const { data, isLoading } = useSWR<{ memberId: string | null }>(
+    isSignedIn ? "/api/vendor/profile" : null,
+    {
+      // Whether you own a business does not change while you browse. It changes
+      // when you finish onboarding, and that path reloads.
+      revalidateIfStale: false,
+      dedupingInterval: 5 * 60_000,
+    },
+  );
+  return {
+    memberId: data?.memberId ?? null,
+    // Clerk still deciding, or the request in flight. Callers that hide UI on
+    // this should keep it hidden while loading, never show-then-retract.
+    loading: !isLoaded || (!!isSignedIn && isLoading),
+  };
 }

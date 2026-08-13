@@ -9,6 +9,7 @@ import type {
   MatchCandidate,
   LineupSuggestion,
 } from "./types";
+import { withoutHiddenMembers } from "./hidden-members";
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE ||
@@ -52,15 +53,6 @@ export interface ListMembersParams {
   cursor?: string;
 }
 
-// Members deliberately kept out of every PUBLIC listing (home browse, /explore,
-// /category, /city, sitemap, name search) without deleting them — they stay
-// reachable by direct id via getMember(). Exception, not a general mechanism:
-// the App Store reviewer demo vendor exists only to reach the subscription
-// screen for App Review; it shouldn't surface in the real directory.
-const HIDDEN_FROM_LISTINGS = new Set<string>([
-  "03e75c7c-28bf-44ee-ab0d-82379a4f75cd", // "WhatsLocal Review (Demo Vendor)"
-]);
-
 export async function listMembers(params: ListMembersParams = {}): Promise<MembersResponse> {
   const type = params.type && params.type !== "all" ? params.type : undefined;
   const res = await getJson<MembersResponse>(
@@ -74,8 +66,10 @@ export async function listMembers(params: ListMembersParams = {}): Promise<Membe
       cursor: params.cursor,
     })
   );
+  // Curated out of public listings (lib/hidden-members.ts) — they stay
+  // reachable by direct id via getMember(), just not browsable.
   if (res.members?.length) {
-    res.members = res.members.filter((m) => !HIDDEN_FROM_LISTINGS.has(m.id));
+    res.members = withoutHiddenMembers(res.members, (m) => m.id);
   }
   return res;
 }

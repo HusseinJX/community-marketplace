@@ -6,6 +6,7 @@ import type { Member } from "@/lib/types";
 import { MemberCard } from "@/components/MemberCard";
 import { groupMembers } from "@/lib/browse-groups";
 import { useDirectory } from "@/lib/data-hooks";
+import { hasMemberImage } from "@/lib/member-images";
 import { useHomePosition, refreshHomePosition, type Position } from "@/lib/home-position";
 import { byDistance, milesTo } from "@/lib/proximity";
 
@@ -43,7 +44,18 @@ export function LocalDirectory({
 
   const home = fresh ?? position;
 
-  const visible = useMemo(() => members.filter((m) => m.profile?.name), [members]);
+  // A named business WITH a photo. This surface is a wall of image tiles, and
+  // a business with nothing to show renders as a coloured gradient with a name
+  // on it — which reads as a broken card rather than as a listing, and puts the
+  // least appealing thing on the shelf next to businesses that did the work.
+  // Hidden here rather than dropped from the data: it is still findable by
+  // search and still has a profile page; it just doesn't get a tile until it
+  // has something to put in it. `hasMemberImage` is the same list MemberCard
+  // draws from, so the two can never disagree.
+  const visible = useMemo(
+    () => members.filter((m) => m.profile?.name && hasMemberImage(m)),
+    [members],
+  );
 
   // Measure once, then sort and filter off the measurement — never recompute a
   // haversine inside a comparator.

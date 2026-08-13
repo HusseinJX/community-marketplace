@@ -1,3 +1,6 @@
+import type { MemberProfile } from "./types";
+import { usableImages } from "./image-utils";
+
 export const MEMBER_HERO_IMAGES: Record<string, string[]> = {
   // Real members
   // Xeno — founder, WhatsLocal AI (San Francisco)
@@ -29,3 +32,34 @@ export const MEMBER_HERO_IMAGES: Record<string, string[]> = {
     "https://images.unsplash.com/photo-1485955900006-10f4d324d411?auto=format&fit=crop&w=1200&q=70",
   ],
 };
+
+// ── What a member card will actually draw ────────────────────────────────────
+// One implementation, two readers: MemberCard renders this list, and the Shops
+// directory uses it to decide whether a business is worth a tile at all. Kept
+// together because the failure mode of two copies is silent in both directions
+// — a directory that hides a business whose photo would have rendered, or one
+// that shows a gradient tile it promised was a photo.
+
+/**
+ * Every image a card can show for this member, best first:
+ *   1) hand-curated MEMBER_HERO_IMAGES (showcased members)
+ *   2) imported profile.images[]
+ *   3) the single profile.imageUrl fallback
+ *
+ * All of them pass through `usableImages`, so an untrusted host is the same as
+ * no image — which is the point: that is exactly what the card would render.
+ * Empty means the card falls back to a coloured gradient.
+ */
+export function memberImages(member: { id: string; profile?: MemberProfile | null }): string[] {
+  const curated = usableImages(MEMBER_HERO_IMAGES[member.id]);
+  if (curated.length) return curated;
+  const p = member.profile ?? {};
+  const imported = Array.isArray(p.images) ? usableImages(p.images as string[]) : [];
+  if (imported.length) return imported;
+  return usableImages(p.imageUrl ? [p.imageUrl as string] : []);
+}
+
+/** True when a card would show a real photo rather than a gradient. */
+export function hasMemberImage(member: { id: string; profile?: MemberProfile | null }): boolean {
+  return memberImages(member).length > 0;
+}

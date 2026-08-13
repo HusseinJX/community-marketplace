@@ -8,10 +8,11 @@ import {
   CalendarRange,
   Store,
   ArrowRight,
-  ShoppingBasket,
+  ShoppingBag,
   Sparkles,
   CalendarPlus,
 } from "lucide-react";
+import { Marketplace } from "@/components/shop/Marketplace";
 import { EventSearchBar } from "@/components/feed/EventSearchBar";
 import { CityHeader } from "@/components/home/CityHeader";
 import { LiveFeed } from "@/components/live/LiveFeed";
@@ -28,6 +29,7 @@ const TAB_ICONS: Record<HomeTab, typeof Newspaper> = {
   events: CalendarDays,
   feed: Newspaper,
   shop: Store,
+  products: ShoppingBag,
 };
 
 // Airbnb-style segmented home: a sticky selector under the top nav switches
@@ -36,7 +38,9 @@ const TAB_ICONS: Record<HomeTab, typeof Newspaper> = {
 export function HomeTabs() {
   const [tab, setTab] = useState<HomeTab>("events");
   // Which way the Events tab is being read. A toggle, not a tab: same events.
-  const [eventsView, setEventsView] = useState<"foryou" | "browse">("foryou");
+  // Defaults to the calendar — the chronological list needs no input and costs
+  // no model call, so it is what someone who has said nothing should land on.
+  const [eventsView, setEventsView] = useState<"foryou" | "browse">("browse");
 
   // The event search box lives up here, in the page's top search slot, so the
   // Events tab has ONE input rather than a business search stacked above an
@@ -65,8 +69,10 @@ export function HomeTabs() {
     const q = new URLSearchParams(window.location.search).get("tab");
     const initial = toHomeTab(q) ?? "events";
     setTab(initial);
-    // ?tab=whatson still means something, even though it is no longer a tab.
+    // ?tab=whatson / ?tab=foryou still name a VIEW, even though neither is a
+    // tab any more — both land on Events, pointed at the right side of it.
     if (q === "whatson") setEventsView("browse");
+    if (q === "foryou") setEventsView("foryou");
     // Record it on arrival too, not just on click — someone who lands on
     // /?tab=shop and opens a profile should still get "← Shop".
     rememberHomeTab(initial);
@@ -239,10 +245,13 @@ export function HomeTabs() {
                   as a filter you switch ON and left "what's on" unnamed; a
                   segmented pair says there are two views and you are in one. */}
               <div className="inline-flex shrink-0 items-center rounded-full border border-stone-200 bg-white p-0.5">
+                {/* Calendar first: the plain chronological list is the default
+                    reading of "what's on near me", and the ranked one is the
+                    clever version you opt into. */}
                 {(
                   [
-                    { id: "foryou", Icon: Sparkles, label: "For you" },
                     { id: "browse", Icon: CalendarRange, label: "What's on" },
+                    { id: "foryou", Icon: Sparkles, label: "For you" },
                   ] as const
                 ).map(({ id, Icon, label }) => (
                   <button
@@ -289,27 +298,19 @@ export function HomeTabs() {
         </div>
       )}
 
+      {/* Shops — the local business directory. The marketplace used to hang off
+          this tab's heading as a small icon button; it is its own tab now, so
+          there is nothing to link out to from here. */}
       {tab === "shop" && (
         <div className="pb-24">
-          {/* The marketplace is now an icon on the heading row below, not a
-              full-width black bar between the city and the directory — it was
-              the loudest thing on the tab while being the smaller of the two
-              ways in. */}
-          <LocalDirectory
-            headerAction={
-              <Link
-                href="/shop"
-                aria-label="Go to the marketplace"
-                title="Go to the marketplace"
-                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-stone-900 text-white transition hover:bg-stone-800"
-              >
-                <ShoppingBasket className="h-4 w-4" />
-              </Link>
-            }
-            belowHeader={supplyLink}
-          />
+          <LocalDirectory belowHeader={supplyLink} />
         </div>
       )}
+
+      {/* Products — the same marketplace as /shop, rendered in place. The tab
+          shell already owns the header and the way back, so it goes in
+          embedded. */}
+      {tab === "products" && <Marketplace embedded />}
 
       {/* Chats — the community rooms, gathered in one place. They're still meant
           to be found in the feed; this is the "all of them" view, the same way

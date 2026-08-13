@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { sfToday } from './sf-date'
+import { HIDDEN_MEMBER_IN_LIST } from './hidden-members'
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -217,6 +218,10 @@ export async function getPublicEvents(limit = 50): Promise<VendorEvent[]> {
     .from('vendor_events')
     .select('*')
     .eq('active', true)
+    // Curated out of public surfaces (lib/hidden-members.ts). Filtered in SQL
+    // rather than after the fact so a hidden member's events can't eat slots
+    // out of the limit and shrink the feed.
+    .not('member_id', 'in', HIDDEN_MEMBER_IN_LIST)
     .or(`end_date.gte.${today},and(end_date.is.null,event_date.gte.${today})`)
     .order('event_date', { ascending: true })
     .limit(limit)
@@ -239,6 +244,8 @@ export async function getMemberEvents(limit = 30): Promise<VendorEvent[]> {
     .select('*')
     .eq('active', true)
     .is('source_id', null)
+    // Same curation as getPublicEvents — see lib/hidden-members.ts.
+    .not('member_id', 'in', HIDDEN_MEMBER_IN_LIST)
     .or(`end_date.gte.${today},and(end_date.is.null,event_date.gte.${today})`)
     .order('event_date', { ascending: true })
     .limit(limit)

@@ -14,6 +14,7 @@ import { subjectFor, tasteVector } from '@/lib/reco/taste'
 import { rankEvents, diversify, keywordsFrom } from '@/lib/reco/rank'
 import { prepare, FEED_COLUMNS, type EventRow } from '@/lib/reco/from-db'
 import { rateLimit } from '@/lib/rate-limit'
+import { HIDDEN_MEMBER_IN_LIST } from '@/lib/hidden-members'
 import { sfToday, sfTomorrow, minutesUntil, startMinutes, isOnNow, hasEnded } from '@/lib/sf-date'
 
 export const runtime = 'nodejs'
@@ -133,6 +134,10 @@ export async function POST(req: Request) {
     .from('vendor_events')
     .select(FEED_COLUMNS)
     .eq('active', true)
+    // Curated out of public surfaces (lib/hidden-members.ts). In SQL because
+    // FEED_COLUMNS deliberately doesn't carry member_id — there is nothing to
+    // filter on once the rows are here.
+    .not('member_id', 'in', HIDDEN_MEMBER_IN_LIST)
     .or(`end_date.gte.${today},and(end_date.is.null,event_date.gte.${today})`)
     .order('event_date', { ascending: true })
     .limit(CANDIDATES)

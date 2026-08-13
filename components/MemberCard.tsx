@@ -5,8 +5,7 @@ import { milesLabel } from "@/lib/proximity";
 import { MemberTypeBadge } from "./MemberTypeBadge";
 import { ImageCarousel } from "./ImageCarousel";
 import { HeroMedia } from "./HeroMedia";
-import { MEMBER_HERO_IMAGES } from "@/lib/member-images";
-import { usableImages } from "@/lib/image-utils";
+import { memberImages } from "@/lib/member-images";
 
 const TYPE_GRADIENTS: Record<string, string> = {
   vendor: "from-blue-300 to-indigo-400",
@@ -52,15 +51,11 @@ export function MemberCard({
   const location = [p.neighborhood, p.city].filter(Boolean).join(", ");
   const type = (p.memberType as string | undefined)?.toLowerCase() ?? "";
   const gradient = TYPE_GRADIENTS[type] ?? "from-stone-200 to-stone-300";
-  // Image priority:
-  //   1) hand-curated MEMBER_HERO_IMAGES (for showcased demo members)
-  //   2) imported profile.images[] (e.g. prolocaliq DigitalOcean Spaces — 3/biz)
-  //   3) single profile.imageUrl fallback
-  //   4) coloured gradient
-  const curated = MEMBER_HERO_IMAGES[member.id];
-  const profileImages = Array.isArray(p.images) ? usableImages(p.images) : [];
-  const allImages = curated && curated.length ? curated : (profileImages.length ? profileImages : null);
-  const carouselImages = compact && allImages ? allImages.slice(0, 1) : allImages;
+  // Curated hero → profile.images[] → profile.imageUrl → coloured gradient.
+  // The order lives in lib/member-images.ts because the Shops directory reads
+  // the same list to decide whether this member gets a tile at all.
+  const allImages = memberImages(member);
+  const carouselImages = compact ? allImages.slice(0, 1) : allImages;
 
   const subtitle = [location, p.category as string | undefined].filter(Boolean).join(" · ");
 
@@ -70,7 +65,7 @@ export function MemberCard({
       className="group card-soft card-hover relative flex h-full flex-col overflow-hidden"
     >
       <div className="relative">
-        {carouselImages && carouselImages.length > 0 ? (
+        {carouselImages.length > 0 ? (
           <ImageCarousel
             images={carouselImages}
             alt={name}
@@ -85,12 +80,8 @@ export function MemberCard({
             fallbackGradient={gradient}
           />
         ) : (
-          <HeroMedia
-            images={p.imageUrl ? [p.imageUrl] : []}
-            gradientClass={gradient}
-            alt={name}
-            aspect="tall"
-          />
+          // Nothing usable — HeroMedia with no images IS the gradient.
+          <HeroMedia images={[]} gradientClass={gradient} alt={name} aspect="tall" />
         )}
 
         {/* Type sits on the image, top-left, clear of the carousel's counter. */}

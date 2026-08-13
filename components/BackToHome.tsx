@@ -29,7 +29,10 @@ export function BackToHome({
   className?: string;
 }) {
   const pathname = usePathname();
-  const [target, setTarget] = useState(() => homeTabTarget("feed"));
+  // Events until the effect below reads where you actually came from. It was
+  // "feed", which is no longer a visible tab — a first-paint back link to a
+  // hidden screen.
+  const [target, setTarget] = useState(() => homeTabTarget("events"));
 
   useEffect(() => {
     if (href) return;

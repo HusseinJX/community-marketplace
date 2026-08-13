@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getPublicEvents, getMemberEvents } from '@/lib/vendor-connect'
 import { getAcceptedLineupCounts } from '@/lib/collab-network'
 import { listEvents } from '@/lib/api'
+import { isHiddenMember } from '@/lib/hidden-members'
 
 export const runtime = 'nodejs'
 
@@ -98,6 +99,10 @@ export async function GET() {
     const { events } = await listEvents({ limit: 50 })
     for (const e of events) {
       if (!e.id || seen.has(e.id)) continue
+      // The Supabase queries filter hidden members in SQL; the connector's own
+      // event list is a separate source and has to be filtered here too, or a
+      // curated-out member reappears through the back door.
+      if (isHiddenMember(e.memberId)) continue
       seen.add(e.id)
       out.push({
         eventId: e.id,
