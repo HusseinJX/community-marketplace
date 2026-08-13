@@ -33,6 +33,11 @@ All notable changes to this project are documented here.
 > exactly like a broken build. Use `lsof -ti:PORT | xargs kill -9`.*
 
 ### Fixed — home layout — 2026-08-13
+> **Deployed to CapRover prod 2026-08-13** (third deploy of the day). Gate passed before upload —
+> `/vendor` **307 → /vendor/sign-in**, home 200, `pk_live` baked, pixels absent. Verified live:
+> banner `z-20` under header `z-30` (so it scrolls behind the nav), city line and events heading
+> both `max-w-6xl`, tabs Events · Shops · Products, three event toggles, `/shop` and `/whatson` 200,
+> `/api/saved-members` answering. No native change, so no Xcode rebuild.
 
 - **The banner scrolled OVER the sticky nav.** It was `relative z-40` under a `sticky z-30` header.
   Lowered to `z-20` rather than raising the header, because 19 modals sit at `z-50` and a promo bar
