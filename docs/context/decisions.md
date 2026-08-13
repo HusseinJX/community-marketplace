@@ -37,6 +37,12 @@ Full write-up in CHANGELOG.md. The decisions worth keeping:
   impure timestamp that the server and browser can disagree about.
 - **One container for the whole page.** Nav, banner, search and cards were at three different left
   edges; they now share `max-w-6xl px-4 md:px-8`.
+- **A sticky nav must outrank the promo banner.** The banner was `z-40` under a `z-30` header and
+  scrolled over it. Fixed by lowering the banner to `z-20`, not by raising the header — 19 modals
+  live at `z-50`.
+- **A tab's width is part of its identity.** Shops, Products and all three Events views now share
+  one container; the dated list becomes a two-column grid on desktop rather than stretching, so
+  switching views never moves the page's edges.
 
 ## 2026-08-13 — home tabs, curated listings, posting is vendors-only
 

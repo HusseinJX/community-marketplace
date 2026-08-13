@@ -32,6 +32,27 @@ All notable changes to this project are documented here.
 > `next-server`. A stale one survived a rebuild underneath it and 404'd the new routes, which looked
 > exactly like a broken build. Use `lsof -ti:PORT | xargs kill -9`.*
 
+### Fixed — home layout — 2026-08-13
+
+- **The banner scrolled OVER the sticky nav.** It was `relative z-40` under a `sticky z-30` header.
+  Lowered to `z-20` rather than raising the header, because 19 modals sit at `z-50` and a promo bar
+  is not worth reshuffling their stacking for.
+- **Products sat on different edges from Shops** (`max-w-7xl px-4 sm:px-6 lg:px-8` vs `max-w-6xl
+  px-4 md:px-8`), so switching those two tabs shifted the whole page sideways. Embedded matches
+  Shops; the standalone `/shop` keeps its wider grid.
+- **One width for the Events tab.** The header row was pinned at `max-w-2xl` while two of its three
+  views are `max-w-6xl`, so on For you and Map the heading was indented from its own content and the
+  toggles floated in from the right. The city line, the heading row and the body now share one
+  `titleWidth`.
+- **What's on is full width on desktop**, as a **two-column grid from `lg`** rather than a stretched
+  single column — a 1150px-wide card is not a card. `items-start`, or an expanded card stretches its
+  row-mate; and the poster `sizes` gained the `lg` breakpoint, since the cards are ~560px there and
+  a stale claim is how phones fetch files bigger than the slot.
+- The city name briefly shared a line with "Events near you" and was put back on its own — two
+  titles of different weight on a row that already ends in three toggles. They are left-aligned
+  instead.
+- Gap under "Hosting something?" is `pt-4` on all three views; it was `pt-3`, `pt-2`, `pt-3`.
+
 ### Added — maps, directions, saved businesses, event filters — 2026-08-13
 > **Deployed to CapRover prod 2026-08-13** (second deploy of the day). Gate passed before upload —
 > `/vendor` **307 → /vendor/sign-in** (demo mode off), home 200, `pk_live` baked, ad pixels still
