@@ -2,6 +2,42 @@
 
 Split out of CLAUDE.md (2026-08-13). Newest first, as it was written.
 
+## 2026-08-13 — maps, directions, saved businesses, event filters
+
+Full write-up in CHANGELOG.md. The decisions worth keeping:
+
+- **A basemap is context, not content.** Seven maps, one `BaseTiles`, on `mapbox/light-v11` —
+  streets-v12 puts coloured roads, parks and a POI label on every corner in front of the pins the
+  map exists to show. Two systems had drifted because five maps were hardcoded to OSM while two
+  read a token that was already set.
+- **Coordinates beat an address, and a real fix beats a centroid.** Directions send the pin, not
+  the typed address a geocoder has to guess at again. The events map was placing everything on one
+  of seven neighbourhood centroids on the stated grounds that vendor_events had no lat/lng — untrue
+  since `20260711120000`. Same rule the proximity work set: never print a district centre as a
+  thing's location.
+- **The href is the Google URL, always; iPhones intercept the click.** Deciding it by sniffing the
+  device during render is a hydration mismatch, and deciding it in an effect leaves the button
+  briefly dead. `target="_blank"` is mandatory — the iOS shell allows `*.apple.com` navigation for
+  Sign in with Apple, so a same-tab maps.apple.com link renders Apple's map web page *inside the
+  app*.
+- **A `<button>`, not an `<a>`, inside a card.** The cards are one big Link and an anchor inside an
+  anchor is silently un-nested by the browser, breaking both.
+- **A control that pretends is worse than no control.** The profile's Save was local `useState` —
+  saved until you reloaded. Two fake buttons would have been the "consistent" answer; the real one
+  was to build `saved_members` as an exact sibling of `saved_events` and point both at it.
+- **Its own table, not a polymorphic "saved things".** An event id and a member id come from
+  different systems and nothing reads them together; a `kind` column buys one table and costs a
+  filter on every query. `member_id` is TEXT for the same reason `event_id` is — connector ids like
+  `pliq_361` sit beside uuids, and a uuid column makes most of the directory unsaveable.
+- **A filter row must survive returning no results.** Hiding the controls along with the results
+  leaves no way back, so the row stays and says "nothing matches".
+- **Clear belongs at the HEAD of a scrolling filter row**, not the end — at the end it sits off the
+  side of the screen, behind the very pills you are trying to undo.
+- **Don't read the clock during render.** Map pins skip the "today" pulse rather than take an
+  impure timestamp that the server and browser can disagree about.
+- **One container for the whole page.** Nav, banner, search and cards were at three different left
+  edges; they now share `max-w-6xl px-4 md:px-8`.
+
 ## 2026-08-13 — home tabs, curated listings, posting is vendors-only
 
 Full write-up in CHANGELOG.md under the 2026-08-13 heading. The decisions worth keeping:

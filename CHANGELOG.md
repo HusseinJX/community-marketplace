@@ -32,6 +32,62 @@ All notable changes to this project are documented here.
 > `next-server`. A stale one survived a rebuild underneath it and 404'd the new routes, which looked
 > exactly like a broken build. Use `lsof -ti:PORT | xargs kill -9`.*
 
+### Added — maps, directions, saved businesses, event filters — 2026-08-13
+
+**One basemap.** There were two map systems: /browse and Live drew Mapbox `streets-v12`, while the
+member profile, event page, /whatson, the events map and the vendor location picker drew raw
+OpenStreetMap — the same city looking like two different products depending on the screen. All
+seven now render `components/map/BaseTiles` on **`mapbox/light-v11`**: a directory map's content is
+the PINS, and streets-v12 puts coloured roads, green parks and a POI label on every corner in front
+of them. **The token was already set and already baked into prod**; five maps were simply never
+wired to it. Falls back to OSM without a token — a dated map beats a grey void.
+
+**Directions.** Nothing in the app could route anyone anywhere. `lib/directions.ts` +
+`DirectionsButton`, in three places: first pill on a business profile, under the map in an event's
+*When & where*, and a chip on the feed card and the shop card. Coordinates beat the address (the pin
+came from a real fix; an address gets re-guessed by a geocoder at the other end). Google's own
+`#1a73e8`, the colour Maps has trained people on.
+- The href is **always the Google URL** — correct on the server, on every platform, and with JS off.
+  iPhones get Apple Maps by intercepting the click, which avoids both a hydration mismatch and an
+  effect that would leave the button briefly dead.
+- **Always `target="_blank"`.** The iOS shell allows `*.apple.com` navigation (Sign in with Apple
+  must stay in the webview), so a same-tab `maps.apple.com` link would render Apple's map *web page*
+  inside the app instead of handing off to Maps.
+- On a card it is a `<button>`, not an `<a>` — the card is one big Link, and an anchor inside an
+  anchor gets silently un-nested by the browser, breaking both.
+
+**Saved businesses are real.** The profile's Save button was local `useState` — it looked saved
+until you reloaded and wrote nothing anywhere. Now `saved_members` (migration `20260813120000`,
+**applied + registered on prod**) + `/api/saved-members` + `useSavedMembers` + ONE
+`SaveBusinessButton` on both the card and the profile, amber like the event star. Its own table
+rather than a polymorphic "saved things": an event id and a member id come from different systems
+and nothing reads them together. `member_id` is TEXT because directory members arrive from the
+connector as `pliq_361` alongside uuids — a uuid column would make most of the directory
+unsaveable. One shared SWR key, so ~80 cards ask once between them.
+
+**Events tab.** For you gained the same one-row filter What's on uses (Saved chip + the themes the
+feed actually contains + a red Clear at the head) and **stars on its cards** — it was the one event
+surface where you could see something and not keep it. **Map is a third toggle**, reading the same
+SWR key so the pins cannot disagree with the list. Clearing filters moved from a grey "Reset" at the
+END of a scrolling row (i.e. off the side of the screen, behind the pills you were undoing) to a red
+X pill at the head.
+- The map placed events from a **seven-entry table of neighbourhood centroids**, on the stated
+  grounds that "vendor_events carry no lat/lng" — untrue since `20260711120000`. The feed now ships
+  the real fix (**108 of 120**) and the map prefers it, centroid only for connector events that have
+  none. A district centroid printed as an event's spot is what the proximity work rejected.
+- Map pins deliberately do NOT pulse for today: computing "today" means reading the clock during
+  render, which is impure and a hydration mismatch. The date is in the popup.
+
+**Chrome.** Nav and banner were `max-w-7xl` while the page body is `max-w-6xl px-4 md:px-8`, and the
+search slot was double-padded — three different left edges on one screen. All share the page
+container now; the search bar itself moved 16px left as a result. Wordmark reads **WhatsLocal AI**
+and is centred in a three-column grid, so it centres on the SCREEN rather than between whatever
+flanks it (the "+" comes and goes with who is signed in). `/whatson` added, noindex, to expose the
+`WhatsOn` surface that nothing else renders.
+
+Shop cards: the type badge is out of the top-left and the save button is in it — the badge said
+"vendor" on a wall of cards that are nearly all vendors.
+
 ### Changed — home tabs, curated listings, posting is vendors-only — 2026-08-13
 > **Deployed to CapRover prod 2026-08-13.** Gate passed before upload — `/vendor` **307 →
 > /vendor/sign-in** (demo mode off), home 200, `pk_live` baked, ad pixels still absent from the
