@@ -63,12 +63,7 @@ const BUCKET_LABEL: Record<Bucket, string> = {
   upcoming: "Upcoming",
 };
 
-export function WhatsOn({
-  // The home Events tab already says "Events near you" directly above this, so
-  // its own title would be the second heading in a row saying the same thing.
-  // The Feed/Map toggle stays either way — it is a control, not a label.
-  hideHeading,
-}: { hideHeading?: boolean } = {}) {
+export function WhatsOn() {
   const { broadcasts, loading: bLoading } = useBroadcasts();
   const { events, loading: eLoading } = useEventsFeed();
   const [view, setView] = useState<"feed" | "map">("feed");
@@ -142,10 +137,8 @@ export function WhatsOn({
   return (
     <div className="mx-auto max-w-6xl px-4 pt-5 md:px-8">
       {/* One header, one toggle */}
-      <div className={"flex items-center gap-3 " + (hideHeading ? "justify-end" : "justify-between")}>
-        {!hideHeading && (
-          <h2 className="text-xl font-semibold tracking-tight text-stone-900">What&apos;s on</h2>
-        )}
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-xl font-semibold tracking-tight text-stone-900">What&apos;s on</h2>
         <div className="inline-flex rounded-full bg-stone-100 p-1">
           {([["feed", LayoutGrid], ["map", MapIcon]] as const).map(([k, Icon]) => (
             <button

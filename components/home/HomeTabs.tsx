@@ -16,9 +16,9 @@ import { Marketplace } from "@/components/shop/Marketplace";
 import { EventSearchBar } from "@/components/feed/EventSearchBar";
 import { CityHeader } from "@/components/home/CityHeader";
 import { LiveFeed } from "@/components/live/LiveFeed";
+import { CommunityEventsLive } from "@/components/live/CommunityEventsLive";
 import { PersonalizedEvents } from "@/components/feed/PersonalizedEvents";
 import { LocalDirectory } from "@/components/home/LocalDirectory";
-import { WhatsOn } from "@/components/home/WhatsOn";
 import { HomeSearch } from "@/components/home/HomeSearch";
 import { CommunityFeed } from "@/components/feed/CommunityFeed";
 import { HOME_TABS, toHomeTab, rememberHomeTab, type HomeTab } from "@/lib/home-tab";
@@ -38,8 +38,12 @@ const TAB_ICONS: Record<HomeTab, typeof Newspaper> = {
 export function HomeTabs() {
   const [tab, setTab] = useState<HomeTab>("events");
   // Which way the Events tab is being read. A toggle, not a tab: same events.
-  // Defaults to the calendar — the chronological list needs no input and costs
-  // no model call, so it is what someone who has said nothing should land on.
+  //
+  // The ids name the ICON, not the component behind it:
+  //   "browse" = the calendar icon  → the dated list (PersonalizedEvents)
+  //   "foryou" = the spark icon     → the themed category rails (CommunityEventsLive)
+  // Defaults to the calendar — a plain dated list is what someone who has said
+  // nothing should land on.
   const [eventsView, setEventsView] = useState<"foryou" | "browse">("browse");
 
   // The event search box lives up here, in the page's top search slot, so the
@@ -52,10 +56,10 @@ export function HomeTabs() {
 
   const runEventSearch = () => {
     setEventQuery(eventText);
-    // Results are a ranked answer to a sentence, which is what For you IS.
-    // Searching from What's on and being left on a chronological list would
-    // read as the search having done nothing.
-    setEventsView("foryou");
+    // A search is answered by the ranked list, which is the CALENDAR side now.
+    // Being left on the themed rails — which don't read the query at all —
+    // would look exactly like the search having done nothing.
+    setEventsView("browse");
   };
 
   const clearEventSearch = () => {
@@ -282,7 +286,8 @@ export function HomeTabs() {
             <div className="mt-1">{supplyLink}</div>
           </div>
 
-          {eventsView === "foryou" ? (
+          {/* Calendar = the dated list. Spark = the themed category rails. */}
+          {eventsView === "browse" ? (
             <div className="mx-auto max-w-2xl px-4 pt-3 md:px-8">
               <PersonalizedEvents
                 query={eventQuery}
@@ -291,14 +296,8 @@ export function HomeTabs() {
               />
             </div>
           ) : (
-            // The calendar shows the DATED list — Happening now → Today → This
-            // weekend → Upcoming, one filter row, one map, live venues and
-            // events as cards in the same stream. It used to show
-            // CommunityEventsLive, which groups into themed rails (Markets,
-            // Music, Food) — categories, not a calendar, which is the spark's
-            // job. WhatsOn was built for exactly this slot and was orphaned.
             <div className="pt-2">
-              <WhatsOn hideHeading />
+              <CommunityEventsLive hideHeading />
             </div>
           )}
         </div>

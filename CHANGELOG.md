@@ -52,12 +52,6 @@ All notable changes to this project are documented here.
 - **Events toggle: calendar first and default.** The chronological list needs no input and costs no
   model call, so it is what someone who has said nothing lands on; the ranked view is opt-in.
   `?tab=foryou` / `?tab=whatson` still name a view.
-- **The calendar shows the DATED list.** It was rendering `CommunityEventsLive`, which groups
-  events into themed rails (Markets, Music, Food) — categories, which is the spark's job, not a
-  calendar's. It now renders `WhatsOn`: Happening now → Today → This weekend → Upcoming, one filter
-  row, one map, live venue broadcasts and events as cards in the same stream. That component
-  already existed and was **orphaned** — built for exactly this slot and never wired to anything.
-  `CommunityEventsLive` is now unused; left in place rather than deleted.
 
 **Curated-out members (`lib/hidden-members.ts`).** The inline reviewer-demo exception in `lib/api.ts`
 became a shared list and gained **Xeno** (our own founder profile, which was sitting in the directory
