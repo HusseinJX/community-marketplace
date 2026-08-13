@@ -300,7 +300,13 @@ export function Marketplace({ embedded = false }: { embedded?: boolean }) {
     <div className={embedded ? "bg-background" : "min-h-screen bg-background"}>
       <div
         className={
-          "mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 " + (embedded ? "pb-24 pt-4" : "py-8")
+          // Embedded, this is a home tab and has to line up with the others:
+          // Shops (LocalDirectory) is max-w-6xl px-4 md:px-8, and the grid was
+          // max-w-7xl px-4 sm:px-6 lg:px-8 — a wider column on a different
+          // edge, so switching tabs shifted the whole page sideways.
+          embedded
+            ? "mx-auto max-w-6xl px-4 pb-24 pt-4 md:px-8"
+            : "mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8"
         }
       >
         {/* Back link — only on the standalone page. Inside the home tab the

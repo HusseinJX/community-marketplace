@@ -26,16 +26,7 @@ import { trackConversion } from "@/lib/analytics";
 const FALLBACK: City | undefined = liveCities()[0];
 const INTEREST_KEY = "wl_city_interest";
 
-export function CityHeader({
-  /**
-   * Which half to draw. The two states of this component have different
-   * shapes — a one-line title vs a card with a button — so a caller that wants
-   * the title on a heading row cannot also accept the card there. Splitting it
-   * lets the Events tab put the city name inline and keep the pitch above,
-   * with one source of truth for which state we are in.
-   */
-  show = "both",
-}: { show?: "both" | "name" | "pitch" } = {}) {
+export function CityHeader() {
   const { position, settled } = useHomePosition();
   const [asked, setAsked] = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
@@ -67,7 +58,6 @@ export function CityHeader({
   const cover = live ?? FALLBACK;
 
   if (servedHere) {
-    if (show === "pitch") return null;
     // Just the city, at page-title size. "Near you in San Francisco" spent most
     // of a line explaining a mechanic; the name alone says where you are, and
     // the surfaces below already say they're sorted by distance.
@@ -77,8 +67,6 @@ export function CityHeader({
       </h1>
     );
   }
-
-  if (show === "name") return null;
 
   const done = asked === near.id;
 
