@@ -16,9 +16,9 @@ import { Marketplace } from "@/components/shop/Marketplace";
 import { EventSearchBar } from "@/components/feed/EventSearchBar";
 import { CityHeader } from "@/components/home/CityHeader";
 import { LiveFeed } from "@/components/live/LiveFeed";
-import { CommunityEventsLive } from "@/components/live/CommunityEventsLive";
 import { PersonalizedEvents } from "@/components/feed/PersonalizedEvents";
 import { LocalDirectory } from "@/components/home/LocalDirectory";
+import { WhatsOn } from "@/components/home/WhatsOn";
 import { HomeSearch } from "@/components/home/HomeSearch";
 import { CommunityFeed } from "@/components/feed/CommunityFeed";
 import { HOME_TABS, toHomeTab, rememberHomeTab, type HomeTab } from "@/lib/home-tab";
@@ -291,8 +291,14 @@ export function HomeTabs() {
               />
             </div>
           ) : (
+            // The calendar shows the DATED list — Happening now → Today → This
+            // weekend → Upcoming, one filter row, one map, live venues and
+            // events as cards in the same stream. It used to show
+            // CommunityEventsLive, which groups into themed rails (Markets,
+            // Music, Food) — categories, not a calendar, which is the spark's
+            // job. WhatsOn was built for exactly this slot and was orphaned.
             <div className="pt-2">
-              <CommunityEventsLive hideHeading />
+              <WhatsOn hideHeading />
             </div>
           )}
         </div>
