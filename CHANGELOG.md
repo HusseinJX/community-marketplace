@@ -33,6 +33,13 @@ All notable changes to this project are documented here.
 > exactly like a broken build. Use `lsof -ti:PORT | xargs kill -9`.*
 
 ### Changed — home tabs, curated listings, posting is vendors-only — 2026-08-13
+> **Deployed to CapRover prod 2026-08-13.** Gate passed before upload — `/vendor` **307 →
+> /vendor/sign-in** (demo mode off), home 200, `pk_live` baked, ad pixels still absent from the
+> bundle so the ATT statement to App Review stays true. Verified live on `whatslocal.ai` after:
+> tabs read **Events · Shops · Products** with no Feed, no `+` in the nav for a signed-out visitor,
+> `/share` and `/share?event=` both 307 → `/`, `/shop` 200, `/vendor` 307, and the curated-out
+> member returns **0 hits** in both `/api/directory` (98 members) and `/api/events/feed` (120
+> events). No native change, so no Xcode rebuild.
 
 **Home tabs are now `Events · Shops · Products`.**
 - **Feed is hidden, not deleted** — out of `HOME_TABS`, body still renders at `/?tab=feed`. It has
