@@ -24,7 +24,7 @@ export function AppBanner() {
 
   return (
     <div className="relative z-40 hidden border-b border-stone-200 bg-stone-900 text-white md:block">
-      <div className="mx-auto flex max-w-7xl items-center gap-2 px-3 py-3.5 text-sm sm:gap-3 sm:px-4 sm:py-4 md:px-8">
+      <div className="mx-auto flex max-w-6xl items-center gap-2 px-4 py-3.5 text-sm sm:gap-3 sm:py-4 md:px-8">
         <Apple className="h-4 w-4 shrink-0" />
         <p className="min-w-0 flex-1 leading-snug">
           <span className="font-semibold">Get the WhatsLocal AI app</span>

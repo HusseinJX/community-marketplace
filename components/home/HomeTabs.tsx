@@ -151,7 +151,11 @@ export function HomeTabs() {
       </div>
       */}
 
-      <div className="mx-auto max-w-6xl px-4 pt-4 md:px-8">
+      {/* No padding here: BOTH branches below already pad themselves to the
+          page standard, and this wrapper was adding a second helping — the
+          search bar sat 32px in on a phone while every card below it sat at
+          16px, and the nav could not line up with either. */}
+      <div className="mx-auto max-w-6xl pt-4">
         {/* One search box per tab, never two. On Events the top slot IS the
             event search — stacking a business search above it would put two
             inputs on screen competing for the same intent. Same wrapper as

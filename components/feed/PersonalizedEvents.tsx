@@ -420,6 +420,20 @@ export function PersonalizedEvents({
 
   const ruledOut = Object.entries(result?.filtered ?? {}).filter(([, n]) => n > 0);
 
+  // Anything the reader has switched on. `query` and `organizer` count: they
+  // narrow the feed exactly as much as a pill does, so leaving them out would
+  // hide the clear control while the feed was still filtered.
+  const hasFilters = topics.length > 0 || freeOnly || !!query || !!organizer;
+
+  const clearFilters = () => {
+    setTopics([]);
+    setFreeOnly(false);
+    setOrganizer(null);
+    // The search box belongs to the page, so this asks it to clear rather than
+    // clearing a copy and leaving the words sitting in the input.
+    onClearQuery?.();
+  };
+
   return (
     <div>
       {/* The search input lives in the page's top slot — see EventSearchBar. */}
@@ -431,6 +445,25 @@ export function PersonalizedEvents({
           Negative margins let it bleed to the screen edge, which is the cue
           that it scrolls. */}
       <div className="-mx-4 mt-3 flex gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden">
+        {/* Clear, FIRST and red, and only once something is actually on.
+            These filters combine, so after three taps it is not obvious what
+            is still selected — and the way out used to be a grey "Reset" at
+            the END of a row that scrolls, i.e. off the side of the screen,
+            behind the very pills you were trying to undo. At the head of the
+            row it is the first thing in view whenever there is anything to
+            clear, and it is the one destructive control here, so it is the
+            only one wearing red. */}
+        {hasFilters && (
+          <button
+            onClick={clearFilters}
+            aria-label="Clear all filters"
+            className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-rose-300 bg-rose-50 px-3.5 py-1.5 text-sm font-medium text-rose-600 transition hover:border-rose-400 hover:bg-rose-100"
+          >
+            <X className="h-4 w-4" />
+            Clear
+          </button>
+        )}
+
         {/* Free is a fact about an event exactly like its topic is, and it was
             the only reason this row had a second row beneath it. First, because
             for a lot of people it is the filter that decides the evening. */}
@@ -464,21 +497,6 @@ export function PersonalizedEvents({
           );
         })}
 
-        {(topics.length > 0 || freeOnly || query || organizer) && (
-          <button
-            onClick={() => {
-              setTopics([]);
-              setFreeOnly(false);
-              setOrganizer(null);
-              // The search box is the page's now, so Reset asks it to clear
-              // rather than clearing a copy and leaving words in the input.
-              onClearQuery?.();
-            }}
-            className="shrink-0 self-center whitespace-nowrap px-1 text-xs text-stone-400 underline underline-offset-2 hover:text-stone-700"
-          >
-            Reset
-          </button>
-        )}
       </div>
 
       {geoError && <p className="mt-2 text-xs text-amber-700">{geoError}</p>}

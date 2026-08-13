@@ -6,8 +6,9 @@ import { Plus } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useMyMemberId } from "@/lib/data-hooks";
 
-// Top bar: left "WhatsLocal AI" wordmark (links home), right "+" (post/share,
-// businesses only) and the theme toggle. The cart is gone from the front door —
+// Top bar: centred "WhatsLocal AI" wordmark (links home), with "+" (post/share,
+// businesses only) on the left and the theme toggle on the right. The cart is
+// gone from the front door —
 // commerce is supporting cast, and an always-empty bag was a dead control
 // (checkout is still reachable at /cart).
 export function TopNav() {
@@ -40,23 +41,15 @@ export function TopNav() {
   const canPost = adminContext || !!memberId;
 
   return (
-    <div className="relative flex h-14 items-center justify-between gap-2 px-4">
-      {/* Left — brand lockup (mark + wordmark, links home). */}
-      <Link
-        href="/"
-        className="inline-flex min-w-0 items-center gap-1.5 text-lg font-semibold tracking-tight text-stone-900"
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo.png" alt="" className="h-7 w-7 shrink-0" />
-        <span className="truncate">WhatsLocal AI</span>
-      </Link>
-
-      {/* Right — post/share (businesses only) and the theme toggle. The "+"
-          moved over here when the wordmark took the left edge; it is absent for
-          most visitors, so leaving it on the left would have left a hole in
-          front of the brand. Theme toggle is hidden in production — light is
-          the only public theme. */}
-      <div className="flex shrink-0 items-center gap-1">
+    // Three equal columns, so the wordmark is centred on the SCREEN rather
+    // than between whatever happens to flank it — the "+" comes and goes with
+    // who is signed in, and a flex row would have shifted the brand with it.
+    // px matches the page body (max-w-6xl px-4 md:px-8) so the logo and the
+    // toggle line up with the search bar and the cards below.
+    <div className="relative grid h-14 grid-cols-3 items-center px-4 md:px-8">
+      {/* Left — post/share. Empty for shoppers and signed-out visitors; the
+          column stays so the wordmark doesn't shift between the two. */}
+      <div className="flex justify-start">
         {canPost && (
           <Link
             href={shareHref}
@@ -66,6 +59,23 @@ export function TopNav() {
             <Plus className="h-6 w-6" />
           </Link>
         )}
+      </div>
+
+      {/* Centre — brand lockup (mark + wordmark, links home) */}
+      <div className="flex min-w-0 justify-center">
+        <Link
+          href="/"
+          className="inline-flex min-w-0 items-center gap-1.5 text-lg font-semibold tracking-tight text-stone-900"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="" className="h-7 w-7 shrink-0" />
+          <span className="truncate">WhatsLocal AI</span>
+        </Link>
+      </div>
+
+      {/* Right — theme toggle. Hidden in production; light is the only public
+          theme. */}
+      <div className="flex justify-end">
         {process.env.NODE_ENV !== "production" && <ThemeToggle />}
       </div>
     </div>

@@ -6,6 +6,7 @@ import { MemberTypeBadge } from "./MemberTypeBadge";
 import { ImageCarousel } from "./ImageCarousel";
 import { HeroMedia } from "./HeroMedia";
 import { memberImages } from "@/lib/member-images";
+import { DirectionsButton } from "@/components/map/DirectionsButton";
 
 const TYPE_GRADIENTS: Record<string, string> = {
   vendor: "from-blue-300 to-indigo-400",
@@ -58,6 +59,8 @@ export function MemberCard({
   const carouselImages = compact ? allImages.slice(0, 1) : allImages;
 
   const subtitle = [location, p.category as string | undefined].filter(Boolean).join(" · ");
+  const hasCoords = typeof p.latitude === "number" && typeof p.longitude === "number";
+  const address = (p.businessAddress as string | undefined) || location || null;
 
   return (
     <Link
@@ -120,6 +123,22 @@ export function MemberCard({
                 <p className="min-w-0 truncate text-[11px] text-white/80">{subtitle}</p>
               )}
             </div>
+
+            {/* A second row: how to actually get there. The distance chip above
+                says how far, which is the question this answers next. Not on
+                `compact` rail cards — at 176px wide the name plate has no room
+                for another line. `pointer-events-auto` because the plate above
+                is pointer-events-none so taps fall through to the card link;
+                this one control has to catch its own. */}
+            {!compact && (hasCoords || address) && (
+              <div className="pointer-events-auto mt-1.5 flex">
+                <DirectionsButton
+                  asButton
+                  variant="chip"
+                  destination={{ lat: p.latitude as number, lng: p.longitude as number, address, label: name }}
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>
