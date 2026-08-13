@@ -276,6 +276,34 @@ Ordered by risk. Everything below is correct in code and against the database; t
 is now **`false`** in `lib/posthog-provider.tsx` — with both on, one crash filed two unrelated issues in two
 dashboards, and PostHog only ever saw the browser half anyway.
 
+**⚠️ THE `Http` FILTER IN `sentry.server.config.ts` IS LOAD-BEARING — deleting it takes the whole site down
+about 38 hours later.** `integrations: (defaults) => defaults.filter(i => i.name !== "Http")` is not a
+preference. Sentry's `Http` integration wraps `server.emit` in a Proxy and guards against double-wrapping
+with a **module-level WeakMap** ("re-wrap only if the current `emit` isn't the one *I* stored") — correct for
+one instance of the SDK, useless for two, and this build gets two. Each copy sees the other's proxy as
+foreign and re-wraps **on every request**: measured at **+2 proxy layers per request, forever**. Every `emit`
+then walks all the layers, so recursion depth grows with lifetime traffic until `RangeError: Maximum call
+stack size exceeded` hits every request and the container stops answering. **That is what happened on
+2026-08-13** — whatslocal.ai served gateway timeouts ~38h after the v125 deploy, with **CapRover itself
+perfectly healthy and the container up but wedged**. Fixed in **v126**.
+  - **A restart is not a fix — it only resets the depth to zero** and buys another day and a half. If the
+    site times out and `captain.whatslocal.ai` is fine, this is the first thing to check.
+  - **Deduplicating the SDK does NOT work; don't re-run that experiment.** It is the **ESM/CJS dual-package
+    hazard inside `node_modules`**, not our bundling — with `serverExternalPackages` and **zero** copies
+    bundled into the server output, a 2,000-request burst *still* produced 1,014 overflows. Worse,
+    externalising **`@sentry/nextjs`** or **`@sentry/server-utils`** kills the server on **boot** ("Cannot
+    find module meriyah"): Next's file tracing can't follow them into the standalone output, so every
+    request 500s. Both were tested; both took the site down.
+  - **Verify only with a BURST** — ~2,000 *concurrent* requests at the standalone build, then grep the log
+    for "Maximum call stack". A few hundred serial requests passes while still broken; that false green is
+    why this looked fixed twice before it was.
+  - **What the filter costs:** no incoming-request spans, no per-request isolation scope. **Errors are
+    unaffected** — `onRequestError` still reports throws in route handlers, server components and server
+    actions (re-verified against a local sink with the filter on). Tracing is sampled at 0.1 and secondary;
+    the site staying up is not.
+  - **The DSN is baked in at BUILD time** via `NEXT_PUBLIC_SENTRY_DSN`, so unsetting `SENTRY_DSN` on
+    CapRover does **not** turn server Sentry off. Don't reach for that as a mitigation.
+
 - **Server (the reason this exists):** `instrumentation.ts` → `register()` loads `sentry.server.config.ts`
   (node) or `sentry.edge.config.ts` (edge — **required separately**, `middleware.ts`/clerkMiddleware runs
   there and the Node SDK cannot load in it). `export const onRequestError = Sentry.captureRequestError`
