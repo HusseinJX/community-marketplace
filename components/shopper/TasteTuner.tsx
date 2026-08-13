@@ -32,7 +32,10 @@ const refreshFeeds = () =>
     revalidate: true,
   });
 
-export function TasteTuner() {
+export function TasteTuner({
+  /** Off on its own settings page, where the page title already says this. */
+  showLabel = true,
+}: { showLabel?: boolean } = {}) {
   const [id, setId] = useState<string | null>(null);
   const [chips, setChips] = useState<Chip[]>([]);
   const [taste, setTaste] = useState<Taste | null>(null);
@@ -160,7 +163,7 @@ export function TasteTuner() {
 
   return (
     <div className="space-y-3">
-      <p className="section-label mb-1">What you&apos;re into</p>
+      {showLabel && <p className="section-label mb-1">What you&apos;re into</p>}
 
       <div className="card-soft space-y-4 p-4">
         <div className="flex items-start gap-3">

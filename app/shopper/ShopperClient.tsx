@@ -2,10 +2,9 @@
 
 import Link from "next/link";
 import { Show, UserButton, useUser, useClerk } from "@clerk/nextjs";
-import { Heart, ShoppingBag, Users, ArrowRight, PenLine, Store, MessageCircle, LogOut } from "lucide-react";
+import { Heart, ShoppingBag, Users, ArrowRight, PenLine, Store, MessageCircle, LogOut, Sparkles } from "lucide-react";
 import { PushTestButton } from "@/components/PushTestButton";
 import { StarredCommunityChats } from "@/components/community/StarredCommunityChats";
-import { TasteTuner } from "@/components/shopper/TasteTuner";
 import { DeleteAccountButton } from "@/components/account/DeleteAccountButton";
 import { useLogin } from "@/components/auth/ClerkAuthProvider";
 import { useIsNativeApp } from "@/lib/native";
@@ -103,13 +102,30 @@ export function ShopperClient() {
           </span>
           <ArrowRight className="h-4 w-4 shrink-0 text-stone-400" />
         </Link>
-      </div>
 
-      {/* What ranks the events feed. Placed above the community sections
-          because it changes what every other surface shows them, and works
-          signed-out — the profile is keyed on the browser until there's an
-          account to move it to. */}
-      <TasteTuner />
+        {/* What ranks the events feed. A link rather than the panel itself: it
+            is a settings screen — a text box, chips and a chat — and expanded
+            here it was the tallest thing on the page, between the shopper's own
+            stuff and the community sections below, for something most people
+            set once. Works signed-out, so it is not inside a Show. */}
+        <Link
+          href="/shopper/personalization"
+          className="card-soft card-hover mt-2 flex items-center justify-between p-4"
+        >
+          <span className="flex items-center gap-3">
+            <Sparkles className="h-5 w-5 shrink-0 text-teal-500" />
+            <span>
+              <span className="block text-sm font-semibold text-stone-900">
+                Personalization settings
+              </span>
+              <span className="block text-xs text-stone-500">
+                Tell us what you enjoy and we&apos;ll rank what&apos;s on around you to match.
+              </span>
+            </span>
+          </span>
+          <ArrowRight className="h-4 w-4 shrink-0 text-stone-400" />
+        </Link>
+      </div>
 
       {/* Rooms you starred while you were standing in them. Self-hides when
           empty — see StarredCommunityChats. */}
