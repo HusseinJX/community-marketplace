@@ -22,8 +22,11 @@ export function AppBanner() {
 
   if (hidden || isNative) return null;
 
+  // z-20, BELOW the sticky header's z-30. At z-40 this scrolled OVER the nav
+  // instead of under it — the banner only needs to sit above ordinary page
+  // content, and a sticky nav must always win.
   return (
-    <div className="relative z-40 hidden border-b border-stone-200 bg-stone-900 text-white md:block">
+    <div className="relative z-20 hidden border-b border-stone-200 bg-stone-900 text-white md:block">
       <div className="mx-auto flex max-w-6xl items-center gap-2 px-4 py-3.5 text-sm sm:gap-3 sm:py-4 md:px-8">
         <Apple className="h-4 w-4 shrink-0" />
         <p className="min-w-0 flex-1 leading-snug">

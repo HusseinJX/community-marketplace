@@ -212,10 +212,12 @@ export function HomeTabs() {
         </div>
       </div>
 
-      {/* Which city you're being served — the same on every tab, so it sits
-          outside them rather than being repeated three times. */}
+      {/* Which city you're being served. On Events the city NAME sits on the
+          heading row below (one line instead of two stacked titles), so up here
+          that tab shows only the out-of-area pitch — which is a card with a
+          button and could never sit inline. */}
       <div className="mx-auto max-w-6xl px-4 pt-3 md:px-8">
-        <CityHeader />
+        <CityHeader show={tab === "events" ? "pitch" : "both"} />
       </div>
 
       {/* Body — only the active tab mounts, keeping the page light per view. */}
@@ -246,11 +248,19 @@ export function HomeTabs() {
           in the row that switches between whole sections of the app. */}
       {tab === "events" && (
         <div className="pb-24 pt-4">
-          <div className="mx-auto max-w-2xl px-4 md:px-8">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-xl font-semibold tracking-tight text-stone-900">
-                Events near you
-              </h2>
+          {/* The header row matches the WIDTH of whatever is under it: the
+              dated list is a 2xl column, the rails and the map are 6xl. Fixed
+              at 2xl the heading sat indented from its own content and the
+              toggles floated in the middle of the screen. */}
+          <div className={`mx-auto px-4 md:px-8 ${eventsView === "browse" ? "max-w-2xl" : "max-w-6xl"}`}>
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+              <div className="flex min-w-0 items-baseline gap-2">
+                {/* The city, on the same line rather than stacked above it. */}
+                <CityHeader show="name" />
+                <h2 className="truncate text-xl font-semibold tracking-tight text-stone-500">
+                  Events near you
+                </h2>
+              </div>
               {/* Two icons, like the list/grid switch on a desktop feed — the
                   same events, read two ways. It was a labelled pill, which read
                   as a filter you switch ON and left "what's on" unnamed; a
@@ -296,11 +306,11 @@ export function HomeTabs() {
 
           {/* Calendar = the dated list · spark = themed rails · map = pins. */}
           {eventsView === "map" ? (
-            <div className="mx-auto max-w-6xl px-4 pt-3 md:px-8">
+            <div className="mx-auto max-w-6xl px-4 pt-4 md:px-8">
               <EventsMapView />
             </div>
           ) : eventsView === "browse" ? (
-            <div className="mx-auto max-w-2xl px-4 pt-3 md:px-8">
+            <div className="mx-auto max-w-2xl px-4 pt-4 md:px-8">
               <PersonalizedEvents
                 query={eventQuery}
                 onClearQuery={clearEventSearch}
@@ -308,7 +318,9 @@ export function HomeTabs() {
               />
             </div>
           ) : (
-            <div className="pt-2">
+            // pt-4 like the other two: the gap under "Hosting something?" was
+            // a different size on each view.
+            <div className="pt-4">
               <CommunityEventsLive hideHeading />
             </div>
           )}
