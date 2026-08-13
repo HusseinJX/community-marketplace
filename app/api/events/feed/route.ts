@@ -33,6 +33,9 @@ export interface FeedEvent {
   collaborators: number
   /** The host + accepted lineup, for the avatar stack on event cards. */
   collaboratorList: { id: string; name: string | null }[]
+  /** Where it actually is. Null for connector events, which carry no fix. */
+  lat: number | null
+  lng: number | null
   /** Watched calendar this was harvested from, else null for community events. */
   sourceId: string | null
   /** Canonical page on the source site — where a scraped card links instead of
@@ -68,6 +71,8 @@ export async function GET() {
         neighborhood: e.neighborhood ?? '',
         description: e.description ?? '',
         image: e.poster_image_url ?? null,
+        lat: e.lat ?? null,
+        lng: e.lng ?? null,
         memberId: e.member_id,
         memberName: e.member_name ?? 'Organizer',
         collaborators: 1,
@@ -114,6 +119,8 @@ export async function GET() {
         neighborhood: '',
         description: e.reworded ?? e.description ?? '',
         image: null,
+        lat: null,
+        lng: null,
         memberId: e.memberId ?? '',
         memberName: e.memberName ?? 'Organizer',
         collaborators: 1,

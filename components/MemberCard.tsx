@@ -2,7 +2,6 @@ import Link from "next/link";
 import { MapPin } from "lucide-react";
 import type { Member } from "@/lib/types";
 import { milesLabel } from "@/lib/proximity";
-import { MemberTypeBadge } from "./MemberTypeBadge";
 import { ImageCarousel } from "./ImageCarousel";
 import { HeroMedia } from "./HeroMedia";
 import { memberImages } from "@/lib/member-images";
@@ -88,10 +87,11 @@ export function MemberCard({
           <HeroMedia images={[]} gradientClass={gradient} alt={name} aspect="tall" />
         )}
 
-        {/* Type sits on the image, top-left, clear of the carousel's counter. */}
-        <div className="pointer-events-none absolute left-2.5 top-2.5">
-          <MemberTypeBadge type={p.memberType} />
-        </div>
+        {/* Save owns the top-left corner. The type badge used to sit here and
+            said "vendor" on a wall of cards that are nearly all vendors — it
+            spent the most valuable corner of the card on the least surprising
+            fact. The type is still legible from the card's category line. */}
+        <SaveBusinessButton memberId={member.id} variant="overlay" />
 
         {/* Frosted plate rather than a block of card below the photo. Everything
             the card has to say fits in two lines over the image, so the picture
@@ -138,7 +138,6 @@ export function MemberCard({
                   variant="chip"
                   destination={{ lat: p.latitude as number, lng: p.longitude as number, address, label: name }}
                 />
-                <SaveBusinessButton memberId={member.id} variant="chip" />
               </div>
             )}
           </div>

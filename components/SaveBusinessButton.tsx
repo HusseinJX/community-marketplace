@@ -21,8 +21,8 @@ export function SaveBusinessButton({
   className,
 }: {
   memberId: string;
-  /** pill = the profile action row · chip = on a card, beside Directions */
-  variant?: "pill" | "chip";
+  /** pill = profile action row · chip = beside Directions · overlay = on the photo */
+  variant?: "pill" | "chip" | "overlay";
   className?: string;
 }) {
   const { isSignedIn } = useAuth();
@@ -46,17 +46,25 @@ export function SaveBusinessButton({
   const label = isSaved ? "Saved — tap to remove" : "Save for later";
 
   const styles =
-    variant === "chip"
-      ? // relative z-10 for the same reason as the Directions chip: the card is
-        // a stretched link and this would otherwise sit underneath it.
-        "relative z-10 inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold shadow-sm transition " +
-        (isSaved ? "bg-amber-400 text-stone-900" : "bg-white/90 text-stone-700 hover:bg-white")
-      : "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 py-2 text-[13px] font-medium transition " +
-        (isSaved
-          ? "border-amber-300 bg-amber-50 text-amber-700"
-          : "border-stone-200 bg-white text-stone-700 hover:border-amber-300 hover:text-amber-700");
+    variant === "overlay"
+      ? // Floats on a photo that may be any colour, so it carries its own
+        // backdrop rather than relying on contrast with the image. Same shape
+        // and position as the event star (SaveEventButton) — one gesture,
+        // whether the card is a business or an event.
+        "absolute left-2 top-2 z-10 grid h-8 w-8 place-items-center rounded-full bg-white/85 shadow-sm backdrop-blur transition hover:bg-white active:scale-95"
+      : variant === "chip"
+        ? // relative z-10 for the same reason as the Directions chip: the card
+          // is a stretched link and this would otherwise sit underneath it.
+          "relative z-10 inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold shadow-sm transition " +
+          (isSaved ? "bg-amber-400 text-stone-900" : "bg-white/90 text-stone-700 hover:bg-white")
+        : "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 py-2 text-[13px] font-medium transition " +
+          (isSaved
+            ? "border-amber-300 bg-amber-50 text-amber-700"
+            : "border-stone-200 bg-white text-stone-700 hover:border-amber-300 hover:text-amber-700");
 
   const icon = variant === "chip" ? "h-3 w-3" : "h-4 w-4";
+  // The overlay is icon-only — a word would not fit in a 32px circle.
+  const showText = variant !== "overlay";
 
   return (
     <button
@@ -67,8 +75,10 @@ export function SaveBusinessButton({
       title={label}
       className={className ?? styles}
     >
-      <Bookmark className={`${icon} ${isSaved ? "fill-amber-500 text-amber-600" : ""}`} />
-      {isSaved ? "Saved" : "Save"}
+      <Bookmark
+        className={`${icon} ${isSaved ? "fill-amber-500 text-amber-600" : variant === "overlay" ? "text-stone-600" : ""}`}
+      />
+      {showText && (isSaved ? "Saved" : "Save")}
     </button>
   );
 }

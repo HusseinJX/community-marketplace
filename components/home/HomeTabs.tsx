@@ -10,6 +10,7 @@ import {
   ArrowRight,
   ShoppingBag,
   Sparkles,
+  Map as MapIcon,
   CalendarPlus,
 } from "lucide-react";
 import { Marketplace } from "@/components/shop/Marketplace";
@@ -17,6 +18,7 @@ import { EventSearchBar } from "@/components/feed/EventSearchBar";
 import { CityHeader } from "@/components/home/CityHeader";
 import { LiveFeed } from "@/components/live/LiveFeed";
 import { CommunityEventsLive } from "@/components/live/CommunityEventsLive";
+import { EventsMapView } from "@/components/live/EventsMapView";
 import { PersonalizedEvents } from "@/components/feed/PersonalizedEvents";
 import { LocalDirectory } from "@/components/home/LocalDirectory";
 import { HomeSearch } from "@/components/home/HomeSearch";
@@ -42,9 +44,10 @@ export function HomeTabs() {
   // The ids name the ICON, not the component behind it:
   //   "browse" = the calendar icon  → the dated list (PersonalizedEvents)
   //   "foryou" = the spark icon     → the themed category rails (CommunityEventsLive)
+  //   "map"    = the map icon       → the same events as pins
   // Defaults to the calendar — a plain dated list is what someone who has said
   // nothing should land on.
-  const [eventsView, setEventsView] = useState<"foryou" | "browse">("browse");
+  const [eventsView, setEventsView] = useState<"foryou" | "browse" | "map">("browse");
 
   // The event search box lives up here, in the page's top search slot, so the
   // Events tab has ONE input rather than a business search stacked above an
@@ -260,6 +263,7 @@ export function HomeTabs() {
                   [
                     { id: "browse", Icon: CalendarRange, label: "What's on" },
                     { id: "foryou", Icon: Sparkles, label: "For you" },
+                    { id: "map", Icon: MapIcon, label: "Map" },
                   ] as const
                 ).map(({ id, Icon, label }) => (
                   <button
@@ -290,8 +294,12 @@ export function HomeTabs() {
             <div className="mt-1">{supplyLink}</div>
           </div>
 
-          {/* Calendar = the dated list. Spark = the themed category rails. */}
-          {eventsView === "browse" ? (
+          {/* Calendar = the dated list · spark = themed rails · map = pins. */}
+          {eventsView === "map" ? (
+            <div className="mx-auto max-w-6xl px-4 pt-3 md:px-8">
+              <EventsMapView />
+            </div>
+          ) : eventsView === "browse" ? (
             <div className="mx-auto max-w-2xl px-4 pt-3 md:px-8">
               <PersonalizedEvents
                 query={eventQuery}

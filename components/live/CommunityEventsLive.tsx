@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { CalendarDays, MapPin } from "lucide-react";
+import { CalendarDays, MapPin, Star, X } from "lucide-react";
 import type { FeedEvent } from "@/app/api/events/feed/route";
-import { groupEventsByTheme } from "@/lib/event-themes";
-import { useEventsFeed } from "@/lib/data-hooks";
+import { groupEventsByTheme, themeOf } from "@/lib/event-themes";
+import { useEventsFeed, useSavedEvents } from "@/lib/data-hooks";
+import { SaveEventButton } from "@/components/events/SaveEventButton";
 
 // Parse an event's day to LOCAL midnight ms. A "YYYY-MM-DD" string is parsed in
 // local time (Date.parse treats it as UTC, which shifts the day across zones).
@@ -43,6 +44,14 @@ export function CommunityEventsLive({
   const [nowTs, setNowTs] = useState(0);
   useEffect(() => { setNowTs(Date.now()); }, []);
 
+  // ONE filter row over both sections, the same shape What's on uses: the
+  // themes this feed actually contains, plus a Saved chip. Derived from the
+  // events in hand rather than a fixed list, so a theme with nothing in it is
+  // never offered — an empty filter is a dead control.
+  const [tag, setTag] = useState("all");
+  const [savedOnly, setSavedOnly] = useState(false);
+  const { saved } = useSavedEvents();
+
   // Shared, cached feed (same key as CommunityFeed — deduped, survives nav).
   const { events, loading: feedLoading } = useEventsFeed();
 
@@ -69,13 +78,31 @@ export function CommunityEventsLive({
     return { now: nowArr, upcoming: upArr };
   }, [events, nowTs]);
 
-  const themed = useMemo(() => groupEventsByTheme(upcoming), [upcoming]);
+  const tags = useMemo(() => {
+    const set = new Set<string>();
+    for (const e of [...now, ...upcoming]) set.add(themeOf(e));
+    return [...set].filter(Boolean).sort();
+  }, [now, upcoming]);
+
+  const match = useCallback(
+    (e: FeedEvent) =>
+      (tag === "all" || themeOf(e) === tag) && (!savedOnly || saved.has(e.eventId)),
+    [tag, savedOnly, saved],
+  );
+
+  const shownNow = useMemo(() => now.filter(match), [now, match]);
+  const shownUpcoming = useMemo(() => upcoming.filter(match), [upcoming, match]);
+  const themed = useMemo(() => groupEventsByTheme(shownUpcoming), [shownUpcoming]);
 
   if (loading) return null;
 
-  const showNow = only !== "upcoming" && now.length > 0;
-  const showUpcoming = only !== "now" && upcoming.length > 0;
-  if (!showNow && !showUpcoming) return null;
+  const showNow = only !== "upcoming" && shownNow.length > 0;
+  const showUpcoming = only !== "now" && shownUpcoming.length > 0;
+  // Only bail out entirely when there is nothing to filter. With a filter on
+  // and no matches, the row has to stay — otherwise the controls vanish along
+  // with the results and there is no way back.
+  const anything = now.length > 0 || upcoming.length > 0;
+  if (!anything) return null;
 
   return (
     <div className="mx-auto max-w-6xl space-y-10 px-4 md:px-8">
@@ -83,15 +110,65 @@ export function CommunityEventsLive({
         <h2 className="text-xl font-semibold tracking-tight text-stone-900">Upcoming events</h2>
       )}
 
+      {/* Filters. `only` is a slice of this list embedded elsewhere, so it
+          keeps the plain rails and no controls. */}
+      {only === undefined && (tags.length > 1 || saved.size > 0) && (
+        <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] md:mx-0 md:px-0 [&::-webkit-scrollbar]:hidden">
+          {(tag !== "all" || savedOnly) && (
+            <button
+              onClick={() => { setTag("all"); setSavedOnly(false); }}
+              aria-label="Clear filters"
+              className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-rose-300 bg-rose-50 px-3 py-1.5 text-[13px] font-medium text-rose-600 transition hover:bg-rose-100"
+            >
+              <X className="h-4 w-4" />
+              Clear
+            </button>
+          )}
+          {saved.size > 0 && (
+            <button
+              onClick={() => setSavedOnly((v) => !v)}
+              aria-pressed={savedOnly}
+              className={
+                "inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-medium transition " +
+                (savedOnly ? "bg-amber-500 text-white" : "bg-amber-50 text-amber-700 hover:bg-amber-100")
+              }
+            >
+              <Star className={"h-3.5 w-3.5 " + (savedOnly ? "fill-white" : "fill-amber-500 text-amber-500")} />
+              Saved
+              <span className={savedOnly ? "text-white/80" : "text-amber-600/70"}>{saved.size}</span>
+            </button>
+          )}
+          {["all", ...tags].map((t) => (
+            <button
+              key={t}
+              onClick={() => setTag(t)}
+              aria-pressed={tag === t}
+              className={
+                "shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-[13px] font-medium transition " +
+                (tag === t ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-600 hover:bg-stone-200")
+              }
+            >
+              {t === "all" ? "All" : t}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {!showNow && !showUpcoming && (
+        <p className="py-10 text-center text-sm text-stone-400">
+          Nothing matches that filter.
+        </p>
+      )}
+
       {showNow && (
         <section>
           <SectionHead
             icon={<CalendarDays className="h-5 w-5 text-emerald-500" />}
             title="Happening now"
-            count={now.length}
+            count={shownNow.length}
             countClass="bg-emerald-100 text-emerald-600"
           />
-          <EventRail items={now} live />
+          <EventRail items={shownNow} live />
         </section>
       )}
 
@@ -164,6 +241,10 @@ function EventCard({ e, live = false }: { e: FeedEvent; live?: boolean }) {
             Today
           </span>
         )}
+        {/* Saving works on every other event surface; these cards were the one
+            place you could see an event and not keep it. Right corner — the
+            "Today" flag owns the left. */}
+        <SaveEventButton eventId={e.eventId} corner="right" />
       </div>
       <div className="flex flex-1 flex-col p-4">
         <h3 className="truncate text-sm font-semibold text-stone-900">{e.title}</h3>

@@ -8,8 +8,9 @@ import Link from "next/link";
 import { MapPin } from "lucide-react";
 import type { MapEvent } from "./EventsMap";
 
-// Approximate centroids so events with only a city/neighborhood still place on
-// the map (vendor_events carry no lat/lng). Add entries as new places appear.
+// Approximate centroids, used ONLY for events with no coordinates of their own
+// (connector events, and older rows from before vendor_events had lat/lng).
+// Add entries as new places appear.
 const PLACES: Record<string, [number, number]> = {
   mission: [37.7599, -122.4148],
   soma: [37.7785, -122.4056],
@@ -30,6 +31,10 @@ function jitter(id: string): [number, number] {
 }
 
 function geo(e: MapEvent): [number, number] | null {
+  // A real fix beats a guessed centroid, and most scraped events now carry one
+  // (vendor_events gained lat/lng in 20260711120000). No jitter on these —
+  // they are where they say they are.
+  if (typeof e.lat === "number" && typeof e.lng === "number") return [e.lat, e.lng];
   const key = (e.neighborhood || e.city || "").trim().toLowerCase();
   const base = PLACES[key] ?? (e.city ? PLACES[e.city.trim().toLowerCase()] : undefined);
   if (!base) return null;
