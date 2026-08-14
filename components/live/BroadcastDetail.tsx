@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { ArrowLeft, MapPin, Radio, Calendar, Camera } from "lucide-react";
+import { MapPin, Radio, Calendar, Camera } from "lucide-react";
 import { eventEmoji, eventLabel, timeLeftLabel, isLive } from "@/lib/live-events";
 import { streamEmbed } from "@/lib/embed";
 import { SaveButton } from "./SaveButton";
@@ -13,7 +12,6 @@ import { ShareMenu } from "@/components/ShareMenu";
 import { useBroadcast } from "@/lib/data-hooks";
 
 export function BroadcastDetail({ id }: { id: string }) {
-  const router = useRouter();
   // Cached per-id — back/forward and re-open resolve instantly.
   const { broadcast: b, loading } = useBroadcast(id);
   const [host, setHost] = useState<string>("");
@@ -51,17 +49,8 @@ export function BroadcastDetail({ id }: { id: string }) {
 
   return (
     <div className="mx-auto max-w-4xl px-4 pb-20 md:px-8">
-      <div className="pt-6">
-        <button
-          onClick={() => router.back()}
-          className="inline-flex items-center gap-1 text-sm text-stone-500 hover:text-stone-900"
-        >
-          <ArrowLeft className="h-4 w-4" /> Back
-        </button>
-      </div>
-
       {/* Header */}
-      <div className="mt-4 flex items-center gap-2">
+      <div className="pt-8 flex items-center gap-2">
         {live ? (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-600 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
             <Radio className="h-3.5 w-3.5" /> Live · {timeLeftLabel(b.ends_at)}

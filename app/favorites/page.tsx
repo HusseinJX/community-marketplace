@@ -9,10 +9,6 @@ export default function FavoritesPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 pb-24 pt-8 md:px-8">
-      <Link href="/" className="inline-flex items-center gap-1 text-sm text-indigo-700 hover:underline">
-        <ArrowLeft className="h-4 w-4" /> Back
-      </Link>
-
       <h1 className="mt-6 flex items-center gap-3 text-3xl font-semibold tracking-tight text-stone-900">
         Saved products
         {favorites.length > 0 && (

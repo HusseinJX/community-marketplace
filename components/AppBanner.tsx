@@ -1,7 +1,7 @@
 "use client";
 
 import { Apple, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useIsNativeApp } from "@/lib/native";
 
 // Live App Store listing.
@@ -15,12 +15,46 @@ const APP_STORE_URL = "https://apps.apple.com/app/whatslocal-ai/id6793615366";
 // the native app itself, which matters for iPad — that's wide enough to clear
 // the md breakpoint, and "download our app" inside the app is nonsense.
 //
-// Dismissal only lasts for the current page view — it returns on reload.
+// Dismissal STICKS. It used to be plain useState, so the X hid the bar until
+// the next reload and then it came straight back — which reads as a broken
+// close button, and is worse than having no close button at all: the visitor
+// has told us no and we ask again on every page.
+//
+// Stored rather than remembered in memory, and with no expiry. "I don't want
+// the app" is not a fact that goes stale, and re-asking someone who already
+// said no is the cheapest possible way to be annoying. If we ever want to
+// re-prompt, that should be a deliberate campaign with a new key, not a
+// side effect of them refreshing the page.
+const DISMISS_KEY = "wl_app_banner_dismissed";
+
 export function AppBanner() {
   const [hidden, setHidden] = useState(false);
+  // Not rendered until we've read storage. Starting visible and hiding in an
+  // effect would flash the bar on every load for someone who dismissed it
+  // months ago — and it would push the whole page down and back up while it
+  // did, which is worse than the flash.
+  const [ready, setReady] = useState(false);
   const isNative = useIsNativeApp();
 
-  if (hidden || isNative) return null;
+  useEffect(() => {
+    try {
+      if (window.localStorage.getItem(DISMISS_KEY) === "1") setHidden(true);
+    } catch {
+      /* private mode — the banner just isn't dismissible across reloads */
+    }
+    setReady(true);
+  }, []);
+
+  const dismiss = () => {
+    setHidden(true);
+    try {
+      window.localStorage.setItem(DISMISS_KEY, "1");
+    } catch {
+      /* see above */
+    }
+  };
+
+  if (!ready || hidden || isNative) return null;
 
   // z-20, BELOW the sticky header's z-30. At z-40 this scrolled OVER the nav
   // instead of under it — the banner only needs to sit above ordinary page
@@ -43,7 +77,7 @@ export function AppBanner() {
         </a>
         <button
           type="button"
-          onClick={() => setHidden(true)}
+          onClick={dismiss}
           aria-label="Dismiss"
           className="shrink-0 rounded-full p-1 text-white/80 transition hover:bg-white/15 hover:text-white"
         >

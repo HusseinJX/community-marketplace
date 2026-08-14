@@ -47,18 +47,25 @@ export function DirectionsButton({
 
   // Google's own directions blue (#1a73e8), the colour people have been
   // trained on by Maps itself — so the control reads as "this takes me to a
-  // map" before anyone reads the word. Same blue in all three forms; only the
-  // weight changes with the surface.
+  // map" before anyone reads the word.
+  //
+  // The blue is kept where the button is a DECISION: the profile action row,
+  // where there is one of them and the reader has already chosen the place.
+  // On a card it is not — a category grid renders 23 of these at once, and 23
+  // filled blue chips outshouted every photo and every business name on the
+  // screen. Repetition is what changes the answer: the same colour that reads
+  // as helpful once reads as an advert twenty-three times. So the card form is
+  // a quiet stone link that only picks up colour on hover.
   const styles =
     variant === "pill"
       ? "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-[#1a73e8] px-3.5 py-2 text-[13px] font-medium text-white transition hover:bg-[#1765cc]"
       : variant === "chip"
         // relative z-10: on a feed card the whole tile is a stretched link,
         // and without it this sits underneath and never receives the tap.
-        ? "relative z-10 inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-[#1a73e8] px-2 py-0.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-[#1765cc]"
+        ? "relative z-10 inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-[13px] font-medium text-stone-500 underline decoration-stone-300 underline-offset-2 transition hover:text-[#1a73e8] hover:decoration-[#1a73e8]"
         : "inline-flex items-center gap-1.5 text-[13px] font-medium text-[#1a73e8] transition hover:text-[#1765cc]";
 
-  const iconSize = variant === "chip" ? "h-3 w-3" : "h-4 w-4";
+  const iconSize = variant === "chip" ? "h-3.5 w-3.5" : "h-4 w-4";
 
   const open = (e: React.MouseEvent) => {
     // The card around this may expand on click, or be a stretched link.

@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { QrCode, X, ExternalLink, CameraOff, ScanLine } from 'lucide-react'
 import type { IScannerControls } from '@zxing/browser'
@@ -64,8 +65,14 @@ function CodeSheet({ onClose }: { onClose: () => void }) {
     [router, onClose]
   )
 
-  return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
+  // Portalled to <body> for the same reason as FilterSidebar: this opens from
+  // the search pill, which sits in a sticky header with `backdrop-blur`, and a
+  // backdrop-filter ancestor becomes the containing block for fixed children —
+  // so `inset-0` would cover the header strip instead of the screen.
+  if (typeof document === 'undefined') return null
+
+  return createPortal(
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
       <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="border-b border-stone-100">
@@ -83,7 +90,8 @@ function CodeSheet({ onClose }: { onClose: () => void }) {
           <ScanPanel onDecoded={handleDecoded} />
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 

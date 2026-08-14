@@ -191,7 +191,6 @@ export default async function EventDetailPage({
       <main className="min-h-screen bg-stone-50 px-4 py-16">
         <div className="mx-auto max-w-2xl text-center">
           <p className="text-stone-500 text-lg mb-6">Event not found.</p>
-          <BackToHome className="inline-flex items-center gap-1.5 text-sm font-medium text-indigo-700 hover:underline" />
         </div>
       </main>
     );
@@ -295,8 +294,6 @@ export default async function EventDetailPage({
       <div className="mx-auto max-w-5xl px-4 pb-8 pt-3 sm:pb-12 sm:pt-4">
         {/* Back link. Tight to the header and tight to the hero — it used to
             reserve a band of empty screen above the photo on a phone. */}
-        <BackToHome className="mb-3 inline-flex items-center gap-1.5 text-sm font-medium text-stone-600 transition hover:text-indigo-700" />
-
         {/* Hero — image-first, gradient fallback */}
         {heroImage ? (
           <div className="relative mb-8 aspect-[16/9] w-full overflow-hidden rounded-2xl bg-stone-100">

@@ -9,7 +9,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Lock, MapPin, Send, Star, Users } from "lucide-react";
-import { BackToHome } from "@/components/BackToHome";
 import { useStarredChats } from "@/lib/community-saves";
 import {
   type CommunityChat,
@@ -89,8 +88,6 @@ export function CommunityChatRoom({ chat }: { chat: CommunityChat }) {
         <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-3">
           {/* A room is reachable from the Feed tab and the Chats tab, so the
               back link names whichever one you actually came from. */}
-          <BackToHome className="inline-flex items-center gap-1 text-sm font-medium text-stone-500 transition hover:text-stone-800" />
-
           <div className="ml-1 min-w-0 flex-1">
             <h1 className="flex items-center gap-1.5 truncate text-sm font-semibold text-stone-900">
               <span>{chat.emoji}</span>

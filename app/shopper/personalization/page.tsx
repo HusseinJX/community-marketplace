@@ -1,5 +1,3 @@
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { TasteTuner } from "@/components/shopper/TasteTuner";
 
 export const metadata = { title: "Personalization settings" };
@@ -15,13 +13,6 @@ export const metadata = { title: "Personalization settings" };
 export default function PersonalizationPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 pb-24 pt-8 md:px-8">
-      <Link
-        href="/shopper"
-        className="inline-flex items-center gap-1 text-sm text-indigo-700 hover:underline"
-      >
-        <ArrowLeft className="h-4 w-4" /> Your space
-      </Link>
-
       <h1 className="mt-6 text-3xl font-semibold tracking-tight text-stone-900">
         Personalization settings
       </h1>

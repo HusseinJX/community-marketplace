@@ -4,7 +4,6 @@ import Link from "next/link";
 import { Show, UserButton, useUser, useClerk } from "@clerk/nextjs";
 import { Heart, ShoppingBag, Users, ArrowRight, PenLine, Store, MessageCircle, LogOut, Sparkles } from "lucide-react";
 import { PushTestButton } from "@/components/PushTestButton";
-import { StarredCommunityChats } from "@/components/community/StarredCommunityChats";
 import { DeleteAccountButton } from "@/components/account/DeleteAccountButton";
 import { useLogin } from "@/components/auth/ClerkAuthProvider";
 import { useIsNativeApp } from "@/lib/native";
@@ -127,9 +126,10 @@ export function ShopperClient() {
         </Link>
       </div>
 
-      {/* Rooms you starred while you were standing in them. Self-hides when
-          empty — see StarredCommunityChats. */}
-      <StarredCommunityChats />
+      {/* Starred community rooms — hidden. The component and its data are
+          untouched; only this call site is commented out, so restoring the
+          section is one line.
+      <StarredCommunityChats /> */}
 
       {/* Local resources — single entry into the community resource explorer */}
       <div className="space-y-3">

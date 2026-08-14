@@ -54,9 +54,21 @@ export function ActionBar({
       ? websiteUrl
       : `https://${websiteUrl}`
     : null;
-  // Row-pill styling so GoogleReviewButton sits inline with the other actions.
-  const reviewPill =
-    "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-stone-200 bg-white px-3.5 py-2 text-[13px] font-medium text-stone-700 transition hover:border-amber-300 hover:text-amber-600";
+  // ── One filled button, everything else quiet ────────────────────────────
+  // This row had seven controls in five colours — blue Directions, indigo
+  // Follow, emerald Visited, rose-on-hover Support, amber-on-hover Review,
+  // green Book. Six shouts is silence: nothing looked like the thing to press,
+  // and the row read as a settings panel rather than as a set of actions.
+  //
+  // Now the row has exactly one filled button — the one that completes the
+  // reason you came — and everything else is the same quiet outlined pill.
+  // Which one that is depends on what the business can actually do, in order:
+  // book it → ask it something → get to it.
+  const quiet =
+    "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-stone-200 bg-white px-3.5 py-2 text-[13px] font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900";
+  const primary =
+    "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-coral-600 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-coral-700";
+  const reviewPill = quiet;
 
 
   const storageKey = `visits:${memberId}`;
@@ -86,17 +98,22 @@ export function ActionBar({
           often trying to get there, and that was the one thing this row could
           not do — the address was static text and the map was a picture. It
           self-hides when we hold no location at all. */}
+      {/* Outlined, not filled. The Maps blue is kept — as the icon and label,
+          where it still says "this opens a map" — but the solid fill is spent
+          on ONE button in this row (see `primary` below). A row with a blue
+          button at one end and a coral one at the other asks which is the
+          action, and answers it twice. */}
       <DirectionsButton
         destination={{ lat, lng, address: businessAddress, label: businessName || memberName }}
+        className={`${quiet} !text-[#1a73e8] hover:!border-[#1a73e8]`}
       />
 
       <button
         onClick={() => setFollowing((v) => !v)}
         className={
-          "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-2 text-[13px] font-medium transition " +
-          (following
-            ? "bg-stone-900 text-white hover:bg-stone-800"
-            : "bg-indigo-600 text-white hover:bg-indigo-700")
+          following
+            ? "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-stone-900 px-3.5 py-2 text-[13px] font-medium text-white transition hover:bg-stone-800"
+            : quiet
         }
       >
         {following ? <Check className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
@@ -114,10 +131,9 @@ export function ActionBar({
         <button
           onClick={logVisit}
           className={
-            "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 py-2 text-[13px] font-medium transition " +
-            (visits > 0
-              ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-300"
-              : "border-stone-200 bg-white text-stone-700 hover:border-emerald-300 hover:text-emerald-700")
+            visits > 0
+              ? "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-stone-900 bg-white px-3.5 py-2 text-[13px] font-semibold text-stone-900 transition"
+              : quiet
           }
           title={visits > 0 ? `You've logged ${visits} visit${visits === 1 ? "" : "s"}` : "Log a visit"}
         >
@@ -128,7 +144,7 @@ export function ActionBar({
 
       <button
         onClick={() => setSupportOpen(true)}
-        className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-stone-200 bg-white px-3.5 py-2 text-[13px] font-medium text-stone-700 transition hover:border-rose-300 hover:text-rose-600"
+        className={quiet}
       >
         <HandHeart className="h-4 w-4" />
         Support
@@ -145,19 +161,18 @@ export function ActionBar({
       {canInquire && (
         <button
           onClick={() => window.dispatchEvent(new CustomEvent("open-assistant"))}
-          className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-stone-200 bg-white px-3.5 py-2 text-[13px] font-medium text-stone-700 transition hover:border-indigo-300 hover:text-indigo-700"
+          // Primary only when there is no Book — otherwise Book owns the fill.
+          className={isVendor ? quiet : primary}
         >
           <MessageSquare className="h-4 w-4" />
           Inquire
         </button>
       )}
 
-      {/* Book sits at the very end of the row. */}
+      {/* Book sits at the very end of the row, and is THE action when a
+          business can be booked — so it carries the accent. */}
       {isVendor && (
-        <button
-          onClick={() => setBookOpen(true)}
-          className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-emerald-600 px-3.5 py-2 text-[13px] font-medium text-white transition hover:bg-emerald-700"
-        >
+        <button onClick={() => setBookOpen(true)} className={primary}>
           <CalendarClock className="h-4 w-4" />
           Book
         </button>
@@ -172,7 +187,7 @@ export function ActionBar({
               href={websiteHref}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-stone-200 bg-white px-3.5 py-2 text-[13px] font-medium text-stone-700 transition hover:border-indigo-300 hover:text-indigo-700"
+              className={quiet}
             >
               <Globe className="h-4 w-4" />
               Visit website

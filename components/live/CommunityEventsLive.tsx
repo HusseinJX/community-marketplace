@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { CalendarDays, MapPin, Star, X } from "lucide-react";
@@ -8,6 +8,9 @@ import type { FeedEvent } from "@/app/api/events/feed/route";
 import { groupEventsByTheme, themeOf } from "@/lib/event-themes";
 import { useEventsFeed, useSavedEvents } from "@/lib/data-hooks";
 import { SaveEventButton } from "@/components/events/SaveEventButton";
+import { RailHeader } from "@/components/home/RailHeader";
+import { CategorySplit } from "@/components/home/CategorySplit";
+import { eventEmojiFor } from "@/lib/map-adapters";
 
 // Parse an event's day to LOCAL midnight ms. A "YYYY-MM-DD" string is parsed in
 // local time (Date.parse treats it as UTC, which shifts the day across zones).
@@ -49,6 +52,7 @@ export function CommunityEventsLive({
   // events in hand rather than a fixed list, so a theme with nothing in it is
   // never offered — an empty filter is a dead control.
   const [tag, setTag] = useState("all");
+  const [expanded, setExpanded] = useState<string | null>(null);
   const [savedOnly, setSavedOnly] = useState(false);
   const { saved } = useSavedEvents();
 
@@ -94,7 +98,42 @@ export function CommunityEventsLive({
   const shownUpcoming = useMemo(() => upcoming.filter(match), [upcoming, match]);
   const themed = useMemo(() => groupEventsByTheme(shownUpcoming), [shownUpcoming]);
 
+  // Which theme is expanded into the list+map split, by group key. Same
+  // interaction as the Shops rails — see components/home/CategorySplit.
+  const openTheme = expanded ? themed.find((g) => g.key === expanded) : undefined;
+
   if (loading) return null;
+
+  if (openTheme) {
+    const byId = new Map(openTheme.items.map((e) => [e.eventId, e]));
+    return (
+      <CategorySplit
+        label={openTheme.label}
+        emoji={openTheme.emoji}
+        backLabel="All events"
+        ids={openTheme.items.map((e) => e.eventId)}
+        // Events without a fix (connector events carry none) stay in the LIST
+        // and are simply absent from the map. Dropping them from both would
+        // hide real events because we don't know where they are.
+        points={openTheme.items.flatMap((e) =>
+          e.lat != null && e.lng != null
+            ? [{
+                id: e.eventId,
+                lat: e.lat,
+                lng: e.lng,
+                emoji: eventEmojiFor(`${e.title} ${openTheme.label}`),
+                title: e.title,
+              }]
+            : [],
+        )}
+        renderCard={(id) => {
+          const e = byId.get(id);
+          return e ? <EventCard key={id} e={e} /> : null;
+        }}
+        onBack={() => setExpanded(null)}
+      />
+    );
+  }
 
   const showNow = only !== "upcoming" && shownNow.length > 0;
   const showUpcoming = only !== "now" && shownUpcoming.length > 0;
@@ -175,16 +214,16 @@ export function CommunityEventsLive({
       {showUpcoming && (
         <section className="space-y-8">
           {themed.map((g) => (
-            <div key={g.key}>
-              <h3 className="mb-3 flex items-center gap-2 text-lg font-semibold tracking-tight text-stone-900">
-                <span className="text-xl leading-none">{g.emoji}</span>
-                {g.label}
-                <span className="rounded-full bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-500">
-                  {g.items.length}
-                </span>
-              </h3>
-              <EventRail items={g.items} />
-            </div>
+            <ThemeRail
+              key={g.key}
+              emoji={g.emoji}
+              label={g.label}
+              items={g.items}
+              onExpand={() => {
+                setExpanded(g.key);
+                window.scrollTo({ top: 0 });
+              }}
+            />
           ))}
         </section>
       )}
@@ -218,6 +257,47 @@ function EventRail({ items, live = false }: { items: FeedEvent[]; live?: boolean
           <EventCard e={e} live={live} />
         </div>
       ))}
+    </div>
+  );
+}
+
+/**
+ * One theme, as a rail you can open.
+ *
+ * Shares RailHeader with the Shops directory, so the expand affordance and the
+ * scroll arrows are one implementation rather than two that drift.
+ */
+function ThemeRail({
+  emoji,
+  label,
+  items,
+  onExpand,
+}: {
+  emoji: string;
+  label: string;
+  items: FeedEvent[];
+  onExpand: () => void;
+}) {
+  const scroller = useRef<HTMLDivElement>(null);
+  return (
+    <div>
+      <RailHeader
+        emoji={emoji}
+        label={label}
+        count={items.length}
+        scrollerRef={scroller}
+        onExpand={onExpand}
+      />
+      <div
+        ref={scroller}
+        className="-mx-4 flex gap-4 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:-mx-8 md:px-8"
+      >
+        {items.map((e) => (
+          <div key={e.eventId} className="w-72 shrink-0 sm:w-80">
+            <EventCard e={e} />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

@@ -1,9 +1,12 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import { Loader2, LocateFixed } from "lucide-react";
 import type { Member } from "@/lib/types";
 import { MemberCard } from "@/components/MemberCard";
+import { CategorySplit } from "@/components/home/CategorySplit";
+import { memberPoint } from "@/lib/map-adapters";
+import { RailHeader } from "@/components/home/RailHeader";
 import { groupMembers } from "@/lib/browse-groups";
 import { useDirectory } from "@/lib/data-hooks";
 import { hasMemberImage } from "@/lib/member-images";
@@ -27,9 +30,19 @@ export function LocalDirectory({
   headerAction,
   /** One line under the heading — the "own a local business?" prompt. */
   belowHeader,
+  /**
+   * Draw the "Browse all local businesses" title.
+   *
+   * Off on the Shops tab: the tab selector directly above already says Shops,
+   * the city name says where, and each rail carries its own heading — so the
+   * title was a third label for a thing already named twice, sitting between
+   * the reader and the first photo.
+   */
+  showHeading = true,
 }: {
   headerAction?: ReactNode;
   belowHeader?: ReactNode;
+  showHeading?: boolean;
 } = {}) {
   // Shared, server-cached directory (same key as /explore — one request, cached
   // across tab switches, and the connector call runs server-side not in-browser).
@@ -77,6 +90,10 @@ export function LocalDirectory({
 
   const groups = useMemo(() => groupMembers(ranked.map((d) => d.m)), [ranked]);
 
+  // Which category is expanded into the list+map split, by group key.
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const open = expanded ? groups.find((g) => g.group.key === expanded) : undefined;
+
   async function requestLocation() {
     setLocating(true);
     setGeoError(null);
@@ -91,18 +108,53 @@ export function LocalDirectory({
     }
   }
 
+  // An expanded category replaces the shelf entirely rather than appearing
+  // beneath it: you asked for one category, so the other nine rails are not
+  // context any more, they are noise you have to scroll past to reach the map.
+  if (open) {
+    const byId = new Map(open.members.map((m) => [m.id, m]));
+    return (
+      <CategorySplit
+        label={open.group.label}
+        emoji={open.group.emoji}
+        backLabel="All shops"
+        ids={open.members.map((m) => m.id)}
+        points={open.members.flatMap((m) => memberPoint(m) ?? [])}
+        renderCard={(id, { linked, onHover }) => {
+          const m = byId.get(id);
+          if (!m) return null;
+          return (
+            <MemberCard
+              key={m.id}
+              member={m}
+              miles={milesById.get(m.id) ?? null}
+              hasPosition={!!home}
+              linked={linked}
+              onHover={onHover}
+            />
+          );
+        }}
+        onBack={() => setExpanded(null)}
+      />
+    );
+  }
+
   return (
     // No top rule: on the Shop tab this is the first section under the city
     // name, so the divider read as a line drawn under the page title rather
     // than as a separator between two things.
     <section className="mx-auto max-w-6xl px-4 pb-12 pt-6 md:px-8">
       {/* The floor, not the pitch — a plain way to browse everyone. */}
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <h2 className="text-xl font-semibold tracking-tight text-stone-900">
-          Browse all local businesses
-        </h2>
-        {headerAction}
-      </div>
+      {(showHeading || headerAction) && (
+        <div className="mb-2 flex items-center justify-between gap-3">
+          {showHeading ? (
+            <h2 className="t-section text-stone-900">Browse all local businesses</h2>
+          ) : (
+            <span />
+          )}
+          {headerAction}
+        </div>
+      )}
 
       {/* "Near me" and its radius slider are gone, along with the "Nearest
           first" caption that restated them. Nearest-first is the default and
@@ -116,7 +168,7 @@ export function LocalDirectory({
           type="button"
           onClick={() => void requestLocation()}
           disabled={locating}
-          className="mt-2 inline-flex items-center gap-1 text-xs text-indigo-600 underline underline-offset-2 hover:text-indigo-800 disabled:opacity-60"
+          className="mt-2 inline-flex items-center gap-1 t-meta text-stone-600 underline underline-offset-2 hover:text-coral-700 disabled:opacity-60"
         >
           {locating ? <Loader2 className="h-3 w-3 animate-spin" /> : <LocateFixed className="h-3 w-3" />}
           Turn on location to sort by distance
@@ -128,7 +180,7 @@ export function LocalDirectory({
       <div className="mt-4" />
 
       {visible.length === 0 ? (
-        <p className="text-sm text-stone-400">No one local to show yet.</p>
+        <p className="t-body text-stone-400">No one local to show yet.</p>
       ) : (
         <div className="space-y-7">
           {groups.map(({ group, members: gm }) => (
@@ -139,6 +191,10 @@ export function LocalDirectory({
               members={gm}
               milesById={milesById}
               hasPosition={!!home}
+              onExpand={() => {
+                setExpanded(group.key);
+                window.scrollTo({ top: 0 });
+              }}
             />
           ))}
         </div>
@@ -153,21 +209,30 @@ function Rail({
   members,
   milesById,
   hasPosition,
+  onExpand,
 }: {
   label: string;
   emoji: string;
   members: Member[];
   milesById: Map<string, number | null>;
   hasPosition: boolean;
+  onExpand: () => void;
 }) {
+  const scroller = useRef<HTMLDivElement>(null);
+
   return (
     <div>
-      <h3 className="mb-3 flex items-center gap-2 text-lg font-semibold tracking-tight text-stone-900">
-        <span className="text-xl leading-none">{emoji}</span>
-        {label}
-        <span className="rounded-full bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-500">{members.length}</span>
-      </h3>
-      <div className="-mx-4 flex gap-4 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:-mx-8 md:px-8">
+      <RailHeader
+        emoji={emoji}
+        label={label}
+        count={members.length}
+        scrollerRef={scroller}
+        onExpand={onExpand}
+      />
+      <div
+        ref={scroller}
+        className="-mx-4 flex gap-4 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:-mx-8 md:px-8"
+      >
         {members.map((m) => (
           <div key={m.id} className="w-60 shrink-0 sm:w-64">
             <MemberCard member={m} miles={milesById.get(m.id) ?? null} hasPosition={hasPosition} />

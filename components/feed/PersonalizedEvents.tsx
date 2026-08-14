@@ -612,13 +612,24 @@ export function PersonalizedEvents({
                 `sticky` inside the section (not the page) is what makes each
                 heading hand over to the next instead of stacking.
 
-                Offset = the app header (3.5rem) + the sticky tab row beneath it
-                (56px, measured), so it parks directly under them rather than
-                sliding behind. Full-bleed background, or cards would show
-                through the gap as they pass under it. */}
+                Offset = the app header, and nothing else. It used to add 1.5rem
+                for the tab row that sat sticky beneath it — but that row folds
+                away on scroll now, so the allowance became a permanent gap with
+                the page visibly running through it between the nav and the day
+                heading. Flush against the nav is the only offset that is right
+                in both states. Full-bleed background, or cards would show
+                through as they pass under it. */}
             <h2
-              className="sticky z-10 -mx-4 mb-2 bg-stone-50/90 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-stone-400 backdrop-blur md:-mx-8 md:px-8"
-              style={{ top: "calc(7rem + env(safe-area-inset-top))" }}
+              // z-[15], deliberately between two things:
+              //  - ABOVE the cards. Their links, chips and buttons carry
+              //    `relative z-10` (they have to, to sit over the stretched
+              //    card link), and at an equal z-index the later element in
+              //    DOM order wins — which is every card below this heading. So
+              //    at z-10 the heading was overlapped by whatever scrolled
+              //    under it, intermittently, depending on which card it met.
+              //  - BELOW the header band (z-20), which this must pass under.
+              className="sticky z-[15] -mx-4 mb-2 bg-stone-50/95 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-stone-400 backdrop-blur md:-mx-8 md:px-8"
+              style={{ top: "calc(var(--top-nav) + env(safe-area-inset-top))" }}
             >
               {dayLabel(day)}
             </h2>

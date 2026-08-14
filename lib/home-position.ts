@@ -21,6 +21,7 @@
 
 import { useEffect, useState } from "react";
 import { getUserPosition } from "@/lib/native-geo";
+import { cityById } from "@/lib/cities";
 
 export interface Position {
   lat: number;
@@ -29,6 +30,58 @@ export interface Position {
 
 const KEY = "wl_home_pos";
 const TTL_MS = 24 * 60 * 60 * 1000;
+
+// ── City override ───────────────────────────────────────────────────────────
+// "Show me Oakland" — a deliberate choice that outranks the device fix.
+//
+// It lives HERE rather than in the city header because switching city has to
+// move the whole page: the directory sorts by distance, the events feed ranks
+// by proximity, and the header names the place. If the switcher owned its own
+// state, the label would say Oakland while every list below it stayed sorted
+// around San Francisco — which is worse than not offering the control.
+//
+// No TTL. A device fix expires because you move; a stated preference does not.
+// Clearing it is an explicit "Use my location" in the picker.
+
+const CITY_KEY = "wl_home_city";
+
+let overrideId: string | null | undefined; // undefined = not yet read from disk
+const listeners = new Set<() => void>();
+
+function readOverride(): string | null {
+  if (overrideId !== undefined) return overrideId;
+  if (typeof window === "undefined") return null;
+  try {
+    overrideId = window.localStorage.getItem(CITY_KEY);
+  } catch {
+    overrideId = null;
+  }
+  return overrideId;
+}
+
+/** The city id the reader pinned, or null when following the device. */
+export function cityOverride(): string | null {
+  return readOverride();
+}
+
+/** Pin a city (or null to go back to the device fix). Notifies every surface. */
+export function setCityOverride(id: string | null): void {
+  overrideId = id;
+  try {
+    if (id) window.localStorage.setItem(CITY_KEY, id);
+    else window.localStorage.removeItem(CITY_KEY);
+  } catch {
+    /* private mode — the choice just doesn't survive a reload */
+  }
+  for (const fn of listeners) fn();
+}
+
+function overridePosition(): Position | null {
+  const id = readOverride();
+  if (!id) return null;
+  const c = cityById(id);
+  return c ? { lat: c.lat, lng: c.lng } : null;
+}
 
 export function readStoredPosition(): Position | null {
   if (typeof window === "undefined") return null;
@@ -65,6 +118,11 @@ export function cachedPosition(): Position | null {
 
 /** Resolve a position at most once per session. Null = unavailable or refused. */
 export function getHomePosition(): Promise<Position | null> {
+  // A pinned city wins over everything, and short-circuits before the device
+  // is ever asked — so someone browsing another city is never prompted for a
+  // location they've already told us not to use.
+  const pinned = overridePosition();
+  if (pinned) return Promise.resolve(pinned);
   if (cached) return Promise.resolve(cached);
   if (refused) return Promise.resolve(null);
   if (inflight) return inflight;
@@ -91,12 +149,19 @@ export function getHomePosition(): Promise<Position | null> {
   return inflight;
 }
 
-/** Force a fresh device fix (the "use my location" button). */
+/**
+ * Force a fresh device fix (the "use my location" button).
+ *
+ * Clears any pinned city: asking for your location while a city is pinned can
+ * only mean you want the pin gone, and leaving it would make the button look
+ * broken — it would fetch a real fix and then quietly ignore it.
+ */
 export async function refreshHomePosition(): Promise<Position> {
   const [lat, lng] = await getUserPosition();
   cached = { lat, lng };
   refused = false;
   storePosition(cached);
+  setCityOverride(null);
   return cached;
 }
 
@@ -110,6 +175,18 @@ export interface HomePositionState {
 export function useHomePosition(): HomePositionState {
   const [position, setPosition] = useState<Position | null>(cached);
   const [settled, setSettled] = useState<boolean>(!!cached || refused);
+  // Bumped when the pinned city changes, to re-run the effect below. Every
+  // surface using this hook subscribes, so picking a city re-sorts the
+  // directory and re-ranks the feed in the same tick as the label changing.
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    const fn = () => setTick((n) => n + 1);
+    listeners.add(fn);
+    return () => {
+      listeners.delete(fn);
+    };
+  }, []);
 
   // Always via the promise, even when the answer is already cached —
   // getHomePosition() resolves instantly in that case, and going through it
@@ -125,7 +202,7 @@ export function useHomePosition(): HomePositionState {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [tick]);
 
   return { position, settled };
 }

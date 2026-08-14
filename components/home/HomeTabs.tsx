@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Newspaper,
@@ -24,6 +24,14 @@ import { LocalDirectory } from "@/components/home/LocalDirectory";
 import { HomeSearch } from "@/components/home/HomeSearch";
 import { CommunityFeed } from "@/components/feed/CommunityFeed";
 import { HOME_TABS, toHomeTab, rememberHomeTab, type HomeTab } from "@/lib/home-tab";
+import { useIsMdUp } from "@/lib/use-media-query";
+import {
+  useHomeHeader,
+  setHeaderActive,
+  setHeaderCollapsed,
+  setHeaderLabel,
+  releaseHeaderPin,
+} from "@/lib/home-header";
 
 // Labels + ids live in lib/home-tab.ts so detail-page back links can name the
 // tab without importing this component. Icons stay here — they're presentation.
@@ -56,6 +64,72 @@ export function HomeTabs() {
   const [eventText, setEventText] = useState("");
   const [eventQuery, setEventQuery] = useState("");
   const [eventsLoading, setEventsLoading] = useState(false);
+
+
+  // ── Collapsing header ──────────────────────────────────────────────────
+  // Scrolled past the first screenful, the city row / tab switcher / search
+  // fold away and the search reappears as a compact pill in the wordmark row
+  // (rendered by TopNav — see lib/home-header for why the state is shared
+  // through a module store rather than props).
+  //
+  // The threshold is deliberately past the header's own height: collapsing the
+  // instant someone nudges the page makes the whole thing twitch on a
+  // trackpad.
+  const store = useHomeHeader();
+  const { collapsed, pinned } = store;
+
+  useEffect(() => {
+    setHeaderActive(true);
+    return () => setHeaderActive(false);
+  }, []);
+
+  useEffect(() => {
+    let frame = 0;
+    const onScroll = () => {
+      // Coalesced into a frame: scroll fires far faster than we can usefully
+      // re-render, and this runs on every wheel tick of a long list.
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        // While pinned open, the scroll POSITION is not allowed to close the
+        // header — only a fresh gesture is (below). Without this the feature
+        // could not work at all: expanding adds height above the viewport,
+        // the browser's scroll anchoring compensates, and that compensation
+        // fires a `scroll` event which read as "the user scrolled" and slammed
+        // the header shut in the same frame it opened. From the outside the
+        // tap simply did nothing.
+        if (store.pinned) return;
+        setHeaderCollapsed(window.scrollY > 120);
+      });
+    };
+
+    // A pin is released by a GESTURE, never by a scroll event — `scroll` is
+    // also emitted by layout changes the reader did not ask for.
+    const onGesture = () => releaseHeaderPin();
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("wheel", onGesture, { passive: true });
+    window.addEventListener("touchmove", onGesture, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("wheel", onGesture);
+      window.removeEventListener("touchmove", onGesture);
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, [store]);
+
+  // A pin beats the scroll position — that is the whole point of tapping the
+  // compact pill while halfway down a list.
+  const folded = collapsed && !pinned;
+  // The tab switch only folds where something else can reach it. See section C.
+  const isMdUp = useIsMdUp();
+  const foldTabs = folded && isMdUp;
+
+  // What the compact pill says: whatever was actually searched, so the
+  // collapsed state still tells you what you're looking at.
+  useEffect(() => {
+    setHeaderLabel(tab === "events" ? eventQuery : "");
+  }, [tab, eventQuery]);
 
   const runEventSearch = () => {
     setEventQuery(eventText);
@@ -164,63 +238,155 @@ export function HomeTabs() {
       </div>
       */}
 
-      {/* No padding here: BOTH branches below already pad themselves to the
-          page standard, and this wrapper was adding a second helping — the
-          search bar sat 32px in on a phone while every card below it sat at
-          16px, and the nav could not line up with either. */}
-      <div className="mx-auto max-w-6xl pt-4">
-        {/* One search box per tab, never two. On Events the top slot IS the
-            event search — stacking a business search above it would put two
-            inputs on screen competing for the same intent. Same wrapper as
-            HomeSearch so the two are exactly the same width as you switch. */}
-        {tab === "events" ? (
-          <div className="mx-auto max-w-6xl px-4 md:px-8">
-            <EventSearchBar
-              text={eventText}
-              onTextChange={setEventText}
-              onSubmit={runEventSearch}
-              onClear={clearEventSearch}
-              loading={eventsLoading}
-            />
-          </div>
-        ) : (
-          <HomeSearch />
-        )}
-      </div>
+      {/* ── The header band ────────────────────────────────────────────────
+          One block under the app's top nav:
 
-      {/* Sticky selector — search, then where you are going. It follows the
-          search box rather than sitting under a supply pitch, so the first two
-          things on the screen are the two ways to move. Still sticky: position
-          in the document doesn't change what it does once you scroll past it. */}
+            1. WHERE you are      (the city — desktop; on a phone it rides in
+                                   the title row instead, see TopNav)
+            2. WHAT you want      (the search)
+            3. WHICH catalogue    (Events · Shops · Products)
+
+          The whole thing folds away on scroll and the search reappears as a
+          compact pill in the title row.
+
+          Everything that folds, in one wrapper.
+          A grid-rows 1fr→0fr transition rather than max-height: max-height has
+          to be guessed, and a guess that is too small clips the row while it
+          animates while one that is too large makes the collapse look like it
+          stalls before it starts. 0fr collapses to exactly the content's
+          height, whatever that turns out to be. */}
       <div
-        className="sticky z-20 mt-3 border-b border-stone-100 bg-stone-50/85 backdrop-blur"
-        style={{ top: "calc(3.5rem + env(safe-area-inset-top))" }}
+        className="sticky z-20 border-b border-stone-200"
+        style={{
+          // Segment two of the shared header ramp — starts on the exact colour
+          // AppHeader ends on. See --hdr-* in globals.css.
+          background: "linear-gradient(to bottom, var(--hdr-2), var(--hdr-3))",
+          // Sticky, and pinned directly under the nav. This is what makes
+          // "tap the compact pill to expand" work at all: the block is in
+          // normal flow at the top of the document, so re-expanding it while
+          // scrolled 700px down would open it far above the viewport and the
+          // tap would look like it did nothing. Stuck under the header, it
+          // opens where the reader is actually looking.
+          top: "calc(var(--top-nav) + env(safe-area-inset-top))",
+          // The browser must not "helpfully" re-scroll to keep the content
+          // below in place when this opens and closes — that compensation is
+          // what fought the expand (see the scroll handler above), and it also
+          // makes the list jump under the reader's eyes mid-animation.
+          overflowAnchor: "none",
+        }}
       >
-        <div className="mx-auto flex max-w-6xl justify-center px-4 py-2 md:px-8">
-          <div className="inline-flex rounded-full bg-stone-100 p-1">
-            {HOME_TABS.map(({ id, label }) => {
-              const Icon = TAB_ICONS[id];
-              const active = tab === id;
-              return (
-                <button
-                  key={id}
-                  onClick={() => pick(id)}
-                  aria-pressed={active}
-                  className={
-                    "inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-[13px] font-semibold transition " +
-                    (active
-                      ? "bg-white text-stone-900 shadow-sm"
-                      : "text-stone-500 hover:text-stone-800")
-                  }
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                  {label}
-                </button>
-              );
-            })}
+        {/* Section A — city + search. Folds at EVERY width: the search has a
+            second home in the title row, so it loses nothing by collapsing. */}
+        <div
+          className="grid transition-[grid-template-rows,opacity] duration-300 ease-[var(--ease)]"
+          style={{ gridTemplateRows: folded ? "0fr" : "1fr", opacity: folded ? 0 : 1 }}
+          aria-hidden={folded}
+        >
+        <div className="overflow-hidden">
+      {/* 2 — the search.
+          One search box per tab, never two: on Events this slot IS the event
+          search, and stacking a business search above it would put two inputs
+          on screen competing for the same intent.
+
+          More room UNDER it than over it, so the rule reads as the floor of
+          the whole header rather than as a line crowding the input.
+
+          The gradient: stone-50 at the top of the nav easing to stone-100 at
+          this edge, so the header has a floor even before you reach the rule.
+          Kept very shallow — a header that announces itself is a header you
+          notice instead of the listings. */}
+          {/* No background of its own — the ramp on the wrapper above shows
+              through, which is the whole point of defining it once.
+
+              The rule spans the full width; the CONTENT inside it uses the
+              page container. Padding on the outer box and centring on the
+              inner one would inset the search 32px past the cards below it —
+              the container has to own both the max width and the padding, or
+              nothing lines up. */}
+          <div className="pt-3">
+            <div className="mx-auto max-w-6xl px-4 md:px-8">
+              {tab === "events" ? (
+                <EventSearchBar
+                  text={eventText}
+                  onTextChange={setEventText}
+                  onSubmit={runEventSearch}
+                  onClear={clearEventSearch}
+                  loading={eventsLoading}
+                />
+              ) : (
+                <HomeSearch bare />
+              )}
+            </div>
+          </div>
+        </div>
+        </div>
+
+        {/* Section C — the product switch, UNDER the search.
+            Reads as "search, and here is what you are searching" rather than
+            as a setting you have to notice before you type.
+
+            Folds on DESKTOP ONLY. On a phone it stays put: the desktop header
+            is four rows deep and the switch is the row you can most afford to
+            lose on scroll, but on a phone it is the only visible way to move
+            between Events, Shops and Products — the compact pill replaces the
+            search, and nothing replaces this. Collapsing it there would leave
+            a reader who has scrolled with no route out of the tab they are in
+            short of scrolling all the way back. */}
+        <div
+          className="grid transition-[grid-template-rows,opacity] duration-300 ease-[var(--ease)]"
+          style={{
+            gridTemplateRows: foldTabs ? "0fr" : "1fr",
+            opacity: foldTabs ? 0 : 1,
+          }}
+          aria-hidden={foldTabs}
+        >
+          <div className="overflow-hidden">
+            {/* Collapsed on a phone, this row IS the header's second line, so it
+              takes its spacing from the nav rather than from the search that
+              is no longer there: nothing above it (the nav's own 22px bottom
+              padding is the gap) and 22px below, which is the same 22px the
+              search pill has above it against the top of the screen. Even
+              margins, top to bottom.
+
+              Expanded, it needs its own gap under the search. */}
+          <div
+            className="flex justify-center px-4 md:px-8"
+            // 18 rather than 22 below. The toggle group is a rounded grey
+            // container with a 4px inset, so the eye reads the row as ending at
+            // the white active pill, not at the container edge — which made an
+            // equal 22/22 look bottom-heavy. Measuring from what you actually
+            // see, 18px here matches the 24px above.
+            style={{ paddingTop: folded && !isMdUp ? 0 : 16, paddingBottom: 18 }}
+          >
+              <div className="inline-flex rounded-full bg-stone-100 p-1">
+                {HOME_TABS.map(({ id, label }) => {
+                  const Icon = TAB_ICONS[id];
+                  const on = tab === id;
+                  return (
+                    <button
+                      key={id}
+                      onClick={() => pick(id)}
+                      aria-pressed={on}
+                      className={
+                        // Label small, icon full size: the glyph is what you
+                        // aim at, the word only confirms it.
+                        "inline-flex items-center gap-2 rounded-full px-4 py-2 t-meta transition " +
+                        (on
+                          ? "bg-white font-semibold text-stone-900 shadow-[var(--shadow-soft)]"
+                          : "text-stone-500 hover:text-stone-800")
+                      }
+                    >
+                      <Icon className="h-[22px] w-[22px]" strokeWidth={on ? 2.2 : 1.9} />
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
       </div>
+
 
       {/* Which city you're being served — the same on every tab, so it sits
           outside them rather than being repeated three times. Its own line:
@@ -337,7 +503,12 @@ export function HomeTabs() {
           there is nothing to link out to from here. */}
       {tab === "shop" && (
         <div className="pb-24">
-          <LocalDirectory belowHeader={supplyLink} />
+          {/* No title and no supply pitch here: the tab selector above already
+              says Shops and each rail names itself, and the "own a local
+              business?" ask was the first thing a shopper met on a tab made of
+              photographs. It still lives on Events and Feed, and in the
+              footer. */}
+          <LocalDirectory showHeading={false} />
         </div>
       )}
 

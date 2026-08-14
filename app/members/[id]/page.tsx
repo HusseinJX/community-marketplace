@@ -20,7 +20,12 @@ import { MiniMap } from "@/components/MiniMap";
 import { ShopSection } from "@/components/ShopSection";
 import { ActionBar } from "@/components/ActionBar";
 import { GroupChat } from "@/components/GroupChat";
-import { ImageCarousel } from "@/components/ImageCarousel";
+import { PhotoMosaic } from "@/components/business/PhotoMosaic";
+import {
+  InstagramIcon, TikTokIcon, XIcon, ThreadsIcon, YouTubeIcon, FacebookIcon,
+  LinkedInIcon, SpotifyIcon, SoundCloudIcon, TicketIcon, GuitarIcon, UsersIcon,
+  PinIcon, LinkIcon,
+} from "@/components/business/SocialIcons";
 import { AskAssistant } from "@/components/AskAssistant";
 import { getEntitlements } from "@/lib/entitlements";
 import { MEMBER_HERO_IMAGES } from "@/lib/member-images";
@@ -74,26 +79,15 @@ function Section({ title, right, children }: { title: string; right?: React.Reac
   );
 }
 
-// Instagram glyph (lucide dropped brand icons over trademark concerns, so we
-// inline the classic mark — rounded square + lens + flash dot).
-function InstagramIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
-      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
-      <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
-    </svg>
-  );
-}
-
 function SocialLink({ href, label, icon }: { href: string; label: string; icon: React.ReactNode }) {
   const url = href.startsWith("http") ? href : `https://${href}`;
   return (
     <a href={url} target="_blank" rel="noopener noreferrer"
-      className="flex items-center gap-2 text-sm text-indigo-700 hover:underline">
-      <span className="inline-flex w-4 justify-center">{icon}</span>
-      <span>{label}</span>
+      className="group flex items-center gap-2.5 t-body text-stone-700 transition hover:text-stone-900">
+      <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center text-stone-400 transition group-hover:text-stone-900">
+        {icon}
+      </span>
+      <span className="truncate">{label}</span>
     </a>
   );
 }
@@ -203,7 +197,6 @@ export default async function MemberProfilePage({
       <div className="mx-auto max-w-4xl px-6 py-16">
         {/* Returns to the home tab you came from (Feed / Shop / …), not a fixed
             destination — see components/BackToHome. */}
-        <BackToHome className="inline-flex items-center gap-1 text-sm text-indigo-700 hover:underline" />
         <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
           {fetchError || "Member not found."}
         </div>
@@ -301,42 +294,35 @@ export default async function MemberProfilePage({
       <RememberOrigin href={`/members/${id}`} label={name} />
       {/* Returns wherever you came from — the home tab you were browsing, or a
           profile that sent you here. See components/BackToHome. */}
-      <BackToHome className="-ml-1 inline-flex items-center gap-1 px-1 py-1 text-[13px] text-indigo-700 hover:underline md:text-sm" />
-
-      {/* Hero */}
+      {/* Hero — a photo mosaic on desktop, the carousel on a phone.
+          See components/business/PhotoMosaic. */}
       {(() => {
         const curated = MEMBER_HERO_IMAGES[id];
         const apiImages = Array.isArray(p.images) ? usableImages(p.images as string[]) : [];
         const single = typeof p.imageUrl === "string" && !isPlaceholder(p.imageUrl) ? [p.imageUrl] : [];
         const heroImages = (curated && curated.length ? curated : apiImages.length ? apiImages : single);
-        return heroImages.length > 0 ? (
+        return (
           <div className="mt-2 md:mt-6">
-            <ImageCarousel images={heroImages} alt={name} aspect="wide" fallbackGradient={gradient} priority />
+            <PhotoMosaic images={heroImages} alt={name} gradientClass={gradient} />
           </div>
-        ) : (
-          <div className={`mt-2 aspect-[21/9] w-full rounded-2xl bg-gradient-to-br md:mt-6 ${gradient}`} />
         );
       })()}
 
       {/* Header */}
       <header className="mt-4 border-b border-stone-200 pb-5 md:mt-8 md:pb-8">
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-3xl font-semibold tracking-tight text-stone-900 md:text-4xl">{name}</h1>
+          <h1 className="t-hero text-stone-900">{name}</h1>
           <MemberTypeBadge type={p.memberType} />
         </div>
-        {location && <div className="mt-2 text-stone-500">{location}</div>}
-        {(p.category || p.subcategory) && (
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            {p.category && (
-              <span className="rounded-full bg-stone-100 px-2.5 py-0.5 text-xs text-stone-700">
-                {p.category as string}
-              </span>
-            )}
-            {p.subcategory && (
-              <span className="rounded-full bg-stone-100 px-2.5 py-0.5 text-xs text-stone-700">
-                {p.subcategory as string}
-              </span>
-            )}
+        {/* One line of facts under the title, dot-separated — category and
+            place read as a single sentence about what this is and where.
+            They used to be a grey line plus a row of grey chips saying the
+            same two words, which is three visual elements for one idea. */}
+        {(location || p.category || p.subcategory) && (
+          <div className="mt-2 t-lead font-normal text-stone-500">
+            {[p.category as string | undefined, p.subcategory as string | undefined, location]
+              .filter(Boolean)
+              .join(" · ")}
           </div>
         )}
         {p.vibe && (
@@ -644,8 +630,13 @@ export default async function MemberProfilePage({
           />
         </main>
 
-        {/* Sidebar */}
-        <aside className="space-y-6">
+        {/* Sidebar.
+            Sticky on desktop: the facts a visitor keeps coming back for — where
+            they are, how to reach them — were scrolling away behind a page that
+            can run very long (about, hours, map, memories, the whole shop). On
+            a phone it stays in normal flow, stacked under the main column,
+            because there is nothing beside it to stick to. */}
+        <aside className="space-y-6 lg:sticky lg:self-start" style={{ top: "calc(var(--top-nav) + 1rem + env(safe-area-inset-top))" }}>
           {memberType === "organizer" && (
             <div className="card-soft p-4">
               <div className="section-label">Events</div>
@@ -680,24 +671,25 @@ export default async function MemberProfilePage({
           {hasSocials && (
             <div className="card-soft p-4">
               <div className="section-label">Find them online</div>
-              <ul className="mt-3 space-y-2 text-sm">
+              {/* Real brand marks, not emoji — see components/business/SocialIcons. */}
+              <ul className="mt-3 space-y-2.5">
                 {p.instagramHandle && <li><SocialLink href={`https://instagram.com/${p.instagramHandle}`} label={`@${p.instagramHandle}`} icon={<InstagramIcon className="h-4 w-4" />} /></li>}
-                {p.tiktokHandle && <li><SocialLink href={`https://tiktok.com/@${p.tiktokHandle}`} label={`@${p.tiktokHandle}`} icon="🎵" /></li>}
-                {(p.twitterHandle || p.xHandle) && <li><SocialLink href={`https://x.com/${p.twitterHandle || p.xHandle}`} label={`@${p.twitterHandle || p.xHandle}`} icon="𝕏" /></li>}
-                {p.threadsHandle && <li><SocialLink href={`https://threads.net/@${p.threadsHandle}`} label={`@${p.threadsHandle}`} icon="🧵" /></li>}
-                {(p.youtubeUrl || p.youtubeHandle) && <li><SocialLink href={p.youtubeUrl as string || `https://youtube.com/@${p.youtubeHandle}`} label="YouTube" icon="▶️" /></li>}
-                {p.linkedinUrl && <li><SocialLink href={p.linkedinUrl as string} label="LinkedIn" icon="💼" /></li>}
-                {p.spotifyUrl && <li><SocialLink href={p.spotifyUrl as string} label="Spotify" icon="🎧" /></li>}
-                {p.soundcloudUrl && <li><SocialLink href={p.soundcloudUrl as string} label="SoundCloud" icon="☁️" /></li>}
-                {p.facebookUrl && <li><SocialLink href={p.facebookUrl as string} label="Facebook" icon="👥" /></li>}
-                {p.eventbriteUrl && <li><SocialLink href={p.eventbriteUrl as string} label="Eventbrite" icon="🎟️" /></li>}
-                {p.bandsintownUrl && <li><SocialLink href={p.bandsintownUrl as string} label="Bandsintown" icon="🎸" /></li>}
-                {p.songkickUrl && <li><SocialLink href={p.songkickUrl as string} label="Songkick" icon="🎤" /></li>}
-                {p.meetupUrl && <li><SocialLink href={p.meetupUrl as string} label="Meetup" icon="🤝" /></li>}
-                {p.pinterestUrl && <li><SocialLink href={p.pinterestUrl as string} label="Pinterest" icon="📌" /></li>}
+                {p.tiktokHandle && <li><SocialLink href={`https://tiktok.com/@${p.tiktokHandle}`} label={`@${p.tiktokHandle}`} icon={<TikTokIcon className="h-4 w-4" />} /></li>}
+                {(p.twitterHandle || p.xHandle) && <li><SocialLink href={`https://x.com/${p.twitterHandle || p.xHandle}`} label={`@${p.twitterHandle || p.xHandle}`} icon={<XIcon className="h-3.5 w-3.5" />} /></li>}
+                {p.threadsHandle && <li><SocialLink href={`https://threads.net/@${p.threadsHandle}`} label={`@${p.threadsHandle}`} icon={<ThreadsIcon className="h-4 w-4" />} /></li>}
+                {(p.youtubeUrl || p.youtubeHandle) && <li><SocialLink href={p.youtubeUrl as string || `https://youtube.com/@${p.youtubeHandle}`} label="YouTube" icon={<YouTubeIcon className="h-4 w-4" />} /></li>}
+                {p.linkedinUrl && <li><SocialLink href={p.linkedinUrl as string} label="LinkedIn" icon={<LinkedInIcon className="h-4 w-4" />} /></li>}
+                {p.spotifyUrl && <li><SocialLink href={p.spotifyUrl as string} label="Spotify" icon={<SpotifyIcon className="h-4 w-4" />} /></li>}
+                {p.soundcloudUrl && <li><SocialLink href={p.soundcloudUrl as string} label="SoundCloud" icon={<SoundCloudIcon className="h-4 w-4" />} /></li>}
+                {p.facebookUrl && <li><SocialLink href={p.facebookUrl as string} label="Facebook" icon={<FacebookIcon className="h-4 w-4" />} /></li>}
+                {p.eventbriteUrl && <li><SocialLink href={p.eventbriteUrl as string} label="Eventbrite" icon={<TicketIcon className="h-4 w-4" />} /></li>}
+                {p.bandsintownUrl && <li><SocialLink href={p.bandsintownUrl as string} label="Bandsintown" icon={<GuitarIcon className="h-4 w-4" />} /></li>}
+                {p.songkickUrl && <li><SocialLink href={p.songkickUrl as string} label="Songkick" icon={<GuitarIcon className="h-4 w-4" />} /></li>}
+                {p.meetupUrl && <li><SocialLink href={p.meetupUrl as string} label="Meetup" icon={<UsersIcon className="h-4 w-4" />} /></li>}
+                {p.pinterestUrl && <li><SocialLink href={p.pinterestUrl as string} label="Pinterest" icon={<PinIcon className="h-4 w-4" />} /></li>}
                 {extraSocials.map(([key, val]) => {
                   const label = key.replace(/(Handle|Url)$/, "").replace(/([A-Z])/g, " $1").trim();
-                  return <li key={key}><SocialLink href={val as string} label={label} icon="🔗" /></li>;
+                  return <li key={key}><SocialLink href={val as string} label={label} icon={<LinkIcon className="h-4 w-4" />} /></li>;
                 })}
               </ul>
             </div>

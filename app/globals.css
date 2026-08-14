@@ -15,7 +15,10 @@
    padding steps up — which is why one hardcoded rem value could never be right
    on both breakpoints). */
 :root {
-  --top-nav: 3.5rem;
+  /* 32px top padding + 36px logo row + 12px bottom = 80px. Anything that
+     sticks below the header offsets by this — change it here and in
+     components/TopNav together, never one alone. */
+  --top-nav: 5rem;
   --bottom-nav: 3.25rem;
   --vendor-nav: 3.8rem;
   /* Everything between the viewport and a full-screen page's box. */
@@ -78,7 +81,29 @@ body[data-chat-open="true"] [data-vendor-nav] {
   --color-stone-800: oklch(0.268 0.006 75);
   --color-stone-900: oklch(0.211 0.005 75);
 
-  /* Indigo */
+  /* ── Coral — THE accent ────────────────────────────────────────────────────
+     One accent, the way Airbnb has exactly one (Rausch). Before this the app
+     ran three in parallel — indigo as --primary, violet through onboarding,
+     stone-900 on buttons — plus emerald/amber/rose/pink doing semantic work.
+     Three accents is not a brand, it's a template.
+
+     Coral rather than indigo because indigo reads SaaS-dashboard and this is a
+     marketplace of human places. Warm against the stone neutrals we already
+     have, and far enough from Airbnb's pink to be ours.
+
+     Reserved for: the primary CTA, the saved/liked state, active nav, links,
+     map pins, focus rings. NOT for decoration — if coral is on screen twice in
+     one view, one of them is probably wrong. */
+  --color-coral-50: oklch(0.968 0.016 30);
+  --color-coral-100: oklch(0.935 0.035 30);
+  --color-coral-200: oklch(0.885 0.06 29);
+  --color-coral-500: oklch(0.675 0.155 29);
+  --color-coral-600: oklch(0.62 0.17 28);
+  --color-coral-700: oklch(0.545 0.16 27);
+  --color-coral-800: oklch(0.455 0.13 27);
+
+  /* Indigo — legacy. Still referenced by older surfaces; new work uses coral.
+     Kept so nothing breaks while call sites migrate. */
   --color-indigo-50: oklch(0.965 0.018 280);
   --color-indigo-100: oklch(0.93 0.04 280);
   --color-indigo-600: oklch(0.515 0.215 277);
@@ -107,7 +132,7 @@ body[data-chat-open="true"] [data-vendor-nav] {
   --card-foreground: var(--color-stone-900);
   --popover: oklch(1 0 0);
   --popover-foreground: var(--color-stone-900);
-  --primary: var(--color-indigo-600);
+  --primary: var(--color-coral-600);
   --primary-foreground: oklch(1 0 0);
   --secondary: oklch(1 0 0);
   --secondary-foreground: var(--color-stone-700);
@@ -119,10 +144,61 @@ body[data-chat-open="true"] [data-vendor-nav] {
   --destructive-foreground: oklch(1 0 0);
   --border: var(--color-stone-200);
   --input: var(--color-stone-200);
-  --ring: var(--color-indigo-600);
+  --ring: var(--color-coral-600);
+
+  /* ── Radius scale ──────────────────────────────────────────────────────────
+     ONE scale. `.card-soft` used to hardcode 14px while --radius said 16px and
+     nothing reconciled them, so cards and the things inside them rounded
+     differently. Pills are always fully round; inputs and cards each have one
+     value and only one. */
+  --r-xs: 8px;
+  --r-sm: 10px;
+  --r-md: 12px;   /* inputs, buttons, small tiles */
+  --r-lg: 16px;   /* cards, photos */
+  --r-xl: 24px;   /* sheets, modals */
+  --r-full: 999px;
+
+  /* ── Spacing ───────────────────────────────────────────────────────────────
+     8px grid. 4px exists only for icon-to-label gaps. */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 16px;
+  --s-4: 24px;
+  --s-5: 32px;
+  --s-6: 48px;
+
+  /* ── Elevation ─────────────────────────────────────────────────────────────
+     Cards are FLAT at rest — separation comes from the hairline border — and
+     lift on hover. Only overlays get real elevation. */
+  /* ── The header ramp ───────────────────────────────────────────────────────
+     The chrome at the top of home is TWO stacked elements — the wordmark row
+     (components/AppHeader) and the folding city/tabs/search block
+     (components/home/HomeTabs) — and it has to read as one surface.
+
+     Each of them having its own `from-x to-y` gradient is what makes that
+     impossible: the first ends dark, the second restarts light, and the join
+     shows as a hard line exactly where the eye expects continuity. So the ramp
+     is defined once, as three stops, and each element paints the SEGMENT it
+     occupies. The first ends on --hdr-2 and the second begins on it, so there
+     is nothing to see at the boundary.
+
+     Opaque on purpose. A translucent header tints differently depending on
+     what happens to be scrolling under it, so the two halves drift apart the
+     moment the page moves. */
+  --hdr-1: #fafaf9;
+  --hdr-2: #f7f6f4;
+  --hdr-3: #f1f0ed;
 
   --shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.06);
   --shadow-lift: 0 8px 24px -8px rgba(0, 0, 0, 0.12);
+  --shadow-float: 0 2px 8px -1px rgba(0, 0, 0, 0.18);
+  --shadow-overlay: 0 16px 48px -12px rgba(0, 0, 0, 0.24);
+
+  /* ── Motion ────────────────────────────────────────────────────────────────
+     200–300ms, ease-out. Anything slower reads as lag on a phone. */
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --dur-fast: 150ms;
+  --dur: 220ms;
 }
 
 @layer base {
@@ -150,14 +226,113 @@ body[data-chat-open="true"] [data-vendor-nav] {
   .card-soft {
     background: #fff;
     border: 1px solid var(--color-stone-200);
-    border-radius: 14px;
+    border-radius: var(--r-lg);
     box-shadow: none;
   }
   .card-hover {
-    transition: border-color 0.15s ease, background-color 0.15s ease;
+    transition:
+      border-color var(--dur-fast) var(--ease),
+      background-color var(--dur-fast) var(--ease);
   }
   .card-hover:hover {
     border-color: var(--color-stone-300);
+  }
+
+  /* ── Type scale ────────────────────────────────────────────────────────────
+     Seven steps, and nothing between them. The app had accumulated one-off
+     sizes (text-[11px], text-[13px], text-[15px]) chosen per component, so no
+     two cards agreed on what "small" meant.
+
+     Use these on new work. They set size, weight, leading and tracking
+     together — the three are not independently choosable, which is the whole
+     point of a scale. */
+  .t-hero    { font-size: 32px; line-height: 1.12; font-weight: 600; letter-spacing: -0.02em; }
+  .t-title   { font-size: 26px; line-height: 1.18; font-weight: 600; letter-spacing: -0.02em; }
+  .t-section { font-size: 20px; line-height: 1.25; font-weight: 600; letter-spacing: -0.01em; }
+  .t-lead    { font-size: 17px; line-height: 1.4;  font-weight: 500; }
+  .t-body    { font-size: 15px; line-height: 1.45; font-weight: 400; }
+  .t-strong  { font-size: 15px; line-height: 1.45; font-weight: 600; }
+  .t-meta    { font-size: 13px; line-height: 1.4;  font-weight: 400; }
+  .t-fine    { font-size: 12px; line-height: 1.35; font-weight: 500; }
+
+  @media (min-width: 768px) {
+    .t-hero  { font-size: 40px; }
+    .t-title { font-size: 30px; }
+  }
+
+  /* ── Listing card ──────────────────────────────────────────────────────────
+     The Airbnb card shape: photo carries the card, text sits BELOW it, and the
+     card itself has no border or background — the photo's own edge is the
+     boundary. Hover is where everything else lives (see .card-media).
+
+     Deliberately NOT .card-soft: a bordered box around a photo plus text reads
+     as a widget. A photo with words under it reads as a listing. */
+  .listing {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+  }
+  .card-media {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--r-lg);
+    background: var(--color-stone-100);
+    transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+  }
+  .listing:hover .card-media {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lift);
+  }
+
+  /* Carousel arrows: absent until hover, and never on touch. A device that
+     can't hover swipes instead, so rendering them there is pure clutter over
+     the photo. `@media (hover: hover)` is the honest test — a width query
+     would show them on a touchscreen laptop and hide them on a wide tablet. */
+  .hover-reveal {
+    opacity: 0;
+    transition: opacity var(--dur) var(--ease);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .listing:hover .hover-reveal,
+    .card-media:hover .hover-reveal {
+      opacity: 1;
+    }
+    .hover-reveal:focus-visible {
+      opacity: 1;
+    }
+  }
+  @media not all and (hover: hover) {
+    .hover-reveal {
+      display: none;
+    }
+  }
+
+  /* Controls that only make sense with a mouse — rail scroll arrows, for
+     instance, which duplicate a drag gesture that already works on touch and
+     take space from the heading they sit beside.
+
+     A named utility rather than an inline arbitrary variant. Writing the
+     hover/pointer query as a bracketed Tailwind variant emits the media query
+     with no space before its `and`, which is invalid CSS and fails the WHOLE
+     stylesheet to parse — every style on the site, not just that one rule.
+
+     Do not paste the offending variant into a comment to explain it, either:
+     Tailwind scans this file for class names and cannot tell a comment from
+     markup, so the example generates the very rule it warns about. That is
+     exactly how this note came to exist twice. */
+  .pointer-only {
+    display: none;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .pointer-only {
+      display: flex;
+    }
+  }
+
+  /* The card↔map pairing. Hovering either side sets this on the other, which
+     is what makes a split view read as ONE surface instead of two panes. */
+  .is-linked .card-media {
+    box-shadow: 0 0 0 2px var(--color-stone-900);
   }
 }
 

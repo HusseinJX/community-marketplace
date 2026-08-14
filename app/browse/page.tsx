@@ -2,7 +2,7 @@
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { LayoutGrid, Map as MapIcon, Heart, Apple, DollarSign, CreditCard, X, MapPin, ArrowLeft, Newspaper, CalendarDays, Store } from "lucide-react";
+import { LayoutGrid, Map as MapIcon, Heart, Apple, DollarSign, CreditCard, X, MapPin, Newspaper, CalendarDays, Store } from "lucide-react";
 import { listMembers, searchMembers } from "@/lib/api";
 import type { Member, SearchResultMember, SearchIntent } from "@/lib/types";
 import { MemberCard, MemberCardSkeleton } from "@/components/MemberCard";
@@ -290,12 +290,6 @@ export default function BrowsePage() {
     <div className="mx-auto max-w-7xl px-4 pb-20 md:px-8">
       {/* Back to the home tabs. */}
       <div className="flex items-center gap-2 pt-4">
-        <Link
-          href="/"
-          className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3.5 py-1.5 text-sm font-medium text-stone-700 transition hover:border-stone-300 hover:bg-stone-50"
-        >
-          <ArrowLeft className="h-4 w-4" /> Home
-        </Link>
       </div>
 
       {/* Compact hero — same proportions as the Live tab header. */}

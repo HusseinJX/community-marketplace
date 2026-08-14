@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { MapPin } from "lucide-react";
 import type { Member } from "@/lib/types";
 import { milesLabel } from "@/lib/proximity";
 import { ImageCarousel } from "./ImageCarousel";
 import { HeroMedia } from "./HeroMedia";
 import { memberImages } from "@/lib/member-images";
+import { hoursStatus } from "@/lib/business-hours";
 import { DirectionsButton } from "@/components/map/DirectionsButton";
 import { SaveBusinessButton } from "@/components/SaveBusinessButton";
 
@@ -16,6 +16,29 @@ const TYPE_GRADIENTS: Record<string, string> = {
   influencer: "from-pink-300 to-rose-400",
 };
 
+/**
+ * A business, as a listing card.
+ *
+ * ── Why the text is BELOW the photo ──────────────────────────────────────────
+ * It used to sit ON the photo, as white type over a frosted scrim across the
+ * bottom third. That looked good on a well-lit hero shot and fell apart
+ * everywhere else: legibility was a coin flip per image, the scrim ate the part
+ * of the picture the business had chosen, and — the reason it had to go — text
+ * inside an image never aligns across a row. Four cards side by side had their
+ * names at four different heights, because each name sat wherever its own photo
+ * ended.
+ *
+ * Below the image, every card in a row shares a baseline grid, and the photo is
+ * whole. That is the Airbnb arrangement and the reason their index reads as
+ * calm at any density.
+ *
+ * ── The last line ────────────────────────────────────────────────────────────
+ * Every card ends with ONE bold fact, the way Airbnb's ends with a price. Here
+ * that is whether they're open right now — the single most useful thing to know
+ * about a local business and, until now, something we made people open the
+ * profile to find. It falls back through distance to nothing at all; see
+ * `terminal` below.
+ */
 export function MemberCard({
   member,
   matchedOn,
@@ -25,6 +48,8 @@ export function MemberCard({
   // silent gap where a distance should be reads as "nearby".
   hasPosition = false,
   compact = false,
+  linked = false,
+  onHover,
 }: {
   member: Member;
   matchedOn?: string[];
@@ -32,7 +57,7 @@ export function MemberCard({
   hasPosition?: boolean;
   /**
    * A small card inside a horizontal rail (~176–208px), rather than a full
-   * grid tile. Two consequences, both about weight:
+   * grid tile. Three consequences, all about weight:
    *
    *  - ONE image, not the carousel. Most businesses carry three, and 44 rail
    *    cards on the event page rendered 106 `<img>` between them — each with a
@@ -44,8 +69,19 @@ export function MemberCard({
    *    `100vw`, so on a phone the browser fetches a full-viewport-width file
    *    for a card a fifth that wide — the same oversized-decode that OOM'd the
    *    iOS webview once already (see ImageCarousel MEMORY LEVER notes).
+   *  - No Directions chip. At 176px the text block has no room for a control,
+   *    and the profile one tap away carries it.
    */
   compact?: boolean;
+  /**
+   * This card's marker is currently hovered on the map beside it. Draws the
+   * paired outline (`.is-linked`, globals.css). The state is owned by whatever
+   * renders BOTH the list and the map, never by the card — see the split view
+   * in components/home/SplitResults.
+   */
+  linked?: boolean;
+  /** Hovering the card highlights its marker. Same pairing, other direction. */
+  onHover?: (id: string | null) => void;
 }) {
   const p = member.profile ?? {};
   const name = p.name || "Anonymous member";
@@ -58,25 +94,44 @@ export function MemberCard({
   const allImages = memberImages(member);
   const carouselImages = compact ? allImages.slice(0, 1) : allImages;
 
-  const subtitle = [location, p.category as string | undefined].filter(Boolean).join(" · ");
+  const subtitle = [p.neighborhood || p.city, p.category as string | undefined]
+    .filter(Boolean)
+    .join(" · ");
   const hasCoords = typeof p.latitude === "number" && typeof p.longitude === "number";
   const address = (p.businessAddress as string | undefined) || location || null;
+
+  // The bold closing line: whether they're open, and nothing else.
+  //
+  // Null when the hours string doesn't parse unambiguously (lib/business-hours
+  // returns null on any doubt, because a wrong "Open until 8pm" sends someone
+  // across the city to a locked door). Null renders NOTHING — never a
+  // placeholder. "Hours unknown" on every card of every business that wrote its
+  // hours in prose is noise pretending to be information, and a card with three
+  // lines instead of four is a perfectly good card.
+  //
+  // Distance is deliberately not a fallback here: it already has the top line,
+  // next to the name.
+  const hours = hoursStatus(p.businessHours as string | undefined);
 
   return (
     <Link
       href={`/members/${member.id}`}
-      className="group card-soft card-hover relative flex h-full flex-col overflow-hidden"
+      className={`listing group ${linked ? "is-linked" : ""}`}
+      onMouseEnter={onHover ? () => onHover(member.id) : undefined}
+      onMouseLeave={onHover ? () => onHover(null) : undefined}
     >
-      <div className="relative">
+      <div className="card-media aspect-square">
         {carouselImages.length > 0 ? (
           <ImageCarousel
             images={carouselImages}
             alt={name}
-            aspect="tall"
+            aspect="square"
+            // The rounding belongs to `.card-media`, which is what lifts on
+            // hover — rounding the carousel too would leave a hairline of the
+            // wrapper showing at the corners.
             rounded="rounded-none"
-            showCounter={carouselImages.length > 1}
-            // The name plate owns the bottom edge — dots would sit underneath it.
-            indicators={false}
+            showCounter={false}
+            indicators={carouselImages.length > 1}
             // Matches `w-44 sm:w-52` on the rail wrappers. Stated so next/image
             // stops offering (and phones stop fetching) full-width candidates.
             sizes={compact ? "(min-width:640px) 208px, 176px" : undefined}
@@ -84,89 +139,89 @@ export function MemberCard({
           />
         ) : (
           // Nothing usable — HeroMedia with no images IS the gradient.
-          <HeroMedia images={[]} gradientClass={gradient} alt={name} aspect="tall" />
+          <HeroMedia images={[]} gradientClass={gradient} alt={name} aspect="square" />
         )}
 
-        {/* Save owns the top-left corner. The type badge used to sit here and
-            said "vendor" on a wall of cards that are nearly all vendors — it
-            spent the most valuable corner of the card on the least surprising
-            fact. The type is still legible from the card's category line. */}
+        {/* Top-RIGHT, which is where a save lives on every listing surface
+            people already use. It sat top-left, where it collided with the
+            badge slot every card design eventually wants. */}
         <SaveBusinessButton memberId={member.id} variant="overlay" />
-
-        {/* Frosted plate rather than a block of card below the photo. Everything
-            the card has to say fits in two lines over the image, so the picture
-            is the card — the old layout gave more height to text than to the
-            photo, which reads as clunky in a feed of images. A scrim under the
-            blur keeps white type legible over a bright photo. */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-0">
-          <div className="bg-gradient-to-t from-black/55 via-black/25 to-transparent px-3 pb-3 pt-8 backdrop-blur-[2px]">
-            {/* The name gets the full width of the card. It shared a row with
-                the distance chip, and on a rail card that turned "Hamburger
-                Haven" into "Hamburge Haven" — the chip is a detail, the name
-                is the thing you are reading. */}
-            <h3 className="line-clamp-2 text-[15px] font-semibold leading-tight text-white drop-shadow-sm">
-              {name}
-            </h3>
-            <div className="mt-1 flex items-center gap-1.5">
-              {miles != null ? (
-                <span className="shrink-0 whitespace-nowrap rounded-full bg-white/25 px-2 py-0.5 font-mono text-[11px] font-semibold text-white ring-1 ring-white/25 backdrop-blur-md">
-                  <MapPin className="mr-0.5 inline h-3 w-3" />
-                  {milesLabel(miles)}
-                </span>
-              ) : hasPosition ? (
-                // We know where the reader is but not where this business is.
-                // Saying nothing here would imply it is close by.
-                <span className="shrink-0 whitespace-nowrap rounded-full bg-black/30 px-2 py-0.5 text-[11px] text-white/70 backdrop-blur-md">
-                  no location
-                </span>
-              ) : null}
-              {subtitle && (
-                <p className="min-w-0 truncate text-[11px] text-white/80">{subtitle}</p>
-              )}
-            </div>
-
-            {/* A second row: how to actually get there. The distance chip above
-                says how far, which is the question this answers next. Not on
-                `compact` rail cards — at 176px wide the name plate has no room
-                for another line. `pointer-events-auto` because the plate above
-                is pointer-events-none so taps fall through to the card link;
-                this one control has to catch its own. */}
-            {!compact && (hasCoords || address) && (
-              <div className="pointer-events-auto mt-1.5 flex flex-wrap gap-1.5">
-                <DirectionsButton
-                  asButton
-                  variant="chip"
-                  destination={{ lat: p.latitude as number, lng: p.longitude as number, address, label: name }}
-                />
-              </div>
-            )}
-          </div>
-        </div>
       </div>
 
-      {/* Only ever rendered on the match surfaces, where WHY a card is here is
-          the whole point. Everywhere else the card is image and nothing else. */}
-      {matchedOn && matchedOn.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 px-3 py-2.5">
-          {matchedOn.map((chip) => (
-            <span
-              key={chip}
-              className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-800 ring-1 ring-emerald-200"
-              title="matched this filter"
-            >
-              {chip}
-            </span>
-          ))}
+      {/* ── Text block ─────────────────────────────────────────────────────
+          Name and distance share the top line — distance is this marketplace's
+          equivalent of Airbnb's rating, and it belongs beside the name rather
+          than buried below it. The name still gets the width: the distance is
+          `shrink-0` and the name truncates into whatever is left. */}
+      <div className="min-w-0">
+        <div className="flex items-baseline gap-2">
+          <h3 className="t-strong min-w-0 flex-1 truncate text-stone-900">{name}</h3>
+          {miles != null ? (
+            <span className="t-meta shrink-0 tabular-nums text-stone-500">{milesLabel(miles)}</span>
+          ) : hasPosition ? (
+            // We know where the reader is but not where this business is.
+            // Saying nothing here would imply it is close by.
+            <span className="t-meta shrink-0 text-stone-400">no location</span>
+          ) : null}
         </div>
-      )}
+
+        {subtitle && <p className="t-meta mt-0.5 truncate text-stone-500">{subtitle}</p>}
+
+        {hours && (
+          <p className={`t-strong mt-1 truncate ${hours.open ? "text-stone-900" : "text-stone-500"}`}>
+            {hours.label}
+          </p>
+        )}
+
+        {/* How to actually get there. Off the photo now — it used to sit in the
+            scrim, which is exactly the clutter that arrangement invited.
+            `pointer-events` is no longer a problem here (the text block isn't
+            `pointer-events-none`), but this is still inside the card's <Link>,
+            so DirectionsButton stops its own click. */}
+        {!compact && (hasCoords || address) && (
+          <div className="mt-2">
+            <DirectionsButton
+              asButton
+              variant="chip"
+              destination={{
+                lat: p.latitude as number,
+                lng: p.longitude as number,
+                address,
+                label: name,
+              }}
+            />
+          </div>
+        )}
+
+        {/* Only ever rendered on the match surfaces, where WHY a card is here is
+            the whole point. Everywhere else the card is image and its four
+            lines, and nothing more. */}
+        {matchedOn && matchedOn.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {matchedOn.map((chip) => (
+              <span
+                key={chip}
+                className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-800 ring-1 ring-emerald-200"
+                title="matched this filter"
+              >
+                {chip}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
     </Link>
   );
 }
 
 export function MemberCardSkeleton() {
   return (
-    <div className="card-soft flex animate-pulse flex-col overflow-hidden">
-      <div className="aspect-[4/5] w-full bg-stone-200" />
+    <div className="listing animate-pulse">
+      <div className="card-media aspect-square bg-stone-200" />
+      <div className="space-y-1.5">
+        <div className="h-4 w-3/4 rounded bg-stone-200" />
+        <div className="h-3 w-1/2 rounded bg-stone-100" />
+      </div>
     </div>
   );
 }

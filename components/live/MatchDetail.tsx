@@ -2,8 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { ArrowLeft, MapPin, ChevronRight } from "lucide-react";
+import { MapPin, ChevronRight } from "lucide-react";
 import { eventEmoji, eventLabel, timeLeftLabel } from "@/lib/live-events";
 import { fetchLiveBroadcasts, matchKeyOf } from "@/lib/demo-live-fixtures";
 import { LiveMap } from "./LiveMap";
@@ -13,7 +12,6 @@ import type { LiveBroadcast } from "./types";
 // listings column on the left, a map on the right. Each listing opens its
 // /live/[id] page.
 export function MatchDetail({ matchKey }: { matchKey: string }) {
-  const router = useRouter();
   const key = decodeURIComponent(matchKey);
   const [all, setAll] = useState<LiveBroadcast[] | null>(null);
 
@@ -36,13 +34,6 @@ export function MatchDetail({ matchKey }: { matchKey: string }) {
 
   return (
     <div className="mx-auto max-w-6xl px-4 pb-24 pt-4 md:px-8">
-      {/* Back + header */}
-      <button
-        onClick={() => router.back()}
-        className="mb-3 inline-flex items-center gap-1 text-sm font-medium text-stone-500 hover:text-stone-800"
-      >
-        <ArrowLeft className="h-4 w-4" /> Back
-      </button>
 
       {all === null ? (
         <p className="text-sm text-stone-500">Loading…</p>

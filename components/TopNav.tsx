@@ -1,82 +1,155 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Plus } from "lucide-react";
-import { ThemeToggle } from "@/components/ThemeToggle";
-import { useMyMemberId } from "@/lib/data-hooks";
+import { Search } from "lucide-react";
+import { AccountMenu } from "@/components/AccountMenu";
+import { HeaderMenu } from "@/components/HeaderMenu";
+import { CityHeader } from "@/components/home/CityHeader";
+import { useHomeHeader, expandHeader } from "@/lib/home-header";
 
-// Top bar: centred "WhatsLocal AI" wordmark (links home), with "+" (post/share,
-// businesses only) on the left and the theme toggle on the right. The cart is
-// gone from the front door —
-// commerce is supporting cast, and an always-empty bag was a dead control
-// (checkout is still reachable at /cart).
+/**
+ * The global top bar: brand left, account capsule right.
+ *
+ * ── What changed and why ────────────────────────────────────────────────────
+ * It was three equal columns — "+" · centred wordmark · theme toggle — and in
+ * production the right column was empty, because the theme toggle is dev-only.
+ * So the shipped header was a centred wordmark with a third of the bar blank
+ * beside it, while /favorites, /tickets, /messages and /cart had no way in.
+ *
+ * Now: the wordmark takes the left, where a logo goes on every marketplace
+ * people already use, and the right holds the account capsule that carries
+ * everything the "+" used to (posting moved inside it, still vendor-gated).
+ * Nothing is centred, so nothing shifts when a control appears or disappears —
+ * the problem the three-column grid existed to solve is gone rather than
+ * worked around.
+ *
+ * Kept deliberately thin: on the home page a second sticky band underneath
+ * carries the tab switcher, the search and the category rail (HomeTabs). This
+ * bar is the part that is identical on every screen.
+ */
 export function TopNav() {
-  const pathname = usePathname();
-  const { memberId } = useMyMemberId();
-
-  // On the admin surfaces (the vendor portal or the /demo launcher) the "+"
-  // opens the vendor post composer (Go Live) instead of the shopper share page.
-  // Demo mode exits when you leave these for the shopper side (DemoExitWatcher),
-  // so pathname alone is the right signal — no lingering cookie to consult.
-  const adminContext =
-    (pathname?.startsWith("/vendor") || pathname?.startsWith("/demo")) ?? false;
-  const shareHref = adminContext ? "/share?vendor=1" : "/share";
-
-  // Posting is a BUSINESS action, so the "+" belongs to people who have a
-  // business to post as. A signed-out visitor tapping it got a sign-in wall,
-  // and a shopper got a composer asking which of their businesses to post as
-  // when they have none — the control was advertising a door neither could
-  // open. Vendors keep it everywhere, including the shopper side, since they
-  // browse there too.
-  //
-  // Hidden until we know: the hook starts null, so the "+" fades in for a
-  // vendor rather than flashing up and being taken away from a shopper. That
-  // is the right way round — an appearing control is a smaller lie than a
-  // disappearing one.
-  //
-  // The admin surfaces show it regardless, because reaching them at all means
-  // either a signed-in vendor or an unlocked admin demo (which has no Clerk
-  // user to look up, and whose whole point is exercising this UI).
-  const canPost = adminContext || !!memberId;
+  const { active, collapsed, label } = useHomeHeader();
+  // Only on home, and only once the header has actually collapsed.
+  const showCompactSearch = active && collapsed;
 
   return (
-    // Three equal columns, so the wordmark is centred on the SCREEN rather
-    // than between whatever happens to flank it — the "+" comes and goes with
-    // who is signed in, and a flex row would have shifted the brand with it.
-    // px matches the page body (max-w-6xl px-4 md:px-8) so the logo and the
-    // toggle line up with the search bar and the cards below.
-    <div className="relative grid h-14 grid-cols-3 items-center px-4 md:px-8">
-      {/* Left — post/share. Empty for shoppers and signed-out visitors; the
-          column stays so the wordmark doesn't shift between the two. */}
-      <div className="flex justify-start">
-        {canPost && (
-          <Link
-            href={shareHref}
-            aria-label={adminContext ? "Post as your business" : "Share a post"}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-stone-800 transition hover:bg-stone-100"
+    // Two padding states, and the TOTAL HEIGHT is the same in both — 80px,
+    // which is what `--top-nav` in globals.css promises every sticky element
+    // below. Animating the height instead would drag the search band, the day
+    // headings and the profile sidebar around with it.
+    //
+    // Expanded: 32 / 36 / 12 — generous above, tight beneath, matching the
+    // search band's asymmetry so the brand sits in air rather than clamped
+    // against the top of the screen.
+    //
+    // Collapsed: 22 / 36 / 22 — even. Once the row is the whole header there
+    // is nothing beneath it for the weight to lean toward, and the title sat
+    // visibly nearer its own bottom edge than the top of the screen.
+    <div
+      className="relative flex items-center justify-between gap-3 px-4 transition-[padding] duration-300 ease-[var(--ease)] md:px-8"
+      style={{
+        paddingTop: showCompactSearch ? "22px" : "32px",
+        paddingBottom: showCompactSearch ? "22px" : "12px",
+      }}
+    >
+      <Link
+        href="/"
+        className="inline-flex min-w-0 shrink-0 items-center gap-2 text-stone-900"
+        aria-label="WhatsLocal AI — home"
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.png" alt="" className="h-9 w-9 shrink-0" />
+        <span className="truncate text-[17px] font-semibold tracking-tight">WhatsLocal AI</span>
+      </Link>
+
+      {/* City, on the title row.
+          Desktop: immediately after the wordmark, reading as one line —
+          "WhatsLocal AI · San Francisco". Mobile: pushed right, because the
+          toggle row below has no width to spare and the right of this row is
+          empty there anyway (the avatar and the vendor link are desktop-only).
+
+          Hidden once the header collapses: the compact search pill is centred
+          across this row and would sit on top of it. `active` keeps the whole
+          thing to home — rendering it elsewhere would ask for a location
+          permission on pages with no use for one. */}
+      {active && !showCompactSearch && (
+        <div className="ml-auto flex min-w-0 items-center md:ml-3 md:mr-auto">
+          <CityHeader variant="nav" />
+        </div>
+      )}
+
+      {/* The collapsed search. Rides in the wordmark row once the full one has
+          scrolled away, so search is never more than one tap from anywhere in
+          a long list. Tapping it expands the whole header again — city, tabs
+          and the full input — WITHOUT scrolling the page, so you don't lose
+          your place to reach the search box. */}
+      {active && (
+        // Centred on the SCREEN, not between its neighbours. As a flex child
+        // it sat between a ~200px wordmark and a ~66px menu, so "the middle"
+        // was 30px left of the actual centre — and it visibly wasn't lined up
+        // with the search it grows out of, which is centred in the page
+        // container below. Taken out of the flow, both agree.
+        // pointer-events-none on the layer so the empty half of the row
+        // doesn't swallow clicks meant for the header behind it.
+        //
+        // inset-y-0 rather than matching the row's padding: the pill is only
+        // ever visible in the collapsed state, whose padding is symmetric, so
+        // centring in the full padded box IS centring on the row.
+        <div className="pointer-events-none absolute inset-x-0 inset-y-0 flex items-center justify-center px-4 md:px-8">
+          <button
+            onClick={expandHeader}
+            tabIndex={showCompactSearch ? 0 : -1}
+            aria-hidden={!showCompactSearch}
+            className={
+              // ALWAYS mounted while on home, and animated between states
+              // rather than swapped in and out. Mounting it on collapse made
+              // the search flip: the big one vanished and a different element
+              // blinked into the row, with nothing connecting them. Kept in
+              // the tree, it can rise and settle as the big one folds up, and
+              // the two read as one control changing size.
+              "pointer-events-auto flex w-full max-w-lg items-center gap-2.5 rounded-full border border-stone-200 bg-white py-2.5 pl-4 pr-1.5 text-left shadow-[var(--shadow-soft)] " +
+              "transition-[opacity,transform] duration-300 ease-[var(--ease)] hover:shadow-[var(--shadow-lift)] " +
+              (showCompactSearch
+                ? "translate-y-0 scale-100 opacity-100"
+                : // Sits slightly low and small while the full search has the
+                  // floor, so it grows INTO place rather than appearing.
+                  "!pointer-events-none translate-y-1 scale-95 opacity-0")
+            }
           >
-            <Plus className="h-6 w-6" />
-          </Link>
-        )}
-      </div>
+            <Search className="h-4 w-4 shrink-0 text-stone-500" />
+            <span className={"min-w-0 flex-1 truncate t-meta " + (label ? "text-stone-900" : "text-stone-400")}>
+              {label || "Search"}
+            </span>
+            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-coral-600 text-white">
+              <Search className="h-3.5 w-3.5" />
+            </span>
+          </button>
+        </div>
+      )}
 
-      {/* Centre — brand lockup (mark + wordmark, links home) */}
-      <div className="flex min-w-0 justify-center">
+      <div className="flex shrink-0 items-center gap-1">
+        {/* The supply-side door, desktop only.
+            A ghost button: bare text at rest, and the pill only draws itself
+            under the cursor. Every marketplace header has one of these and it
+            is always the quietest thing in the row — it is an ask, and an ask
+            rendered as a solid button competes with the reader's own actions
+            for the same attention. Hidden on a phone, where the row has no
+            spare width and the same link already sits under the tab heading. */}
         <Link
-          href="/"
-          className="inline-flex min-w-0 items-center gap-1.5 text-lg font-semibold tracking-tight text-stone-900"
+          href="/join"
+          className="hidden rounded-full px-3.5 py-2 t-meta font-semibold text-stone-700 transition-colors duration-200 hover:bg-stone-200/70 hover:text-stone-900 md:inline-flex"
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="" className="h-7 w-7 shrink-0" />
-          <span className="truncate">WhatsLocal AI</span>
+          Join as a vendor
         </Link>
-      </div>
 
-      {/* Right — theme toggle. Hidden in production; light is the only public
-          theme. */}
-      <div className="flex justify-end">
-        {process.env.NODE_ENV !== "production" && <ThemeToggle />}
+        {/* The theme toggle is gone from the header entirely — it used to be
+            dev-only, which meant the bar looked different here than it does
+            for anyone using the app, and every judgement about the nav was
+            being made against a layout that never ships. Light is the only
+            public theme; the dark stylesheet in globals.css stays for when
+            that changes. */}
+        <HeaderMenu />
+        <AccountMenu />
       </div>
     </div>
   );

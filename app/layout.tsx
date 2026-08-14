@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { ClerkAuthProvider } from "@/components/auth/ClerkAuthProvider";
-import { TopNav } from "@/components/TopNav";
+import { AppHeader } from "@/components/AppHeader";
 import { BottomNav } from "@/components/BottomNav";
 import { AppBanner } from "@/components/AppBanner";
 import { SiteFooter } from "@/components/SiteFooter";
@@ -75,17 +75,8 @@ export default function RootLayout({
           <SWRProvider>
           <LocationProvider>
           <StoreProvider>
-            <header
-              className="sticky top-0 z-30 border-b border-stone-200 bg-stone-50/80 backdrop-blur"
-              style={{ paddingTop: "env(safe-area-inset-top)" }}
-            >
-              {/* Same container as the page body (max-w-6xl px-4 md:px-8,
-                  the padding lives in TopNav) so the wordmark lines up with
-                  the search bar and the content below it. */}
-              <div className="mx-auto max-w-6xl">
-                <TopNav />
-              </div>
-            </header>
+            {/* The bottom rule is conditional — see components/AppHeader. */}
+            <AppHeader />
 
             {/* Promo banners sit just under the nav so the header owns the notch
                 safe-area; they scroll away with the page. */}
@@ -98,8 +89,14 @@ export default function RootLayout({
 
             <SiteFooter />
 
-            {/* Spacer so content clears the fixed bottom nav */}
-            <div style={{ height: "calc(3.25rem + env(safe-area-inset-bottom))" }} aria-hidden />
+            {/* Spacer so content clears the fixed bottom nav. Mobile only,
+                matching BottomNav — on desktop there is no bar to clear and
+                this was 52px of dead space under every page. */}
+            <div
+              className="md:hidden"
+              style={{ height: "calc(3.25rem + env(safe-area-inset-bottom))" }}
+              aria-hidden
+            />
             <BottomNav />
             <FeedbackWidget />
             <PushInit />

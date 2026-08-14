@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, MessageSquare } from "lucide-react";
+import { MessageSquare } from "lucide-react";
 import { SITE_NAME } from "@/lib/seo";
 
 export const metadata = {
@@ -19,12 +19,6 @@ export default function SmsPage() {
       <section className="relative overflow-hidden bg-gradient-to-br from-stone-900 via-purple-900 to-pink-800 text-white">
         <div className="absolute inset-0 opacity-30 [background:radial-gradient(circle_at_20%_20%,rgba(236,72,153,0.4),transparent_50%),radial-gradient(circle_at_80%_60%,rgba(168,85,247,0.4),transparent_55%)]" />
         <div className="relative mx-auto max-w-4xl px-4 pb-16 pt-16 md:px-8 md:pt-24">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1.5 text-sm text-white/70 transition hover:text-white"
-          >
-            <ArrowLeft className="h-4 w-4" /> Back home
-          </Link>
           <div className="mt-8 ml-1 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-medium backdrop-blur">
             <MessageSquare className="h-3.5 w-3.5" /> Text messaging
           </div>

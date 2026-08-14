@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, Heart, Minus, Plus, ShoppingBag, X } from "lucide-react";
+import { Heart, Minus, Plus, ShoppingBag, X } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { useRouter } from "next/navigation";
 
@@ -23,10 +23,6 @@ export default function CartPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 pb-24 pt-8 md:px-8">
-      <Link href="/" className="inline-flex items-center gap-1 text-sm text-indigo-700 hover:underline">
-        <ArrowLeft className="h-4 w-4" /> Back
-      </Link>
-
       <div className="mt-6 flex items-center justify-between">
         <h1 className="flex items-center gap-3 text-3xl font-semibold tracking-tight text-stone-900">
           Cart

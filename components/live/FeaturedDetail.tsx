@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, LayoutGrid, Map as MapIcon, Radio } from "lucide-react";
+import { LayoutGrid, Map as MapIcon, Radio } from "lucide-react";
 import { eventEmoji } from "@/lib/live-events";
 import { BroadcastCard } from "./BroadcastCard";
 import { LiveMap } from "./LiveMap";
@@ -33,12 +33,6 @@ export function FeaturedDetail({ id }: { id: string }) {
 
   return (
     <div className="mx-auto max-w-6xl px-4 pb-20 md:px-8">
-      <div className="pt-6">
-        <Link href="/" className="inline-flex items-center gap-1 text-sm text-stone-500 hover:text-stone-900">
-          <ArrowLeft className="h-4 w-4" /> Home
-        </Link>
-      </div>
-
       {loading ? (
         <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (

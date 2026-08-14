@@ -115,20 +115,34 @@ export function ImageCarousel({
 
       {count > 1 && (
         <>
-          <button
-            onClick={prev}
-            aria-label="Previous image"
-            className="absolute left-2 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-stone-700 shadow-sm backdrop-blur transition hover:bg-white"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-          <button
-            onClick={next}
-            aria-label="Next image"
-            className="absolute right-2 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-stone-700 shadow-sm backdrop-blur transition hover:bg-white"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
+          {/* Arrows appear on hover and nowhere else.
+              - `hover-reveal` (globals.css) fades them in when the card or the
+                media is hovered, and `display: none`s them entirely on touch —
+                a device that can't hover swipes instead, so arrows there are
+                clutter sitting on top of the photograph.
+              - Each end hides its own arrow rather than wrapping. A carousel
+                that silently loops gives no sense of how many photos there
+                are; stopping at the ends is what makes the dots meaningful.
+              Both still reachable by keyboard: `hover-reveal:focus-visible`
+              opts them back in. */}
+          {i > 0 && (
+            <button
+              onClick={prev}
+              aria-label="Previous image"
+              className="hover-reveal absolute left-2 top-1/2 z-10 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-white text-stone-800 shadow-[var(--shadow-float)] transition hover:scale-105"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+          )}
+          {i < count - 1 && (
+            <button
+              onClick={next}
+              aria-label="Next image"
+              className="hover-reveal absolute right-2 top-1/2 z-10 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-white text-stone-800 shadow-[var(--shadow-float)] transition hover:scale-105"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          )}
 
           <div
             className={`absolute bottom-2 left-1/2 flex -translate-x-1/2 items-center gap-1.5 ${

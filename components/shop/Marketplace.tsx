@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import {
   ArrowLeft,
   ArrowRight,
@@ -309,19 +308,6 @@ export function Marketplace({ embedded = false }: { embedded?: boolean }) {
             : "mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8"
         }
       >
-        {/* Back link — only on the standalone page. Inside the home tab the
-            tab row IS the way back, and a "back to WhatsLocal AI" link on a
-            screen you never left reads as a dead end. */}
-        {!embedded && (
-          <Link
-            href="/"
-            className="mb-6 inline-flex items-center gap-1.5 text-sm text-stone-500 transition hover:text-stone-900"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to WhatsLocal AI
-          </Link>
-        )}
-
         {/* Toolbar */}
         <div className="mb-6 flex flex-wrap items-center gap-3">
           <div className="flex-1">

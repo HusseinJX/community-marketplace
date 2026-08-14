@@ -26,7 +26,7 @@ export function EventCard({ event }: { event: EventSuggestion }) {
     >
       <div className={`shrink-0 self-stretch w-20 rounded-lg bg-gradient-to-br ${grad}`} />
       <div className="min-w-0 flex-1 py-0.5">
-        <div className="truncate font-medium text-stone-900 group-hover:text-indigo-700">{title}</div>
+        <div className="truncate font-medium text-stone-900 group-hover:text-coral-700">{title}</div>
         {event.date && <div className="mt-1 text-sm text-stone-500">{event.date}</div>}
         {event.location && <div className="truncate text-sm text-stone-500">{event.location}</div>}
       </div>
