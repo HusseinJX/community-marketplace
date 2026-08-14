@@ -5,7 +5,7 @@ plan in [`airbnb-design-system.md`](./airbnb-design-system.md).
 
 **Nothing here is deployed.** No build, no demo gate, no CapRover push.
 
-54 files: 39 modified, 15 new.
+59 files. Two commits — see §7 for what landed after the first.
 
 ---
 
@@ -100,6 +100,56 @@ and each surface supplies an adapter (`lib/map-adapters.ts`).
 - A Tailwind arbitrary media variant emitted **invalid CSS that failed the
   entire stylesheet**; and pasting the offending class into a comment
   regenerated it, because Tailwind scans the CSS file for class names.
+
+## 7 · Follow-ups after the first commit
+
+### `/shopper` stripped to one job
+Signed out it is the login card and nothing else; signed in it renders
+`TasteTuner` in place. Removed: the vendor-login button, the Quick access tiles
+(Saved / Cart), Messages, the personalization *link*, starred rooms, and both
+community-resources sections. "Your space" title kept. Notifications, Log out
+and Delete account are untouched — the deletion path is an App Store
+requirement.
+
+Saved / Cart / Messages remain reachable from the header menu (desktop) and the
+tab bar (mobile). ⚠️ `/tickets` is now reachable ONLY from the mobile tab bar —
+it is not in the desktop header menu and no longer on this page.
+
+### Header menu
+`HeaderMenu` — three-line button LEFT of the profile circle: Cart, Saved,
+Messages. Desktop only. Deliberately three, not a second copy of `/shopper`.
+
+### Event cards filter by VENUE, not source
+The chip on each card used to filter by the calendar we harvested from
+("Funcheap SF") — true, but not a place anyone can go, and it grouped events
+that share nothing but who listed them. Now the venue, with a map pin.
+
+- `lib/venue-label.ts` — cuts at the first comma or SPACED dash. A bare `-`
+  would reduce "Goethe-Institut San Francisco" to "Goethe". Falls back to the
+  full string when the cut leaves under 3 characters ("Q, The Bar").
+- Shared by the card and the API, so the label drawn and the key filtered on
+  are the same string. Exact-matching the raw text made two rooms of one
+  library two different venues, so filtering by one silently hid the other.
+- `/api/events/personalize` gained a `venue` param alongside `organizer`.
+- Falls back to the source only when an event has no venue at all.
+
+### Posterless events hidden from What's on
+`/api/events/personalize` now requires `imageUrl`. 486 candidates → 240
+returned, zero without an image. Hidden from THIS surface only — the event
+keeps its page and stays searchable. Same rule as `hasMemberImage` on Shops.
+
+The card's gradient fallback was kept anyway: it covers a *different* failure,
+an image URL that exists but 404s at render, which this filter cannot see.
+⚠️ This trades feed size for consistency; first thing to reconsider if the feed
+looks thin.
+
+### Investigated, not a bug
+Two events looked image-less. `Free Movie Night` genuinely has `image: null`.
+`UCSF Meningioma` HAS an image on an allowlisted host — it is just a faint pen
+scan. All eight hosts in the feed are already in `lib/image-hosts.ts`, so this
+was NOT the documented image-host trap.
+
+---
 
 ---
 

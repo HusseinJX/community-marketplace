@@ -236,6 +236,7 @@ export interface PersonalizeParams {
   topics: string[];
   freeOnly: boolean;
   organizer: string | null;
+  venue: string | null;
   lat: number | null;
   lng: number | null;
   maxMiles: number | null;

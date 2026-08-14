@@ -21,6 +21,25 @@ import { tasteId } from "@/lib/taste-id";
 import { ImageCarousel } from "@/components/ImageCarousel";
 import { SaveEventButton } from "@/components/events/SaveEventButton";
 import { DirectionsButton } from "@/components/map/DirectionsButton";
+import { venueLabel } from "@/lib/venue-label";
+import { eventEmojiFor } from "@/lib/map-adapters";
+
+// A stable colour per event, so a posterless card is a field of colour rather
+// than the same grey every time — and the same event keeps its colour between
+// renders.
+const EVENT_GRADIENTS = [
+  "from-emerald-200 to-teal-300",
+  "from-indigo-200 to-violet-300",
+  "from-amber-200 to-orange-300",
+  "from-rose-200 to-pink-300",
+  "from-sky-200 to-blue-300",
+  "from-lime-200 to-emerald-300",
+];
+function eventGradient(id: string): string {
+  let h = 0;
+  for (const c of id) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return EVENT_GRADIENTS[h % EVENT_GRADIENTS.length];
+}
 
 const TOPIC_CHIPS: { id: string; label: string }[] = [
   { id: "music", label: "Music" },
@@ -252,6 +271,10 @@ export function PersonalizedEvents({
     });
   // Narrowed to one organiser, set by tapping their tag on any card.
   const [organizer, setOrganizer] = useState<string | null>(null);
+  // Filter by PLACE. The chip on each card used to filter by the source we
+  // scraped from — which on a harvested feed is a calendar name, not
+  // somewhere you can go. The venue is the fact a reader actually acts on.
+  const [venue, setVenue] = useState<string | null>(null);
   const [freeOnly, setFreeOnly] = useState(false);
   const [home, setHome] = useState<{ lat: number; lng: number } | null>(cachedPosition);
   const [locating, setLocating] = useState(false);
@@ -274,6 +297,7 @@ export function PersonalizedEvents({
     topics,
     freeOnly,
     organizer,
+    venue,
     lat: home?.lat ?? null,
     lng: home?.lng ?? null,
     // No radius filter on this surface any more — the feed is ranked nearest
@@ -319,7 +343,7 @@ export function PersonalizedEvents({
   // How much of the ranked feed is revealed. Tied to the query rather than
   // reset by an effect, so a narrower search can never paint one frame of the
   // old scroll depth before snapping back to the first screen.
-  const feedKey = `${query}|${topics.join(",")}|${organizer ?? ""}|${freeOnly}`;
+  const feedKey = `${query}|${topics.join(",")}|${organizer ?? ""}|${venue ?? ""}|${freeOnly}`;
   const [reveal, setReveal] = useState<{ key: string; n: number }>({ key: feedKey, n: PAGE });
   const shown = reveal.key === feedKey ? reveal.n : PAGE;
   const showMore = () => setReveal({ key: feedKey, n: shown + PAGE });
@@ -423,7 +447,7 @@ export function PersonalizedEvents({
   // Anything the reader has switched on. `query` and `organizer` count: they
   // narrow the feed exactly as much as a pill does, so leaving them out would
   // hide the clear control while the feed was still filtered.
-  const hasFilters = topics.length > 0 || freeOnly || !!query || !!organizer;
+  const hasFilters = topics.length > 0 || freeOnly || !!query || !!organizer || !!venue;
 
   const clearFilters = () => {
     setTopics([]);
@@ -519,7 +543,7 @@ export function PersonalizedEvents({
       ) : null}
 
       {/* ── what we heard ─────────────────────────────────────────────── */}
-      {result && (query || topics.length > 0 || organizer || result.usedTaste) && (
+      {result && (query || topics.length > 0 || organizer || venue || result.usedTaste) && (
         <div className="mt-4 rounded-xl border border-stone-200 bg-stone-50 px-4 py-3">
           <p className="text-[15px] font-medium text-stone-900">{result.summary}</p>
 
@@ -569,15 +593,16 @@ export function PersonalizedEvents({
               Couldn&apos;t read that closely — matching on your words instead.
             </p>
           )}
-          {organizer && (
+          {(organizer || venue) && (
             <button
               onClick={() => {
                 setOrganizer(null);
+                setVenue(null);
               }}
               className="mt-1 inline-flex items-center gap-1 text-xs text-indigo-600 underline underline-offset-2 hover:text-indigo-800"
             >
               <X className="h-3 w-3" />
-              Show everyone again
+              Show everywhere again
             </button>
           )}
           <p className="mt-1 text-xs text-stone-500">
@@ -673,10 +698,18 @@ export function PersonalizedEvents({
                       which is why a feed of concerts and exhibitions read as a
                       spreadsheet. Title and time sit on a frosted plate over it
                       so the picture keeps the full height it was given. */}
-                  {e.image && (
+                  {/* The media block renders even with NO poster.
+                      Roughly one event in ten arrives without one, and a
+                      text-only card beside picture cards reads as a hole in
+                      the grid rather than as an event. ImageCarousel already
+                      draws `fallbackGradient` when handed an empty list, so
+                      the shape, the title plate and the badge positions stay
+                      identical either way — the card just has a coloured field
+                      with its category glyph where the photo would be. */}
+                  {(
                     <div className="relative">
                       <ImageCarousel
-                        images={[e.image]}
+                        images={e.image ? [e.image] : []}
                         alt={e.title}
                         aspect="video"
                         rounded="rounded-none"
@@ -701,8 +734,16 @@ export function PersonalizedEvents({
                         // Without a fallback the carousel returns null on a bad
                         // URL, the absolutely-positioned title plate has nothing
                         // to sit on, and the card renders as chips with no name.
-                        fallbackGradient="from-stone-200 to-stone-300"
+                        fallbackGradient={eventGradient(e.id)}
                       />
+                      {!e.image && (
+                        <span
+                          aria-hidden
+                          className="pointer-events-none absolute inset-0 flex items-center justify-center text-5xl opacity-70"
+                        >
+                          {eventEmojiFor(`${e.title} ${e.topics.join(" ")}`)}
+                        </span>
+                      )}
                       <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/45 to-transparent px-3 pb-2.5 pt-12">
                         <Link
                           href={`/events/${e.id}`}
@@ -734,8 +775,8 @@ export function PersonalizedEvents({
                     </div>
                   )}
 
-                  <div className={e.image ? "px-3 pb-3 pt-2.5" : "p-3"}>
-                    <div className={`flex items-start gap-3 ${e.image ? "hidden" : "justify-between"}`}>
+                  <div className="px-3 pb-3 pt-2.5">
+                    <div className="hidden">
                       <>
                       <div className="min-w-0">
                         {/* The title is the way OUT of the feed. stopPropagation
@@ -833,11 +874,20 @@ export function PersonalizedEvents({
                     </div>
                   )}
 
-                  {/* The organiser, as a real control. It used to be the
-                      faintest text on the card despite being the thing a reader
-                      most often wants more of — tapping it shows everything
-                      that organiser has on. `relative` lifts it above the
-                      stretched link covering the card. */}
+                  {/* The VENUE, as a real control — tapping it shows everything
+                      on at that place.
+
+                      It used to be the source we harvested the event from, which
+                      on a scraped feed is the name of a calendar ("Funcheap
+                      SF"): true, but not a thing anyone can go to, and filtering
+                      by it grouped events that have nothing in common but who
+                      listed them. The venue is a place, so the filter answers a
+                      question someone actually has. Falls back to the source
+                      only when an event carries no venue at all, so the control
+                      never disappears.
+
+                      `relative` lifts it above the stretched link covering the
+                      card. */}
                   {/* Wrapped, because the button is a sibling of the padded body
                       above and so sat flush in the bottom-left corner. pr-10
                       keeps a long organiser name clear of the chevron. */}
@@ -845,17 +895,27 @@ export function PersonalizedEvents({
                   <button
                     type="button"
                     onClick={() => {
-                      const next = organizer === e.source ? null : e.source;
-                      setOrganizer(next);
+                      const v = venueLabel(e.venue);
+                      if (v) {
+                        setVenue(venue === v ? null : v);
+                        setOrganizer(null);
+                      } else {
+                        setOrganizer(organizer === e.source ? null : e.source);
+                        setVenue(null);
+                      }
                     }}
                     className={`relative z-10 inline-flex max-w-full items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium transition ${
-                      organizer === e.source
-                        ? "border-indigo-600 bg-indigo-600 text-white"
-                        : "border-stone-200 bg-stone-50 text-stone-600 hover:border-indigo-400 hover:bg-white hover:text-indigo-700"
+                      (e.venue ? venue === venueLabel(e.venue) : organizer === e.source)
+                        ? "border-stone-900 bg-stone-900 text-white"
+                        : "border-stone-200 bg-stone-50 text-stone-600 hover:border-stone-900 hover:bg-white hover:text-stone-900"
                     }`}
                   >
-                    <Building2 className="h-3 w-3 shrink-0" />
-                    <span className="truncate">{e.source}</span>
+                    {e.venue ? (
+                      <MapPin className="h-3 w-3 shrink-0" />
+                    ) : (
+                      <Building2 className="h-3 w-3 shrink-0" />
+                    )}
+                    <span className="truncate">{venueLabel(e.venue) || e.source}</span>
                   </button>
                   </div>
 

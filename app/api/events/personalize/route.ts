@@ -13,6 +13,7 @@ import { embedOne, toPgVector, blend } from '@/lib/reco/embed'
 import { subjectFor, tasteVector } from '@/lib/reco/taste'
 import { rankEvents, diversify, keywordsFrom } from '@/lib/reco/rank'
 import { prepare, FEED_COLUMNS, type EventRow } from '@/lib/reco/from-db'
+import { venueLabel } from '@/lib/venue-label'
 import { rateLimit } from '@/lib/rate-limit'
 import { HIDDEN_MEMBER_IN_LIST } from '@/lib/hidden-members'
 import { sfToday, sfTomorrow, minutesUntil, startMinutes, isOnNow, hasEnded } from '@/lib/sf-date'
@@ -46,6 +47,12 @@ export interface PersonalizeBody {
   /** Show only this organiser's events. Matched on the display name, which is
    *  the one identifier a harvested calendar and a real member both have. */
   organizer?: string | null
+  /** Show only events at this venue. The card's filter chip uses THIS rather
+   *  than the organiser: on a harvested feed the organiser is the calendar we
+   *  scraped ("Funcheap SF"), which tells a reader nothing about the evening,
+   *  whereas the venue is a real place they can decide about. Matched on the
+   *  display string, which is all a scraped event carries. */
+  venue?: string | null
   /** This browser's own taste id (`device:…`). Ignored when signed in — the
    *  Clerk id is the identity then, and a caller-supplied one could name
    *  somebody else's. */
@@ -176,10 +183,13 @@ export async function POST(req: Request) {
   // id, while an in-app event's is a real one — the name is what both have and
   // what the reader actually tapped.
   const organizer = body.organizer?.trim() || null
+  const venue = body.venue?.trim() || null
 
   // Say what the feed is actually showing. With chips on and no sentence, the
   // default line ("Everything happening near you") is simply untrue.
-  if (organizer && !text) {
+  if (venue && !text) {
+    facts.summary = `Everything at ${venue}${home ? ', nearest first' : ''}.`
+  } else if (organizer && !text) {
     facts.summary = `Everything from ${organizer}${home ? ', nearest first' : ''}.`
   } else if (chips.length && !text) {
     const names = chips.map((t) => t.replace(/-/g, ' & '))
@@ -196,6 +206,24 @@ export async function POST(req: Request) {
   }
 
   let candidates = organizer ? events.filter((e) => e.sourceLabel === organizer) : events
+  // Matched on the SHORT name, so every room of one library counts as that
+  // library — see lib/venue-label. Exact-matching the raw string made the
+  // filter under-collect silently.
+  if (venue) candidates = candidates.filter((e) => venueLabel(e.venue) === venue)
+
+  // A poster is required. This feed is a wall of images, and an event with
+  // nothing to show renders as a coloured field with a glyph on it — which
+  // reads as a hole in the grid rather than as something happening tonight,
+  // and sits next to events whose organisers did the work.
+  //
+  // Hidden from THIS surface only: the event still exists, still has its page,
+  // and is still reachable by search. Same rule the Shops directory applies
+  // with `hasMemberImage`, for the same reason.
+  //
+  // The card keeps its gradient fallback regardless — an image URL that 404s
+  // at render time is a different failure from having no image at all, and
+  // this filter cannot see that one.
+  candidates = candidates.filter((e) => !!e.imageUrl)
   let droppedByTopic = 0
   if (chips.length) {
     const want = new Set(chips)
@@ -246,7 +274,7 @@ export async function POST(req: Request) {
   // library event two blocks away below a gallery event two miles off, purely
   // for variety. Variety is worth that trade when someone asked for a KIND of
   // thing; it isn't when the only thing they asked for is what's close.
-  const askedForSomething = !!text || (body.topics?.length ?? 0) > 0 || !!organizer
+  const askedForSomething = !!text || (body.topics?.length ?? 0) > 0 || !!organizer || !!venue
   const ordered = askedForSomething || !home ? diversify(ranked) : ranked
 
   // Send several screens, not one, and let the client reveal them.
