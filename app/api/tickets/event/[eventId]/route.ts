@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { getVendorEventById, getVendorConnectAccount } from '@/lib/vendor-connect'
+import { getVendorEventById } from '@/lib/vendor-connect'
+import { getConnectPayoutState } from '@/lib/connect-status'
 import { getAvailability, publicTicketType } from '@/lib/tickets'
 
 // Public: what's on sale for this event, and whether the host can take money.
@@ -14,12 +15,12 @@ export async function GET(_req: Request, { params }: { params: Promise<{ eventId
 
   const types = await getAvailability(eventId)
   const hasPaid = types.some((t) => t.price_cents > 0)
-  const connect = hasPaid ? await getVendorConnectAccount(event.member_id) : null
+  const payouts = hasPaid ? await getConnectPayoutState(event.member_id) : null
 
   return NextResponse.json({
     eventId,
     title: event.title,
     types: types.map(publicTicketType),
-    payable: !hasPaid || connect?.status === 'active',
+    payable: !hasPaid || (payouts?.active ?? false),
   })
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { stripe, calculateFees } from '@/lib/stripe-server'
-import { getVendorConnectAccount, getVendorSettings, getProductsByMember, type DeliveryAddressJson } from '@/lib/vendor-connect'
+import { getVendorSettings, getProductsByMember, type DeliveryAddressJson } from '@/lib/vendor-connect'
+import { getConnectPayoutState } from '@/lib/connect-status'
 import { effectiveDeliveryMode, selfDeliveryRules, quoteSelfDelivery } from '@/lib/fulfillment'
 import { basketFulfillment } from '@/lib/product-kind'
 import { printifyLinesFor, quotePrintifyShipping } from '@/lib/printify-commerce'
@@ -54,16 +55,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'items and memberId are required' }, { status: 400 })
     }
 
-    const vendorAccount = await getVendorConnectAccount(memberId)
+    const payouts = await getConnectPayoutState(memberId)
 
-    if (!vendorAccount || !vendorAccount.stripe_account_id) {
+    if (!payouts.accountId) {
       return NextResponse.json(
         { error: 'STRIPE_CONNECT_NOT_SETUP', message: 'This vendor has not set up payments yet.' },
         { status: 400 }
       )
     }
 
-    if (vendorAccount.status !== 'active') {
+    if (!payouts.active) {
       return NextResponse.json(
         { error: 'STRIPE_CONNECT_NOT_SETUP', message: 'This vendor\'s payment account is not yet active.' },
         { status: 400 }
@@ -209,7 +210,7 @@ export async function POST(request: Request) {
       currency: 'usd',
       application_fee_amount: applicationFee,
       transfer_data: {
-        destination: vendorAccount.stripe_account_id,
+        destination: payouts.accountId,
       },
       metadata: {
         memberId,

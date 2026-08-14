@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { resolveActor } from '@/lib/admin'
-import { getVendorEventById, getVendorConnectAccount } from '@/lib/vendor-connect'
+import { getVendorEventById } from '@/lib/vendor-connect'
+import { getConnectPayoutState } from '@/lib/connect-status'
 import { getAvailability, createTicketType, updateTicketType, deleteTicketType } from '@/lib/tickets'
 
 // Ticket tiers for one event. Host only (admins may act on behalf, via
@@ -21,16 +22,16 @@ export async function GET(_req: Request, { params }: { params: Promise<{ eventId
   const h = await host(eventId)
   if ('error' in h) return h.error
 
-  const [types, connect] = await Promise.all([
+  const [types, payouts] = await Promise.all([
     getAvailability(eventId),
-    getVendorConnectAccount(h.event.member_id),
+    getConnectPayoutState(h.event.member_id),
   ])
   // The organizer needs to know BEFORE they price a tier that money can't land
   // anywhere yet — otherwise they publish a $20 ticket nobody can buy.
   return NextResponse.json({
     types,
     capacity: h.event.capacity ?? null,
-    payoutsReady: connect?.status === 'active',
+    payoutsReady: payouts.active,
   })
 }
 

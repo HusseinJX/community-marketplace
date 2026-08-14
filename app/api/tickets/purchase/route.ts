@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { stripe, calculateFees } from '@/lib/stripe-server'
-import { getVendorEventById, getVendorConnectAccount } from '@/lib/vendor-connect'
+import { getVendorEventById } from '@/lib/vendor-connect'
+import { getConnectPayoutState } from '@/lib/connect-status'
 import { getAvailability, guestAttendeeId } from '@/lib/tickets'
 import { issueFreeTickets } from '@/lib/ticket-issue'
 import { rateLimit } from '@/lib/rate-limit'
@@ -112,8 +113,8 @@ export async function POST(request: Request) {
     }
 
     // ── Paid: same Connect rails as the shop ─────────────────────────────────
-    const vendorAccount = await getVendorConnectAccount(event.member_id)
-    if (!vendorAccount?.stripe_account_id || vendorAccount.status !== 'active') {
+    const payouts = await getConnectPayoutState(event.member_id)
+    if (!payouts.accountId || !payouts.active) {
       return NextResponse.json(
         { error: 'STRIPE_CONNECT_NOT_SETUP', message: 'This organizer hasn\'t finished setting up payments yet.' },
         { status: 400 }
@@ -126,7 +127,7 @@ export async function POST(request: Request) {
       amount: itemsCents,
       currency: 'usd',
       application_fee_amount: platformFee,
-      transfer_data: { destination: vendorAccount.stripe_account_id },
+      transfer_data: { destination: payouts.accountId },
       // Stripe emails its own receipt here, which is separate from our ticket
       // email — a receipt proves payment, a ticket gets you in the door.
       receipt_email: buyerEmail,
