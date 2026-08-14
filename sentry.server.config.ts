@@ -10,10 +10,11 @@
 // Resend, APNs). Nothing here can break a request when it is unconfigured.
 
 import * as Sentry from "@sentry/nextjs";
+import { sentryEnabled } from "@/lib/sentry-enabled";
 
 const dsn = process.env.SENTRY_DSN || process.env.NEXT_PUBLIC_SENTRY_DSN;
 
-if (dsn) {
+if (dsn && sentryEnabled()) {
   Sentry.init({
     dsn,
     environment: process.env.NODE_ENV,
