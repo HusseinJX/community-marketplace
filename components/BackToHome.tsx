@@ -16,7 +16,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { homeTabTarget, lastHomeTab, lastOrigin } from "@/lib/home-tab";
+import { homeTabTarget, lastHomeTab, lastOrigin, DEFAULT_HOME_TAB } from "@/lib/home-tab";
 
 export function BackToHome({
   /** Forces a destination, ignoring where you came from. */
@@ -32,7 +32,7 @@ export function BackToHome({
   // Events until the effect below reads where you actually came from. It was
   // "feed", which is no longer a visible tab — a first-paint back link to a
   // hidden screen.
-  const [target, setTarget] = useState(() => homeTabTarget("events"));
+  const [target, setTarget] = useState(() => homeTabTarget(DEFAULT_HOME_TAB));
 
   useEffect(() => {
     if (href) return;

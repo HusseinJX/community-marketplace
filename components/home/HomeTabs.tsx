@@ -23,7 +23,7 @@ import { PersonalizedEvents } from "@/components/feed/PersonalizedEvents";
 import { LocalDirectory } from "@/components/home/LocalDirectory";
 import { HomeSearch } from "@/components/home/HomeSearch";
 import { CommunityFeed } from "@/components/feed/CommunityFeed";
-import { HOME_TABS, toHomeTab, rememberHomeTab, type HomeTab } from "@/lib/home-tab";
+import { HOME_TABS, DEFAULT_HOME_TAB, toHomeTab, rememberHomeTab, type HomeTab } from "@/lib/home-tab";
 import { useIsMdUp } from "@/lib/use-media-query";
 import {
   useHomeHeader,
@@ -46,7 +46,7 @@ const TAB_ICONS: Record<HomeTab, typeof Newspaper> = {
 // between Feed (live venues + community posts), Events (now + upcoming), and
 // Shop (the local directory). Tab is mirrored to ?tab= so back/deep-links work.
 export function HomeTabs() {
-  const [tab, setTab] = useState<HomeTab>("events");
+  const [tab, setTab] = useState<HomeTab>(DEFAULT_HOME_TAB);
   // Which way the Events tab is being read. A toggle, not a tab: same events.
   //
   // The ids name the ICON, not the component behind it:
@@ -148,7 +148,7 @@ export function HomeTabs() {
   // without a full navigation so the browser back button steps through tabs.
   useEffect(() => {
     const q = new URLSearchParams(window.location.search).get("tab");
-    const initial = toHomeTab(q) ?? "events";
+    const initial = toHomeTab(q) ?? DEFAULT_HOME_TAB;
     setTab(initial);
     // ?tab=whatson / ?tab=foryou still name a VIEW, even though neither is a
     // tab any more — both land on Events, pointed at the right side of it.
@@ -174,7 +174,7 @@ export function HomeTabs() {
     rememberHomeTab(next);
     const url = new URL(window.location.href);
     // "/" is the Events tab, so that is the one with no query param.
-    if (next === "events") url.searchParams.delete("tab");
+    if (next === DEFAULT_HOME_TAB) url.searchParams.delete("tab");
     else url.searchParams.set("tab", next);
     window.history.replaceState(null, "", url.toString());
     window.scrollTo({ top: 0 });

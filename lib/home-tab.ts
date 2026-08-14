@@ -14,8 +14,12 @@
 
 export type HomeTab = "events" | "feed" | "shop" | "products";
 
-// Events leads because it is the reason to open the app on a given day — what's
-// on, near you, right now. For you / What's on are a toggle INSIDE it, not two
+// ORDER: Products · Shops · Events (2026-08-13), and Products is also the
+// DEFAULT — see DEFAULT_HOME_TAB below. `?tab=events` still resolves, so old
+// links keep working; they simply carry a param now where they used not to,
+// and `/` no longer means Events.
+//
+// For you / What's on are a toggle INSIDE Events, not two
 // top-level tabs: it is the same set of events read two ways, so splitting them
 // spent two of four tab slots on one idea and pushed Feed and Shop to the edge
 // of a phone. Chats is not here either — it lives as a pill inside Feed, since
@@ -37,9 +41,19 @@ const TAB_LABELS: Record<HomeTab, string> = {
   products: "Products",
 };
 
+/**
+ * The tab you get with no `?tab=` — so `/` IS this tab, and it is the one every
+ * bare link, share URL and back-link lands on. Named once because it appears in
+ * four places (the initial state and the URL sync in HomeTabs, the fallback in
+ * `rememberHomeTab`, and the href in `homeTabTarget`) and they must agree: if
+ * one says products and another says events, `/` renders one tab while the
+ * back-link promises another.
+ */
+export const DEFAULT_HOME_TAB: HomeTab = "products";
+
 /** The tabs the selector actually draws, in order. */
 export const HOME_TABS: { id: HomeTab; label: string }[] = (
-  ["events", "shop", "products"] as const
+  ["products", "shop", "events"] as const
 ).map((id) => ({ id, label: TAB_LABELS[id] }));
 
 // Both spellings are in the wild — `?tab=events` from before the split, and
@@ -74,11 +88,11 @@ export function rememberHomeTab(tab: HomeTab): void {
 
 /** The tab to send someone back to. Defaults to Events (home's own default). */
 export function lastHomeTab(): HomeTab {
-  if (typeof window === "undefined") return "events";
+  if (typeof window === "undefined") return DEFAULT_HOME_TAB;
   try {
-    return toHomeTab(window.sessionStorage.getItem(KEY)) ?? "events";
+    return toHomeTab(window.sessionStorage.getItem(KEY)) ?? DEFAULT_HOME_TAB;
   } catch {
-    return "events";
+    return DEFAULT_HOME_TAB;
   }
 }
 
@@ -86,7 +100,7 @@ export function lastHomeTab(): HomeTab {
 export function homeTabTarget(tab: HomeTab): { href: string; label: string } {
   return {
     // "/" IS the Events tab, so it is the one without a query param.
-    href: tab === "events" ? "/" : `/?tab=${tab}`,
+    href: tab === DEFAULT_HOME_TAB ? "/" : `/?tab=${tab}`,
     label: TAB_LABELS[tab] ?? "Events",
   };
 }

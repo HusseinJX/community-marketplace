@@ -2,12 +2,9 @@
 
 import Link from "next/link";
 import { Show, UserButton, useUser, useClerk } from "@clerk/nextjs";
-import { LogOut } from "lucide-react";
-import { TasteTuner } from "@/components/shopper/TasteTuner";
-import { PushTestButton } from "@/components/PushTestButton";
+import { LogOut, PenLine, ArrowRight, Receipt } from "lucide-react";
 import { DeleteAccountButton } from "@/components/account/DeleteAccountButton";
 import { useLogin } from "@/components/auth/ClerkAuthProvider";
-import { useIsNativeApp } from "@/lib/native";
 
 // The shopper's personal space (parallel to the vendor portal). A signed-in
 // vendor never reaches this — app/shopper/page.tsx redirects them to /vendor
@@ -16,7 +13,6 @@ export function ShopperClient() {
   const { user } = useUser();
   const { signOut } = useClerk();
   const openLogin = useLogin();
-  const isNative = useIsNativeApp();
 
 
   return (
@@ -43,7 +39,7 @@ export function ShopperClient() {
       {/* Title */}
       <div>
         <h1 className="text-xl font-semibold text-stone-900">Your space</h1>
-        <p className="mt-1 text-sm text-stone-500">Everything you&apos;ve saved, ordered, and discovered nearby.</p>
+        <p className="mt-1 t-meta text-stone-500">Your orders, the causes you back, and your account.</p>
       </div>
 
       {/* Signed OUT — the login, and nothing else. This page used to open on
@@ -64,27 +60,51 @@ export function ShopperClient() {
         </div>
       </Show>
 
-      {/* Signed IN — personalization, in place. It was a link to its own screen
-          because it was the tallest thing on a crowded page; with the page
-          emptied out, the extra tap is the only thing left to remove. Saved,
-          Cart and Messages moved to the header menu and the tab bar, which is
-          where you reach for them mid-browse anyway. */}
+      {/* The personalization panel is hidden here. It still lives on its own
+          screen at /shopper/personalization, which works signed-out too — this
+          page is now about what you HAVE (orders, causes, account) rather than
+          about tuning what you see. */}
+
+      {/* Orders. Points at /tickets because that is the only place a shopper
+          can currently see what they bought — there is no dedicated orders
+          page yet, and a card linking to a 404 is worse than no card. Repoint
+          this the moment one exists. */}
       <Show when="signed-in">
-        <TasteTuner />
+        <Link href="/tickets" className="card-soft card-hover flex items-center justify-between p-4">
+          <span className="flex items-center gap-3">
+            <Receipt className="h-5 w-5 shrink-0 text-teal-500" />
+            <span>
+              <span className="block t-strong text-stone-900">Orders</span>
+              <span className="block t-meta text-stone-500">
+                Tickets and purchases from local businesses.
+              </span>
+            </span>
+          </span>
+          <ArrowRight className="h-4 w-4 shrink-0 text-stone-400" />
+        </Link>
       </Show>
 
-      {/* Notifications — a dev/verification tool. Hidden inside the native iOS
-          app (real users shouldn't see a "test push" button); on web it stays so
-          the push pipeline can still be triggered to a registered device. */}
-      {!isNative && (
-        <Show when="signed-in">
-          <div className="rounded-2xl border border-stone-200 bg-white p-4">
-            <p className="text-sm font-semibold text-stone-900">Notifications</p>
-            <p className="mb-3 text-xs text-stone-500">Send yourself a test push to check it&apos;s working.</p>
-            <PushTestButton />
-          </div>
-        </Show>
-      )}
+      {/* Petitions — back after the strip-down. It is the one community
+          surface that belongs on a person's own page rather than in browse:
+          signing a local cause is something you do as yourself, and there is
+          no other route to it now that the resources section is gone. */}
+      <Link href="/petitions" className="card-soft card-hover flex items-center justify-between p-4">
+        <span className="flex items-center gap-3">
+          <PenLine className="h-5 w-5 shrink-0 text-teal-500" />
+          <span>
+            <span className="block t-strong text-stone-900">Petitions &amp; causes</span>
+            <span className="block t-meta text-stone-500">
+              Sign the local causes neighbors are organizing around.
+            </span>
+          </span>
+        </span>
+        <ArrowRight className="h-4 w-4 shrink-0 text-stone-400" />
+      </Link>
+
+      {/* Notifications test card removed — it was a dev tool sitting on a
+          real person's account page, offering to send them a push for no
+          reason they could act on. The push pipeline is still triggerable from
+          the vendor side; PushTestButton itself is untouched. */}
 
       {/* Account — explicit Log out (was only in the UserButton avatar menu, easy
           to miss) + Delete (an in-app deletion path is an App Store requirement). */}

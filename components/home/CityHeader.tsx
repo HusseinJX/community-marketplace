@@ -250,7 +250,13 @@ function CityPicker({
       {open && (
         <div
           role="menu"
-          className="absolute left-0 top-[calc(100%+6px)] z-50 w-56 overflow-hidden rounded-[var(--r-lg)] border border-stone-200 bg-white py-2 shadow-[var(--shadow-overlay)]"
+          // Anchored to whichever side the TRIGGER is on. On a phone the city sits
+          // right-aligned in the title row, so a left-anchored panel started at
+          // x=330 on a 390px screen and ran 164px past the edge — and because
+          // <body> is `overflow-x-hidden`, it was clipped to nothing rather than
+          // scrolling into view. It looked like the dropdown simply did not open.
+          // Desktop keeps left, where the city sits beside the wordmark.
+          className="absolute right-0 top-[calc(100%+6px)] z-50 w-56 overflow-hidden rounded-[var(--r-lg)] border border-stone-200 bg-white py-2 shadow-[var(--shadow-overlay)] md:left-0 md:right-auto"
         >
           {CITIES.map((c) => {
             const live = isCityLive(c.id);

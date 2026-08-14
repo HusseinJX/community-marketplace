@@ -5,7 +5,7 @@ plan in [`airbnb-design-system.md`](./airbnb-design-system.md).
 
 **Nothing here is deployed.** No build, no demo gate, no CapRover push.
 
-59 files. Two commits — see §7 for what landed after the first.
+Three commits — see §7 for what landed after the first.
 
 ---
 
@@ -150,6 +150,50 @@ scan. All eight hosts in the feed are already in `lib/image-hosts.ts`, so this
 was NOT the documented image-host trap.
 
 ---
+
+## 8 · Third batch
+
+### Tabs: Products first, and default
+`lib/home-tab.ts` order is Products · Shops · Events, and `DEFAULT_HOME_TAB`
+(new export) is `products` — so `/` opens on Products. Named once because the
+value appears in four places (initial state and URL sync in HomeTabs, the
+fallback in `rememberHomeTab`, the href in `homeTabTarget`); if they disagree,
+`/` renders one tab while every back-link promises another. `?tab=events` and
+the legacy `?tab=foryou` / `?tab=whatson` still resolve.
+
+⚠️ Products is now the front door and it is DEMO DATA — the hardcoded array in
+`components/shop/Marketplace.tsx` ("Sunbeam Tee", gradient placeholders). That
+grid also never got the token pass: own card shape, badges, compare buttons,
+indigo accents, left filter sidebar. It reads as a different app from the two
+tabs beside it.
+
+### Mobile city dropdown was invisible
+`absolute left-0` on a trigger that sits RIGHT-aligned on mobile put the panel
+at x=330 on a 390px screen, 164px past the edge — and `<body>` is
+`overflow-x-hidden`, so it was clipped to nothing rather than scrolling. It
+looked like the button did nothing. Now `right-0 md:left-0 md:right-auto`.
+Third popup-vs-viewport bug this session (FilterSidebar, QrScanButton, this).
+
+### `/shopper` is orders + causes + account
+Signed in: Orders → Petitions → Account. The personalization card was removed
+from this page (it still lives at `/shopper/personalization`, which works
+signed-out). The test-push card is gone — a dev tool on a real person's account
+page. Subtitle rewritten to match what is actually there.
+
+⚠️ The Orders card points at `/tickets`. **There is no shopper-facing `/orders`
+route** — tickets is the only place a shopper sees what they bought. Repoint it
+when a real orders page exists; a card linking to a 404 would be worse.
+
+### TasteTuner reworked
+- Tags capped at TWO lines. Picked first in teal, then greyed ghost examples
+  (capped at 5 in the source list, not clipped by overflow — clipping mid-row
+  reads as a rendering fault rather than a limit).
+- First chip is `+ Add tag`, opening an inline board: search box, every tag,
+  picked ones checked.
+- The chat moved ABOVE the tags. It is the least effort of the three inputs and
+  it fills the other two in; it was last on the card, after twenty pills and a
+  textarea.
+- "In your own words" → "Identity description".
 
 ---
 

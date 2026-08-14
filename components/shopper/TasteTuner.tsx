@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { mutate } from "swr";
-import { Sparkles, Send, Trash2, Check, Loader2 } from "lucide-react";
+import { Sparkles, Send, Trash2, Check, Loader2, Plus, Search, X } from "lucide-react";
 import { tasteId } from "@/lib/taste-id";
 
 // "What you're into" — the shopper's own view of the profile that ranks their
@@ -43,6 +43,8 @@ export function TasteTuner({
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState(0);
   const [loaded, setLoaded] = useState(false);
+  const [boardOpen, setBoardOpen] = useState(false);
+  const [tagQuery, setTagQuery] = useState("");
   const [unavailable, setUnavailable] = useState(false);
 
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -159,6 +161,20 @@ export function TasteTuner({
   if (unavailable || !id) return null;
 
   const picked = taste?.interests ?? [];
+
+  // Picked first, then ghosts to fill the two rows. Capped low on purpose —
+  // `overflow-hidden` would clip a longer list mid-row, which looks like a
+  // rendering fault rather than a deliberate limit.
+  const GHOSTS = 5;
+  const shownChips = [
+    ...chips.filter((c) => picked.includes(c.id)),
+    ...chips.filter((c) => !picked.includes(c.id)).slice(0, GHOSTS),
+  ];
+
+  const tagNeedle = tagQuery.trim().toLowerCase();
+  const matchingChips = tagNeedle
+    ? chips.filter((c) => c.label.toLowerCase().includes(tagNeedle))
+    : chips;
   const dirty = about.trim() !== (taste?.about ?? "").trim();
 
   return (
@@ -177,60 +193,12 @@ export function TasteTuner({
           </div>
         </div>
 
-        {/* Chips */}
-        <div className="flex flex-wrap gap-1.5">
-          {chips.map((c) => {
-            const on = picked.includes(c.id);
-            return (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => toggleChip(c.id)}
-                aria-pressed={on}
-                className={`rounded-full border px-3 py-1.5 text-[13px] transition ${
-                  on
-                    ? "border-teal-500 bg-teal-50 font-medium text-teal-800"
-                    : "border-stone-300 text-stone-600 hover:border-stone-400"
-                }`}
-              >
-                <span aria-hidden>{c.emoji}</span> {c.label}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* The free text. This is the strongest signal, which is why it is a box
-            the person owns rather than something only the chat can write. */}
-        <div>
-          <label htmlFor="taste-about" className="mb-1 block text-xs font-medium text-stone-600">
-            In your own words
-          </label>
-          <textarea
-            id="taste-about"
-            value={about}
-            onChange={(e) => setAbout(e.target.value)}
-            rows={3}
-            maxLength={2000}
-            placeholder="e.g. I have a 4-year-old and no car. Free things nearby are best, and I'd like to meet other parents."
-            className="w-full resize-y rounded-xl border border-stone-300 px-3 py-2 text-sm text-stone-800 placeholder:text-stone-400 focus:border-teal-500 focus:outline-none"
-          />
-          <div className="mt-2 flex items-center gap-2">
-            <button
-              type="button"
-              disabled={!dirty || saving}
-              onClick={() => save({ about: about.trim() || null })}
-              className="rounded-full bg-stone-900 px-3.5 py-1.5 text-[13px] font-semibold text-white transition hover:bg-stone-800 disabled:opacity-40"
-            >
-              {saving ? "Saving…" : dirty ? "Save" : "Saved"}
-            </button>
-            {savedAt > 0 && !dirty && !saving && (
-              <span className="inline-flex items-center gap-1 text-xs text-teal-700">
-                <Check className="h-3.5 w-3.5" /> Your feed has been updated
-              </span>
-            )}
-          </div>
-        </div>
-
+        {/* The chat sits FIRST — above the tags and the box.
+            Saying "I'm into live music" is the least effort of the three, and
+            it fills the other two in for you. Below them it was the last thing
+            on the card, reachable only after reading twenty pills and a
+            textarea, which is backwards for the input that needs the least
+            from the reader. */}
         {/* Chat */}
         <div className="rounded-xl border border-stone-200 bg-stone-50 p-3">
           {messages.length > 0 && (
@@ -276,6 +244,133 @@ export function TasteTuner({
             >
               <Send className="h-4 w-4" />
             </button>
+          </div>
+        </div>
+
+
+        {/* ── Tags ────────────────────────────────────────────────────────
+            Two lines, never more. The full list was ~20 chips wrapping into
+            five rows of near-identical pills — a wall to read before the box
+            below it, which is the signal that actually matters.
+
+            What shows: everything PICKED, then greyed ghosts as examples of
+            what a tag looks like, capped at whatever fits two rows. The ghosts
+            are deliberately faint — they are not selected and must not read as
+            if they were, which is exactly how a row of equal-weight chips is
+            misread.
+
+            Adding is a real gesture now: the first chip opens a board with a
+            search box, so twenty tags are findable without twenty being on
+            screen. */}
+        <div className="flex flex-wrap gap-1.5 overflow-hidden" style={{ maxHeight: 76 }}>
+          <button
+            type="button"
+            onClick={() => setBoardOpen(true)}
+            className="inline-flex items-center gap-1 rounded-full border border-stone-900 px-3 py-1.5 text-[13px] font-semibold text-stone-900 transition hover:bg-stone-900 hover:text-white"
+          >
+            <Plus className="h-3.5 w-3.5" /> Add tag
+          </button>
+
+          {shownChips.map((c) => {
+            const on = picked.includes(c.id);
+            return (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => toggleChip(c.id)}
+                aria-pressed={on}
+                className={`rounded-full border px-3 py-1.5 text-[13px] transition ${
+                  on
+                    ? "border-teal-500 bg-teal-50 font-medium text-teal-800"
+                    : // Ghost: an example, not a choice you have made.
+                      "border-stone-200 text-stone-400 opacity-60 hover:opacity-100"
+                }`}
+              >
+                <span aria-hidden>{c.emoji}</span> {c.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* The board. Every tag, searchable, with the picked ones marked. */}
+        {boardOpen && (
+          <div className="rounded-[var(--r-lg)] border border-stone-200 bg-white p-3">
+            <div className="mb-2 flex items-center gap-2">
+              <div className="flex flex-1 items-center gap-2 rounded-full border border-stone-200 px-3 py-1.5">
+                <Search className="h-3.5 w-3.5 shrink-0 text-stone-400" />
+                <input
+                  autoFocus
+                  value={tagQuery}
+                  onChange={(e) => setTagQuery(e.target.value)}
+                  placeholder="Search tags"
+                  className="w-full bg-transparent text-[13px] outline-none placeholder:text-stone-400"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => { setBoardOpen(false); setTagQuery(""); }}
+                aria-label="Close tags"
+                className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-stone-100 text-stone-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="flex max-h-56 flex-wrap gap-1.5 overflow-y-auto">
+              {matchingChips.map((c) => {
+                const on = picked.includes(c.id);
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => toggleChip(c.id)}
+                    aria-pressed={on}
+                    className={`inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-[13px] transition ${
+                      on
+                        ? "border-teal-500 bg-teal-50 font-medium text-teal-800"
+                        : "border-stone-300 text-stone-600 hover:border-stone-900"
+                    }`}
+                  >
+                    <span aria-hidden>{c.emoji}</span> {c.label}
+                    {on && <Check className="h-3 w-3" />}
+                  </button>
+                );
+              })}
+              {matchingChips.length === 0 && (
+                <p className="px-1 py-2 text-[13px] text-stone-400">No tag matches that.</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* The free text. This is the strongest signal, which is why it is a box
+            the person owns rather than something only the chat can write. */}
+        <div>
+          <label htmlFor="taste-about" className="mb-1 block text-xs font-medium text-stone-600">
+            Identity description
+          </label>
+          <textarea
+            id="taste-about"
+            value={about}
+            onChange={(e) => setAbout(e.target.value)}
+            rows={3}
+            maxLength={2000}
+            placeholder="e.g. I have a 4-year-old and no car. Free things nearby are best, and I'd like to meet other parents."
+            className="w-full resize-y rounded-xl border border-stone-300 px-3 py-2 text-sm text-stone-800 placeholder:text-stone-400 focus:border-teal-500 focus:outline-none"
+          />
+          <div className="mt-2 flex items-center gap-2">
+            <button
+              type="button"
+              disabled={!dirty || saving}
+              onClick={() => save({ about: about.trim() || null })}
+              className="rounded-full bg-stone-900 px-3.5 py-1.5 text-[13px] font-semibold text-white transition hover:bg-stone-800 disabled:opacity-40"
+            >
+              {saving ? "Saving…" : dirty ? "Save" : "Saved"}
+            </button>
+            {savedAt > 0 && !dirty && !saving && (
+              <span className="inline-flex items-center gap-1 text-xs text-teal-700">
+                <Check className="h-3.5 w-3.5" /> Your feed has been updated
+              </span>
+            )}
           </div>
         </div>
 
