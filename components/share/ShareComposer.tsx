@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ImagePlus, Video, QrCode, X, Radio, Store, CalendarDays, Loader2, MapPin, Tag, Check, Plus } from "lucide-react";
+import { ImagePlus, QrCode, X, Radio, Store, CalendarDays, Loader2, MapPin, Tag, Check, Plus } from "lucide-react";
 import type { IScannerControls } from "@zxing/browser";
 import { listMembers, listEvents } from "@/lib/api";
 import { getUserPosition } from "@/lib/native-geo";
@@ -13,6 +13,13 @@ import { eventEmoji, eventLabel } from "@/lib/live-events";
 import { partitionFixtures, getFixtures, startsInLabel, type Fixture } from "@/lib/live-fixtures";
 
 const VENDOR_MODE_KEY = "wl_vendor_mode";
+
+// Two rows switched OFF rather than deleted (2026-08-13). Both are still wired
+// up behind the scenes — the tag slots still take a scanned QR, a broadcast
+// still carries a livestream_url — so restoring either is this one flag.
+// See the comments at each render site for why they went.
+const SHOW_TAG_ROWS = false;
+const SHOW_LIVESTREAM_FIELD = false;
 interface Media {
   url: string;
   kind: "image" | "video";
@@ -46,6 +53,11 @@ export function ShareComposer() {
   // A vendor/org/artist with a saved business location can tag posts as either
   // their current spot or their business location.
   const [bizLocation, setBizLocation] = useState<string | null>(null);
+  // WHO THE SIGNED-IN VENDOR IS, as a taggable venue. A vendor going live is
+  // going live for their own business — they are the venue — so there is
+  // nothing to search for and nothing to pick. Fetched with the business
+  // location, since it is the same lookup.
+  const [selfVenue, setSelfVenue] = useState<TagItem | null>(null);
   const [bizCoords, setBizCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [locSource, setLocSource] = useState<"current" | "business">("current");
 
@@ -202,7 +214,10 @@ export function ShareComposer() {
 
   // First business / event tag across the rows (the post + broadcast schemas each
   // carry one of each).
-  const bizTag = slots.find((s) => s.tag?.kind === "business")?.tag ?? null;
+  // The venue a broadcast belongs to. A tagged business still wins — the
+  // picker is hidden today but the state is still there and a scanned QR sets
+  // it — otherwise it is the signed-in vendor themselves.
+  const bizTag = slots.find((s) => s.tag?.kind === "business")?.tag ?? selfVenue;
   const evTag = slots.find((s) => s.tag?.kind === "event")?.tag ?? null;
 
   async function handleFiles(files: FileList | null) {
@@ -284,9 +299,27 @@ export function ShareComposer() {
       try {
         const res = await fetch("/api/me/business-location");
         const d = res.ok ? await res.json() : {};
-        if (alive && d?.location) setBizLocation(String(d.location));
-        if (alive && typeof d?.lat === "number" && typeof d?.lng === "number") {
-          setBizCoords({ lat: d.lat, lng: d.lng });
+        if (!alive) return;
+        const bizCoordsFromApi =
+          typeof d?.lat === "number" && typeof d?.lng === "number" ? { lat: d.lat, lng: d.lng } : null;
+        if (d?.location) setBizLocation(String(d.location));
+        if (d?.memberId) {
+          setSelfVenue({ kind: "business", id: String(d.memberId), label: String(d.name || "your business") });
+        }
+        if (bizCoordsFromApi) setBizCoords(bizCoordsFromApi);
+
+        // A VENDOR gets their business location applied outright, because the
+        // picker that would let them choose is hidden for them (see the render).
+        // Read from the URL rather than the `vendorMode` state: this closure was
+        // created on mount, before that state was set, so it would still see
+        // false. The URL is where that state comes from anyway.
+        const isVendor = new URLSearchParams(window.location.search).get("vendor") === "1";
+        if (isVendor && d?.location) {
+          setLocSource("business");
+          setLocError(null);
+          setLocation(String(d.location));
+          // The business's OWN pin, not the device's.
+          setCoords(bizCoordsFromApi);
         }
       } catch {
         /* no business location — that's fine */
@@ -337,7 +370,9 @@ export function ShareComposer() {
 
   async function goLiveSubmit() {
     if (!bizTag) {
-      setError("Tag your venue to go live for it.");
+      // Only reachable when the account has no linked member yet — there is no
+      // venue to broadcast for, and no picker to offer instead.
+      setError("Finish setting up your business profile before going live.");
       return;
     }
     setPosting(true);
@@ -632,12 +667,31 @@ export function ShareComposer() {
           hidden
           onChange={(e) => handleFiles(e.target.files)}
         />
+        {/* One media button, not two. Photo and Video opened the SAME file
+            picker with the same `image/*,video/*` filter — two buttons doing
+            one thing, which reads as a choice you have to get right before you
+            can pick a file. The picker still takes video.
+
+            Location sits here instead, because on a phone it is the control
+            people actually reach for after the photo, and it was three blocks
+            further down. */}
         <ToolButton onClick={() => fileRef.current?.click()} icon={ImagePlus} label="Photo" />
-        <ToolButton onClick={() => fileRef.current?.click()} icon={Video} label="Video" />
+        {!goLive && !vendorMode && (
+          <ToolButton
+            onClick={() => void applyCurrentLocation()}
+            icon={locating ? Loader2 : MapPin}
+            label={location ? "Update location" : "Location"}
+          />
+        )}
         {uploading && <Loader2 className="h-4 w-4 animate-spin text-stone-400" />}
       </div>
 
-      {/* Livestream link */}
+      {/* Livestream link — hidden (2026-08-13). It was an empty box asking for
+          a Twitch URL, on a screen where the person is already standing in
+          their shop with a phone. The field and its state are kept so a
+          broadcast can carry one when we have somewhere to set it from.
+          Restore with SHOW_LIVESTREAM_FIELD. */}
+      {SHOW_LIVESTREAM_FIELD && goLive && (
       <label className="flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3">
         <Radio className="h-4 w-4 shrink-0 text-rose-500" />
         <input
@@ -647,12 +701,21 @@ export function ShareComposer() {
           className="w-full bg-transparent py-2.5 text-base text-stone-900 placeholder-stone-400 focus:outline-none"
         />
       </label>
+      )}
 
-      {/* Location — REQUIRED on every post, auto-captured on mount. A vendor/org/
-          artist with a saved business location can toggle between their current
-          spot and their business location. (Go-live broadcasts use the tagged
-          venue's location instead, so this is hidden there.) */}
-      {!goLive && (
+      {/* Location — REQUIRED on every post, and STILL CAPTURED for everyone.
+          What changes here is only whether it is shown.
+          
+          Hidden in vendor mode: a business posts from its business, and the
+          location it needs is the one already on its profile — picked up
+          automatically below (applyBusinessLocation), with the device fix as
+          the fallback. Asking a shop owner to confirm where their own shop is,
+          every time they post, is a question with one possible answer.
+          
+          Also hidden while going live, where the tagged venue's location is
+          used instead. Shoppers keep the full control: they post from
+          wherever they happen to be, and that is genuinely worth confirming. */}
+      {!goLive && !vendorMode && (
         <div>
           {/* Current / Business toggle — only when a business location exists. */}
           {bizLocation && (
@@ -718,9 +781,15 @@ export function ShareComposer() {
         </div>
       )}
 
-      {/* Combined "business / event" tag bars — same in shopper + vendor mode.
-          Each row has a QR button; the "+" adds another row below. In vendor
-          mode the first business tag is the venue you go live as. */}
+      {/* Combined "business / event" tag bars — hidden (2026-08-13).
+          This used to be load-bearing for Go Live, because the first business
+          tag was the venue you broadcast as. It isn't any more: the signed-in
+          vendor IS the venue (`selfVenue`), so the row was asking a shop owner
+          to search for their own shop and pick it from a list. On an ordinary
+          post it was worse still — naming someone else's business before you
+          could talk about your own, on a post that already carries a location.
+          The slots and the QR scanner stay wired up; only the UI is gone. */}
+      {SHOW_TAG_ROWS && (
       <div className="space-y-2">
         {slots.map((slot, i) => (
           <TagRow
@@ -737,6 +806,19 @@ export function ShareComposer() {
           />
         ))}
       </div>
+      )}
+
+      {/* The one thing a vendor still needs to be told about location: the
+          block above is hidden for them, so without this a denied permission
+          and an unset business address would disable Post with no reason
+          given anywhere on screen. */}
+      {vendorMode && !goLive && !location && !locating && (
+        <p className="text-xs text-amber-700">
+          We couldn&apos;t work out where to tag this post. Add your address in{" "}
+          <a href="/vendor/about" className="underline">your business profile</a>, or turn on
+          location for this site.
+        </p>
+      )}
 
       {error && <p className="text-sm text-rose-600">{error}</p>}
 
