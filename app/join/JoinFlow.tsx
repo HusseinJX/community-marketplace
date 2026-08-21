@@ -4,8 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useClerk, useAuth } from "@clerk/nextjs";
 import { VendorPhoneLogin } from "@/components/auth/VendorPhoneLogin";
-import { Store, Users, Mic, Search, Loader2, Check, ArrowRight, ArrowLeft, LogOut, LogIn } from "lucide-react";
+import { Store, Users, Mic, Search, Loader2, Check, ArrowRight, ArrowLeft, LogOut, LogIn, UserRound, ShieldCheck } from "lucide-react";
 import { JoinInterview } from "@/components/join/JoinInterview";
+import { LinksStep } from "@/components/join/LinksStep";
+import { ShopSetup } from "@/components/join/ShopSetup";
+import type { StoredLink } from "@/lib/links";
 import { GoogleIcon, AppleIcon } from "@/components/auth/OAuthBrandIcons";
 import { useIsNativeApp, isNativeApp } from "@/lib/native";
 import { nativeGoogleSignIn } from "@/lib/native-auth";
@@ -29,13 +32,72 @@ function maskPhone(raw?: string | null): string | null {
 // /api/claim, /api/vendor/profile.
 
 type Kind = "vendor" | "organizer" | "artist";
-type Step = "type" | "who" | "business" | "code2" | "working" | "interview" | "done";
+type Step = "type" | "who" | "business" | "code2" | "working" | "links" | "interview" | "done" | "setup";
 
 const TYPES: { key: Kind; icon: typeof Store; label: string; sub: string }[] = [
   { key: "vendor", icon: Store, label: "A business or vendor", sub: "Shop, bar, restaurant, maker" },
   { key: "organizer", icon: Users, label: "A community organization", sub: "Nonprofit, collective, org" },
   { key: "artist", icon: Mic, label: "An artist or performer", sub: "DJ, musician, creator" },
 ];
+
+/**
+ * The top of every step: a circle icon, the QUESTION as the title, one grey
+ * line under it.
+ *
+ * Lifted from ProLocal IQ's onboarding cards, at Airbnb's scale. Two things
+ * change versus what was here before, and both matter more than they look:
+ *
+ *  - The title IS the question ("What are you setting up?"), not a label for
+ *    one ("Join WhatsLocal" with the question demoted to grey sub-text). You
+ *    read the big text first, so the big text has to be the thing being asked.
+ *  - 28px, not 20px. One question per screen only works if the question is
+ *    unmissable; at `text-xl` it read as a section heading on a form.
+ */
+function StepHeader({
+  icon: Icon,
+  title,
+  sub,
+}: {
+  icon: typeof Store;
+  title: string;
+  sub: string;
+}) {
+  return (
+    <header>
+      <div className="mb-4 grid h-14 w-14 place-items-center rounded-full bg-coral-50">
+        <Icon className="h-7 w-7 text-coral-600" />
+      </div>
+      <h1 className="text-[28px] font-bold leading-tight tracking-tight text-stone-900">{title}</h1>
+      <p className="mt-2 text-[15px] leading-relaxed text-stone-500">{sub}</p>
+    </header>
+  );
+}
+
+
+// The links we already know from the listing, as rows the person can edit.
+// Order matters — it is the order they appear in on the step.
+function seedFromListing(details: { website?: string | null; phone?: string | null } | null | undefined): StoredLink[] {
+  const out: StoredLink[] = [];
+  if (details?.website) out.push({ id: "website", value: details.website });
+  if (details?.phone) out.push({ id: "phone", value: details.phone });
+  return out;
+}
+
+/**
+ * A chosen Google listing, resolved but not yet claimed.
+ *
+ * `profile` is what /api/members/create will be handed, `seed` is the warm
+ * baseline for the interview, `links` the prefilled website + phone. All three
+ * are built from the single details call made when the listing was tapped.
+ */
+interface Picked {
+  placeId: string;
+  name: string;
+  profile: Record<string, unknown>;
+  seed: BriefInput;
+  links: StoredLink[];
+  phoneHint: string | null;
+}
 
 // The full candidate the search returns — rating, geometry, types and all. It's
 // all paid for by that one request, so nothing here gets thrown away: it shows
@@ -105,13 +167,40 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
   const [bizName, setBizName] = useState("");
   const [phoneHint, setPhoneHint] = useState<string | null>(null);
 
-  // artist-only extras (no Maps anchor → give the web-search a locale + handle)
+  // Artist-only extra. No Maps anchor to key research off, so the city is what
+  // tells the web search which "Maya" it is looking for. Their handles are
+  // asked for later, on the links step.
+  //
+  // `remote` is the honest answer for the people this question doesn't fit — a
+  // producer who works online, a touring act with no home scene. Ticked, the
+  // city question disappears rather than being asked and ignored, and nothing
+  // is sent: a made-up city is worse than none, because the research would key
+  // off it and confidently find the wrong person.
   const [city, setCity] = useState("");
-  const [igHandle, setIgHandle] = useState("");
+  const [remote, setRemote] = useState(false);
 
   // "What we already know" baseline handed to the onboarding interview so it
   // opens warm — set from the Google Places pick (entities) or the artist form.
   const [seed, setSeed] = useState<BriefInput>({});
+
+  // What the links step opens with. Never a blank list when we already paid
+  // for the answer: the website AND the phone number both come free with the
+  // details call we already make.
+  //
+  // The PHONE is the one we just verified them against — the number on their
+  // own Google listing, which they proved they can answer. It is the single
+  // most useful thing on a local business's page and the one they are most
+  // likely to leave blank, so it arrives already filled in. As an ordinary
+  // editable row, though: plenty of businesses answer enquiries on a different
+  // line from the one Google lists, and this must not overwrite that decision
+  // silently.
+  const [linkSeed, setLinkSeed] = useState<StoredLink[]>([]);
+
+  // The listing they picked, held between the search and the sign-in that
+  // claims it. Everything in here came from the ONE details call we already
+  // paid for, so it is carried rather than re-fetched — and it is plain JSON,
+  // which is what lets the Apple redirect stash and restore it.
+  const [picked, setPicked] = useState<Picked | null>(null);
 
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -119,9 +208,30 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
   const isArtist = kind === "artist";
 
   // ── Step 1: type ──────────────────────────────────────────────────────────
+  //
+  // WHERE SIGN-IN SITS, and why it moved (2026-08-13).
+  //
+  // It used to be step 2: name, role, Google/Apple — asked before the visitor
+  // had seen anything at all. Now an entity searches for its business FIRST and
+  // signs in to CLAIM the listing it just found. That is the shape every claim
+  // flow worth copying uses (Google Business Profile most obviously): the ask
+  // lands at the moment of motivation, when your own address and rating are on
+  // screen and the button says "this is us", instead of at a blank name field.
+  // The search itself needs no session — /api/places/search is public — so
+  // nothing is lost by waiting.
+  //
+  // It could not move any LATER than this. Everything past the search is 401
+  // without a session: members/create, otp, claim, vendor/profile all check
+  // auth() first, and the links step and interview write through resolveActor,
+  // which is owner-only. "Collect everything, sign in at the end" would mean
+  // burning an ownership SMS on an anonymous visitor and holding the whole
+  // interview in browser memory with nothing persisted.
+  //
+  // Artists have no listing to find, so for them sign-in stays where it was —
+  // immediately after their name.
   function pickType(k: Kind) {
     setKind(k);
-    setStep("who");
+    setStep(k === "artist" ? "who" : "business");
     setErr("");
   }
 
@@ -133,6 +243,9 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
     setCode("");
     setResults([]);
     setPq("");
+    // The chosen listing is transient state too — starting over as an artist
+    // while a bakery is still selected is exactly the pollution this clears.
+    setPicked(null);
   }
 
   // In-app Apple sign-in uses a full redirect (the native token strategy is
@@ -145,34 +258,40 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
     try { raw = sessionStorage.getItem("join_apple_resume"); } catch { /* ignore */ }
     if (!raw) return;
     try { sessionStorage.removeItem("join_apple_resume"); } catch { /* ignore */ }
-    let s: { kind?: Kind; name?: string; role?: string; city?: string; igHandle?: string };
+    let s: { kind?: Kind; name?: string; role?: string; city?: string; picked?: Picked | null };
     try { s = JSON.parse(raw); } catch { return; }
     const k: Kind = s.kind ?? "vendor";
     setKind(k);
     setName(s.name ?? "");
     setRole(s.role ?? "Owner");
     setCity(s.city ?? "");
-    setIgHandle(s.igHandle ?? "");
     setMidFlow(true);
+    setStep("working");
+    // Values are passed explicitly — the setState calls above haven't flushed.
     if (k === "artist") {
-      setStep("working");
-      // Pass values explicitly — the setState calls above haven't flushed yet.
-      void finishArtist({ name: s.name ?? "", city: s.city ?? "", igHandle: s.igHandle ?? "" });
+      void finishArtist({ name: s.name ?? "", city: s.city ?? "" });
+    } else if (s.picked) {
+      // The chosen listing survives the redirect too. Without it the person
+      // would come back signed in and be asked to find their business again,
+      // having already found it.
+      setPicked(s.picked);
+      setBizName(s.picked.name);
+      setSeed(s.picked.seed);
+      setLinkSeed(s.picked.links);
+      void claimPicked({ pick: s.picked, name: s.name ?? "", role: s.role ?? "Owner" });
     } else {
       setStep("business");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoaded, isSignedIn]);
 
-  // Advance past sign-in to the next real step: entities verify their business,
-  // artists (self-owned) go straight to setup.
+  // Advance past sign-in. Artists (self-owned) go straight to setup; an entity
+  // now has a session AND a listing, so this is where the member is created and
+  // the ownership code goes out.
   function afterSignedIn() {
-    if (isArtist) {
-      setStep("working");
-      void finishArtist();
-    } else {
-      setStep("business");
-    }
+    setStep("working");
+    if (isArtist) void finishArtist();
+    else void claimPicked();
   }
 
   // ── Step 2 (primary): sign in with Google / Apple (Clerk OAuth popup) ───────
@@ -203,7 +322,7 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
     if (isNativeApp()) {
       if (strategy === "oauth_apple") {
         try {
-          sessionStorage.setItem("join_apple_resume", JSON.stringify({ kind, name, role, city, igHandle }));
+          sessionStorage.setItem("join_apple_resume", JSON.stringify({ kind, name, role, city, picked }));
         } catch { /* ignore */ }
         setBusy(true);
         try {
@@ -285,7 +404,10 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
     }
   }
 
-  // Pick a listing → create the (unclaimed) member from it → send ownership OTP.
+  // Pick a listing → resolve it → go and sign in. NOTHING is created here any
+  // more: the member, the claim and the OTP all need a session, and this runs
+  // before there is one. All this does is spend the one details call and hold
+  // the answer.
   async function chooseListing(p: Place) {
     setResults([]);
     setPq(p.name);
@@ -312,8 +434,8 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
         googleMapsUrl: `https://www.google.com/maps/place/?q=place_id:${p.placeId}`,
         businessDescription: details?.summary || undefined,
         websiteUrl: details?.website || undefined,
-        ownerName: name,
-        ownerRole: role,
+        // ownerName/ownerRole are filled in at claim time — at this point we
+        // still don't know who they are.
       };
       // The interviewer's warm baseline — built from the REAL Places pick either
       // way. Everything here is already bought and paid for by the search + the
@@ -335,13 +457,52 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
         address: details?.address ?? p.address ?? null,
       };
 
+      const pick: Picked = {
+        placeId: p.placeId,
+        name: p.name,
+        profile,
+        seed: listingSeed,
+        links: seedFromListing(details),
+        phoneHint: maskPhone(details?.phone),
+      };
+      setPicked(pick);
+      setBizName(p.name);
+      setSeed(listingSeed);
+      setLinkSeed(pick.links);
+      setStep("who");
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Something went wrong.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Signed in, with a listing in hand: create the member from it and send the
+  // ownership code. `override` exists for the Apple redirect, whose restored
+  // state hasn't flushed through setState by the time this runs.
+  async function claimPicked(override?: { pick: Picked; name: string; role: string }) {
+    const pick = override?.pick ?? picked;
+    if (!pick) {
+      // No listing to claim — the only way here is a resume that lost it.
+      setStep("business");
+      return;
+    }
+    setBusy(true);
+    setErr("");
+    try {
+      // Who they are is known NOW and not before, so it is stamped on at claim
+      // time rather than baked into the profile at search time.
+      const profile = {
+        ...pick.profile,
+        ownerName: override?.name ?? name,
+        ownerRole: override?.role ?? role,
+      };
+
       // DEMO: no member created, no OTP sent. Show the business's REAL Google
       // listing number as the (fake) verify target and move on.
       if (demo) {
         setMemberId("demo-join");
-        setBizName(p.name);
-        setSeed(listingSeed);
-        setPhoneHint(maskPhone(details?.phone));
+        setPhoneHint(pick.phoneHint);
         setStep("code2");
         return;
       }
@@ -353,9 +514,6 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
       })).json();
       if (!created.memberId) throw new Error(created.error || "Couldn't create the profile.");
       setMemberId(created.memberId);
-      setBizName(p.name);
-      // Baseline the interviewer already knows (Perplexity deepens it on top).
-      setSeed(listingSeed);
       // Send the ownership code to the listing's phone.
       const otp = await (await fetch("/api/otp", {
         method: "POST",
@@ -364,12 +522,14 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
       })).json();
       if (!otp.sent) {
         setErr(otp.error || "This listing has no phone we can verify. Try a different listing or ask an admin.");
-        return; // stay on business step
+        setStep("business"); // back to the search, with the error explaining why
+        return;
       }
       setPhoneHint(otp.phoneHint || null);
       setStep("code2");
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Something went wrong.");
+      setStep("business");
     } finally {
       setBusy(false);
     }
@@ -384,7 +544,7 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
       // DEMO: any code passes; no claim, no profile link.
       if (demo) {
         setCode("");
-        setStep("interview");
+        setStep("links");
         return;
       }
       const res = await (await fetch("/api/claim", {
@@ -398,7 +558,10 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ memberId }),
       });
-      setStep("interview");
+      // Links come BEFORE the interview: they are typing, the interview is
+      // talking, and the interview is the long one. Asking for links after it
+      // meets someone who has just finished and thinks they are done.
+      setStep("links");
     } catch (e) {
       setErr(e instanceof Error ? e.message : "That code didn't match.");
     } finally {
@@ -409,20 +572,18 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
   // ── Artist finish: create self-owned member + link ─────────────────────────
   // `override` lets the Apple-redirect resume pass values that setState hasn't
   // flushed yet; otherwise it reads the live form state.
-  async function finishArtist(override?: { name: string; city: string; igHandle: string }) {
+  async function finishArtist(override?: { name: string; city: string }) {
     const nm = override?.name ?? name;
-    const ct = override?.city ?? city;
-    const igRaw = override?.igHandle ?? igHandle;
+    const ct = override?.city ?? (remote ? "" : city);
     setBusy(true);
     setErr("");
     try {
-      const igClean = igRaw.trim().replace(/^@/, "");
       // DEMO: no member created — seed the interview from the artist form and go.
       if (demo) {
         setMemberId("demo-join");
         setBizName(nm);
-        setSeed({ name: nm, city: ct.trim() || null, instagramHandle: igClean || null });
-        setStep("interview");
+        setSeed({ name: nm, city: ct.trim() || null });
+        setStep("links");
         return;
       }
       const created = await (await fetch("/api/members/create", {
@@ -434,7 +595,6 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
             memberType: "artist",
             ownerName: nm,
             city: ct.trim() || undefined,
-            instagramHandle: igClean || undefined,
           },
           mode: "self",
         }),
@@ -444,7 +604,7 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
       setBizName(nm);
       // Artists have no Maps anchor — the seed (name + city + IG) is what the
       // web-search research keys off to open the interview knowing them.
-      setSeed({ name: nm, city: ct.trim() || null, instagramHandle: igClean || null });
+      setSeed({ name: nm, city: ct.trim() || null });
       await fetch("/api/claim", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -455,7 +615,7 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ memberId: created.memberId }),
       });
-      setStep("interview");
+      setStep("links");
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Something went wrong.");
       setStep("who");
@@ -469,7 +629,7 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
   if (!isLoaded) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-violet-600" />
+        <Loader2 className="h-6 w-6 animate-spin text-coral-600" />
       </div>
     );
   }
@@ -507,7 +667,7 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
           Demo — real Google search, no real code, nothing saved
         </p>
       )}
-      {step !== "type" && step !== "done" && (
+      {step !== "type" && step !== "done" && step !== "setup" && (
         <button
           onClick={backToMenu}
           className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-stone-500 transition hover:text-stone-800"
@@ -515,30 +675,54 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
           <ArrowLeft className="h-4 w-4" /> Back to menu
         </button>
       )}
-      {step !== "type" && step !== "done" && step !== "interview" && (
+      {step !== "type" && step !== "done" && step !== "interview" && step !== "links" && step !== "setup" && (
         <p className="mb-4 text-xs font-medium uppercase tracking-wide text-stone-400">
-          {isArtist ? "Artist" : step === "business" || step === "code2" ? "Step 2 of 2 · the business" : "Step 1 of 2 · you"}
+          {/* The caption follows the ORDER, which changed when sign-in moved
+              after the search: for an entity it is now find (1) → claim (2) →
+              verify (3). It said "Step 2 of 2 · the business" on the search
+              screen, which is the first thing an entity now sees. */}
+          {isArtist
+            ? "Artist"
+            : step === "business"
+              ? "Step 1 of 3 · your business"
+              : step === "who"
+                ? "Step 2 of 3 · your account"
+                : "Step 3 of 3 · verify"}
         </p>
       )}
       {err && <p className="mb-4 rounded-lg bg-rose-50 px-3.5 py-2 text-[13px] text-rose-700">{err}</p>}
 
       {step === "type" && (
-        <div className="space-y-3">
-          <h1 className="text-xl font-bold text-stone-900">Join WhatsLocal</h1>
-          <p className="text-sm text-stone-500">What are you setting up? This decides how we verify you.</p>
-          <div className="mt-3 space-y-2">
+        <div className="space-y-6">
+          <StepHeader
+            icon={Store}
+            title="What are you setting up?"
+            sub="This decides how we verify you — there's a different check for a place with an address than for a person."
+          />
+          {/* Tap-cards, not a list. Each one is a decision, so each gets its own
+              icon circle, a real title and a sentence that says what it means —
+              the shape ProLocal IQ's location step uses, which is the best
+              screen in either app. `active:scale-[0.98]` is theirs too: on a
+              phone it is the only feedback between the tap and the next screen. */}
+          <div className="space-y-3">
             {TYPES.map((t) => (
-              <button key={t.key} onClick={() => pickType(t.key)} className="flex w-full items-center gap-3 rounded-xl border border-stone-200 bg-white p-4 text-left hover:border-violet-300 hover:bg-violet-50">
-                <t.icon className="h-5 w-5 text-violet-600" />
-                <span className="flex-1">
-                  <span className="block text-sm font-semibold text-stone-900">{t.label}</span>
-                  <span className="block text-xs text-stone-500">{t.sub}</span>
+              <button
+                key={t.key}
+                onClick={() => pickType(t.key)}
+                className="flex w-full items-center gap-4 rounded-2xl border-2 border-stone-200 bg-white p-4 text-left transition hover:border-stone-900 hover:bg-stone-50 active:scale-[0.98] sm:p-5"
+              >
+                <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-coral-50 sm:h-14 sm:w-14">
+                  <t.icon className="h-6 w-6 text-coral-600 sm:h-7 sm:w-7" />
                 </span>
-                <ArrowRight className="h-4 w-4 text-stone-300" />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[16px] font-semibold text-stone-900 sm:text-[17px]">{t.label}</span>
+                  <span className="mt-0.5 block text-[14px] leading-relaxed text-stone-500">{t.sub}</span>
+                </span>
+                <ArrowRight className="h-5 w-5 shrink-0 text-stone-300" />
               </button>
             ))}
           </div>
-          <p className="pt-1 text-xs text-stone-400">Business &amp; org prove an anchor. Artists are people — self-owned.</p>
+          <p className="text-[13px] text-stone-400">Business &amp; org prove an anchor. Artists are people — self-owned.</p>
 
           {/* Already have a vendor account (e.g. onboarded on another device)?
               Open the login modal — on success it goes straight to the dashboard
@@ -556,26 +740,83 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
       )}
 
       {step === "who" && (
-        <div className="space-y-4">
-          <h1 className="text-xl font-bold text-stone-900">Tell us who you are</h1>
-          <p className="text-sm text-stone-500">A few quick details, then continue with Google or Apple.</p>
+        <div className="space-y-5">
+          <StepHeader
+            icon={UserRound}
+            title={isArtist ? "What should we call you?" : `Claim ${bizName || "your business"}`}
+            sub={
+              isArtist
+                ? "A couple of details, then continue with Google or Apple."
+                : "Tell us who you are, then sign in — this is the account you'll manage the page with."
+            }
+          />
+          {/* What they just picked, shown while they sign in. The listing is the
+              reason they are on this screen, and losing sight of it mid-flow is
+              how someone ends up wondering whether the tap registered. */}
+          {!isArtist && picked && (
+            <div className="flex items-center gap-3 rounded-2xl border border-stone-200 bg-stone-50 p-3">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white">
+                <Store className="h-5 w-5 text-stone-500" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[15px] font-semibold text-stone-900">{picked.name}</span>
+                <span className="block truncate text-[13px] text-stone-500">
+                  {(picked.seed.address as string) || "From your Google listing"}
+                </span>
+              </span>
+              <button
+                type="button"
+                onClick={() => { setPicked(null); setStep("business"); }}
+                className="shrink-0 text-[13px] font-medium text-stone-500 underline underline-offset-2 hover:text-stone-900"
+              >
+                Change
+              </button>
+            </div>
+          )}
           <div className="space-y-1.5">
-            <label className="block text-xs font-medium text-stone-500">Your name</label>
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder={isArtist ? "Your name or stage name" : "Your name"} className="h-12 w-full rounded-xl border border-stone-200 px-4 text-base" />
+            <label className="block text-[13px] font-medium text-stone-500">Your name</label>
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder={isArtist ? "Your name or stage name" : "Your name"} className="h-13 w-full rounded-xl border border-stone-300 px-4 text-[15px] outline-none transition focus:border-stone-900" />
           </div>
           {!isArtist && (
             <div className="space-y-1.5">
-              <label className="block text-xs font-medium text-stone-500">Your role at the business</label>
-              <select value={role} onChange={(e) => setRole(e.target.value)} className="h-12 w-full rounded-xl border border-stone-200 bg-white px-4 text-base">
+              <label className="block text-[13px] font-medium text-stone-500">Your role at the business</label>
+              <select value={role} onChange={(e) => setRole(e.target.value)} className="h-13 w-full rounded-xl border border-stone-300 bg-white px-4 text-[15px] outline-none transition focus:border-stone-900">
                 {["Owner", "Manager", "Team member"].map((r) => <option key={r}>{r}</option>)}
               </select>
             </div>
           )}
+          {/* City only. The Instagram field that sat here is gone (2026-08-13):
+              the links step asks for every handle properly, with the real
+              brand marks, and asking for one of them on the very first screen
+              made a two-field sign-up look like a profile form. City stays
+              because it is not a link — an artist has no Maps anchor, so it is
+              the only thing telling the research where in the world they are. */}
           {isArtist && (
-            <>
-              <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="City you're based in (e.g. San Francisco)" className="h-12 w-full rounded-xl border border-stone-200 px-4 text-base" />
-              <input value={igHandle} onChange={(e) => setIgHandle(e.target.value)} placeholder="Instagram handle (optional) — helps us look you up" className="h-12 w-full rounded-xl border border-stone-200 px-4 text-base" />
-            </>
+            <div className="space-y-3">
+              {/* The city question hides entirely when they say they're remote —
+                  a disabled-but-visible field reads as something you failed to
+                  fill in. The toggle stays put so the answer is reversible. */}
+              {!remote && (
+                <div className="space-y-1.5">
+                  <label className="block text-[13px] font-medium text-stone-500">Where you&apos;re based</label>
+                  <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="e.g. San Francisco" className="h-13 w-full rounded-xl border border-stone-300 px-4 text-[15px] outline-none transition focus:border-stone-900" />
+                </div>
+              )}
+              <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-stone-200 bg-white px-4 py-3">
+                <input
+                  type="checkbox"
+                  checked={remote}
+                  onChange={(e) => setRemote(e.target.checked)}
+                  className="h-4 w-4 shrink-0 rounded border-stone-300 accent-stone-900"
+                />
+                <span className="min-w-0">
+                  <span className="block text-[15px] font-medium text-stone-900">I work remotely</span>
+                  <span className="block text-[13px] leading-relaxed text-stone-500">
+                    No home city — online, touring, or wherever the work is.
+                  </span>
+                </span>
+              </label>
+            </div>
           )}
           {/* Primary: sign in with Google / Apple. */}
           <div className="space-y-2 pt-1">
@@ -595,15 +836,20 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
             </button>
           </div>
           <p className="text-xs text-stone-400">
-            {isArtist ? "You'll finish setting up your page next." : "Next you'll find your business and verify you run it."}
+            {isArtist
+              ? "You'll finish setting up your page next."
+              : "Next we'll send a code to the number on the listing, to check you can answer it."}
           </p>
         </div>
       )}
 
       {step === "business" && (
-        <div className="space-y-3">
-          <h1 className="text-xl font-bold text-stone-900">Find your business on Google</h1>
-          <p className="text-sm text-stone-500">We verify against your real Google listing — and read the number straight from it.</p>
+        <div className="space-y-5">
+          <StepHeader
+            icon={Search}
+            title="Find your business on Google"
+            sub="Search for it the way a customer would. We read your details straight from the listing, so there's no form to fill in."
+          />
           {/* Search on submit, never on keystroke — each search is a paid Google
               call. Include the city for a better hit ("Tartine Bakery, SF"). */}
           <div className="flex gap-2">
@@ -655,11 +901,14 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
       )}
 
       {step === "code2" && (
-        <div className="space-y-3">
-          <h1 className="text-xl font-bold text-stone-900">Verify you run {bizName}</h1>
-          <p className="text-sm text-stone-500">A different code — to the number on {bizName}&apos;s Google listing{phoneHint ? ` (${phoneHint})` : ""}, not your phone.</p>
-          <input value={code} onChange={(e) => setCode(e.target.value)} inputMode="numeric" placeholder="Enter the 6-digit code" className="w-full rounded-lg border border-stone-200 px-3 py-2.5 text-center text-lg tracking-widest" />
-          <button onClick={confirmOwnership} disabled={busy} className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60">
+        <div className="space-y-5">
+          <StepHeader
+            icon={ShieldCheck}
+            title={`Verify you run ${bizName}`}
+            sub={`A different code — to the number on ${bizName}'s Google listing${phoneHint ? ` (${phoneHint})` : ""}, not your phone.`}
+          />
+          <input value={code} onChange={(e) => setCode(e.target.value)} inputMode="numeric" placeholder="6-digit code" className="h-14 w-full rounded-xl border border-stone-300 px-3 text-center text-2xl tracking-[0.3em] outline-none transition focus:border-stone-900" />
+          <button onClick={confirmOwnership} disabled={busy} className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-coral-600 px-4 py-3.5 text-[15px] font-semibold text-white transition hover:bg-coral-700 disabled:opacity-60">
             {busy && <Loader2 className="h-4 w-4 animate-spin" />} Verify ownership
           </button>
           <p className="text-xs text-stone-400">Only someone who can receive at the business&apos;s own line can pass this.</p>
@@ -668,9 +917,18 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
 
       {step === "working" && (
         <div className="flex flex-col items-center gap-3 py-12 text-center">
-          <Loader2 className="h-6 w-6 animate-spin text-violet-600" />
+          <Loader2 className="h-6 w-6 animate-spin text-coral-600" />
           <p className="text-sm text-stone-500">Setting up your page…</p>
         </div>
+      )}
+
+      {step === "links" && (
+        <LinksStep
+          memberId={memberId}
+          initialLinks={linkSeed}
+          demo={demo}
+          onDone={() => setStep("interview")}
+        />
       )}
 
       {step === "interview" && (
@@ -683,37 +941,51 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
             <Check className="h-6 w-6 text-white" />
           </div>
           <h1 className="text-xl font-bold text-stone-900">You&apos;re verified · live on WhatsLocal</h1>
-          {native ? (
-            // iOS build: offer the plan choice but WITHOUT prices here — Apple
-            // 3.1.1 requires in-app prices to come from StoreKit, which they do
-            // on /vendor/billing (the purchase happens there via IAP).
-            <>
-              <p className="text-sm text-stone-500">{bizName} is set up. Pick how you want to participate — start free, upgrade anytime.</p>
-              <div className="space-y-2 pt-2 text-left">
-                <a href="/vendor" className="block rounded-xl border border-stone-200 p-4 hover:bg-stone-50"><b className="text-stone-900">Free</b> — your page, posts + event invites</a>
-                <a href="/vendor/billing" className="block rounded-xl border border-stone-200 p-4 hover:bg-stone-50"><b className="text-stone-900">Organizer</b> — send invites + host events</a>
-                <a href="/vendor/billing" className="block rounded-xl border-2 border-violet-400 p-4 hover:bg-violet-50"><b className="text-stone-900">Pro</b> — AI agent + sell online</a>
-              </div>
-            </>
-          ) : (
-            <>
-              <p className="text-sm text-stone-500">{bizName} is set up. Pick how you want to participate — start free, upgrade anytime.</p>
-              <div className="space-y-2 pt-2 text-left">
-                {/* Must match lib/entitlements.ts (FREE_CAN / MEMBER_CAN / PRO_CAN) — these
-                    sit next to live prices. Corrected 2026-07-17: Member said "AI agent",
-                    but textAssistant is PRO_CAN only, so $10 never included it. */}
-                <a href="/vendor" className="block rounded-xl border border-stone-200 p-4 hover:bg-stone-50"><b className="text-stone-900">Free</b> — your page, posts + event invites <span className="float-right text-stone-500">$0</span></a>
-                <a href="/vendor/billing" className="block rounded-xl border border-stone-200 p-4 hover:bg-stone-50"><b className="text-stone-900">Organizer</b> — send invites + host events <span className="float-right text-stone-500">$10/mo</span></a>
-                <a href="/vendor/billing" className="block rounded-xl border-2 border-violet-400 p-4 hover:bg-violet-50"><b className="text-stone-900">Pro</b> — AI agent + sell online <span className="float-right text-stone-500">$30/mo</span></a>
-              </div>
-            </>
-          )}
-          <button onClick={() => router.push("/vendor")} className="mt-2 inline-flex items-center gap-2 rounded-full bg-stone-900 px-5 py-2.5 text-sm font-semibold text-white">
-            Go to your dashboard <ArrowRight className="h-4 w-4" />
+          <p className="text-sm text-stone-500">{bizName} is set up. Pick how you want to participate — start free, upgrade anytime.</p>
+
+          {/* TWO plans here, not three. The $10 Organizer tier is hidden from
+              onboarding (2026-08-13): a middle option at the exact moment
+              someone is deciding whether to bother is the one that turns a
+              yes-or-no into a comparison, and it is the tier that explains
+              itself worst cold — "send invites + host events" means little
+              before you have tried to host anything. It still exists in
+              lib/entitlements.ts and is still sold on /vendor/billing, which is
+              where someone who has hit a limit goes looking. Nothing about
+              billing changed; only what this screen offers.
+
+              Native shows NO PRICES (Apple 3.1.1 — in-app prices must come from
+              StoreKit, which they do on /vendor/billing via IAP). That branch is
+              load-bearing; do not collapse it to save a few lines. */}
+          <div className="space-y-2 pt-2 text-left">
+            {/* Must match lib/entitlements.ts (FREE_CAN / PRO_CAN). */}
+            <button
+              onClick={() => setStep("setup")}
+              className="block w-full rounded-xl border border-stone-200 p-4 text-left transition hover:bg-stone-50"
+            >
+              <b className="text-stone-900">Free</b> — your page, posts + event invites
+              {!native && <span className="float-right text-stone-500">$0</span>}
+            </button>
+            {/* Pro goes STRAIGHT to the payment screen. It used to be an <a> to
+                /vendor/billing that, mid-onboarding, landed on a page the
+                session could not always open yet — from the demo it looked like
+                the button did nothing at all. `router.push` keeps the client
+                session, and billing is where the purchase legitimately happens
+                (Stripe on web, StoreKit natively). */}
+            <button
+              onClick={() => router.push("/vendor/billing")}
+              className="block w-full rounded-xl border-2 border-coral-500 p-4 text-left transition hover:bg-coral-50"
+            >
+              <b className="text-stone-900">Pro</b> — AI agent + sell online
+              {!native && <span className="float-right text-stone-500">$30/mo</span>}
+            </button>
+          </div>
+
+          <button onClick={() => setStep("setup")} className="mt-2 inline-flex items-center gap-2 rounded-full bg-stone-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-stone-800">
+            Set up your shop <ArrowRight className="h-4 w-4" />
           </button>
           <div>
-            <button onClick={() => router.push(`/members/${memberId}`)} className="text-sm font-medium text-stone-500 underline hover:text-stone-800">
-              or see your public page
+            <button onClick={() => router.push("/vendor")} className="text-sm font-medium text-stone-500 underline hover:text-stone-800">
+              or skip to your dashboard
             </button>
           </div>
           {/* Auto-renewable subscription disclosure — required (Guideline 3.1.2)
@@ -736,6 +1008,13 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
             </p>
           </div>
         </div>
+      )}
+
+      {/* Setting up the shop — catalogue, then payouts, then what those two
+          unlocked. After the plan screen rather than before it, because it is
+          the first thing that is about their business rather than about us. */}
+      {step === "setup" && (
+        <ShopSetup memberId={memberId} demo={demo} onFinish={() => router.push("/vendor")} />
       )}
 
       {loginOpen && <VendorPhoneLogin onClose={() => setLoginOpen(false)} redirectUrl="/vendor" />}

@@ -1,0 +1,299 @@
+"use client";
+
+import { useState } from "react";
+import {
+  Loader2,
+  ArrowRight,
+  Boxes,
+  Landmark,
+  ShoppingBag,
+  CalendarCheck,
+  Download,
+  ExternalLink,
+  Check,
+  PartyPopper,
+} from "lucide-react";
+
+// Setting up the shop, straight after the plan screen: catalogue, then money,
+// then what those two just unlocked.
+//
+// THE ORDER IS THE POINT. Catalogue first, because a payout account with
+// nothing to sell is a form you filled in for no reason, while a catalogue with
+// no payouts is still a browsable shop. Someone who stops after screen one has
+// something; someone who stops after a bank form has nothing.
+//
+// ── Why the hosted flows open in a NEW TAB ────────────────────────────────
+// Square (via Composio) and Stripe both hand back a hosted URL, and both come
+// back to /vendor/integrations — those return URLs are baked into the commerce
+// plumbing and are right for the portal, which is where a vendor edits this
+// later. Navigating there from HERE would end onboarding two screens early and
+// silently drop the last screen, which is the one that explains what they can
+// now do.
+//
+// So the tab opens beside us and this flow stays where it is. The tab is opened
+// SYNCHRONOUSLY on click, before the fetch — a window.open() after an await is
+// a popup blocked by every browser — and pointed at the URL once it arrives.
+//
+// Everything is skippable. Both of these are also permanently available in the
+// portal, so nothing here is a last chance, and saying so is what stops the
+// screens reading as a gate.
+
+type Sub = "catalog" | "payments" | "ready";
+
+function SetupScreen({
+  icon: Icon,
+  title,
+  sub,
+  children,
+}: {
+  icon: typeof Boxes;
+  title: string;
+  sub: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-6">
+      <header>
+        <div className="mb-4 grid h-14 w-14 place-items-center rounded-full bg-coral-50">
+          <Icon className="h-7 w-7 text-coral-600" />
+        </div>
+        <h1 className="text-[28px] font-bold leading-tight tracking-tight text-stone-900">{title}</h1>
+        <p className="mt-2 text-[15px] leading-relaxed text-stone-500">{sub}</p>
+      </header>
+      {children}
+    </div>
+  );
+}
+
+/** The primary "carry on" button, identical on every setup screen. */
+function Next({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-stone-900 px-5 py-3.5 text-[15px] font-semibold text-white transition hover:bg-stone-800"
+    >
+      {label} <ArrowRight className="h-4 w-4" />
+    </button>
+  );
+}
+
+/** The quiet way past. Always present — see the note about gates above. */
+function Later({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full py-1 text-[13px] font-medium text-stone-400 transition hover:text-stone-700"
+    >
+      {label}
+    </button>
+  );
+}
+
+export function ShopSetup({
+  memberId,
+  /** Demo opens no hosted flow and connects nothing. */
+  demo = false,
+  onFinish,
+}: {
+  memberId: string;
+  demo?: boolean;
+  onFinish: () => void;
+}) {
+  const [sub, setSub] = useState<Sub>("catalog");
+  const [busy, setBusy] = useState<"square" | "stripe" | null>(null);
+  const [err, setErr] = useState("");
+  // "Opened" rather than "connected": the connecting happens in the other tab,
+  // and claiming it finished here would be a status we cannot see.
+  const [opened, setOpened] = useState<Record<string, boolean>>({});
+
+  async function openHosted(which: "square" | "stripe") {
+    setErr("");
+    if (demo) {
+      setOpened({ ...opened, [which]: true });
+      return;
+    }
+    // Synchronously, inside the click — see the note at the top.
+    const tab = window.open("", "_blank");
+    setBusy(which);
+    try {
+      const res =
+        which === "square"
+          ? await fetch("/api/vendor/composio", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "connect", platform: "square" }),
+            })
+          : await fetch("/api/stripe-connect/create-account", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({}),
+            });
+      const data = await res.json();
+      // Selling is free, so a 402 is no longer a plan wall — keep the branch
+      // (the route can still return one) but stop naming a price for it.
+      if (res.status === 402) {
+        tab?.close();
+        setErr("Could not start payment setup just now — you can do it any time from your dashboard.");
+        return;
+      }
+      const url: string | undefined = data.url || data.onboardingUrl;
+      if (!url) {
+        tab?.close();
+        setErr(data.error || "Couldn't start that just now. You can do it later from your dashboard.");
+        return;
+      }
+      if (tab) tab.location.href = url;
+      else window.open(url, "_blank", "noopener");
+      setOpened({ ...opened, [which]: true });
+    } catch {
+      tab?.close();
+      setErr("Couldn't start that just now. You can do it later from your dashboard.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  if (sub === "catalog") {
+    return (
+      <SetupScreen
+        icon={Boxes}
+        title="Bring in what you sell"
+        sub="If you already run a Square register, we can pull your products across — names, prices and photos — so your page isn't empty on day one."
+      >
+        {err && <p className="rounded-xl bg-rose-50 px-3.5 py-2.5 text-[13px] text-rose-700">{err}</p>}
+
+        <button
+          onClick={() => void openHosted("square")}
+          disabled={busy === "square"}
+          className="flex w-full items-center gap-4 rounded-2xl border-2 border-stone-200 bg-white p-4 text-left transition hover:border-stone-900 active:scale-[0.98] disabled:opacity-60 sm:p-5"
+        >
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-stone-900 text-white sm:h-14 sm:w-14">
+            {busy === "square" ? (
+              <Loader2 className="h-6 w-6 animate-spin" />
+            ) : opened.square ? (
+              <Check className="h-6 w-6" />
+            ) : (
+              <ShoppingBag className="h-6 w-6" />
+            )}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[16px] font-semibold text-stone-900 sm:text-[17px]">
+              Connect Square
+            </span>
+            <span className="mt-0.5 block text-[14px] leading-relaxed text-stone-500">
+              {opened.square
+                ? "Opened in another tab — finish there, then come back."
+                : "Imports your catalog and keeps it in step. Opens in a new tab."}
+            </span>
+          </span>
+          <ExternalLink className="h-5 w-5 shrink-0 text-stone-300" />
+        </button>
+
+        <p className="text-[13px] leading-relaxed text-stone-400">
+          No Square? That&apos;s fine — you can add products by hand from your dashboard, and
+          connect a register later. Nothing here is a one-time offer.
+        </p>
+
+        <div className="space-y-2 pt-2">
+          <Next label="Next — getting paid" onClick={() => { setErr(""); setSub("payments"); }} />
+          <Later label="Skip, I'll add products later" onClick={() => { setErr(""); setSub("payments"); }} />
+        </div>
+      </SetupScreen>
+    );
+  }
+
+  if (sub === "payments") {
+    return (
+      <SetupScreen
+        icon={Landmark}
+        title="Where should your money land?"
+        sub="Stripe handles the card details and pays you out — we never see a bank number. This is what turns a listing into something someone can actually buy."
+      >
+        {err && <p className="rounded-xl bg-rose-50 px-3.5 py-2.5 text-[13px] text-rose-700">{err}</p>}
+
+        <button
+          onClick={() => void openHosted("stripe")}
+          disabled={busy === "stripe"}
+          className="flex w-full items-center gap-4 rounded-2xl border-2 border-stone-200 bg-white p-4 text-left transition hover:border-stone-900 active:scale-[0.98] disabled:opacity-60 sm:p-5"
+        >
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-indigo-600 text-white sm:h-14 sm:w-14">
+            {busy === "stripe" ? (
+              <Loader2 className="h-6 w-6 animate-spin" />
+            ) : opened.stripe ? (
+              <Check className="h-6 w-6" />
+            ) : (
+              <Landmark className="h-6 w-6" />
+            )}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[16px] font-semibold text-stone-900 sm:text-[17px]">
+              Set up payouts with Stripe
+            </span>
+            <span className="mt-0.5 block text-[14px] leading-relaxed text-stone-500">
+              {opened.stripe
+                ? "Opened in another tab — finish there, then come back."
+                : "Takes a few minutes. Opens in a new tab."}
+            </span>
+          </span>
+          <ExternalLink className="h-5 w-5 shrink-0 text-stone-300" />
+        </button>
+
+        <div className="space-y-2 pt-2">
+          <Next label="Next" onClick={() => { setErr(""); setSub("ready"); }} />
+          <Later label="Skip, I'm not selling yet" onClick={() => { setErr(""); setSub("ready"); }} />
+        </div>
+      </SetupScreen>
+    );
+  }
+
+  // What the last two screens just unlocked. Deliberately the LAST thing, not
+  // the first: told up front it is a features list nobody has any use for yet;
+  // told here it is a list of things you can now go and do.
+  return (
+    <SetupScreen
+      icon={PartyPopper}
+      title="You can sell three different ways"
+      sub="All from the same page, and you can turn any of them on whenever you like."
+    >
+      <div className="space-y-3">
+        {[
+          {
+            icon: ShoppingBag,
+            title: "Things people collect",
+            body: "List a product, take the order, and they pick it up from you — or you deliver it yourself and keep the delivery fee.",
+          },
+          {
+            icon: CalendarCheck,
+            title: "Time people book",
+            body: "A cut, a class, a table, a session. People ask for a time and you confirm it — no calendar to keep in step.",
+          },
+          {
+            icon: Download,
+            title: "Files people download",
+            body: "A recipe, a preset, a zine, a ticket. Paid for once, delivered straight after — nothing to post.",
+          },
+        ].map((f) => (
+          <div key={f.title} className="flex items-start gap-4 rounded-2xl border border-stone-200 bg-white p-4">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-coral-50">
+              <f.icon className="h-5 w-5 text-coral-600" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[15px] font-semibold text-stone-900">{f.title}</p>
+              <p className="mt-0.5 text-[14px] leading-relaxed text-stone-500">{f.body}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="space-y-2 pt-2">
+        <Next label="Go to your dashboard" onClick={onFinish} />
+        <a
+          href={`/members/${memberId}`}
+          className="block w-full py-1 text-center text-[13px] font-medium text-stone-400 transition hover:text-stone-700"
+        >
+          or see your public page
+        </a>
+      </div>
+    </SetupScreen>
+  );
+}
