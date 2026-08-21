@@ -1,4 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
+import { getStoreAccessToken } from './composio-commerce'
 
 // Square Bookings API client.
 //
@@ -49,15 +50,56 @@ export interface SquareCreds {
 export async function getSquareCreds(memberId: string): Promise<SquareCreds | null> {
   const { data } = await db()
     .from('vendor_secrets')
-    .select('square_token, square_location_id, square_env')
+    .select('square_token, square_location_id, square_env, square_bookings_off')
     .eq('member_id', memberId)
     .maybeSingle()
-  if (!data?.square_token) return null
-  return {
-    token: data.square_token,
-    locationId: data.square_location_id ?? null,
-    env: (data.square_env === 'sandbox' ? 'sandbox' : 'production') as SquareEnv,
+
+  // An explicit Disconnect outranks any token we could find. Without this a
+  // borrowed catalog token would quietly switch bookings back on.
+  if (data?.square_bookings_off) return null
+
+  // A pasted token wins: it's the deliberate act, it's the only way to reach the
+  // sandbox, and Disconnect nulls it — so it stays the escape hatch when the
+  // Composio-held one is wrong.
+  if (data?.square_token) {
+    return {
+      token: data.square_token,
+      locationId: data.square_location_id ?? null,
+      env: (data.square_env === 'sandbox' ? 'sandbox' : 'production') as SquareEnv,
+    }
   }
+
+  // Otherwise borrow the token from the catalog connection. One "Connect Square"
+  // then covers both halves — provided that auth config requests the
+  // appointments scopes. If it doesn't, calls fail with INSUFFICIENT_SCOPES,
+  // which the route already explains.
+  const borrowed = await getStoreAccessToken(memberId, 'square').catch(() => null)
+  if (!borrowed) return null
+
+  // Composio's Square auth config points at real Square; sandbox is only ever
+  // reached by pasting a token above.
+  const creds: SquareCreds = {
+    token: borrowed,
+    locationId: data?.square_location_id ?? null,
+    env: 'production',
+  }
+
+  // Availability search silently returns no slots without a location, so resolve
+  // it once and keep it. Unresolvable (several locations, or the call fails) is
+  // left null rather than guessed — the vendor picks in the UI.
+  if (!creds.locationId) {
+    try {
+      const locations = await listLocations(creds)
+      if (locations.length === 1) {
+        creds.locationId = locations[0].id
+        await saveSquareCreds(memberId, { locationId: creds.locationId })
+      }
+    } catch {
+      /* leave null — the caller surfaces the Square error itself */
+    }
+  }
+
+  return creds
 }
 
 export async function saveSquareCreds(
@@ -65,6 +107,9 @@ export async function saveSquareCreds(
   creds: { token?: string; locationId?: string | null; env?: SquareEnv }
 ): Promise<void> {
   const row: Record<string, unknown> = { member_id: memberId, updated_at: new Date().toISOString() }
+  // Pasting a token is a reconnect — it must clear an earlier Disconnect, or the
+  // vendor connects successfully and bookings stay off.
+  if (creds.token) row.square_bookings_off = false
   if (creds.token !== undefined) row.square_token = creds.token
   if (creds.locationId !== undefined) row.square_location_id = creds.locationId
   if (creds.env !== undefined) row.square_env = creds.env
@@ -73,10 +118,46 @@ export async function saveSquareCreds(
 }
 
 export async function disconnectSquare(memberId: string): Promise<void> {
-  await db()
+  // Upsert, not update: a vendor whose token was borrowed from the catalog
+  // connection may have no vendor_secrets row at all, and an UPDATE matching
+  // nothing would report success while changing nothing.
+  await db().from('vendor_secrets').upsert(
+    {
+      member_id: memberId,
+      square_token: null,
+      square_location_id: null,
+      square_bookings_off: true,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'member_id' }
+  )
+}
+
+/**
+ * Whether bookings are switched off, and whether a catalog connection could
+ * supply a token if they were switched back on. Lets the UI offer "turn it back
+ * on" instead of asking for a token the vendor no longer needs to paste.
+ */
+export async function squareBookingsState(
+  memberId: string
+): Promise<{ off: boolean; borrowable: boolean }> {
+  const { data } = await db()
     .from('vendor_secrets')
-    .update({ square_token: null, square_location_id: null, updated_at: new Date().toISOString() })
+    .select('square_bookings_off')
     .eq('member_id', memberId)
+    .maybeSingle()
+  const off = !!data?.square_bookings_off
+  if (!off) return { off: false, borrowable: false }
+  const token = await getStoreAccessToken(memberId, 'square').catch(() => null)
+  return { off: true, borrowable: !!token }
+}
+
+/** Undoes disconnectSquare so a borrowed token counts again. */
+export async function reenableSquareBookings(memberId: string): Promise<void> {
+  await db().from('vendor_secrets').upsert(
+    { member_id: memberId, square_bookings_off: false, updated_at: new Date().toISOString() },
+    { onConflict: 'member_id' }
+  )
 }
 
 // ── Transport ────────────────────────────────────────────────────────────────

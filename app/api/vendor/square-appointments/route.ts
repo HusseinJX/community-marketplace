@@ -7,6 +7,8 @@ import {
   disconnectSquare,
   listLocations,
   listBookableServices,
+  squareBookingsState,
+  reenableSquareBookings,
   squareConfigured,
   SquareError,
   type SquareEnv,
@@ -32,7 +34,11 @@ export async function GET(request: Request) {
 
   const creds = await getSquareCreds(r.actor.memberId)
   if (!creds) {
-    return NextResponse.json({ connected: false, available: squareConfigured() })
+    // Distinguish "never connected" from "switched off but their store
+    // connection would still supply a token" — the second needs a way back on,
+    // not a demand for a token they don't have to paste.
+    const { off, borrowable } = await squareBookingsState(r.actor.memberId)
+    return NextResponse.json({ connected: false, available: squareConfigured(), off, borrowable })
   }
 
   // Services are fetched here so the vendor sees immediately whether their
@@ -85,6 +91,22 @@ export async function POST(request: Request) {
       const locationId = locations.length === 1 ? locations[0].id : (body.locationId ? String(body.locationId) : null)
       await saveSquareCreds(memberId, { token, locationId, env })
       return NextResponse.json({ connected: true, locations, locationId, env })
+    }
+
+    // Switch back on using the token the catalog connection already holds. If
+    // that connection has since gone, this reports failure rather than leaving
+    // the vendor reading "Connected" over nothing.
+    if (body.action === 'reenable') {
+      await reenableSquareBookings(memberId)
+      const creds = await getSquareCreds(memberId)
+      if (!creds) {
+        await disconnectSquare(memberId)
+        return NextResponse.json(
+          { error: 'Your Square store connection is gone — reconnect it, or paste a token.' },
+          { status: 400 }
+        )
+      }
+      return NextResponse.json({ connected: true, env: creds.env, locationId: creds.locationId })
     }
 
     if (body.action === 'location') {

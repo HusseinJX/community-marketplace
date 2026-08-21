@@ -14,7 +14,12 @@ login**. That's your dashboard. Most setup happens under **Integrations**.
 |---|---|
 | Have a profile, post, be found | **Free** |
 | Host events, sell tickets, take bookings | **Organizer** — $10/mo |
-| Sell anything (products, downloads, merch), take card payments | **Pro** — $30/mo |
+| Sell anything (products, downloads, merch), take card payments | **Free** — we take 5% of a sale |
+| Have an AI answer your customers by text and phone | **Pro** — $30/mo |
+
+**Selling costs nothing up front.** You keep everything except our 5% of the items you
+sell, and we take nothing in a month where you sell nothing. Pro buys the AI agent,
+not permission to sell.
 
 If a button described here isn't showing up for you, it's almost always the plan.
 Upgrade under **Billing**.
@@ -23,7 +28,7 @@ Upgrade under **Billing**.
 
 ## 1. Get paid — do this first
 
-**Needs:** Pro · **Takes:** ~10 minutes · **Required for:** every paid thing on this page
+**Needs:** nothing — selling is free · **Takes:** ~10 minutes · **Required for:** every paid thing on this page
 
 Nothing that takes money works until this is done, so start here.
 
@@ -76,7 +81,7 @@ stops one screenshot getting five people in. It'll tell you when it was first us
 
 ## 3. Choose how orders reach people
 
-**Needs:** Pro · **Takes:** ~3 minutes
+**Needs:** nothing — selling is free · **Takes:** ~3 minutes
 
 Dashboard → **Integrations** → **Delivery**. Pick one:
 
@@ -102,7 +107,7 @@ fee at the last step.
 
 ## 4. Add what you're selling
 
-**Needs:** Pro · **Takes:** ~2 minutes per item
+**Needs:** nothing — selling is free · **Takes:** ~2 minutes per item
 
 Dashboard → **Products** → **Add product**. Give it a name, a price, and pick what
 kind of thing it is. **This matters** — it decides what the customer is told happens
@@ -124,7 +129,7 @@ check before anything goes live.
 
 ## 5. Sell digital downloads
 
-**Needs:** Pro · **Takes:** ~2 minutes per file
+**Needs:** nothing — selling is free · **Takes:** ~2 minutes per file
 
 Recipes, guides, presets, music, artwork — anything that's a file.
 
@@ -143,7 +148,7 @@ out of the email.
 
 ## 6. Sell merch without holding stock (Printify)
 
-**Needs:** Pro + a Printify account · **Takes:** ~10 minutes
+**Needs:** a Printify account · **Takes:** ~10 minutes
 
 T-shirts, mugs, prints — Printify makes each item when it's ordered and posts it.
 
@@ -210,21 +215,22 @@ Cancelling or declining here frees the slot in Square too.
 
 | Feature | Where | Plan | Needs payments set up? |
 |---|---|---|---|
-| Get paid | Integrations → Bank | Pro | — |
+| Get paid | Integrations → Bank | Free | — |
 | Event tickets | My events → Tickets | Organizer | Only for paid tickets |
 | Door check-in | My events → Check in at the door | Organizer | No |
-| Delivery rules | Integrations → Delivery | Pro | Yes |
-| Products | Products | Pro | Yes |
-| Digital downloads | Products → Digital download | Pro | Yes |
-| Print on demand | Integrations → Print on demand | Pro | Yes |
+| Delivery rules | Integrations → Delivery | Free | Yes |
+| Products | Products | Free | Yes |
+| Digital downloads | Products → Digital download | Free | Yes |
+| Print on demand | Integrations → Print on demand | Free | Yes |
 | Bookings | Bookings | Free | No |
-| Real availability | Integrations → Square Appointments | Pro | No |
+| Real availability | Integrations → Square Appointments | Free | No |
 
 ---
 
 ## If something isn't working
 
-- **A button is missing** → almost always your plan. Check **Billing**.
+- **A button is missing** → almost always your plan. Check **Billing**. (Selling is
+  free, so this won't be why a shop button is hidden.)
 - **"This vendor hasn't set up payments"** → §1 isn't finished, or Stripe is still
   reviewing.
 - **Tickets won't sell** → paid tickets need payments active. Free tiers work

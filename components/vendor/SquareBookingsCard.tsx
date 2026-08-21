@@ -20,6 +20,8 @@ interface Service {
 export function SquareBookingsCard({ memberId }: { memberId?: string } = {}) {
   const [connected, setConnected] = useState(false)
   const [available, setAvailable] = useState(true)
+  // Switched off by hand, but their store connection could still supply a token.
+  const [reconnectable, setReconnectable] = useState(false)
   const [env, setEnv] = useState<'production' | 'sandbox'>('production')
   const [services, setServices] = useState<Service[]>([])
   const [warning, setWarning] = useState<string | null>(null)
@@ -36,6 +38,7 @@ export function SquareBookingsCard({ memberId }: { memberId?: string } = {}) {
         if (!d) return
         setConnected(!!d.connected)
         setAvailable(d.available !== false)
+        setReconnectable(!!d.off && !!d.borrowable)
         setServices(Array.isArray(d.services) ? d.services : [])
         setWarning(d.warning ?? null)
         if (d.env) setEnv(d.env)
@@ -67,12 +70,40 @@ export function SquareBookingsCard({ memberId }: { memberId?: string } = {}) {
     setBusy(false)
   }
 
+  async function reenable() {
+    setBusy(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/vendor/square-appointments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ memberId, action: 'reenable' }),
+      })
+      const d = await res.json()
+      if (!res.ok) {
+        // The store connection went away — fall through to the paste form.
+        setReconnectable(false)
+        setError(d.error ?? 'Could not turn bookings on.')
+      } else {
+        setReconnectable(false)
+        setConnected(true)
+        refresh()
+      }
+    } catch {
+      setError('Could not reach Square.')
+    }
+    setBusy(false)
+  }
+
   async function disconnect() {
     setBusy(true)
     await fetch(`/api/vendor/square-appointments${qs}`, { method: 'DELETE' })
     setConnected(false)
     setServices([])
     setBusy(false)
+    // Re-reads whether a borrowed token is still available, so the way back on
+    // appears immediately rather than after a reload.
+    refresh()
   }
 
   return (
@@ -96,6 +127,21 @@ export function SquareBookingsCard({ memberId }: { memberId?: string } = {}) {
 
       {!available ? (
         <p className="rounded-lg bg-stone-50 p-3 text-sm text-stone-500">Not switched on yet.</p>
+      ) : reconnectable ? (
+        <div className="space-y-2">
+          <p className="text-sm text-stone-600">
+            Bookings are off. Your connected Square store can switch them back on — no token
+            needed.
+          </p>
+          <button
+            onClick={reenable}
+            disabled={busy}
+            className="rounded-lg bg-indigo-600 px-3.5 py-2 text-[13px] font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
+          >
+            {busy ? 'Turning on…' : 'Turn bookings back on'}
+          </button>
+          {error && <p className="text-sm text-rose-600">{error}</p>}
+        </div>
       ) : !connected ? (
         <div className="space-y-2">
           <input
