@@ -86,15 +86,61 @@ export async function connectStore(
     config = AuthScheme.OAuth2({ subdomain })
   }
 
-  const connRequest = await getComposio().connectedAccounts.initiate(memberId, authConfigId, {
-    callbackUrl,
-    ...(config ? { config } : {}),
-  })
+  // `initiate()` is retired for Composio-MANAGED OAuth (cutover 2026-05-08 for
+  // new orgs, 2026-07-03 for the rest) and throws
+  // ComposioLegacyConnectedAccountsEndpointRetiredError past that date. `link()`
+  // is the replacement and returns the same shape.
+  //
+  // Shopify can't use it: link()'s options are {callbackUrl, alias,
+  // allowMultiple} with nowhere to put the per-store `config`, and a Shopify
+  // authorize URL is meaningless without the subdomain. Shopify auth configs are
+  // custom (your own OAuth app) and custom configs are explicitly unaffected by
+  // the retirement, so initiate() remains correct there.
+  const connRequest = config
+    ? await getComposio().connectedAccounts.initiate(memberId, authConfigId, { callbackUrl, config })
+    : await getComposio().connectedAccounts.link(memberId, authConfigId, { callbackUrl })
+
   if (!connRequest.redirectUrl) {
     throw new Error('Composio did not return an authorization URL')
   }
 
   return { url: connRequest.redirectUrl as string, connectionId: connRequest.id }
+}
+
+// ── OAuth token read-through ────────────────────────────────────────────────
+
+/**
+ * The live OAuth access token Composio holds for a vendor's connected store.
+ *
+ * Composio owns the credential and its refresh, so this is read at call time
+ * rather than copied into our own tables — a Square token expires in ~30 days,
+ * and a snapshot would break a vendor's bookings a month after they connected
+ * with nothing to prompt a fix.
+ *
+ * Returns null whenever the token isn't usable (no connection, non-OAuth2
+ * scheme, not ACTIVE, or credentials withheld) so callers fall back rather
+ * than fail.
+ */
+export async function getStoreAccessToken(
+  memberId: string,
+  platform: ComposioPlatform
+): Promise<string | null> {
+  const { items } = await getComposio().connectedAccounts.list({
+    userIds: [memberId],
+    toolkitSlugs: [platform],
+    statuses: ['ACTIVE'],
+  })
+  const active = items?.[0]
+  if (!active) return null
+
+  // state is a union discriminated on authScheme, then on val.status. Only the
+  // OAUTH2/ACTIVE arm carries access_token.
+  const state = active.state as { authScheme?: string; val?: Record<string, unknown> } | undefined
+  if (state?.authScheme !== 'OAUTH2') return null
+  if (state.val?.status !== 'ACTIVE') return null
+
+  const token = state.val.access_token
+  return typeof token === 'string' && token ? token : null
 }
 
 // Called when Composio redirects the vendor back after the consent screen. Asks
@@ -237,6 +283,56 @@ export interface SyncResult {
 // Pull the live catalog for a connected vendor and upsert into Supabase.
 // Reads vendor_settings.composio_platform to know which store, lists the catalog
 // via Composio, maps to product rows, and upserts on (member_id, external_id).
+/**
+ * Every Shopify product, following the cursor.
+ *
+ * Shopify pages at 250 max (default 50), so a single call quietly truncates a
+ * real catalog — the same shape of bug as Square defaulting to 25. The cursor
+ * key isn't pinned down (Shopify passes it in a Link header and Composio may
+ * surface it under any of a few names), so we look for it defensively and log
+ * loudly if a page comes back full with no way to continue. A silent 250-product
+ * ceiling is exactly the failure that looks like success.
+ */
+async function fetchShopifyProducts(memberId: string): Promise<ShopifyProduct[]> {
+  const PER_PAGE = 250
+  const MAX_PAGES = 20 // 5,000 products — a backstop, not a policy
+  const out: ShopifyProduct[] = []
+  let pageInfo: string | undefined
+
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const data = await runTool(TOOL_SLUGS.shopify.list, memberId, {
+      limit: PER_PAGE,
+      ...(pageInfo ? { page_info: pageInfo } : {}),
+    })
+    const batch = (data.products ||
+      data.items ||
+      (Array.isArray(data) ? data : [])) as ShopifyProduct[]
+    out.push(...batch)
+
+    const next = nextPageInfo(data)
+    if (!next || next === pageInfo || batch.length < PER_PAGE) {
+      if (batch.length === PER_PAGE && !next) {
+        console.warn(
+          `shopify sync for ${memberId}: a full page of ${PER_PAGE} with no cursor — the catalog may be truncated`
+        )
+      }
+      break
+    }
+    pageInfo = next
+  }
+
+  return out
+}
+
+// The cursor, wherever Composio decided to put it.
+function nextPageInfo(data: Record<string, unknown>): string | undefined {
+  const direct = data.next_page_info ?? data.page_info ?? data.nextPageInfo
+  if (typeof direct === 'string' && direct) return direct
+  const pagination = data.pagination as Record<string, unknown> | undefined
+  const nested = pagination?.next_page_info ?? pagination?.next
+  return typeof nested === 'string' && nested ? nested : undefined
+}
+
 export async function syncVendorCatalog(memberId: string): Promise<SyncResult> {
   const supabase = db()
   const { data: settings } = await supabase
@@ -254,14 +350,17 @@ export async function syncVendorCatalog(memberId: string): Promise<SyncResult> {
 
   let rows: ProductRow[] = []
   if (platform === 'shopify') {
-    const data = await runTool(TOOL_SLUGS.shopify.list, memberId, {})
-    const products = (data.products ||
-      data.items ||
-      (Array.isArray(data) ? data : [])) as ShopifyProduct[]
+    const products = await fetchShopifyProducts(memberId)
     rows = products.map((p) => mapShopifyProduct(p, memberId, name))
   } else if (platform === 'square') {
-    // Pull ITEM + IMAGE together so we can resolve item.image_ids → URL in one call.
-    const data = await runTool(TOOL_SLUGS.square.list, memberId, { types: 'ITEM,IMAGE' })
+    // Pull ITEM + IMAGE together so we can resolve item.image_ids → URL in one
+    // call. `object_types` is an ARRAY (the old `types: 'ITEM,IMAGE'` string was
+    // for a tool that never existed), and the limit defaults to 25 — a shop with
+    // 30 products would silently sync 25 of them.
+    const data = await runTool(TOOL_SLUGS.square.list, memberId, {
+      object_types: ['ITEM', 'IMAGE'],
+      limit: 1000,
+    })
     const all = (data.objects || data.items || []) as SquareObject[]
     const imageMap: Record<string, string> = {}
     for (const o of all) {
@@ -290,6 +389,31 @@ export async function getConnectedMemberIds(): Promise<string[]> {
 }
 
 // ── Order push-back ─────────────────────────────────────────────────────────
+
+/**
+ * The vendor's Square location. Prefers the one bookings already resolved
+ * (vendor_secrets, service-role only) and otherwise asks Square, taking the
+ * single location when there's exactly one — picking arbitrarily between several
+ * would file a sale against the wrong shop.
+ */
+async function squareLocationId(memberId: string): Promise<string | null> {
+  const { data } = await db()
+    .from('vendor_secrets')
+    .select('square_location_id')
+    .eq('member_id', memberId)
+    .maybeSingle()
+  const saved = (data as { square_location_id?: string | null } | null)?.square_location_id
+  if (saved) return saved
+
+  try {
+    const res = await runTool('SQUARE_LIST_LOCATIONS', memberId, {})
+    const locations = (res.locations ?? res.items ?? []) as { id?: string }[]
+    if (locations.length === 1 && locations[0]?.id) return String(locations[0].id)
+  } catch (e) {
+    console.error('square location lookup failed:', e)
+  }
+  return null
+}
 
 // Push a completed marketplace order back into the vendor's store so their
 // system of record reflects the sale (and inventory decrements there). Gated on
@@ -327,13 +451,21 @@ export async function pushOrderToStore(
     })
   } else if (platform === 'square') {
     // Square's order shape differs (line_items with base_price_money in cents).
-    // Wired but unverified — confirm SQUARE_CREATE_ORDER arg schema in dashboard.
+    // `location_id` is REQUIRED — an order without one is rejected, so resolve it
+    // before spending the call.
+    const locationId = await squareLocationId(memberId)
+    if (!locationId) {
+      console.error(`square push skipped for ${memberId}: no location id could be resolved`)
+      return { pushed: false, platform }
+    }
     const line_items = items.map((it) => ({
       name: it.name,
       quantity: String(it.qty),
       base_price_money: { amount: it.price_cents ?? 0, currency: 'USD' },
     }))
-    await runTool(TOOL_SLUGS.square.createOrder, memberId, { order: { line_items } })
+    await runTool(TOOL_SLUGS.square.createOrder, memberId, {
+      order: { location_id: locationId, line_items },
+    })
   }
 
   return { pushed: true, platform }

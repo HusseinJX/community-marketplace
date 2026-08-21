@@ -4,7 +4,7 @@ import { Children, useEffect, useState } from 'react'
 import Link from 'next/link'
 import {
   Package, ShoppingCart, Calendar, ArrowRight, UserCircle,
-  MessageCircle, CreditCard, Radio, LifeBuoy, Heart, Plug,
+  MessageCircle, CreditCard, Radio, LifeBuoy, Heart, Plug, PenLine,
 } from 'lucide-react'
 import { PLAN_KEY, PlanSwitch, type Tier } from '@/components/vendor/PlanSwitch'
 import { CollabMatchHero } from '@/components/vendor/CollabMatchHero'
@@ -209,32 +209,38 @@ export function VendorHome({
              the things you touch often; then the tools you dip into. Tier-hidden
              tiles drop out and an empty group drops its heading too. */}
       <div className="space-y-6">
-        {/* Pro is shop + agent — its own group, shown only on Pro, above the rest. */}
+        {/* Selling is free as of 2026-08-14, so the shop leads for EVERY vendor.
+            This group used to be "Pro tools" gated on isPro, which meant a free
+            vendor saw a price where the tools should have been. */}
+        <Section title="Your shop">
+          <Tile href="/vendor/products" Icon={Package} label="Products" desc="Your shop catalog" />
+          <Tile
+            href="/vendor/orders"
+            Icon={ShoppingCart}
+            label="Orders"
+            desc={orderCount > 0 ? `${orderCount} to date` : 'No orders yet'}
+          />
+          {/* One home for the external hookups: shop catalog, delivery, and
+              the payout bank account. Was two tiles (Shop & delivery + Payouts)
+              pointing at two pages; consolidated into /vendor/integrations. */}
+          <Tile href="/vendor/integrations" Icon={Plug} label="Integrations" desc="Shop, delivery & bank payouts" />
+        </Section>
+
+        {/* What Pro is now actually for. */}
         {isPro ? (
           <Section title="Pro tools">
-            <Tile href="/vendor/products" Icon={Package} label="Products" desc="Your shop catalog" />
-            <Tile
-              href="/vendor/orders"
-              Icon={ShoppingCart}
-              label="Orders"
-              desc={orderCount > 0 ? `${orderCount} to date` : 'No orders yet'}
-            />
             <Tile href="/vendor/assistant" Icon={MessageCircle} label="Your agent" desc="Train your customer-service AI" />
-            {/* One home for the external hookups: shop catalog, delivery, and
-                the payout bank account. Was two tiles (Shop & delivery + Payouts)
-                pointing at two pages; consolidated into /vendor/integrations. */}
-            <Tile href="/vendor/integrations" Icon={Plug} label="Integrations" desc="Shop, delivery & bank payouts" />
           </Section>
         ) : native ? null : (
-          // Off Pro, the shop tools simply vanished — no mention, no price, no way
-          // through. The paywall was behind a door that didn't exist.
-          // (Hidden entirely in the iOS app — Apple 3.1.1 forbids the price + CTA.)
-          <Section title="Sell on WhatsLocal">
+          // The price + CTA stays off iOS entirely (Apple 3.1.1); natively the
+          // upgrade lives in /vendor/billing behind StoreKit.
+          <Section title="Pro tools">
             <div className="card-soft p-4 sm:col-span-2">
-              <p className="text-[15px] font-semibold text-stone-900">Open your shop</p>
+              <p className="text-[15px] font-semibold text-stone-900">Let an AI answer your customers</p>
               <p className="mt-1 text-[13px] leading-snug text-stone-600">
-                Sync your Shopify or Square catalog, take payments, and offer delivery.
-                Pro is $30/mo — we take 5% of each sale, and nothing when you don&apos;t sell.
+                Your own agent replies to questions by text and by phone, trained on your
+                business. Pro is $30/mo. Selling stays free either way — we take 5% of a sale,
+                and nothing when you don&apos;t sell.
               </p>
               <Link
                 href="/vendor/billing"
@@ -254,11 +260,22 @@ export function VendorHome({
           <Tile href="/share?vendor=1" Icon={Radio} label="Post / Go live" desc="Share an update or broadcast live" />
         </Section>
 
-        <Section title="Tools">
+        {/* "Community" rather than "Tools": these three are the neighbourhood
+            half of the portal — what you give, what's available to you, and
+            what people are organising around. "Tools" was a name for whatever
+            was left over, and it had the account settings in it. */}
+        <Section title="Community">
           <Tile href="/vendor/giving" Icon={Heart} label="Giving" desc="Log a gift to a local org" />
           {/* Moved out of the top nav — useful, but not the wedge. */}
           <Tile href="/vendor/resources" Icon={LifeBuoy} label="Resources" desc="Grants, permits & local programs" />
-          <Tile href="/vendor/about" Icon={UserCircle} label="Business profile" desc="Edit your bio, category & links" />
+          <Tile href="/petitions" Icon={PenLine} label="Petitions" desc="Local causes worth backing" />
+        </Section>
+
+        {/* The account, on its own. These are the two you go looking for when
+            something is wrong or you want to change what you're paying — not
+            things you browse past on the way to your orders. */}
+        <Section title="Account">
+          <Tile href="/vendor/about" Icon={UserCircle} label="Business profile" desc="Your details & all your links" />
           <Tile href="/vendor/billing" Icon={CreditCard} label="Plan & billing" desc={`Current plan: ${planLabel}`} />
         </Section>
       </div>

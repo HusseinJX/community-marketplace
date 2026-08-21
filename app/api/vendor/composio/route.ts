@@ -26,7 +26,7 @@ export async function POST(request: Request) {
   const { action, platform, subdomain } = await request.json()
   const memberId = profile.member_id
 
-  // Connecting/syncing a shop is a Pro capability.
+  // Connecting/syncing a shop is free as of 2026-08-14 (gate kept deliberately).
   const gated = await gateCapability(memberId, 'commerce', { bypass: isAdmin(userId) })
   if (gated) return gated
 

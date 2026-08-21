@@ -10,11 +10,26 @@ import { Composio } from '@composio/core'
 // Composio integration natively rather than proxying to the connector.
 let composio: Composio | null = null
 
+// Toolkit versions are PINNED, and they have to be: tools.execute() throws
+// ComposioToolVersionRequiredError when the resolved version is "latest", so
+// without these every runTool() call fails — catalog sync and order push-back
+// alike. Pinning is also what stops a Composio release silently changing an
+// argument name underneath a nightly sync.
+//
+// Bump deliberately after checking the tool schema still matches:
+//   composio.tools.getRawComposioToolBySlug('SQUARE_SEARCH_CATALOG_OBJECTS')
+//     → .version, .availableVersions
+// Env vars allow a hotfix without a deploy.
+const TOOLKIT_VERSIONS: Record<string, string> = {
+  square: process.env.COMPOSIO_SQUARE_TOOLKIT_VERSION || '20260721_00',
+  shopify: process.env.COMPOSIO_SHOPIFY_TOOLKIT_VERSION || '20260807_00',
+}
+
 export function getComposio(): Composio {
   if (!composio) {
     const apiKey = process.env.COMPOSIO_API_KEY
     if (!apiKey) throw new Error('COMPOSIO_API_KEY is required')
-    composio = new Composio({ apiKey })
+    composio = new Composio({ apiKey, toolkitVersions: TOOLKIT_VERSIONS })
   }
   return composio
 }
@@ -41,11 +56,21 @@ export function authConfigIdFor(platform: ComposioPlatform): string {
   return id
 }
 
-// Composio's tool slugs per platform. Confirm exact argument/return schemas in
-// the dashboard (Auth Configs → Tools & Triggers) before relying on a field.
+// Composio's tool slugs per platform.
+//
+// ⚠️ VERIFY A SLUG AGAINST THE LIVE TOOLKIT BEFORE TRUSTING IT — an invented one
+// fails at call time with "Unable to retrieve tool with slug X", which in a
+// fire-and-forget path (order push-back) is a log line nobody reads.
+// `SQUARE_LIST_CATALOG` was wrong from the start and catalog sync could never
+// have worked; it was invisible because no vendor had connected yet. Check with:
+//   composio.tools.getRawComposioToolBySlug('SQUARE_SEARCH_CATALOG_OBJECTS')
+// and confirm argument names the same way — they are the provider's, not ours.
 export const TOOL_SLUGS = {
-  shopify: { list: 'SHOPIFY_LIST_ALL_PRODUCTS', createOrder: 'SHOPIFY_CREATE_ORDER' },
-  square: { list: 'SQUARE_LIST_CATALOG', createOrder: 'SQUARE_CREATE_ORDER' },
+  // SHOPIFY_LIST_ALL_PRODUCTS was invented too — same bug, same invisibility.
+  // The paginated variant is the one to use: SHOPIFY_GET_PRODUCTS also exists but
+  // is deprecated and says outright that it "may return only a partial set".
+  shopify: { list: 'SHOPIFY_GET_PRODUCTS_PAGINATED', createOrder: 'SHOPIFY_CREATE_ORDER' },
+  square: { list: 'SQUARE_SEARCH_CATALOG_OBJECTS', createOrder: 'SQUARE_CREATE_ORDER' },
 } as const
 
 // composio.tools.execute returns { data, successful, error } across recent SDK

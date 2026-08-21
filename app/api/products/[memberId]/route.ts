@@ -39,7 +39,8 @@ export async function POST(
   if (!actor || actor.memberId !== memberId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   }
-  // Commerce (shop/menu/catalog) is a Pro capability.
+  // Commerce (shop/menu/catalog) is FREE as of 2026-08-14. The gate stays so a
+  // future re-cut has exactly one place to change.
   const gated = await gateCapability(memberId, 'commerce', { bypass: actor.isAdmin })
   if (gated) return gated
 
