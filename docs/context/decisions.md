@@ -2,6 +2,64 @@
 
 Split out of CLAUDE.md (2026-08-13). Newest first, as it was written.
 
+## 2026-08-14 — selling is free; the Square launch path was broken end to end
+
+**Commerce moved to the free tier.** `commerce: true` in `FREE_CAN` (`lib/entitlements.ts`),
+which opens ten routes at once: Stripe Connect, Composio connect/sync, Square Appointments,
+products, digital files, Printify, integrations, and both AI scan routes.
+
+- **Why.** A $30/mo wall in front of a vendor's first sale taxes supply, and we are
+  supply-constrained, not monetisation-constrained. $30 × the vendors who won't pay it is $0;
+  5% of the sales they do make is not. The platform now earns when the vendor earns.
+- **Pro is no longer "you may sell" — it's the AI agent** (text + voice) and analytics. That is
+  also a cleaner sentence: *selling is free, we take 5%; the robot that answers your phone is $30.*
+- StoreKit IAP is done, so this was a business decision, not an Apple unblock. Commission on
+  goods/tickets/bookings stays on Stripe Connect, where 3.1.1 doesn't reach.
+- `productLimit` is set to 50 for free/member but **nothing reads it** — it's declared intent.
+  Wire it into the products write path before quoting it to anyone.
+- The vendor dashboard used to hide Products/Orders/Integrations behind `isPro` and show a price
+  where the tools should have been. The shop group is now unconditional; the Pro group is the agent.
+
+**Then the Square path turned out never to have worked.** Nobody had connected (Composio reported
+`noOfConnections: 0`), which is exactly why none of this was visible:
+
+1. **`connectedAccounts.initiate()` is retired** for Composio-managed OAuth (cutover 2026-07-03).
+   The Square auth config *is* Composio-managed, so Connect Square was throwing. Now uses `link()`.
+   Shopify stays on `initiate()` — its config is custom (explicitly unaffected), and `link()` has
+   nowhere to put the per-store `subdomain`.
+2. **`SQUARE_LIST_CATALOG` and `SHOPIFY_LIST_ALL_PRODUCTS` do not exist.** Both invented. Real ones:
+   `SQUARE_SEARCH_CATALOG_OBJECTS` and `SHOPIFY_GET_PRODUCTS_PAGINATED` (`SHOPIFY_GET_PRODUCTS`
+   exists but is deprecated and says it may return a partial set). Arguments were wrong too —
+   `object_types` is an array, not `'ITEM,IMAGE'` — and **both APIs page**: Square defaults to 25,
+   Shopify to 50. A single call silently truncated a real catalog.
+3. **`tools.execute()` refuses to run without a pinned toolkit version**, so every `runTool` call
+   failed regardless of slug. Pinned at SDK init (square `20260721_00`, shopify `20260807_00`),
+   env-overridable. Pinning also stops a Composio release renaming an argument under the nightly sweep.
+4. **`SQUARE_CREATE_ORDER` requires `order.location_id`** — we sent only `line_items`, so order
+   push-back would have 400'd even with `ORDERS_WRITE`. Resolved from `vendor_secrets`, else Square,
+   and only when there is exactly one location: choosing between several files a sale at the wrong shop.
+
+**The rule this earns:** a tool slug is not a name you can guess. Verify with
+`getRawComposioToolBySlug()` — it also gives you the argument schema and the current version.
+`scripts/square-verify.mts <memberId>` now checks the whole chain in one command.
+
+**Square Appointments borrows the catalog token.** `getStoreAccessToken()` reads the live
+`access_token` off the connected account at call time (never copied — Square tokens expire in ~30
+days and Composio owns the refresh), so one "Connect Square" covers catalog *and* bookings. A pasted
+token still wins as the escape hatch and the only route to sandbox. The auth config was widened to
+all seven scopes while `noOfConnections` was still 0 — after the first vendor connects, widening
+means re-consenting everyone. Disconnect needed a real opt-out (`square_bookings_off`, migration
+`20260813140000`): it used to just null the token, which a borrowed one would silently restore.
+
+**Photo scanning is metered.** `/api/ai/extract` — the actual "Scan menu" — had only an in-process
+`20/min` rate limit: it resets every deploy, doesn't span containers, and permits ~28,800 vision
+calls/day. `/api/ai/detect-products` counted only *successful image generations*, so a scan whose
+generations failed cost money and recorded nothing. Now one shared allowance (`photo_scan_usage`,
+migration `20260813150000`), **reserved before the billable call**, free 3/mo · Pro 60/mo with daily
+burst caps. It **fails closed** — unlike voice, which has its own length cap, a scan loop is bounded
+by nothing else. Also fixed: `ai_image_credits.premium` is a hand-set column, so anyone subscribing
+after the 2026-07-06 backfill was held to the 3-image free allowance despite paying.
+
 ## 2026-08-13 — maps, directions, saved businesses, event filters
 
 Full write-up in CHANGELOG.md. The decisions worth keeping:
