@@ -25,6 +25,32 @@ import { byDistance, milesTo } from "@/lib/proximity";
 // search bar's FilterSidebar directly above, which carries size/ownership to
 // /explore; a second set of facet pills on the same screen could disagree with
 // it. Distance is the one axis this surface owns.
+// What a typed keyword is matched against. Lowercased once per member per
+// keystroke — the directory is a few hundred rows held in memory, so this is a
+// substring scan and never a request.
+function memberHaystack(m: Member): string {
+  const p = m.profile ?? {};
+  const parts: unknown[] = [
+    p.name,
+    p.businessName,
+    p.category,
+    p.subcategory,
+    p.businessCategory,
+    p.businessType,
+    p.neighborhood,
+    p.services,
+    p.specialties,
+    p.menuHighlights,
+    p.products,
+  ];
+  const out: string[] = [];
+  for (const v of parts) {
+    if (typeof v === "string") out.push(v);
+    else if (Array.isArray(v)) for (const x of v) if (typeof x === "string") out.push(x);
+  }
+  return out.join(" ").toLowerCase();
+}
+
 export function LocalDirectory({
   /** Sits on the heading row, right-aligned (the marketplace button). */
   headerAction,
@@ -39,10 +65,18 @@ export function LocalDirectory({
    * the reader and the first photo.
    */
   showHeading = true,
+  /**
+   * A keyword from the header search. Non-empty replaces the category rails
+   * with one flat, nearest-first grid of everything that matches — the rails
+   * are a way to browse when you don't know what you want, and once you've
+   * typed a word you do.
+   */
+  query = "",
 }: {
   headerAction?: ReactNode;
   belowHeader?: ReactNode;
   showHeading?: boolean;
+  query?: string;
 } = {}) {
   // Shared, server-cached directory (same key as /explore — one request, cached
   // across tab switches, and the connector call runs server-side not in-browser).
@@ -65,16 +99,35 @@ export function LocalDirectory({
   // search and still has a profile page; it just doesn't get a tile until it
   // has something to put in it. `hasMemberImage` is the same list MemberCard
   // draws from, so the two can never disagree.
+  //
+  // While SEARCHING that photo rule is lifted: someone typing a name is after
+  // one specific business, and "we have it but won't show it to you because it
+  // has no picture" is the wrong answer to a name typed in full. Browsing is a
+  // shelf; searching is a lookup.
+  const q = query.trim().toLowerCase();
+  const searching = q.length > 0;
+
   const visible = useMemo(
-    () => members.filter((m) => m.profile?.name && hasMemberImage(m)),
-    [members],
+    () =>
+      members.filter(
+        (m) => m.profile?.name && (searching || hasMemberImage(m)),
+      ),
+    [members, searching],
   );
+
+  // Name first, then what the business IS — so "bakery" finds the bakeries and
+  // "Tartine" finds Tartine. Same fields the category rails bucket on, so a
+  // word that names a rail also finds its members.
+  const matched = useMemo(() => {
+    if (!searching) return visible;
+    return visible.filter((m) => memberHaystack(m).includes(q));
+  }, [visible, searching, q]);
 
   // Measure once, then sort and filter off the measurement — never recompute a
   // haversine inside a comparator.
   const measured = useMemo(
-    () => visible.map((m) => ({ m, miles: milesTo(home, m.profile) })),
-    [visible, home],
+    () => matched.map((m) => ({ m, miles: milesTo(home, m.profile) })),
+    [matched, home],
   );
 
   const ranked = useMemo(() => {
@@ -92,7 +145,9 @@ export function LocalDirectory({
 
   // Which category is expanded into the list+map split, by group key.
   const [expanded, setExpanded] = useState<string | null>(null);
-  const open = expanded ? groups.find((g) => g.group.key === expanded) : undefined;
+  // A search outranks an open category: the results are drawn from every
+  // category, so staying inside one would silently drop most of them.
+  const open = expanded && !searching ? groups.find((g) => g.group.key === expanded) : undefined;
 
   async function requestLocation() {
     setLocating(true);
@@ -179,7 +234,27 @@ export function LocalDirectory({
 
       <div className="mt-4" />
 
-      {visible.length === 0 ? (
+      {searching ? (
+        // One flat grid, still nearest-first. Same card as the rails draw, so a
+        // result and a shelf tile are the same object.
+        ranked.length === 0 ? (
+          <p className="t-body text-stone-400">
+            No local businesses match “{query.trim()}”.
+          </p>
+        ) : (
+          <>
+            <p className="mb-3 t-meta text-stone-500">
+              {ranked.length} {ranked.length === 1 ? "business" : "businesses"} matching “
+              {query.trim()}”
+            </p>
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
+              {ranked.map(({ m, miles }) => (
+                <MemberCard key={m.id} member={m} miles={miles} hasPosition={!!home} />
+              ))}
+            </div>
+          </>
+        )
+      ) : visible.length === 0 ? (
         <p className="t-body text-stone-400">No one local to show yet.</p>
       ) : (
         <div className="space-y-7">

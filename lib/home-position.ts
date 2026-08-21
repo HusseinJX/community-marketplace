@@ -150,6 +150,21 @@ export function getHomePosition(): Promise<Position | null> {
 }
 
 /**
+ * The position we ALREADY have — a pinned city, the module cache, or the disk
+ * cache — and nothing more. Never touches the device, so it can never raise a
+ * permission dialog.
+ *
+ * This is what lets the city name ride in the nav on pages that have no use for
+ * a location (cart, tickets, saved, your space): naming the city there is
+ * continuity, not a feature, and it is not worth a permission prompt on a
+ * checkout screen. Those surfaces show the city if home already learned it and
+ * stay silent otherwise.
+ */
+export function knownPosition(): Position | null {
+  return overridePosition() ?? cached ?? readStoredPosition();
+}
+
+/**
  * Force a fresh device fix (the "use my location" button).
  *
  * Clears any pinned city: asking for your location while a city is pinned can
@@ -172,7 +187,14 @@ export interface HomePositionState {
 }
 
 /** Position for any home surface. Renders immediately; never blocks on the dialog. */
-export function useHomePosition(): HomePositionState {
+export function useHomePosition({
+  /**
+   * Read-only: answer from what we already know (see `knownPosition`) and never
+   * ask the device. For surfaces that merely DISPLAY where you are rather than
+   * sorting by it.
+   */
+  passive = false,
+}: { passive?: boolean } = {}): HomePositionState {
   const [position, setPosition] = useState<Position | null>(cached);
   const [settled, setSettled] = useState<boolean>(!!cached || refused);
   // Bumped when the pinned city changes, to re-run the effect below. Every
@@ -194,15 +216,19 @@ export function useHomePosition(): HomePositionState {
   // forces a second render pass on every mount.
   useEffect(() => {
     let cancelled = false;
-    void getHomePosition().then((p) => {
+    // Passive still goes through a promise: resolving synchronously here would
+    // be a setState inside an effect body, which costs a second render pass on
+    // every mount of every page in the nav.
+    const p = passive ? Promise.resolve(knownPosition()) : getHomePosition();
+    void p.then((pos) => {
       if (cancelled) return;
-      setPosition(p);
+      setPosition(pos);
       setSettled(true);
     });
     return () => {
       cancelled = true;
     };
-  }, [tick]);
+  }, [tick, passive]);
 
   return { position, settled };
 }

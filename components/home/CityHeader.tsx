@@ -43,8 +43,19 @@ export function CityHeader({
    * because the nav is already naming it.
    */
   variant = "page",
-}: { variant?: "page" | "nav" } = {}) {
-  const { position, settled } = useHomePosition();
+  /**
+   * Display only: never ask the device where it is, and say nothing rather than
+   * prompt when we don't already know.
+   *
+   * This is what the nav uses away from home — cart, tickets, saved, your
+   * space. Those pages don't sort by distance, so the city there is continuity
+   * ("still San Francisco"), and continuity is not worth a permission dialog on
+   * a checkout screen or a "Pick a city" prompt on a page with nothing in it to
+   * pick a city for.
+   */
+  passive = false,
+}: { variant?: "page" | "nav"; passive?: boolean } = {}) {
+  const { position, settled } = useHomePosition({ passive });
   const pinnedId = cityOverride();
   const pinned = pinnedId ? cityById(pinnedId) : undefined;
   const [asked, setAsked] = useState<string | null>(() => {
@@ -84,7 +95,8 @@ export function CityHeader({
   // globe on its own rather than an empty space.
   if (!settled) return null;
   if (!near) {
-    return nav ? (
+    // Passive surfaces stay quiet — see the prop's note.
+    return nav && !passive ? (
       <div className="flex min-w-0 items-center gap-1">
         <span className="truncate t-meta text-stone-400">Pick a city</span>
         <CityPicker current={null} />
@@ -108,7 +120,8 @@ export function CityHeader({
   // we name the nearest city we DO cover instead, so the switcher is still
   // reachable from up there.
   if (nav) {
-    return cover ? <CityTitle city={cover} nav /> : (
+    if (cover) return <CityTitle city={cover} nav />;
+    return passive ? null : (
       <div className="flex min-w-0 items-center gap-1">
         <span className="truncate t-meta text-stone-400">Pick a city</span>
         <CityPicker current={null} />

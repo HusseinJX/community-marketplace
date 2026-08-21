@@ -25,11 +25,12 @@ export type HomeTab = "events" | "feed" | "shop" | "products";
 // of a phone. Chats is not here either — it lives as a pill inside Feed, since
 // a community chat is a kind of community post, not a separate destination.
 //
-// Feed is HIDDEN, not deleted (2026-08-13). It has nothing in it yet — the
-// seeding plan is features/community-feed-seeding.md — and a tab that asks the
-// visitor to go first teaches them the app is empty. The body still renders,
-// so `/?tab=feed` reaches it for testing; restore it by putting the entry back
-// in this list (and unhiding it in BackToHome's default).
+// Feed is BACK in the selector, LAST (2026-08-13). It was hidden earlier the
+// same day because it has nothing in it yet (seeding plan:
+// features/community-feed-seeding.md) and a tab that asks the visitor to go
+// first teaches them the app is empty. Last place is the compromise: the three
+// catalogues that are already full come first, so an empty shelf is never the
+// thing you land on or the first thing you reach for.
 //
 // Shops = the local business directory. Products = the marketplace grid. Two
 // tabs because they answer different questions ("who is near me" vs "what can
@@ -53,7 +54,7 @@ export const DEFAULT_HOME_TAB: HomeTab = "products";
 
 /** The tabs the selector actually draws, in order. */
 export const HOME_TABS: { id: HomeTab; label: string }[] = (
-  ["products", "shop", "events"] as const
+  ["products", "shop", "events", "feed"] as const
 ).map((id) => ({ id, label: TAB_LABELS[id] }));
 
 // Both spellings are in the wild — `?tab=events` from before the split, and
@@ -61,8 +62,9 @@ export const HOME_TABS: { id: HomeTab; label: string }[] = (
 // events tab; which VIEW they land on is the toggle's business, not the URL's.
 const LEGACY: Record<string, HomeTab> = { foryou: "events", whatson: "events" };
 
-// Every id the app can RENDER, which is a superset of the ones it offers —
-// `feed` is hidden from the selector but still reachable by URL.
+// Every id the app can RENDER. Currently that is exactly the set the selector
+// offers, but it stays a separate map so hiding a tab again is a one-line edit
+// to HOME_TABS without breaking the URLs that already point at it.
 export function isHomeTab(v: string | null | undefined): v is HomeTab {
   return !!v && Object.prototype.hasOwnProperty.call(TAB_LABELS, v);
 }

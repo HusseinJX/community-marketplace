@@ -1,17 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   ArrowLeft,
   ArrowRight,
   ChevronDown,
-  Check,
   GitCompare,
   Heart,
-  LayoutGrid,
-  List,
   Search,
   ShoppingBag,
+  SlidersHorizontal,
   Star,
   Truck,
   X,
@@ -110,7 +109,10 @@ function ProductCard({
 
   return (
     <article className="group overflow-hidden rounded-2xl border border-stone-200 bg-white transition">
-      <div className={`relative aspect-[4/5] bg-gradient-to-br ${product.color}`}>
+      {/* Square. The 4:5 portrait crop is a fashion-lookbook shape — it made
+          each card tall enough that two of them filled a phone screen, and a
+          local marketplace is mugs and candles as often as it is apparel. */}
+      <div className={`relative aspect-square bg-gradient-to-br ${product.color}`}>
         {product.badge && (
           <div className="absolute left-3 top-3">
             <BadgePill badge={product.badge} />
@@ -170,85 +172,6 @@ function ProductCard({
   );
 }
 
-// ─── Product Row (list) ────────────────────────────────────────────────────────
-
-function ProductRow({
-  product,
-  compared,
-  onToggleCompare,
-}: {
-  product: Product;
-  compared: boolean;
-  onToggleCompare: () => void;
-}) {
-  const { toggleFavorite, isFavorite, addToCart, isInCart } = useStore();
-  const faved = isFavorite(product.id);
-  const inCart = isInCart(product.id);
-
-  return (
-    <div className="card-soft card-hover flex items-center gap-4 p-4">
-      {/* Swatch thumbnail */}
-      <div className={`h-20 w-20 shrink-0 rounded-xl bg-gradient-to-br ${product.color}`} />
-      {/* Info */}
-      <div className="flex flex-1 flex-col gap-1">
-        <div className="flex items-center gap-2">
-          <p className="font-semibold text-stone-900">{product.name}</p>
-          {product.badge && <BadgePill badge={product.badge} />}
-        </div>
-        <p className="text-xs text-stone-500">{product.category}</p>
-        <div className="flex items-center gap-1 text-xs text-stone-500">
-          <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
-          {product.rating} · {product.reviews} reviews
-        </div>
-        <div className="flex gap-1 pt-1">
-          {product.colors.map((c) => (
-            <span
-              key={c}
-              className="h-3.5 w-3.5 rounded-full ring-1 ring-stone-200"
-              style={{ background: c }}
-            />
-          ))}
-        </div>
-      </div>
-      {/* Price + actions */}
-      <div className="flex shrink-0 flex-col items-end gap-2">
-        <div className="flex items-center gap-2">
-          <span className="font-bold text-stone-900">${product.price}</span>
-          {product.compareAt && (
-            <span className="text-sm text-stone-400 line-through">${product.compareAt}</span>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => toggleFavorite(toStored(product))}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-stone-200 text-stone-500 transition hover:border-rose-200 hover:text-rose-500"
-            aria-label="Favorite"
-          >
-            <Heart className={`h-4 w-4 ${faved ? "fill-rose-500 text-rose-500" : ""}`} />
-          </button>
-          <button
-            onClick={onToggleCompare}
-            className={`inline-flex h-9 w-9 items-center justify-center rounded-full border transition ${
-              compared ? "border-indigo-600 bg-indigo-600 text-white" : "border-stone-200 text-stone-500 hover:border-indigo-200 hover:text-indigo-600"
-            }`}
-            aria-label="Compare"
-            title="Compare"
-          >
-            <GitCompare className="h-4 w-4" />
-          </button>
-          <button
-            onClick={() => addToCart(toStored(product))}
-            className="flex items-center gap-1.5 rounded-xl bg-stone-900 px-3.5 py-2 text-[13px] font-semibold text-white transition hover:bg-stone-700"
-          >
-            <ShoppingBag className="h-4 w-4" />
-            {inCart ? "Added" : "Add"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 /**
@@ -259,14 +182,28 @@ function ProductRow({
  * (`embedded`, inside the tab shell that already owns the header and nav).
  * One implementation, so the two can't drift apart.
  */
-export function Marketplace({ embedded = false }: { embedded?: boolean }) {
-  const [search, setSearch] = useState("");
+export function Marketplace({
+  embedded = false,
+  /**
+   * A keyword from the page's own search box. Passing it takes over this
+   * component's toolbar input — embedded in the home tab the header already
+   * carries a search pill, and two boxes on one screen is one box too many
+   * (see the "one search box per screen" convention). Standalone at /shop
+   * nothing is passed and the toolbar input stays.
+   */
+  query,
+}: {
+  embedded?: boolean;
+  query?: string;
+}) {
+  const [ownSearch, setOwnSearch] = useState("");
+  const external = query != null;
+  const search = external ? query : ownSearch;
   const [selectedCategory, setSelectedCategory] = useState<Category | "All">("All");
   const [maxPrice, setMaxPrice] = useState(100);
   const [sort, setSort] = useState("featured");
   const [showSortMenu, setShowSortMenu] = useState(false);
-  const [view, setView] = useState<"grid" | "list">("grid");
-  const [showFilters, setShowFilters] = useState(false); // mobile filter drawer
+  const [showFilters, setShowFilters] = useState(false); // the filter sidebar
   const [quickFilter, setQuickFilter] = useState("All");
 
   // Compare — pick up to 4 products, then open a side-by-side panel.
@@ -317,17 +254,19 @@ export function Marketplace({ embedded = false }: { embedded?: boolean }) {
             </p>
           </div>
 
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
-            <input
-              type="text"
-              placeholder="Search products…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="h-9 rounded-xl border border-stone-200 bg-white pl-9 pr-4 text-sm text-stone-900 placeholder:text-stone-400 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-100"
-            />
-          </div>
+          {/* Search — only when this component owns the keyword. */}
+          {!external && (
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+              <input
+                type="text"
+                placeholder="Search products…"
+                value={ownSearch}
+                onChange={(e) => setOwnSearch(e.target.value)}
+                className="h-9 rounded-xl border border-stone-200 bg-white pl-9 pr-4 text-sm text-stone-900 placeholder:text-stone-400 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+              />
+            </div>
+          )}
 
           {/* Sort dropdown */}
           <div className="relative">
@@ -356,35 +295,19 @@ export function Marketplace({ embedded = false }: { embedded?: boolean }) {
             )}
           </div>
 
-          {/* Filters toggle (mobile only — sidebar is always shown on lg) */}
+          {/* Filters toggle — at EVERY width now. It used to be `lg:hidden`,
+              because on desktop the sidebar was permanently mounted; that made
+              it a filter column you could never put away on the screens where
+              the grid most wants the room. One button, one sidebar, one state. */}
           <button
             onClick={() => setShowFilters((v) => !v)}
-            className="flex h-9 items-center gap-2 rounded-xl border border-stone-200 bg-white px-4 text-sm font-medium text-stone-700 transition hover:border-stone-300 lg:hidden"
+            aria-expanded={showFilters}
+            className="flex h-9 items-center gap-2 rounded-xl border border-stone-200 bg-white px-4 text-sm font-medium text-stone-700 transition hover:border-stone-300"
           >
+            <SlidersHorizontal className="h-4 w-4 text-stone-400" />
             {showFilters ? "Hide filters" : "Filters"}
           </button>
 
-          {/* View toggle */}
-          <div className="flex rounded-xl border border-stone-200 bg-white p-0.5">
-            <button
-              onClick={() => setView("grid")}
-              className={`flex h-8 w-8 items-center justify-center rounded-lg transition ${
-                view === "grid" ? "bg-stone-900 text-white" : "text-stone-500 hover:text-stone-900"
-              }`}
-              aria-label="Grid view"
-            >
-              <LayoutGrid className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => setView("list")}
-              className={`flex h-8 w-8 items-center justify-center rounded-lg transition ${
-                view === "list" ? "bg-stone-900 text-white" : "text-stone-500 hover:text-stone-900"
-              }`}
-              aria-label="List view"
-            >
-              <List className="h-4 w-4" />
-            </button>
-          </div>
         </div>
 
         {/* Quick filters — one horizontal scroll row of pills */}
@@ -404,106 +327,25 @@ export function Marketplace({ embedded = false }: { embedded?: boolean }) {
           ))}
         </div>
 
-        {/* Two-column layout (stacks on mobile; filters collapse into a drawer) */}
-        <div className="flex flex-col gap-6 lg:flex-row lg:gap-8">
-          {/* Sidebar filters — hidden on mobile until the Filters button opens it */}
-          <aside className={`${showFilters ? "flex" : "hidden"} w-full shrink-0 flex-col gap-6 lg:flex lg:w-60`}>
-            {/* Category */}
-            <div className="card-soft p-4">
-              <p className="section-label mb-3">Category</p>
-              <div className="flex flex-col gap-1">
-                {(["All", ...CATEGORIES] as (Category | "All")[]).map((cat) => (
-                  <button
-                    key={cat}
-                    onClick={() => setSelectedCategory(cat)}
-                    className={`rounded-lg px-3 py-2 text-left text-sm font-medium transition ${
-                      selectedCategory === cat
-                        ? "bg-stone-900 text-white"
-                        : "text-stone-600 hover:bg-stone-50 hover:text-stone-900"
-                    }`}
-                  >
-                    {cat}
-                  </button>
-                ))}
-              </div>
-            </div>
+        {/* The filter SIDEBAR slides in over the page from the left, opened by
+            the Filters button above — same slide-over the business search uses
+            (components/FilterSidebar). It is rendered at the bottom of this
+            component, outside the page container, because a fixed-position
+            panel has to escape it. */}
 
-            {/* Price range */}
-            <div className="card-soft p-4">
-              <p className="section-label mb-3">Price range</p>
-              <div className="flex items-center justify-between text-xs text-stone-500 mb-2">
-                <span>$0</span>
-                <span className="font-semibold text-stone-900">${maxPrice}</span>
-              </div>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                value={maxPrice}
-                onChange={(e) => setMaxPrice(Number(e.target.value))}
-                className="w-full accent-stone-900"
-              />
-            </div>
-
-            {/* Availability */}
-            <div className="card-soft p-4">
-              <p className="section-label mb-3">Availability</p>
-              <div className="flex flex-col gap-2">
-                {["In stock", "On sale", "New arrivals"].map((opt) => (
-                  <label key={opt} className="flex items-center gap-2.5 text-sm text-stone-600 cursor-pointer">
-                    <input type="checkbox" className="rounded border-stone-300 accent-stone-900" />
-                    {opt}
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {/* Color swatches */}
-            <div className="card-soft p-4">
-              <p className="section-label mb-3">Color</p>
-              <div className="flex flex-wrap gap-2">
-                {SIDEBAR_COLORS.map((c) => (
-                  <button
-                    key={c}
-                    className="h-7 w-7 rounded-full ring-2 ring-offset-2 ring-transparent transition hover:ring-stone-400"
-                    style={{ background: c }}
-                    aria-label={c}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* Apply filters */}
-            <button
-              onClick={() => setShowFilters(false)}
-              className="w-full rounded-xl bg-stone-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-stone-800"
-            >
-              Apply filters
-            </button>
-          </aside>
-
-          {/* Product area */}
-          <div className="min-w-0 flex-1">
+        {/* Product area — full width; the filters float above the page rather
+            than taking a column out of it. */}
+        <div>
+          <div className="min-w-0">
             {filtered.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-3 py-24 text-stone-400">
                 <ShoppingBag className="h-10 w-10" />
                 <p className="font-medium">No products match your filters</p>
               </div>
-            ) : view === "grid" ? (
+            ) : (
               <div className="grid grid-cols-2 gap-4 xl:grid-cols-3">
                 {filtered.map((p) => (
                   <ProductCard
-                    key={p.id}
-                    product={p}
-                    compared={compare.includes(p.id)}
-                    onToggleCompare={() => toggleCompare(p.id)}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="flex flex-col gap-3">
-                {filtered.map((p) => (
-                  <ProductRow
                     key={p.id}
                     product={p}
                     compared={compare.includes(p.id)}
@@ -568,6 +410,17 @@ export function Marketplace({ embedded = false }: { embedded?: boolean }) {
         </div>
       </div>
 
+      {/* The filter sidebar itself. Outside the page container on purpose —
+          it is fixed-position and portalled to <body>. */}
+      <ProductFilterSidebar
+        open={showFilters}
+        onClose={() => setShowFilters(false)}
+        selectedCategory={selectedCategory}
+        onSelectCategory={setSelectedCategory}
+        maxPrice={maxPrice}
+        onMaxPriceChange={setMaxPrice}
+      />
+
       {/* Compare bar — floats once you pick products */}
       {compare.length > 0 && !showCompare && (
         <div className="fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-40 flex justify-center px-4">
@@ -614,6 +467,180 @@ export function Marketplace({ embedded = false }: { embedded?: boolean }) {
     </div>
   );
 }
+
+
+// ─── Filter sidebar ────────────────────────────────────────────────────────────
+
+/**
+ * The product filters, as a slide-in sidebar over the page.
+ *
+ * Same shape and same reasoning as components/FilterSidebar (the business
+ * facets panel on home): overlay + fixed left panel, rendered through a PORTAL
+ * to <body>. The portal is not optional — `position: fixed` is only relative to
+ * the viewport while no ancestor carries a `filter`, `backdrop-filter`,
+ * `transform` or `will-change`, and this opens from a toolbar that can sit
+ * under exactly such a header. Portalled, no styling decision further up the
+ * tree can clip it.
+ *
+ * The filter CONTROLS inside are unchanged from when they were a static column
+ * — category, price range, availability, colour.
+ */
+function ProductFilterSidebar({
+  open,
+  onClose,
+  selectedCategory,
+  onSelectCategory,
+  maxPrice,
+  onMaxPriceChange,
+}: {
+  open: boolean;
+  onClose: () => void;
+  selectedCategory: Category | "All";
+  onSelectCategory: (c: Category | "All") => void;
+  maxPrice: number;
+  onMaxPriceChange: (n: number) => void;
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    if (open) document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
+  // The page behind must not scroll while the panel is open — on a phone the
+  // drag lands on the page, not the panel, and you come back to a different
+  // scroll position than you left.
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
+
+  // Portals need a DOM that exists — mount client-side only, or SSR throws.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted) return null;
+
+  return createPortal(
+    <>
+      {/* Overlay */}
+      <div
+        className={`fixed inset-0 z-[60] bg-stone-900/40 backdrop-blur-sm transition-opacity ${
+          open ? "opacity-100" : "pointer-events-none opacity-0"
+        }`}
+        onClick={onClose}
+        aria-hidden
+      />
+      {/* Panel — full-height left sidebar. z above the bottom nav (z-40), which
+          would otherwise sit on top of the panel's own footer button. */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-[70] flex w-80 max-w-[85vw] flex-col bg-white shadow-2xl transition-transform duration-200 ${
+          open ? "translate-x-0" : "-translate-x-full"
+        }`}
+        aria-label="Product filters"
+        aria-hidden={!open}
+      >
+        <div
+          className="flex items-center justify-between border-b border-stone-100 px-5 pb-4"
+          style={{ paddingTop: "calc(env(safe-area-inset-top) + 1rem)" }}
+        >
+          <h2 className="text-base font-semibold text-stone-900">Filters</h2>
+          <button
+            onClick={onClose}
+            className="rounded-full p-1.5 text-stone-400 hover:bg-stone-100"
+            aria-label="Close filters"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="flex-1 space-y-6 overflow-y-auto px-5 py-5">
+          {/* Category */}
+          <div>
+            <p className="section-label mb-3">Category</p>
+            <div className="flex flex-col gap-1">
+              {(["All", ...CATEGORIES] as (Category | "All")[]).map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => onSelectCategory(cat)}
+                  className={`rounded-lg px-3 py-2 text-left text-sm font-medium transition ${
+                    selectedCategory === cat
+                      ? "bg-stone-900 text-white"
+                      : "text-stone-600 hover:bg-stone-50 hover:text-stone-900"
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Price range */}
+          <div>
+            <p className="section-label mb-3">Price range</p>
+            <div className="mb-2 flex items-center justify-between text-xs text-stone-500">
+              <span>$0</span>
+              <span className="font-semibold text-stone-900">${maxPrice}</span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={maxPrice}
+              onChange={(e) => onMaxPriceChange(Number(e.target.value))}
+              className="w-full accent-stone-900"
+            />
+          </div>
+
+          {/* Availability */}
+          <div>
+            <p className="section-label mb-3">Availability</p>
+            <div className="flex flex-col gap-2">
+              {["In stock", "On sale", "New arrivals"].map((opt) => (
+                <label key={opt} className="flex cursor-pointer items-center gap-2.5 text-sm text-stone-600">
+                  <input type="checkbox" className="rounded border-stone-300 accent-stone-900" />
+                  {opt}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Color swatches */}
+          <div>
+            <p className="section-label mb-3">Color</p>
+            <div className="flex flex-wrap gap-2">
+              {SIDEBAR_COLORS.map((c) => (
+                <button
+                  key={c}
+                  className="h-7 w-7 rounded-full ring-2 ring-transparent ring-offset-2 transition hover:ring-stone-400"
+                  style={{ background: c }}
+                  aria-label={c}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div
+          className="border-t border-stone-100 px-5 pt-4"
+          style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 1rem)" }}
+        >
+          <button
+            onClick={onClose}
+            className="w-full rounded-xl bg-stone-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-stone-800"
+          >
+            Apply filters
+          </button>
+        </div>
+      </aside>
+    </>,
+    document.body,
+  );
+}
+
+// ─── Compare column ────────────────────────────────────────────────────────────
 
 // One column of the compare panel.
 function CompareColumn({ product, onRemove }: { product: Product; onRemove: () => void }) {
