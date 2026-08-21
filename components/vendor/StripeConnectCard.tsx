@@ -23,7 +23,9 @@ export function StripeConnectCard({ status }: { status: StripeStatus }) {
       })
       const data = await res.json()
       if (res.status === 402) {
-        setError('Taking payments is a Pro feature. Upgrade in Plan & billing to continue.')
+        // Selling is free now, so a 402 here means something else went wrong
+        // rather than a plan wall — don't name a price that isn't being charged.
+        setError('Could not start payment setup just now. Try again shortly.')
       } else if (data.onboardingUrl) {
         // Stripe's hosted onboarding — returns to /vendor/integrations when done.
         window.location.href = data.onboardingUrl

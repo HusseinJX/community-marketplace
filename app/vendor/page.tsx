@@ -73,9 +73,9 @@ export default async function VendorDashboard({
 
   const profileUrl = memberId ? `${SITE_URL}/members/${memberId}` : null;
 
-  // Selling is a Pro capability, so the checklist only makes sense to someone who
-  // has it — a Free vendor gets the upgrade card in VendorHome instead of a list
-  // of steps they can't take.
+  // Selling is free as of 2026-08-14, so every vendor gets the checklist. Kept
+  // reading from entitlements rather than hardcoded true — it is still the one
+  // switch if commerce is ever re-gated.
   const canSell = entitlements?.can.commerce || admin;
   const sellSteps: SellStep[] | null = canSell
     ? [

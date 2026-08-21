@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getEntitlements, type Capability } from '@/lib/entitlements'
+import { getEntitlements, PLANS, type Capability, type Plan } from '@/lib/entitlements'
 
 // Server-side capability gate for API routes. Returns a 402 upgrade response the
 // route should return immediately when the member lacks the capability, or null
@@ -20,13 +20,10 @@ export async function gateCapability(
 }
 
 // The lowest plan that grants a capability — for a helpful upgrade message.
-function capabilityPlan(cap: Capability): 'member' | 'pro' {
-  const memberCaps: Capability[] = [
-    'claimedProfile',
-    'textAssistant',
-    'posts',
-    'discovery',
-    'networkReceive',
-  ]
-  return memberCaps.includes(cap) ? 'member' : 'pro'
+// Derived from PLANS rather than a second hand-maintained list: the old copy
+// still claimed `textAssistant` was a Member capability, and would have gone on
+// claiming commerce was Pro after it went free.
+function capabilityPlan(cap: Capability): Plan {
+  const ascending: Plan[] = ['free', 'member', 'pro', 'enterprise']
+  return ascending.find((p) => PLANS[p].can[cap]) ?? 'pro'
 }

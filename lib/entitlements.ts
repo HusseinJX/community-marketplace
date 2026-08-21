@@ -5,14 +5,16 @@ import { getDemoMember } from '@/lib/demo-members'
 // The single source of truth for what each subscription plan unlocks. Plans
 // (the "re-cut": payment follows proof, supply/liquidity isn't taxed):
 //   free  Participate — claimed/verified/network-visible profile, posts, discovery,
-//                and RECEIVING collab/event invites (join events + lineups). Don't
-//                tax being in the network.
+//                RECEIVING collab/event invites (join events + lineups), AND
+//                COMMERCE (shop/menu/catalog/Stripe/delivery). Don't tax being in
+//                the network, and don't tax selling — the 5% on sales is the
+//                platform's cut, so we earn when the vendor earns.
 //   member $10 Act   — everything free + SENDING invites + the "For You" matcher,
 //                creating/organizing events + lineups, lead/RSVP inbox, and
 //                SMS/email blasts. The organizer tier.
 //   pro   $30 Capture — everything above + the text AI customer-service agent,
-//                the VOICE agent (metered), commerce (shop/menu/catalog/Stripe/Uber),
-//                and analytics. The "run on the network" tier.
+//                the VOICE agent (metered), and analytics. The "run on the
+//                network" tier. Selling is NOT what you buy here — the robot is.
 //   enterprise — Pro + higher limits, granted manually (contact sales)
 //
 // Capabilities + numeric limits live here (not the DB) so they can change without
@@ -46,7 +48,22 @@ export interface Limits {
   voiceCallsPerDay: number
   /** AI product images per month (drives ai_image_credits premium behavior). */
   aiImagesPerMonth: number
-  /** Max active products (Infinity = unlimited). */
+  /**
+   * "Scan menu" photo→catalog runs per month. Metered separately from the images
+   * it produces: a scan is a full-resolution vision call whether or not anything
+   * is generated afterwards, so the generation counter never saw it.
+   */
+  photoScansPerMonth: number
+  /** Burst cap regardless of the monthly quota. */
+  photoScansPerDay: number
+  /**
+   * Max active products (Infinity = unlimited).
+   *
+   * ⚠️ NOTHING READS THIS TODAY — it is a declared intent, not a live cap. It
+   * was 0 for free/member back when commerce itself was gated; now that selling
+   * is free the number matters, so wire it into the products write path before
+   * quoting it to anyone.
+   */
   productLimit: number
 }
 
@@ -72,15 +89,22 @@ const NONE: Record<Capability, boolean> = {
   automations: false,
 }
 
-// Free (Participate): claimed profile, posts, discovery, and RECEIVING invites —
-// joining the network and being available to collaborate is free. No AI agent,
-// no SENDING invites/organizing — those start at Member.
+// Free (Participate): claimed profile, posts, discovery, RECEIVING invites —
+// and, since 2026-08-14, COMMERCE. Joining the network, being available to
+// collaborate, and selling are all free.
+//
+// Selling moved here because a subscription in front of a vendor's first sale
+// taxes supply in a market that is supply-constrained: $30/mo × the vendors who
+// won't pay it is $0, while 5% of the sales they do make is not. The platform
+// now earns when the vendor earns. Pro is no longer "you may sell" — it's the AI
+// agent (text + voice) and analytics.
 const FREE_CAN: Record<Capability, boolean> = {
   ...NONE,
   claimedProfile: true,
   posts: true,
   discovery: true,
   networkReceive: true,
+  commerce: true,
 }
 
 // Member ($10, Act/Organize): everything free + SENDING collab invites, the
@@ -94,30 +118,39 @@ const MEMBER_CAN: Record<Capability, boolean> = {
   automations: true,
 }
 
-// Pro ($30): everything above + the two things Pro is actually about —
-// SHOP (commerce) and the AI AGENT (text + voice) — plus analytics.
+// Pro ($30): everything above + what Pro is now actually about — the AI AGENT
+// (text + voice) and analytics. Commerce used to live here; it's free as of
+// 2026-08-14 (see FREE_CAN). `commerce` is inherited, not re-granted.
 const PRO_CAN: Record<Capability, boolean> = {
   ...MEMBER_CAN,
   textAssistant: true,
   voiceAssistant: true,
-  commerce: true,
   analytics: true,
 }
 
 export const PLANS: Record<Plan, { can: Record<Capability, boolean>; limits: Limits }> = {
-  free: { can: FREE_CAN, limits: { voiceCallsPerMonth: 0, voiceCallsPerDay: 0, aiImagesPerMonth: 0, productLimit: 0 } },
+  // Scans are allowed below Pro but kept to a taste: enough to photograph a menu
+  // and see what the feature does, not enough to run a catalog on. The daily cap
+  // is what actually bounds a runaway client — a loop can't spend a month's
+  // worth in an afternoon.
+  free: {
+    can: FREE_CAN,
+    limits: { voiceCallsPerMonth: 0, voiceCallsPerDay: 0, aiImagesPerMonth: 0, photoScansPerMonth: 3, photoScansPerDay: 2, productLimit: 50 },
+  },
   member: {
     can: MEMBER_CAN,
-    limits: { voiceCallsPerMonth: 0, voiceCallsPerDay: 0, aiImagesPerMonth: 0, productLimit: 0 },
+    limits: { voiceCallsPerMonth: 0, voiceCallsPerDay: 0, aiImagesPerMonth: 0, photoScansPerMonth: 3, photoScansPerDay: 2, productLimit: 50 },
   },
   pro: {
     can: PRO_CAN,
     // ~40 calls/mo × 5-min cap ≈ 200 min ceiling — comfortably covered by $30.
-    limits: { voiceCallsPerMonth: 40, voiceCallsPerDay: 15, aiImagesPerMonth: 100, productLimit: Infinity },
+    // Pro is capped too, not unlimited: a paid plan is not a blank cheque
+    // against gpt-image-1, and 60/mo is far past what stocking a real shop takes.
+    limits: { voiceCallsPerMonth: 40, voiceCallsPerDay: 15, aiImagesPerMonth: 100, photoScansPerMonth: 60, photoScansPerDay: 10, productLimit: Infinity },
   },
   enterprise: {
     can: PRO_CAN,
-    limits: { voiceCallsPerMonth: 200, voiceCallsPerDay: 50, aiImagesPerMonth: 1000, productLimit: Infinity },
+    limits: { voiceCallsPerMonth: 200, voiceCallsPerDay: 50, aiImagesPerMonth: 1000, photoScansPerMonth: 300, photoScansPerDay: 30, productLimit: Infinity },
   },
 }
 
