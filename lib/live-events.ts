@@ -37,9 +37,23 @@ export const LIVE_EVENTS: LiveEvent[] = [
   { slug: "olympics", label: "Olympics", emoji: "🏅", category: "Sports" },
   { slug: "tennis", label: "Tennis", emoji: "🎾", category: "Sports" },
   { slug: "golf", label: "Golf", emoji: "⛳", category: "Sports" },
-  { slug: "live-music", label: "Live Music", emoji: "🎶", category: "Culture" },
-  { slug: "watch-party", label: "Watch Party", emoji: "📺", category: "Other" },
-  { slug: "other", label: "Something Else", emoji: "✨", category: "Other" },
+  // LIVE IS SPORTS. Nothing else belongs in this list.
+  //
+  // "Live Music" and "Watch Party" used to sit here, and they are exactly the
+  // rot this comment exists to prevent: a broadcast means "the game is on, come
+  // and watch it here", and the whole surface is built around that — it groups
+  // by competition, ranks by which team you back, ends when the match ends, and
+  // reads its slate from a real fixtures feed. A gig has none of that. A gig is
+  // an EVENT: it has a start time, a date, a poster, and a page — and events
+  // already have a tab, a calendar and a feed of their own.
+  //
+  // Letting one live-music broadcast in makes "Live now" mean "some stuff is
+  // happening somewhere", which is the same as meaning nothing. If a venue has
+  // a band on, they post an event.
+  //
+  // `other` stays: a real sporting event we have no slug for yet is still
+  // sport, and refusing it would just push people to mislabel it as NBA.
+  { slug: "other", label: "Other Sport", emoji: "🏅", category: "Sports" },
 ];
 
 const EVENT_BY_SLUG: Record<string, LiveEvent> = Object.fromEntries(

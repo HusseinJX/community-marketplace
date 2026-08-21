@@ -7,10 +7,20 @@ import { eventEmoji, eventLabel, timeLeftLabel } from "@/lib/live-events";
 import { distanceKm } from "@/lib/native-geo";
 import { useHomePosition } from "@/lib/home-position";
 import { useBroadcasts } from "@/lib/data-hooks";
+import { matchKeyOf } from "@/lib/demo-live-fixtures";
 import type { LiveBroadcast } from "./types";
 
-// Compact "Live Now near you" strip for the home page. Renders nothing when
-// there's nothing live, so it never takes up space on a quiet day.
+// Compact "Live now near you" strip — the top of the home EVENTS tab.
+//
+// A broadcast is an event: it is a thing happening at a place, at a time, that
+// you could go to. It just happens to have started already. Keeping it on its
+// own tab meant "what's on tonight" and "what's on RIGHT NOW" lived on two
+// different screens, and the one people actually want first was the one behind
+// the extra tap. So the full feed still has its tab, and its most urgent slice
+// sits above the dated list where the question is being asked.
+//
+// Renders nothing when nothing is live, so it costs no space on a quiet day —
+// which is what lets it sit above the fold without apology.
 export function LiveNowRail() {
   // Shared cache with the main live feed — one request, instant on return.
   const { broadcasts: items } = useBroadcasts();
@@ -42,8 +52,10 @@ export function LiveNowRail() {
           </span>
           Live now near you
         </h2>
+        {/* The feed tab, not "/" — home defaults to Products now, so /live's
+            redirect to the index would land somewhere with no broadcasts. */}
         <Link
-          href="/live"
+          href="/?tab=feed"
           className="inline-flex items-center gap-1 text-xs font-medium text-rose-600 hover:text-rose-800"
         >
           See all <ArrowRight className="h-3.5 w-3.5" />
@@ -54,7 +66,12 @@ export function LiveNowRail() {
         {ranked.slice(0, 12).map((b) => (
           <Link
             key={b.id}
-            href={`/live/${b.id}`}
+            // The MATCH, not this one venue. The card is titled with the
+            // fixture, so the question it raises is "who's showing it?" — and
+            // the answer is a list of every place, with a map. Landing on one
+            // bar's page instead makes you go back and try the next card to
+            // find out who else has it on.
+            href={`/live/match/${encodeURIComponent(matchKeyOf(b))}`}
             className="group flex w-56 shrink-0 flex-col gap-1 rounded-xl bg-white/80 p-3 ring-1 ring-rose-100 transition hover:ring-rose-300"
           >
             <div className="flex items-center gap-2">

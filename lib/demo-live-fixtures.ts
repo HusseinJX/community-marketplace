@@ -1,5 +1,7 @@
 import type { LiveBroadcast } from "@/components/live/types";
 import { isFixtureLive, type Fixture } from "@/lib/live-fixtures";
+import { getDemoBroadcasts } from "@/lib/demo-live";
+import { isDemoMode } from "@/lib/demo-admin";
 
 // Demo "Live Now" content built from the REAL games slate (/api/fixtures, ESPN):
 // the matches are real live games, the PLACES showing them are demo venues. This
@@ -112,6 +114,22 @@ export function matchKeyOf(b: { whats_on: string | null; event_slug: string }): 
  * real-live-games + demo-venues fallback (static demo only if nothing is live).
  * Shared by the home feed and the match page so they agree.
  */
+/**
+ * The live broadcasts every live surface reads.
+ *
+ * REAL ONES ALWAYS WIN. The demo seed (lib/demo-live) is only reached when the
+ * real list comes back empty AND demo mode is on — so a quiet evening in
+ * production shows an empty feed, which is the truth, while locally the Live
+ * rail and the Feed tab have something in them to look at.
+ *
+ * ⚠️ The gate is `isDemoMode()` — NEXT_PUBLIC_DEMO_MODE — deliberately, and not
+ * NODE_ENV: that is the one flag `.env.production.local` pins to 0 and the
+ * pre-deploy gate in CLAUDE.md actually verifies. Anything else here would be
+ * a second, unverified way for demo content to reach the App Store build.
+ *
+ * The seed's times are relative to now, so its broadcasts are always mid-flight
+ * and countdowns stay sensible however long the tab is open.
+ */
 export async function fetchLiveBroadcasts(): Promise<LiveBroadcast[]> {
   try {
     const res = await fetch("/api/broadcasts");
@@ -120,7 +138,7 @@ export async function fetchLiveBroadcasts(): Promise<LiveBroadcast[]> {
       if (data.broadcasts?.length) return data.broadcasts as LiveBroadcast[];
     }
   } catch {
-    /* fall through to demo */
+    /* fall through to the demo seed, if it is allowed */
   }
-  return [];
+  return isDemoMode() ? getDemoBroadcasts() : [];
 }

@@ -103,15 +103,25 @@ const WORLD_CUP: DemoSpec[] = [
   },
 ];
 
-// Generic, non-trademarked demo used while the World Cup surfaces are parked
-// (Apple 5.2.1). Same venue ids so cards still link to real demo profiles.
+// The everyday demo, used while the World Cup surfaces are parked (Apple
+// 5.2.1). Same venue ids, so cards still link to real demo profiles.
+//
+// ALL SPORT, because that is all "live" is. This list previously had a cumbia
+// night and a trivia happy hour in it, which quietly redefined the feature as
+// "anything on at a bar" — see the note in lib/live-events. A venue with a band
+// on posts an event; a venue with the game on goes live.
+//
+// Leagues rather than a tournament: NBA/NFL/MLB are on most nights of the year,
+// carry no trademark problem of the kind 5.2.1 flagged, and are what a real
+// slate off /api/fixtures actually looks like.
 const LOCAL_SCENE: DemoSpec[] = [
   {
     member_id: "demo-el-tri-cantina",
     member_name: "El Tri Cantina",
-    event_slug: "live-music",
-    whats_on: "Live cumbia + micheladas",
-    note: "House band on the patio, tacos al pastor all night",
+    event_slug: "liga-mx",
+    whats_on: "América vs Chivas",
+    note: "Every screen on it, micheladas all match",
+    supports_team: "América",
     neighborhood: "Boyle Heights",
     latitude: 34.0444,
     longitude: -118.2007,
@@ -125,9 +135,10 @@ const LOCAL_SCENE: DemoSpec[] = [
   {
     member_id: "demo-azteca-grill",
     member_name: "Azteca Grill & Bar",
-    event_slug: "watch-party",
-    whats_on: "Big-screen game night",
-    note: "Parrillada specials, every screen on",
+    event_slug: "nba",
+    whats_on: "Lakers vs Warriors",
+    note: "Sound on the big screen, parrillada specials",
+    supports_team: "Lakers",
     neighborhood: "East LA",
     latitude: 34.0224,
     longitude: -118.1745,
@@ -137,9 +148,10 @@ const LOCAL_SCENE: DemoSpec[] = [
   {
     member_id: "demo-courtside-sports-bar",
     member_name: "Courtside Sports Bar",
-    event_slug: "watch-party",
-    whats_on: "Trivia + happy hour",
+    event_slug: "nfl",
+    whats_on: "Rams vs 49ers",
     note: "Neutral house — every side welcome",
+    supports_team: "Rams",
     neighborhood: "Downtown LA",
     latitude: 34.0481,
     longitude: -118.2575,

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { MapPin, Radio, Calendar, Camera } from "lucide-react";
+import { MapPin, Radio, Calendar, Camera, ArrowLeft, Users } from "lucide-react";
 import { eventEmoji, eventLabel, timeLeftLabel, isLive } from "@/lib/live-events";
 import { streamEmbed } from "@/lib/embed";
 import { SaveButton } from "./SaveButton";
@@ -10,6 +10,7 @@ import { LiveMap } from "./LiveMap";
 import { MemoriesGrid } from "@/components/posts/MemoriesGrid";
 import { ShareMenu } from "@/components/ShareMenu";
 import { useBroadcast } from "@/lib/data-hooks";
+import { matchKeyOf } from "@/lib/demo-live-fixtures";
 
 export function BroadcastDetail({ id }: { id: string }) {
   // Cached per-id — back/forward and re-open resolve instantly.
@@ -35,7 +36,9 @@ export function BroadcastDetail({ id }: { id: string }) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-16 text-center md:px-8">
         <p className="text-base font-medium text-stone-800">This broadcast isn&apos;t live anymore.</p>
-        <Link href="/live" className="mt-2 inline-block text-sm font-medium text-rose-600 hover:text-rose-800">
+        {/* "/" is the Products tab now, and /live redirects there — so this
+            has to name the tab that actually holds the live feed. */}
+        <Link href="/?tab=feed" className="mt-2 inline-block text-sm font-medium text-rose-600 hover:text-rose-800">
           See what&apos;s live now →
         </Link>
       </div>
@@ -47,10 +50,33 @@ export function BroadcastDetail({ id }: { id: string }) {
   const embed = streamEmbed(b.livestream_url, host);
   const place = [b.neighborhood, b.city].filter(Boolean).join(", ");
 
+  const matchHref = `/live/match/${encodeURIComponent(matchKeyOf(b))}`;
+  const cover = b.image_urls?.[0];
+
   return (
-    <div className="mx-auto max-w-4xl px-4 pb-20 md:px-8">
-      {/* Header */}
-      <div className="pt-8 flex items-center gap-2">
+    <div className="mx-auto max-w-4xl px-4 pb-24 pt-4 md:px-8">
+      {/* Back to the MATCH, named. This page is one venue out of a list, and
+          the list is where the reader came from and where they go if this one
+          is too far — the master-detail rule the rest of the app follows. */}
+      <Link
+        href={matchHref}
+        className="inline-flex items-center gap-1.5 text-[14px] font-medium text-stone-500 transition hover:text-stone-900"
+      >
+        <ArrowLeft className="h-4 w-4" /> Everywhere showing{" "}
+        {b.whats_on || eventLabel(b.event_slug, b.event_label)}
+      </Link>
+
+      {/* The venue's own photo, if it sent one. A live broadcast is a claim
+          about a room, and the photo of the room is the most persuasive thing
+          on the page — it was three sections down in a "vibe gallery". */}
+      {cover && (
+        <div className="mt-3 overflow-hidden rounded-2xl">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={cover} alt="" className="h-48 w-full object-cover sm:h-64" />
+        </div>
+      )}
+
+      <div className="mt-4 flex items-center gap-2">
         {live ? (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-600 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
             <Radio className="h-3.5 w-3.5" /> Live · {timeLeftLabel(b.ends_at)}
@@ -68,29 +94,48 @@ export function BroadcastDetail({ id }: { id: string }) {
         </span>
       </div>
 
-      <h1 className="mt-2 text-3xl font-semibold tracking-tight text-stone-900 md:text-4xl">
-        {b.whats_on || eventLabel(b.event_slug, b.event_label)}
+      {/* THE VENUE is the title here, not the matchup. You already know which
+          game you're chasing — you arrived from its page — and what you're
+          deciding now is whether to go to THIS bar. The matchup stays as the
+          line under it. */}
+      <h1 className="mt-2 text-[28px] font-bold leading-tight tracking-tight text-stone-900 sm:text-4xl">
+        {b.member_name || "This venue"}
       </h1>
+      <p className="mt-1 text-[15px] text-stone-600">
+        Showing{" "}
+        <span className="font-semibold text-stone-900">
+          {b.whats_on || eventLabel(b.event_slug, b.event_label)}
+        </span>
+      </p>
 
-      <div className="mt-2 flex flex-wrap items-center gap-3">
-        <Link href={`/members/${b.member_id}`} className="text-base font-medium text-indigo-600 hover:text-indigo-800">
-          {b.member_name || "View venue"}
-        </Link>
+      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-[14px] text-stone-500">
         {place && (
-          <span className="inline-flex items-center gap-1 text-sm text-stone-500">
+          <span className="inline-flex items-center gap-1.5">
             <MapPin className="h-4 w-4" /> {place}
           </span>
         )}
         {b.supports_team && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-sm font-medium text-emerald-700">
-            🏳️ Rooting for {b.supports_team}
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[13px] font-medium text-emerald-700">
+            <Users className="h-3.5 w-3.5" /> Backing {b.supports_team}
           </span>
         )}
+      </div>
+
+      {b.note && <p className="mt-3 text-[15px] leading-relaxed text-stone-700">{b.note}</p>}
+
+      {/* The two things to DO, on one row and above everything else. Save and
+          share were sitting in the middle of a wrapped line of metadata, at the
+          same weight as the neighbourhood name. */}
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <Link
+          href={`/members/${b.member_id}`}
+          className="inline-flex items-center justify-center rounded-full bg-stone-900 px-5 py-2.5 text-[14px] font-semibold text-white transition hover:bg-stone-800"
+        >
+          View venue
+        </Link>
         <SaveButton broadcastId={b.id} initialSaved={b.saved} initialCount={b.save_count} />
         <ShareMenu title={b.whats_on || eventLabel(b.event_slug, b.event_label)} />
       </div>
-
-      {b.note && <p className="mt-4 text-stone-700">{b.note}</p>}
 
       {/* Livestream */}
       {embed ? (
@@ -114,14 +159,15 @@ export function BroadcastDetail({ id }: { id: string }) {
         </a>
       ) : null}
 
-      {/* Vibe gallery */}
-      {b.image_urls?.length > 0 && (
-        <div className="mt-6">
-          <p className="section-label mb-2">The vibe right now</p>
+      {/* The rest of the venue's photos. The first one is the hero above, so
+          it is skipped here rather than shown twice. */}
+      {b.image_urls.length > 1 && (
+        <div className="mt-8">
+          <p className="section-label mb-2">Inside right now</p>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {b.image_urls.map((url) => (
+            {b.image_urls.slice(1).map((url) => (
               // eslint-disable-next-line @next/next/no-img-element
-              <img key={url} src={url} alt="vibe" className="h-40 w-full rounded-xl object-cover" />
+              <img key={url} src={url} alt="" className="h-40 w-full rounded-xl object-cover" />
             ))}
           </div>
         </div>
@@ -154,12 +200,15 @@ export function BroadcastDetail({ id }: { id: string }) {
         </div>
       )}
 
-      <div className="mt-8">
+      {/* Was `/live?event=<slug>` — and /live redirects to "/", which is the
+          Products tab now, so it dropped the reader on a shop grid. The match
+          page is what this link actually meant. */}
+      <div className="mt-10 border-t border-stone-100 pt-5">
         <Link
-          href={`/live?event=${b.event_slug}`}
-          className="text-sm font-medium text-rose-600 hover:text-rose-800"
+          href={matchHref}
+          className="inline-flex items-center gap-1.5 text-[14px] font-semibold text-coral-600 transition hover:text-coral-700"
         >
-          More places showing {eventLabel(b.event_slug, b.event_label)} →
+          Everywhere else showing {b.whats_on || eventLabel(b.event_slug, b.event_label)} →
         </Link>
       </div>
     </div>

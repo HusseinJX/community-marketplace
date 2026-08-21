@@ -95,11 +95,23 @@ export function useFeatured<T = unknown>() {
 }
 
 /** One live broadcast by id (the /live/[id] detail page). */
+/**
+ * One broadcast by id.
+ *
+ * Falls back to the shared live list when the API doesn't know the id — which
+ * is every demo broadcast, since those are built client-side and were never in
+ * the database. Without this, every demo card in the feed opened onto "this
+ * broadcast isn't live anymore", which reads as a bug in the feature rather
+ * than as an absence of data.
+ */
 export function useBroadcast(id: string) {
   const { data, isLoading } = useSWR<{ broadcast?: LiveBroadcast | null }>(
     id ? `/api/broadcasts/view/${id}` : null
   );
-  return { broadcast: data?.broadcast ?? null, loading: isLoading && !data };
+  const { broadcasts } = useBroadcasts();
+  const fromApi = data?.broadcast ?? null;
+  const fallback = fromApi ? null : broadcasts.find((b) => b.id === id) ?? null;
+  return { broadcast: fromApi ?? fallback, loading: isLoading && !data };
 }
 
 /**
