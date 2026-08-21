@@ -11,7 +11,17 @@ import {
 import { MemberJsonLd } from "@/components/JsonLd";
 import { BackToHome } from "@/components/BackToHome";
 import { RememberOrigin } from "@/components/RememberOrigin";
-import { getProductsByMember, getVendorEventsByMember, type SupabaseProduct, type VendorEvent } from "@/lib/vendor-connect";
+import { getProductsByMember, getVendorEventsByMember, getVendorSettings, type SupabaseProduct, type VendorEvent } from "@/lib/vendor-connect";
+import { ALL_PLATFORMS, platformById, type CustomLink, type StoredLink } from "@/lib/links";
+
+// Everything the profile can show in its social row: any platform whose value
+// lives on the member profile. Phone and Website are excluded — the action bar
+// already has a "Visit website" button and a tel: link of its own, and showing
+// them twice in one header is noise.
+const SOCIAL_ROW_PLATFORMS = ALL_PLATFORMS.filter(
+  (plat) => plat.profileField && plat.id !== "website" && plat.id !== "phone",
+);
+import { PlatformIcon } from "@/components/join/PlatformIcon";
 import { getBroadcastsByMember, type Broadcast } from "@/lib/broadcasts";
 import { isLive, eventEmoji, eventLabel as liveEventLabel, timeLeftLabel } from "@/lib/live-events";
 import { MemberTypeBadge } from "@/components/MemberTypeBadge";
@@ -21,11 +31,6 @@ import { ShopSection } from "@/components/ShopSection";
 import { ActionBar } from "@/components/ActionBar";
 import { GroupChat } from "@/components/GroupChat";
 import { PhotoMosaic } from "@/components/business/PhotoMosaic";
-import {
-  InstagramIcon, TikTokIcon, XIcon, ThreadsIcon, YouTubeIcon, FacebookIcon,
-  LinkedInIcon, SpotifyIcon, SoundCloudIcon, TicketIcon, GuitarIcon, UsersIcon,
-  PinIcon, LinkIcon,
-} from "@/components/business/SocialIcons";
 import { AskAssistant } from "@/components/AskAssistant";
 import { getEntitlements } from "@/lib/entitlements";
 import { MEMBER_HERO_IMAGES } from "@/lib/member-images";
@@ -84,7 +89,10 @@ function SocialLink({ href, label, icon }: { href: string; label: string; icon: 
   return (
     <a href={url} target="_blank" rel="noopener noreferrer"
       className="group flex items-center gap-2.5 t-body text-stone-700 transition hover:text-stone-900">
-      <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center text-stone-400 transition group-hover:text-stone-900">
+      {/* No grey-to-dark hover on the glyph: the mark is drawn in the brand's
+          own colour, so recolouring it on hover changes the logo. The label
+          carries the hover instead. */}
+      <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center">
         {icon}
       </span>
       <span className="truncate">{label}</span>
@@ -160,10 +168,17 @@ export default async function MemberProfilePage({
   let vendorEvents: VendorEvent[] = [];
   let supabaseProducts: SupabaseProduct[] = [];
   let broadcasts: Broadcast[] = [];
+  // Support + free links (vendor_settings, migration 20260813180000). The 13
+  // social platforms live on the member profile and are read below; these two
+  // don't, because support links are EXTERNAL money and must stay structurally
+  // apart from anything purchasable. See lib/links.ts.
+  let supportLinks: StoredLink[] = [];
+  let otherLinks: StoredLink[] = [];
+  let customLinks: CustomLink[] = [];
   let fetchError: string | null = null;
 
   try {
-    const [memberRes, eventsRes, prods, vEvents, bcasts] = await Promise.all([
+    const [memberRes, eventsRes, prods, vEvents, bcasts, settings] = await Promise.all([
       getMember(id),
       listEvents({ memberId: id, limit: 20 }),
       getProductsByMember(id),
@@ -171,12 +186,16 @@ export default async function MemberProfilePage({
       // includeExpired → the venue's full live history (past + current), so
       // people can browse what they've shown, not just what's on right now.
       getBroadcastsByMember(id, true),
+      getVendorSettings(id),
     ]);
     member = memberRes.member;
     events = eventsRes.events;
     supabaseProducts = prods;
     vendorEvents = vEvents;
     broadcasts = bcasts;
+    supportLinks = settings?.support_links ?? [];
+    otherLinks = settings?.other_links ?? [];
+    customLinks = settings?.custom_links ?? [];
   } catch (err) {
     fetchError = err instanceof Error ? err.message : "Failed to load profile.";
   }
@@ -239,42 +258,37 @@ export default async function MemberProfilePage({
 
   const hasBusiness = p.businessName || p.websiteUrl || p.businessDescription || p.businessCategory || p.businessHours || p.businessAddress || p.businessPhone;
 
-  const knownSocialKeys = new Set([
-    "instagramHandle", "tiktokHandle", "facebookUrl", "eventbriteUrl",
-    "bandsintownUrl", "songkickUrl", "meetupUrl", "youtubeUrl", "youtubeHandle",
-    "twitterHandle", "xHandle", "linkedinUrl", "spotifyUrl", "threadsHandle",
-    "pinterestUrl", "soundcloudUrl", "etsyUrl", "shopifyUrl",
-  ]);
+  // The social row on the profile action bar, built FROM THE CATALOGUE
+  // (lib/links) rather than from a hand-written list.
+  //
+  // It used to be thirteen hard-coded entries, each with an emoji standing in
+  // for a logo (📸 Instagram, 🎵 TikTok, 💼 LinkedIn) and its own copy of how
+  // to build the href. Two problems, both real: the marks were not the brands,
+  // and the list could drift from the one the links step writes — a platform
+  // added at onboarding would save fine and then never appear here.
+  //
+  // Now: every catalogue platform that stores to a profile field, in catalogue
+  // order, drawn with its real mark. Adding a platform to lib/links puts it on
+  // the profile automatically.
+  const socialLinks = SOCIAL_ROW_PLATFORMS.flatMap((plat) => {
+    const raw = p[plat.profileField as keyof typeof p];
+    const value = typeof raw === "string" ? raw.trim() : "";
+    if (!value) return [];
+    return [{ href: plat.href(value), label: plat.label, platformId: plat.id }];
+  })
+    // `x` and the legacy `twitter` are the same account and the same
+    // destination, so a member with both fields set would get two identical X
+    // buttons. First one wins — the catalogue puts the current field first.
+    .filter((s, i, arr) => arr.findIndex((o) => o.href === s.href) === i);
 
-  const extraSocials = Object.entries(p).filter(([k, v]) => {
-    if (!v || typeof v !== "string") return false;
-    if (knownSocialKeys.has(k)) return false;
-    // Not socials: the hero image, the shop link (rendered elsewhere), and the
-    // website/maps links (their own rows). Without this, imageUrl/shopUrl leak
-    // into "Find them online" as a bogus link.
-    if (k === "websiteUrl" || k === "googleMapsUrl" || k === "imageUrl" || k === "shopUrl") return false;
-    return k.endsWith("Handle") || k.endsWith("Url");
-  });
-
-  const hasSocials = [...knownSocialKeys].some((k) => p[k]) || extraSocials.length > 0;
-
-  // Compact social links for the profile action row (row 2) — emoji-iconed.
-  const str = (v: unknown) => (v ? String(v) : "");
-  const socialLinks = [
-    p.instagramHandle && { href: `https://instagram.com/${str(p.instagramHandle).replace(/^@/, "")}`, label: "Instagram", icon: "📸" },
-    (p.twitterHandle || p.xHandle) && { href: `https://x.com/${str(p.twitterHandle || p.xHandle).replace(/^@/, "")}`, label: "X", icon: "𝕏" },
-    p.tiktokHandle && { href: `https://tiktok.com/@${str(p.tiktokHandle).replace(/^@/, "")}`, label: "TikTok", icon: "🎵" },
-    (p.youtubeUrl || p.youtubeHandle) && { href: str(p.youtubeUrl) || `https://youtube.com/@${str(p.youtubeHandle).replace(/^@/, "")}`, label: "YouTube", icon: "▶️" },
-    p.facebookUrl && { href: str(p.facebookUrl), label: "Facebook", icon: "👥" },
-    p.linkedinUrl && { href: str(p.linkedinUrl), label: "LinkedIn", icon: "💼" },
-    p.threadsHandle && { href: `https://threads.net/@${str(p.threadsHandle).replace(/^@/, "")}`, label: "Threads", icon: "🧵" },
-    p.spotifyUrl && { href: str(p.spotifyUrl), label: "Spotify", icon: "🎧" },
-    p.soundcloudUrl && { href: str(p.soundcloudUrl), label: "SoundCloud", icon: "☁️" },
-    p.eventbriteUrl && { href: str(p.eventbriteUrl), label: "Eventbrite", icon: "🎟️" },
-    p.bandsintownUrl && { href: str(p.bandsintownUrl), label: "Bandsintown", icon: "🎸" },
-    p.meetupUrl && { href: str(p.meetupUrl), label: "Meetup", icon: "🤝" },
-    p.pinterestUrl && { href: str(p.pinterestUrl), label: "Pinterest", icon: "📌" },
-  ].filter(Boolean) as { href: string; label: string; icon: string }[];
+  // The same set again, but carrying the platform and the raw value, for the
+  // sidebar list that prints the handle rather than just the mark.
+  const socialDetails = SOCIAL_ROW_PLATFORMS.flatMap((plat) => {
+    const raw = p[plat.profileField as keyof typeof p];
+    const value = typeof raw === "string" ? raw.trim() : "";
+    if (!value) return [];
+    return [{ plat, value, href: plat.href(value) }];
+  }).filter((d, i, arr) => arr.findIndex((o) => o.href === d.href) === i);
 
   const hasLocation = typeof p.latitude === "number" && typeof p.longitude === "number";
   const memberTypeColor: Record<string, string> = {
@@ -405,6 +419,91 @@ export default async function MemberProfilePage({
               )}
               {/* Leave-a-review moved to the profile action row (ActionBar's
                   "Leave a Google review"); hidden here to avoid duplication. */}
+            </div>
+          )}
+
+          {/* Where they already sell, and how to reach them — the shop and
+              contact links that have no field on the member profile (Toast, a
+              delivery listing, their own app, an email address). Ordinary
+              outbound links, so unlike Support they need no disclaimer; they
+              are simply the other places this business exists. */}
+          {otherLinks.length > 0 && (
+            <div className="card-soft p-5">
+              <div className="section-label">Also find them on</div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {otherLinks.map((l) => {
+                  const plat = platformById(l.id);
+                  if (!plat) return null;
+                  return (
+                    <a
+                      key={l.id}
+                      href={plat.href(l.value)}
+                      target={plat.href(l.value).startsWith("http") ? "_blank" : undefined}
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white py-1.5 pl-1.5 pr-3.5 text-[13px] font-medium text-stone-700 transition hover:border-stone-400 hover:text-stone-900"
+                    >
+                      <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-white ${plat.tile}`} aria-hidden>
+                        <PlatformIcon platform={plat.id} className="h-3.5 w-3.5" />
+                      </span>
+                      {plat.label}
+                    </a>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Support + other links, from the onboarding links step.
+              A SEPARATE card from anything purchasable, and that separation is
+              the point rather than the layout: these are external — the money
+              goes straight to the business, we take no fee and there is no
+              order. Rendering them beside a Buy button would misrepresent both
+              (App Store 3.1.1). The line under the heading says so out loud. */}
+          {supportLinks.length > 0 && (
+            <div className="card-soft p-5">
+              <div className="section-label">Support {name}</div>
+              <p className="mt-1 text-xs leading-relaxed text-stone-500">
+                Goes directly to them — not through WhatsLocal.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {supportLinks.map((l) => {
+                  const plat = platformById(l.id);
+                  if (!plat) return null;
+                  return (
+                    <a
+                      key={l.id}
+                      href={plat.href(l.value)}
+                      target="_blank"
+                      rel="noopener noreferrer nofollow"
+                      className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white py-1.5 pl-1.5 pr-3.5 text-[13px] font-medium text-stone-700 transition hover:border-stone-400 hover:text-stone-900"
+                    >
+                      <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-white ${plat.tile}`} aria-hidden>
+                        <PlatformIcon platform={plat.id} className="h-3.5 w-3.5" />
+                      </span>
+                      {plat.label}
+                    </a>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {customLinks.length > 0 && (
+            <div className="card-soft p-5">
+              <div className="section-label">Links</div>
+              <div className="mt-3 space-y-1.5">
+                {customLinks.map((l) => (
+                  <a
+                    key={l.url}
+                    href={l.url}
+                    target="_blank"
+                    rel="noopener noreferrer nofollow"
+                    className="block truncate text-sm text-stone-700 underline underline-offset-2 hover:text-stone-900"
+                  >
+                    {l.title}
+                  </a>
+                ))}
+              </div>
             </div>
           )}
 
@@ -557,7 +656,7 @@ export default async function MemberProfilePage({
           )}
 
           {broadcasts.length > 0 && (
-            <Section title="Live & watch parties">
+            <Section title="Games shown here">
               <div className="grid gap-3 sm:grid-cols-2">
                 {broadcasts.map((b) => {
                   const live = isLive(b);
@@ -668,29 +767,28 @@ export default async function MemberProfilePage({
             </div>
           )}
 
-          {hasSocials && (
+          {/* "Find them online" — the full list, with a handle you can read.
+              The action row above is icon-only and made for a glance; this is
+              the one you scan when you actually want their Instagram.
+
+              Same catalogue as everything else (lib/links), same marks. This
+              was the THIRD hand-written copy of the platform list on this page,
+              with its own icon set (components/business/SocialIcons, now
+              deleted) and its own href rules — so a platform could render three
+              different ways, or be missing from one of them. */}
+          {socialDetails.length > 0 && (
             <div className="card-soft p-4">
               <div className="section-label">Find them online</div>
-              {/* Real brand marks, not emoji — see components/business/SocialIcons. */}
               <ul className="mt-3 space-y-2.5">
-                {p.instagramHandle && <li><SocialLink href={`https://instagram.com/${p.instagramHandle}`} label={`@${p.instagramHandle}`} icon={<InstagramIcon className="h-4 w-4" />} /></li>}
-                {p.tiktokHandle && <li><SocialLink href={`https://tiktok.com/@${p.tiktokHandle}`} label={`@${p.tiktokHandle}`} icon={<TikTokIcon className="h-4 w-4" />} /></li>}
-                {(p.twitterHandle || p.xHandle) && <li><SocialLink href={`https://x.com/${p.twitterHandle || p.xHandle}`} label={`@${p.twitterHandle || p.xHandle}`} icon={<XIcon className="h-3.5 w-3.5" />} /></li>}
-                {p.threadsHandle && <li><SocialLink href={`https://threads.net/@${p.threadsHandle}`} label={`@${p.threadsHandle}`} icon={<ThreadsIcon className="h-4 w-4" />} /></li>}
-                {(p.youtubeUrl || p.youtubeHandle) && <li><SocialLink href={p.youtubeUrl as string || `https://youtube.com/@${p.youtubeHandle}`} label="YouTube" icon={<YouTubeIcon className="h-4 w-4" />} /></li>}
-                {p.linkedinUrl && <li><SocialLink href={p.linkedinUrl as string} label="LinkedIn" icon={<LinkedInIcon className="h-4 w-4" />} /></li>}
-                {p.spotifyUrl && <li><SocialLink href={p.spotifyUrl as string} label="Spotify" icon={<SpotifyIcon className="h-4 w-4" />} /></li>}
-                {p.soundcloudUrl && <li><SocialLink href={p.soundcloudUrl as string} label="SoundCloud" icon={<SoundCloudIcon className="h-4 w-4" />} /></li>}
-                {p.facebookUrl && <li><SocialLink href={p.facebookUrl as string} label="Facebook" icon={<FacebookIcon className="h-4 w-4" />} /></li>}
-                {p.eventbriteUrl && <li><SocialLink href={p.eventbriteUrl as string} label="Eventbrite" icon={<TicketIcon className="h-4 w-4" />} /></li>}
-                {p.bandsintownUrl && <li><SocialLink href={p.bandsintownUrl as string} label="Bandsintown" icon={<GuitarIcon className="h-4 w-4" />} /></li>}
-                {p.songkickUrl && <li><SocialLink href={p.songkickUrl as string} label="Songkick" icon={<GuitarIcon className="h-4 w-4" />} /></li>}
-                {p.meetupUrl && <li><SocialLink href={p.meetupUrl as string} label="Meetup" icon={<UsersIcon className="h-4 w-4" />} /></li>}
-                {p.pinterestUrl && <li><SocialLink href={p.pinterestUrl as string} label="Pinterest" icon={<PinIcon className="h-4 w-4" />} /></li>}
-                {extraSocials.map(([key, val]) => {
-                  const label = key.replace(/(Handle|Url)$/, "").replace(/([A-Z])/g, " $1").trim();
-                  return <li key={key}><SocialLink href={val as string} label={label} icon={<LinkIcon className="h-4 w-4" />} /></li>;
-                })}
+                {socialDetails.map(({ plat, value, href }) => (
+                  <li key={plat.id}>
+                    <SocialLink
+                      href={href}
+                      label={plat.input === "handle" ? `@${value.replace(/^@/, "")}` : plat.label}
+                      icon={<PlatformIcon platform={plat.id} className="h-4 w-4" brand />}
+                    />
+                  </li>
+                ))}
               </ul>
             </div>
           )}

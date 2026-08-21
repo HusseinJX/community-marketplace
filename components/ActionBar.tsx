@@ -6,11 +6,21 @@ import { GoogleReviewButton } from "@/components/GoogleReviewButton";
 import { BookingRequest } from "@/components/booking/BookingRequest";
 import { SaveBusinessButton } from "@/components/SaveBusinessButton";
 import { DirectionsButton } from "@/components/map/DirectionsButton";
+import { PlatformIcon } from "@/components/join/PlatformIcon";
+import { platformById } from "@/lib/links";
 
 export interface SocialLinkItem {
   href: string;
   label: string;
-  icon: string; // emoji glyph
+  /**
+   * A platform id from lib/links (`instagram`, `tiktok`, …), drawn as the real
+   * brand mark. This used to be an emoji glyph — 📸 for Instagram, 🎵 for
+   * TikTok, 𝕏 for X — which is a picture of a camera standing in for a logo
+   * everyone can already recognise. One catalogue now feeds the onboarding
+   * links step, this row and the profile's other link cards, so a business
+   * sees the same mark wherever its links appear.
+   */
+  platformId: string;
 }
 
 export function ActionBar({
@@ -193,19 +203,25 @@ export function ActionBar({
               Visit website
             </a>
           )}
-          {socials.map((s) => (
-            <a
-              key={s.href}
-              href={s.href}
-              target="_blank"
-              rel="noreferrer"
-              aria-label={s.label}
-              title={s.label}
-              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-stone-200 bg-white text-base text-stone-700 transition hover:border-indigo-300 hover:text-indigo-700"
-            >
-              <span aria-hidden>{s.icon}</span>
-            </a>
-          ))}
+          {socials.map((s) => {
+            const plat = platformById(s.platformId);
+            return (
+              <a
+                key={s.href}
+                href={s.href}
+                target="_blank"
+                rel="noreferrer"
+                aria-label={s.label}
+                title={s.label}
+                // The brand's own colour, on a white pill. A row of fully
+                // brand-coloured circles turns into a wall of confetti next to
+                // the primary actions above it.
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-stone-200 bg-white text-stone-600 transition hover:border-stone-400 hover:bg-stone-50"
+              >
+                {plat ? <PlatformIcon platform={plat} className="h-4 w-4" brand /> : <Globe className="h-4 w-4" />}
+              </a>
+            );
+          })}
         </div>
       )}
 

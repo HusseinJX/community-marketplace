@@ -475,6 +475,21 @@ export interface VendorSettings {
   composio_platform: string | null
   assistant_enabled?: boolean
   assistant_persona?: string | null
+  /**
+   * EXTERNAL support/tip links — Cash App, Venmo, Patreon (migration
+   * `20260813180000`). Not our checkout: no fee, no order, no Stripe. They must
+   * never render where a purchasable item does. See lib/links.ts.
+   */
+  support_links?: { id: string; value: string }[]
+  /**
+   * Shop + contact links with no field on the connector profile — a Toast
+   * ordering page, a DoorDash listing, their own app, an email address
+   * (migration `20260813200000`). Ordinary outbound links; deliberately NOT
+   * the same column as support_links, which carries a rendering rule.
+   */
+  other_links?: { id: string; value: string }[]
+  /** Free "everything else" links, in display order. */
+  custom_links?: { title: string; url: string }[]
 }
 
 export async function getVendorSettings(memberId: string): Promise<VendorSettings | null> {
