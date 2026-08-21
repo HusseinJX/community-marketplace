@@ -5,15 +5,19 @@ import { getMember } from '@/lib/api'
 
 export const runtime = 'nodejs'
 
-// GET → the signed-in user's business location as a readable label, or null.
-// Used by the share composer to offer a "current vs business location" toggle
-// (only vendors/orgs/artists with a linked member + a location get the toggle).
+// GET → who the signed-in user IS as a business: their member id, its name,
+// and its location as a readable label.
+//
+// The share composer needs all three and they come from the same lookup, so
+// they travel together rather than as three requests: the location tags a
+// vendor's post automatically, and the id + name are the venue a vendor goes
+// live AS — they are the business, so there is nothing for them to pick.
 export async function GET() {
   const { userId } = await auth()
-  if (!userId) return NextResponse.json({ location: null })
+  if (!userId) return NextResponse.json({ memberId: null, name: null, location: null })
 
   const profile = await getVendorProfile(userId)
-  if (!profile?.member_id) return NextResponse.json({ location: null })
+  if (!profile?.member_id) return NextResponse.json({ memberId: null, name: null, location: null })
 
   try {
     const p = (await getMember(profile.member_id)).member?.profile ?? {}
@@ -28,8 +32,16 @@ export async function GET() {
     // device's fix standing in for the business's.
     const lat = typeof p.latitude === 'number' ? p.latitude : null
     const lng = typeof p.longitude === 'number' ? p.longitude : null
-    return NextResponse.json({ location: label.trim() || null, lat, lng })
+    return NextResponse.json({
+      memberId: profile.member_id,
+      name: ((p.businessName as string) || (p.name as string) || '').trim() || null,
+      location: label.trim() || null,
+      lat,
+      lng,
+    })
   } catch {
-    return NextResponse.json({ location: null })
+    // The connector is slow or down. The id is still known and is the half
+    // that matters — without it a vendor cannot go live at all.
+    return NextResponse.json({ memberId: profile.member_id, name: null, location: null })
   }
 }

@@ -3,41 +3,47 @@ import Link from 'next/link'
 import { getVendorProfile } from '@/lib/vendor-connect'
 import { demoMemberId, isDemoActive } from '@/lib/demo-server'
 import { getMember } from '@/lib/api'
-import { AboutSection, type VendorAbout } from '@/components/vendor/AboutSection'
+import { BusinessProfileEditor, type BusinessDetails } from '@/components/vendor/BusinessProfileEditor'
 
 export const metadata = { title: 'Business profile' }
 
-// Dedicated edit page for the member's public "about" details (bio, category,
-// location, links). Reached from the dashboard — a Quick-access "Profile" tile
-// on Free/Basic, or the under-plan button on Pro.
+// The vendor's own page, editable: the details a shopper reads, and every link
+// they can be found through.
+//
+// Details are loaded here (server-side, one connector call). LINKS ARE NOT —
+// they live in three places and the /links route already knows how to
+// reassemble them, so the editor fetches them itself rather than this page
+// growing a second copy of that rule.
 export default async function VendorAboutPage() {
   const { userId } = await auth()
   const demo = !userId && (await isDemoActive())
   const profile = userId ? await getVendorProfile(userId) : null
   const memberId = profile?.member_id ?? (demo ? await demoMemberId() : null)
 
-  let about: VendorAbout | null = null
+  let details: BusinessDetails = {}
   if (memberId) {
     try {
       const m = await getMember(memberId)
       const p = (m as {
         member?: {
           profile?: {
-            businessDescription?: string; bio?: string; category?: string;
-            city?: string; neighborhood?: string; instagramHandle?: string; websiteUrl?: string;
+            name?: string; businessName?: string; businessDescription?: string; bio?: string
+            category?: string; city?: string; neighborhood?: string
+            businessAddress?: string; businessHours?: string
           }
         }
       })?.member?.profile
-      about = {
+      details = {
+        name: p?.businessName || p?.name || undefined,
         bio: p?.businessDescription || p?.bio || undefined,
         category: p?.category || undefined,
         city: p?.city || undefined,
         neighborhood: p?.neighborhood || undefined,
-        instagram: p?.instagramHandle || undefined,
-        website: p?.websiteUrl || undefined,
+        address: p?.businessAddress || undefined,
+        hours: p?.businessHours || undefined,
       }
     } catch {
-      /* connector slow/unavailable → empty form */
+      /* connector slow/unavailable → an empty form rather than an error page */
     }
   }
 
@@ -46,12 +52,16 @@ export default async function VendorAboutPage() {
       <div>
         <h1 className="text-xl font-semibold text-stone-900">Business profile</h1>
         <p className="mt-1 text-sm text-stone-500">
-          Edit the bio, category, location, and links shoppers see on your profile.
+          Everything shoppers see on your page — your details and all your links.
         </p>
       </div>
 
       {memberId ? (
-        <AboutSection about={about} memberId={memberId} startEditing />
+        <BusinessProfileEditor
+          memberId={memberId}
+          initialDetails={details}
+          publicHref={`/members/${memberId}`}
+        />
       ) : (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
           <p className="text-sm font-medium text-amber-900">Link your member profile first</p>
