@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Show, UserButton, useUser, useClerk } from "@clerk/nextjs";
-import { LogOut, PenLine, ArrowRight, Receipt } from "lucide-react";
+import { Show, useUser, useClerk } from "@clerk/nextjs";
+import { LogOut, PenLine, ArrowRight, Receipt, Settings } from "lucide-react";
 import { DeleteAccountButton } from "@/components/account/DeleteAccountButton";
 import { useLogin } from "@/components/auth/ClerkAuthProvider";
 
@@ -11,30 +11,18 @@ import { useLogin } from "@/components/auth/ClerkAuthProvider";
 // server-side — so this is the shopper/guest view only.
 export function ShopperClient() {
   const { user } = useUser();
-  const { signOut } = useClerk();
+  const { signOut, openUserProfile } = useClerk();
   const openLogin = useLogin();
 
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 px-4 py-8 md:px-8">
 
-      {/* Signed in: name + avatar. Signed out: nothing here — the whole
-          screen IS the login prompt below, and a second entry point in the
-          corner would be two doors to one room. The "Vendor login" button that
-          used to sit on the left is gone from here too: vendors reach their
-          portal from "Join as a vendor" in the header, and offering a second
-          account type on the shopper's own page only invites signing in as the
-          wrong one. */}
-      <Show when="signed-out" fallback={
-        <div className="flex items-center justify-end gap-2">
-          <span className="max-w-[8rem] truncate text-sm font-medium text-stone-700">
-            {user?.firstName || user?.fullName || user?.primaryEmailAddress?.emailAddress}
-          </span>
-          <UserButton />
-        </div>
-      }>
-        <></>
-      </Show>
+      {/* The name + Clerk `UserButton` that used to sit in this corner are
+          gone. It put a second, differently-shaped account menu on a page that
+          already has an Account card, and everything it offered — who you are,
+          manage, log out — now lives in that one card where the destructive
+          action can be kept at a distance from the harmless ones. */}
 
       {/* Title */}
       <div>
@@ -106,21 +94,75 @@ export function ShopperClient() {
           reason they could act on. The push pipeline is still triggerable from
           the vendor side; PushTestButton itself is untouched. */}
 
-      {/* Account — explicit Log out (was only in the UserButton avatar menu, easy
-          to miss) + Delete (an in-app deletion path is an App Store requirement). */}
+      {/* Account — the one place the account is handled. Who you are, then the
+          two everyday actions (Manage, Log out), then deletion.
+          Deletion is deliberately NOT in that row: it used to sit inline
+          beside Log out, one small gap from a button people press often, and
+          the two are not the same kind of thing at all — one you do weekly and
+          undo by logging back in, the other is permanent. It gets a rule above
+          it, its own warning line, and no button shape shared with its
+          neighbours, so reaching it has to be on purpose.
+          The in-app deletion path itself is an App Store requirement (5.1.1(v))
+          and must stay reachable. */}
       <Show when="signed-in">
-        <div className="rounded-2xl border border-stone-200 bg-white p-4">
-          <p className="text-sm font-semibold text-stone-900">Account</p>
-          <p className="mb-3 text-xs text-stone-500">Manage your WhatsLocal account.</p>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => signOut({ redirectUrl: "/" })}
-              className="inline-flex items-center gap-1.5 rounded-full border border-stone-300 bg-white px-3.5 py-2 text-[13px] font-medium text-stone-700 transition hover:border-stone-400 hover:text-stone-900"
-            >
-              <LogOut className="h-4 w-4" /> Log out
-            </button>
-            <DeleteAccountButton />
+        <div className="rounded-2xl border border-stone-200 bg-white">
+          <div className="p-4">
+            <p className="text-sm font-semibold text-stone-900">Account</p>
+
+            {/* Who you're signed in as — the job the avatar in the corner used
+                to do, said in words rather than as a menu. */}
+            <div className="mt-3 flex items-center gap-3">
+              {user?.imageUrl && (
+                // Clerk's CDN avatar. A plain <img>, not next/image: the host
+                // isn't in lib/image-hosts.ts and a 40px avatar is not worth
+                // adding a remote pattern for.
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={user.imageUrl}
+                  alt=""
+                  className="h-10 w-10 shrink-0 rounded-full object-cover ring-1 ring-stone-200"
+                />
+              )}
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-stone-900">
+                  {user?.fullName || user?.firstName || "Signed in"}
+                </p>
+                {user?.primaryEmailAddress?.emailAddress && (
+                  <p className="truncate text-xs text-stone-500">
+                    {user.primaryEmailAddress.emailAddress}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              {/* Clerk's account modal, opened by us — same screen the avatar
+                  menu led to, reached from a button that says what it does. */}
+              <button
+                type="button"
+                onClick={() => openUserProfile()}
+                className="inline-flex items-center gap-1.5 rounded-full bg-stone-900 px-3.5 py-2 text-[13px] font-semibold text-white transition hover:bg-stone-800"
+              >
+                <Settings className="h-4 w-4" /> Manage account
+              </button>
+              <button
+                type="button"
+                onClick={() => signOut({ redirectUrl: "/" })}
+                className="inline-flex items-center gap-1.5 rounded-full border border-stone-300 bg-white px-3.5 py-2 text-[13px] font-medium text-stone-700 transition hover:border-stone-400 hover:text-stone-900"
+              >
+                <LogOut className="h-4 w-4" /> Log out
+              </button>
+            </div>
+          </div>
+
+          {/* Below the rule: the permanent one. */}
+          <div className="border-t border-stone-200 px-4 py-3">
+            <p className="text-xs text-stone-500">
+              Deleting removes your account and personal data permanently.
+            </p>
+            <div className="mt-2">
+              <DeleteAccountButton />
+            </div>
           </div>
         </div>
       </Show>
