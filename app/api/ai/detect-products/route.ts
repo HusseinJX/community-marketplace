@@ -6,6 +6,7 @@ import { resolveActor } from '@/lib/admin'
 import { gateCapability } from '@/lib/gate'
 import { uploadImage } from '@/lib/storage'
 import { checkImageQuota, recordImageGenerations, FREE_IMAGE_LIMIT } from '@/lib/ai-credits'
+import { gatePhotoScan } from '@/lib/scan-limits'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
@@ -52,6 +53,14 @@ export async function POST(req: Request) {
   // Counter/shelf scanning → commerce (Pro).
   const gated = await gateCapability(actor.memberId, 'commerce', { bypass: actor.isAdmin })
   if (gated) return gated
+
+  // Meter the SCAN before anything billable happens. The image quota below only
+  // ever counted generations, so a scan whose generations failed — or one that
+  // detected nothing — still paid for a full-resolution vision call and recorded
+  // nothing to count against. Reserved up front, so a scan that goes on to fail
+  // has still been paid for out of the allowance.
+  const overScanLimit = await gatePhotoScan(actor.memberId, { bypass: actor.isAdmin })
+  if (overScanLimit) return overScanLimit
 
   // AI image generation is a premium feature: free members get a small lifetime
   // allowance; premium members are rate-limited. Bail before any billable work

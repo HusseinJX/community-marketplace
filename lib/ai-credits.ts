@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { getEntitlements } from './entitlements'
 
 // AI product-image generation is a premium feature. Every business gets a few
 // free generations; past that they must upgrade. A rolling hourly window also
@@ -64,7 +65,15 @@ export async function checkImageQuota(memberId: string, isAdmin: boolean): Promi
   const row = await fetchCredits(memberId)
   const { count: windowCount } = windowState(row, Date.now())
 
-  if (row.premium) {
+  // `premium` is a hand-set column (migration 20260706140000 backfilled the
+  // grandfathered Pro accounts), so a member who subscribed AFTER that backfill
+  // has it false and was silently held to the 3-image free allowance despite
+  // paying. Read the live plan too — the column now only ever grants, never
+  // withholds.
+  const ent = await getEntitlements(memberId)
+  const premium = row.premium || ent.limits.aiImagesPerMonth > 0
+
+  if (premium) {
     const remainingToday = RATE_LIMIT_PER_DAY - windowCount
     if (remainingToday <= 0) return { allowed: 0, premium: true, remainingFree: Number.POSITIVE_INFINITY, blocked: 'rate_limited' }
     return { allowed: Math.min(PER_REQUEST_CAP, remainingToday), premium: true, remainingFree: Number.POSITIVE_INFINITY, blocked: null }

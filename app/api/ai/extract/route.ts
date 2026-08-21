@@ -3,6 +3,7 @@ import { getOpenAI, VISION_MODEL } from '@/lib/openai'
 import { resolveActor } from '@/lib/admin'
 import { gateCapability } from '@/lib/gate'
 import { rateLimit } from '@/lib/rate-limit'
+import { gatePhotoScan } from '@/lib/scan-limits'
 
 export const runtime = 'nodejs'
 
@@ -103,6 +104,13 @@ export async function POST(req: Request) {
     )
     if (gated) return gated
   }
+
+  // Meter the scan itself. The rate limit above is in-process, so it resets on
+  // every deploy and doesn't span containers — it stops a hammering client, not
+  // a month of steady spend. This is the durable ceiling. Lineup extraction is
+  // admin-only and bypasses it, same as the plan gate.
+  const overScanLimit = await gatePhotoScan(actor.memberId, { bypass: actor.isAdmin })
+  if (overScanLimit) return overScanLimit
 
   // Fetch the image server-side and send it inline (base64) rather than handing
   // OpenAI the storage URL — OpenAI's downloader can be slow/flaky fetching

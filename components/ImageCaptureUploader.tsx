@@ -96,6 +96,12 @@ export function ImageCaptureUploader({
           body: JSON.stringify({ imageUrl: url, mode, memberId }),
         });
         const data = await res.json();
+        // Scan allowance / daily cap — the same banner the counter scan uses,
+        // rather than a red error for something that isn't a failure.
+        if (res.status === 402 || res.status === 429) {
+          setUpgrade(data.error || "You've used your scans for now.");
+          return;
+        }
         if (!res.ok) throw new Error(data.error || "Extraction failed");
         if (mode === "events") setEventDrafts(data.events ?? []);
         else setProductDrafts((data.products ?? []).map((p: ProductDraft) => ({ ...p, image_url: null })));
