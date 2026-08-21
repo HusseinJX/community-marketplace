@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Search } from "lucide-react";
 import { AccountMenu } from "@/components/AccountMenu";
 import { HeaderMenu } from "@/components/HeaderMenu";
@@ -27,10 +28,23 @@ import { useHomeHeader, expandHeader } from "@/lib/home-header";
  * carries the tab switcher, the search and the category rail (HomeTabs). This
  * bar is the part that is identical on every screen.
  */
+// The shopper's own screens — everything the bottom nav leads to. The city
+// rides in the nav here too, so walking from the feed to your cart doesn't
+// silently drop the one line saying which city all of this is.
+//
+// PASSIVE on these pages (see CityHeader's `passive`): none of them sorts by
+// distance, so the name is shown only if home already learned it. No page in
+// this list may raise a location prompt.
+const CITY_PATHS = ["/shopper", "/cart", "/tickets", "/favorites"];
+
 export function TopNav() {
   const { active, collapsed, label } = useHomeHeader();
+  const pathname = usePathname();
   // Only on home, and only once the header has actually collapsed.
   const showCompactSearch = active && collapsed;
+  // Sub-routes count: /shopper/personalization is still your space.
+  const cityPage =
+    !active && CITY_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
   return (
     // Two padding states, and the TOTAL HEIGHT is the same in both — 80px,
@@ -46,11 +60,7 @@ export function TopNav() {
     // is nothing beneath it for the weight to lean toward, and the title sat
     // visibly nearer its own bottom edge than the top of the screen.
     <div
-      className="relative flex items-center justify-between gap-3 px-4 transition-[padding] duration-300 ease-[var(--ease)] md:px-8"
-      style={{
-        paddingTop: showCompactSearch ? "22px" : "32px",
-        paddingBottom: showCompactSearch ? "22px" : "12px",
-      }}
+      className="wl-hdr-row relative flex items-center justify-between gap-3 px-4 md:px-8"
     >
       <Link
         href="/"
@@ -69,12 +79,24 @@ export function TopNav() {
           empty there anyway (the avatar and the vendor link are desktop-only).
 
           Hidden once the header collapses: the compact search pill is centred
-          across this row and would sit on top of it. `active` keeps the whole
-          thing to home — rendering it elsewhere would ask for a location
-          permission on pages with no use for one. */}
-      {active && !showCompactSearch && (
-        <div className="ml-auto flex min-w-0 items-center md:ml-3 md:mr-auto">
-          <CityHeader variant="nav" />
+          across this row and would sit on top of it.
+
+          On home it is live — it asks for a fix and carries the city switcher,
+          because everything below it sorts by distance. On the shopper's own
+          screens (CITY_PATHS) it is passive: same line, same switcher, but it
+          only ever repeats a city home already established. That distinction is
+          the whole reason this can render off home at all — the old comment
+          here was right that a nav-wide city would otherwise mean a location
+          prompt on pages with no use for one. */}
+      {(active || cityPage) && (
+        <div
+          className={
+            "wl-hdr-city ml-auto flex min-w-0 items-center md:ml-3 md:mr-auto " +
+            (showCompactSearch ? "pointer-events-none" : "")
+          }
+          aria-hidden={showCompactSearch}
+        >
+          <CityHeader variant="nav" passive={!active} />
         </div>
       )}
 
@@ -107,13 +129,15 @@ export function TopNav() {
               // blinked into the row, with nothing connecting them. Kept in
               // the tree, it can rise and settle as the big one folds up, and
               // the two read as one control changing size.
-              "pointer-events-auto flex w-full max-w-lg items-center gap-2.5 rounded-full border border-stone-200 bg-white py-2.5 pl-4 pr-1.5 text-left shadow-[var(--shadow-soft)] " +
-              "transition-[opacity,transform] duration-300 ease-[var(--ease)] hover:shadow-[var(--shadow-lift)] " +
-              (showCompactSearch
-                ? "translate-y-0 scale-100 opacity-100"
-                : // Sits slightly low and small while the full search has the
-                  // floor, so it grows INTO place rather than appearing.
-                  "!pointer-events-none translate-y-1 scale-95 opacity-0")
+              // Opacity and transform are the .wl-hdr-pill rule — it rises,
+              // grows and fades as a function of the scroll position, on the
+              // fold's back half, so it reads as the full search resizing
+              // rather than as a different element blinking into the row.
+              // Only the shadow is a hover transition; only pointer-events
+              // are React's business.
+              "wl-hdr-pill flex w-full max-w-lg items-center gap-2.5 rounded-full border border-stone-200 bg-white py-2.5 pl-4 pr-1.5 text-left shadow-[var(--shadow-soft)] " +
+              "transition-[box-shadow] duration-200 hover:shadow-[var(--shadow-lift)] " +
+              (showCompactSearch ? "pointer-events-auto" : "pointer-events-none")
             }
           >
             <Search className="h-4 w-4 shrink-0 text-stone-500" />

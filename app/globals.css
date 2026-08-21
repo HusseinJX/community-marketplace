@@ -199,6 +199,16 @@ body[data-chat-open="true"] [data-vendor-nav] {
   --ease: cubic-bezier(0.2, 0, 0, 1);
   --dur-fast: 150ms;
   --dur: 220ms;
+
+  /* The collapsing home header is the one exception to the 300ms ceiling: it
+     moves the whole top of the page at once, so it needs a longer, softer
+     ramp than a button does or it reads as a snap. The curve leaves fast and
+     settles slowly (no overshoot) — the same shape sheets use.
+     TopNav and HomeTabs BOTH read these; the nav row, the folding band and
+     the compact pill have to run on one clock or the collapse looks assembled
+     from parts. */
+  --ease-fold: cubic-bezier(0.32, 0.72, 0, 1);
+  --dur-fold: 380ms;
 }
 
 @layer base {
@@ -500,3 +510,129 @@ textarea,
 /* Hide the horizontal scrollbar on chip/selector rows (still scrollable). */
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* ── The collapsing home header ─────────────────────────────────────────────
+   Driven by ONE custom property: --hdr-p on <html>, 0 = open, 1 = collapsed,
+   written straight from the scroll handler in HomeTabs.
+
+   Nothing here is a CSS transition, and nothing below re-renders React. That
+   is the whole point. The fold used to be a state flip that FIRED a 300ms
+   animation: the curve ran on its own clock while the finger kept moving, so
+   the header was always animating toward where the page had already been —
+   which is what "not smooth" actually was. Bound to --hdr-p it tracks the
+   scroll frame for frame, and the movement is attached to the gesture instead
+   of chasing it.
+
+   There are no CSS transitions here AT ALL, including for the tap-to-expand:
+   that move is a magnet in the same driver (see HomeTabs), so the header has
+   one way of moving rather than a scroll path and an animation path that can
+   fall out of step. --dur-fold / --ease-fold survive for the handful of
+   things that still animate on a state change, not on the scroll. */
+:root {
+  --hdr-p: 0;
+}
+
+/* A folding band. The wrapper publishes its own content height as --hdr-h
+   (measured, never guessed) and interpolates a real px height off it —
+   grid-template-rows 1fr→0fr cannot be interpolated at all on older Safari,
+   which is the other half of why this looked like a jump on a phone. */
+.wl-fold {
+  overflow: hidden;
+  height: calc(var(--hdr-h, 0px) * (1 - var(--hdr-p, 0)));
+  /* Snapped to whole pixels where the browser can. A fractional height puts
+     every line of text below the header on a fractional baseline, and the
+     renderer re-rasterises the glyphs each time that fraction changes — the
+     feed appears to shimmer while the header folds, which reads as jitter in
+     the page rather than in the header. The unrounded value above stays as
+     the fallback. */
+  height: round(calc(var(--hdr-h, 0px) * (1 - var(--hdr-p, 0))), 1px);
+  /* The height changes every frame, and without this the browser re-lays-out
+     and repaints everything else in the sticky header with it — the gradient,
+     the rule, the tab row. `paint` is safe because the band already clips
+     (overflow: hidden); `layout` because nothing inside it sizes anything
+     outside it. */
+  contain: layout paint;
+  /* Ahead of the height: gone by ~60% so the last pixels close on empty space
+     rather than on visibly squashed text. */
+  opacity: clamp(0, calc(1.3 - var(--hdr-p, 0) * 2.2), 1);
+}
+
+/* The content LIFTS as the band closes rather than only being squashed: a
+   small upward drift, composited, so the search looks like it is leaving
+   under the nav instead of being crushed against it. Transforms don't affect
+   offsetHeight, so the measurement above is untouched. */
+.wl-fold > *,
+.wl-fold-md > * {
+  transform: translate3d(0, calc(-10px * var(--hdr-p, 0)), 0);
+}
+@media (max-width: 767px) {
+  /* Nothing is folding here, so nothing should drift. */
+  .wl-fold-md > * {
+    transform: none;
+  }
+}
+
+/* Same band, desktop only — on a phone the tab switcher is the only way out
+   of the tab you're in, so it never folds. */
+.wl-fold-md {
+  overflow: hidden;
+}
+@media (min-width: 768px) {
+  .wl-fold-md {
+    height: calc(var(--hdr-h, 0px) * (1 - var(--hdr-p, 0)));
+    height: round(calc(var(--hdr-h, 0px) * (1 - var(--hdr-p, 0))), 1px);
+    opacity: clamp(0, calc(1.3 - var(--hdr-p, 0) * 2.2), 1);
+    contain: layout paint;
+  }
+}
+
+/* The nav row breathes in as the band above it goes: 32/12 open → 22/22
+   collapsed, total height unchanged (--top-nav). */
+.wl-hdr-row {
+  padding-top: calc(32px - 10px * var(--hdr-p, 0));
+  padding-bottom: calc(12px + 10px * var(--hdr-p, 0));
+}
+
+/* The city line hands the row over to the pill. */
+.wl-hdr-city {
+  opacity: clamp(0, calc(1.15 - var(--hdr-p, 0) * 2.6), 1);
+}
+
+/* The compact pill arrives on the fold's back half — it must not share the
+   row with the full search on the way out, or the swap reads as a flicker
+   instead of as one control resizing. */
+.wl-hdr-pill {
+  opacity: clamp(0, calc(var(--hdr-p, 0) * 2.4 - 1.4), 1);
+  /* translate3d, not translateY: the pill then rides on its own compositor
+     layer and its per-frame movement costs a transform on an existing
+     texture instead of a repaint of the nav row underneath it. */
+  transform: translate3d(0, calc(6px * (1 - var(--hdr-p, 0))), 0)
+    scale(calc(0.96 + 0.04 * var(--hdr-p, 0)));
+  will-change: transform, opacity;
+}
+
+/* Mobile keeps the switcher, so it closes its own top gap instead. */
+@media (max-width: 767px) {
+  .wl-tabrow {
+    padding-top: calc(16px * (1 - var(--hdr-p, 0)));
+  }
+}
+
+/* Collapsed, the header stops being part of the page and becomes a surface
+   the page passes UNDER — so it earns a shadow on exactly the same curve.
+   Weightless at rest (a bare rule, as before), and it never appears without
+   the fold having happened. */
+.wl-hdr-band {
+  box-shadow: 0 8px 24px -16px rgba(0, 0, 0, calc(0.55 * var(--hdr-p, 0)));
+}
+
+/* Only while the fold is actually travelling — see the loop in HomeTabs.
+   Scroll anchoring compensates for a size change above the anchor by moving
+   the scroll position, and the fold is computed FROM the scroll position, so
+   the two drive each other in a circle that shows up as a shiver. At rest the
+   browser gets it back, because keeping the feed still when an image loads
+   above the viewport is worth having. */
+html.wl-hdr-moving,
+html.wl-hdr-moving body {
+  overflow-anchor: none;
+}
