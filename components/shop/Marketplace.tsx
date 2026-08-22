@@ -79,6 +79,8 @@ function toStored(p: ShopProduct): StoredProduct {
     memberId: p.memberId,
     memberName: p.memberName,
     price: p.price,
+    image: p.image,
+    productId: p.id,
   };
 }
 
@@ -124,10 +126,10 @@ const SORT_OPTIONS = [
  * leaving the grid; that is the whole reason they are on the card.
  */
 function ProductCard({ product }: { product: ShopProduct }) {
-  const { toggleFavorite, isFavorite, addToCart, isInCart } = useStore();
+  // No addToCart here any more — the card links, the page sells.
+  const { toggleFavorite, isFavorite } = useStore();
   const stored = toStored(product);
   const faved = isFavorite(stored.id);
-  const inCart = isInCart(stored.id);
   const fresh = isNew(product);
 
   const stop = (fn: () => void) => (e: React.MouseEvent) => {
@@ -165,20 +167,17 @@ function ProductCard({ product }: { product: ShopProduct }) {
         >
           <Heart className={`h-4 w-4 ${faved ? "fill-rose-500 text-rose-500" : ""}`} />
         </button>
-        {/* Quick add is for a listing with ONE thing in it. Where a size has to
-            be chosen, the card sends you to the page to choose it rather than
-            picking the cheapest on your behalf and posting you a small. */}
-        {product.variants.length > 1 ? (
+        {/* No quick add. Buying something without opening it means buying it
+            without its description, its seller, or — where there are sizes —
+            the choice that decides what arrives. The card's job is to get you
+            to the page; the page's job is to sell.
+
+            Options are still worth announcing here, because "from $30" and a
+            single photo don't say that a choice is coming. */}
+        {product.variants.length > 1 && (
           <span className="pointer-events-none absolute inset-x-3 bottom-3 translate-y-2 rounded-full bg-white/95 px-3.5 py-2 text-center text-[13px] font-medium text-stone-800 opacity-0 shadow transition group-hover:translate-y-0 group-hover:opacity-100">
             {product.variants.length} options
           </span>
-        ) : (
-          <button
-            onClick={stop(() => addToCart(stored))}
-            className="absolute inset-x-3 bottom-3 translate-y-2 rounded-full bg-stone-900 px-3.5 py-2 text-[13px] font-medium text-white opacity-0 shadow transition group-hover:translate-y-0 group-hover:opacity-100"
-          >
-            {inCart ? "Added ✓" : "Quick add"}
-          </button>
         )}
       </div>
       <div className="p-3">

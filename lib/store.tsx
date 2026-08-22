@@ -9,6 +9,18 @@ export interface StoredProduct {
   memberName: string
   price?: number   // price in cents
   qty?: number
+  /**
+   * Enough to DRAW the line and link it back, both optional because a cart
+   * saved before they existed must keep working — the id above is still the
+   * only thing checkout resolves by.
+   *
+   *   image     — a picture of the thing, so a basket isn't a list of strings
+   *   productId — the products row, for a link to its page. Not the same as
+   *               `id`: that one is member+name, which is what the server
+   *               prices by and cannot be a URL.
+   */
+  image?: string | null
+  productId?: string | null
 }
 
 interface StoreContextType {
