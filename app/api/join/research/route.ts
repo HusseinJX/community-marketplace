@@ -142,6 +142,8 @@ export async function POST(req: Request) {
     subcategory: seed.subcategory ?? enriched.subcategory ?? null,
     description: seed.description ?? enriched.description ?? null,
     products: seed.products ?? enriched.products ?? null,
+    // Only true when the seed carried the vendor's own list (shop setup).
+    catalogFromVendor: seed.catalogFromVendor === true && !!seed.products?.length,
     services: seed.services ?? enriched.services ?? null,
     research,
   });

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AddProductsAI } from "@/components/join/AddProductsAI";
 import {
   Loader2,
   ArrowRight,
@@ -91,14 +92,20 @@ function Later({ label, onClick }: { label: string; onClick: () => void }) {
 
 export function ShopSetup({
   memberId,
+  memberName,
   /** Demo opens no hosted flow and connects nothing. */
   demo = false,
+  onProducts,
   onFinish,
 }: {
   memberId: string;
+  memberName: string;
   demo?: boolean;
+  /** What they listed here, handed up so the interview can ask about it. */
+  onProducts?: (names: string[]) => void;
   onFinish: () => void;
 }) {
+  const [added, setAdded] = useState<string[]>([]);
   const [sub, setSub] = useState<Sub>("catalog");
   const [busy, setBusy] = useState<"square" | "stripe" | null>(null);
   const [err, setErr] = useState("");
@@ -158,7 +165,7 @@ export function ShopSetup({
       <SetupScreen
         icon={Boxes}
         title="Bring in what you sell"
-        sub="If you already run a Square register, we can pull your products across — names, prices and photos — so your page isn't empty on day one."
+        sub="Two ways: pull a Square catalogue across, or photograph your menu and we'll read it. Either way your page isn't empty on day one."
       >
         {err && <p className="rounded-xl bg-rose-50 px-3.5 py-2.5 text-[13px] text-rose-700">{err}</p>}
 
@@ -189,10 +196,32 @@ export function ShopSetup({
           <ExternalLink className="h-5 w-5 shrink-0 text-stone-300" />
         </button>
 
-        <p className="text-[13px] leading-relaxed text-stone-400">
-          No Square? That&apos;s fine — you can add products by hand from your dashboard, and
-          connect a register later. Nothing here is a one-time offer.
-        </p>
+        {/* The other way in, for the vendor with no register — which is most
+            of them. Not a footnote under the Square button: "photograph your
+            menu" is the shorter path to a page that isn't empty, and burying
+            it made Square look like the only way to have a catalogue. */}
+        <div className="pt-1">
+          <p className="mb-3 text-[13px] font-semibold uppercase tracking-wide text-stone-400">
+            No register? Add them here
+          </p>
+          <AddProductsAI
+            memberId={memberId}
+            memberName={memberName}
+            demo={demo}
+            onSaved={(names) => {
+              const all = [...added, ...names];
+              setAdded(all);
+              onProducts?.(all);
+            }}
+          />
+        </div>
+
+        {added.length > 0 && (
+          <p className="rounded-xl bg-emerald-50 px-3.5 py-2.5 text-[13px] text-emerald-800">
+            {added.length} {added.length === 1 ? "product" : "products"} added — {added.slice(0, 3).join(", ")}
+            {added.length > 3 ? "…" : ""}
+          </p>
+        )}
 
         <div className="space-y-2 pt-2">
           <Next label="Next — getting paid" onClick={() => { setErr(""); setSub("payments"); }} />
@@ -285,8 +314,11 @@ export function ShopSetup({
         ))}
       </div>
 
+      {/* The interview comes after this now, not the dashboard — and it opens
+          knowing whatever was listed two screens ago, which is the point of
+          doing the shop first. */}
       <div className="space-y-2 pt-2">
-        <Next label="Go to your dashboard" onClick={onFinish} />
+        <Next label="Last thing — tell us about you" onClick={onFinish} />
         <a
           href={`/members/${memberId}`}
           className="block w-full py-1 text-center text-[13px] font-medium text-stone-400 transition hover:text-stone-700"

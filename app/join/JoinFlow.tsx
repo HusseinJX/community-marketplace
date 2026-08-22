@@ -183,6 +183,10 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
   // opens warm — set from the Google Places pick (entities) or the artist form.
   const [seed, setSeed] = useState<BriefInput>({});
 
+  // Names of whatever they listed during shop setup. Handed to the interview
+  // so the conversation has something to be about.
+  const [addedProducts, setAddedProducts] = useState<string[]>([]);
+
   // What the links step opens with. Never a blank list when we already paid
   // for the answer: the website AND the phone number both come free with the
   // details call we already make.
@@ -1050,12 +1054,27 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
           memberId={memberId}
           initialLinks={linkSeed}
           demo={demo}
-          onDone={() => setStep("interview")}
+          onDone={() => setStep("setup")}
         />
       )}
 
       {step === "interview" && (
-        <JoinInterview memberId={memberId} bizName={bizName} kind={kind} seed={seed} demo={demo} onDone={() => setStep("done")} />
+        <JoinInterview
+          memberId={memberId}
+          bizName={bizName}
+          kind={kind}
+          // The catalogue is part of what we already know, so it travels in the
+          // same seed the Places pick and the web research do. An interviewer
+          // that opens with "what do you sell?" to someone who has just typed
+          // it in reads as not having been listening.
+          seed={
+            addedProducts.length
+              ? { ...seed, products: addedProducts, catalogFromVendor: true }
+              : seed
+          }
+          demo={demo}
+          onDone={() => setStep("done")}
+        />
       )}
 
       {step === "done" && (
@@ -1097,7 +1116,7 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
                 someone decides whether to bother. Free sells and we take 5%;
                 Pro is the agent and analytics. */}
             <button
-              onClick={() => setStep("setup")}
+              onClick={() => router.push("/vendor")}
               className="block w-full rounded-xl border border-stone-200 p-4 text-left transition hover:bg-stone-50"
             >
               <b className="text-stone-900">Free</b> — your page, posts, and selling (we take 5%)
@@ -1118,14 +1137,13 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
             </button>
           </div>
 
-          <button onClick={() => setStep("setup")} className="mt-2 inline-flex items-center gap-2 rounded-full bg-stone-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-stone-800">
-            Set up your shop <ArrowRight className="h-4 w-4" />
+          {/* Shop setup and the interview are both BEHIND them now (2026-08-22
+              — links → shop → payments → interview → here), so this is the way
+              out, not another step. Pointing it back at "setup" would have run
+              a finished vendor through the catalogue screen a second time. */}
+          <button onClick={() => router.push("/vendor")} className="mt-2 inline-flex items-center gap-2 rounded-full bg-stone-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-stone-800">
+            Go to your dashboard <ArrowRight className="h-4 w-4" />
           </button>
-          <div>
-            <button onClick={() => router.push("/vendor")} className="text-sm font-medium text-stone-500 underline hover:text-stone-800">
-              or skip to your dashboard
-            </button>
-          </div>
           {/* Auto-renewable subscription disclosure — required (Guideline 3.1.2)
               wherever subscription pricing is presented. Purchase completes on
               /vendor/billing; this screen only advertises the plans + prices. */}
@@ -1152,7 +1170,15 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
           unlocked. After the plan screen rather than before it, because it is
           the first thing that is about their business rather than about us. */}
       {step === "setup" && (
-        <ShopSetup memberId={memberId} demo={demo} onFinish={() => router.push("/vendor")} />
+        <ShopSetup
+          memberId={memberId}
+          memberName={bizName}
+          demo={demo}
+          // What they just listed, so the interview can ask about it by name
+          // instead of asking what they sell — see the seed below.
+          onProducts={(names) => setAddedProducts(names)}
+          onFinish={() => setStep("interview")}
+        />
       )}
 
       {loginOpen && <VendorPhoneLogin onClose={() => setLoginOpen(false)} redirectUrl="/vendor" />}

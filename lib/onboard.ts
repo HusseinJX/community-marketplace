@@ -66,6 +66,8 @@ export interface BriefInput {
   neighborhood?: string | null
   description?: string | null
   products?: string[] | null
+  /** True when `products` is the vendor's own catalogue, listed during setup. */
+  catalogFromVendor?: boolean
   services?: string[] | null
   websiteUrl?: string | null
   instagramHandle?: string | null
@@ -90,7 +92,17 @@ export function buildInterviewBrief(input: BriefInput): string {
   if (input.address) lines.push(`Address: ${input.address}`)
   if (input.description) lines.push(`About: ${input.description}`)
   const offerings = [...(input.products || []), ...(input.services || [])].filter(Boolean)
-  if (offerings.length) lines.push(`Known for: ${offerings.slice(0, 8).join(', ')}`)
+  // "Known for" reads as something we found out about them. When the list came
+  // from the vendor's own shop setup minutes earlier (JoinFlow seeds it from
+  // ShopSetup), say so — an interviewer that opens by asking what they sell,
+  // to someone who has just typed it in, has plainly not been listening.
+  if (offerings.length) {
+    lines.push(
+      input.catalogFromVendor
+        ? `Already listed in their shop (they added these just now): ${offerings.slice(0, 8).join(', ')}`
+        : `Known for: ${offerings.slice(0, 8).join(', ')}`,
+    )
+  }
   // From the Google listing. Real, checkable facts — and often the ONLY specific
   // thing we have, since most small businesses have no editorial summary.
   if (input.rating) {
