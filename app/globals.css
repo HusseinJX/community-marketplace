@@ -627,7 +627,18 @@ textarea,
   will-change: transform, opacity;
 }
 
-/* Mobile keeps the switcher, so it closes its own top gap instead. */
+/* The switcher's gap under the search.
+   Held here rather than inline so the mobile rule below can close it as the
+   band folds — and stated at EVERY width, which is the bug this replaced: the
+   media query alone left desktop with no top padding at all, so the pills sat
+   hard under the search box. */
+.wl-tabrow {
+  padding-top: 16px;
+}
+
+/* Mobile keeps the switcher while everything above it folds, so it closes its
+   own gap on the same curve rather than snapping shut. Desktop never needs
+   this — the whole row goes with the fold. */
 @media (max-width: 767px) {
   .wl-tabrow {
     padding-top: calc(16px * (1 - var(--hdr-p, 0)));
