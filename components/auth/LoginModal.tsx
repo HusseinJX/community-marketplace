@@ -11,7 +11,8 @@ import { nativeGoogleSignIn } from "@/lib/native-auth";
 // The one login modal for the whole app — Google / Apple only, with the EULA
 // consent line shown before sign-in (App Store 1.2). Two variants:
 //   • "vendor"  — sign-in only; a brand-new login is nudged to /join onboarding.
-//                 Web uses a popup (keeps the page mounted).
+//                 Web redirects through /vendor-callback, which sends a returning
+//                 vendor to `redirectUrl` and a brand-new login to /join.
 //   • "shopper" — sign-in OR sign-up; a new login just creates the account.
 //                 Web redirects through /account-callback (which handles both and
 //                 returns to `redirectUrl`); native uses the token plugins, which
@@ -80,48 +81,30 @@ export function LoginModal({
       return;
     }
 
-    // Web SHOPPER: full redirect through /account-callback, which completes a
-    // sign-in OR a new sign-up and returns to `dest`.
-    if (!isVendor) {
-      try {
-        await clerk.client.signIn.authenticateWithRedirect({
-          strategy,
-          redirectUrl: `${window.location.origin}/account-callback`,
-          redirectUrlComplete: `${window.location.origin}${dest}`,
-        });
-      } catch (e) {
-        setBusy(false);
-        setErr(e instanceof Error ? e.message : "Couldn't sign in with that provider.");
-      }
-      return;
-    }
-
-    // Web VENDOR: popup keeps this modal mounted; a brand-new login has no page
-    // yet, so we nudge to /join instead of auto-creating.
-    const popup = window.open("", "_blank", "width=520,height=640");
+    // Web, BOTH variants: full redirect. The vendor side used to open a popup so
+    // this modal stayed mounted, but any popup blocker (and Chrome blocks them
+    // on plain http:// origins like localhost by default) killed the handshake
+    // and surfaced "Couldn't complete sign-in. Make sure the popup wasn't
+    // blocked." — while the shopper redirect next to it worked fine. Nothing is
+    // lost: the /join nudge for a brand-new login is enforced by
+    // /vendor-callback's signUpForceRedirectUrl, not by this modal staying open.
+    //   • vendor  → /vendor-callback  (sign-in → dest, sign-up → /join)
+    //   • shopper → /account-callback (sign-in OR sign-up → dest)
     try {
-      await clerk.client.signIn.authenticateWithPopup({
+      await clerk.client.signIn.authenticateWithRedirect({
         strategy,
-        // /vendor-callback uses FALLBACK redirects so the popup honors this
-        // redirectUrlComplete (/vendor). /sso-callback FORCE-redirects to /join,
-        // which broke this popup's completion handshake — see that route's note.
-        redirectUrl: `${window.location.origin}/vendor-callback`,
+        redirectUrl: `${window.location.origin}${isVendor ? "/vendor-callback" : "/account-callback"}`,
         redirectUrlComplete: `${window.location.origin}${dest}`,
-        popup,
       });
-      if (!clerk.session) throw new Error("Couldn't complete sign-in. Make sure the popup wasn't blocked.");
-      router.push(dest);
     } catch (e) {
-      try { popup?.close(); } catch {}
+      setBusy(false);
       const msg = e instanceof Error ? e.message : "";
-      if (/couldn.?t find|not found|no account|identifier|single session/i.test(msg)) {
+      if (isVendor && /couldn.?t find|not found|no account|identifier|single session/i.test(msg)) {
         setNoAccount(true);
         setErr("No account for that login yet.");
       } else {
-        setErr(/cancel|closed|abort/i.test(msg) ? "Sign-in was cancelled." : msg || "Couldn't sign in with that provider.");
+        setErr(msg || "Couldn't sign in with that provider.");
       }
-    } finally {
-      setBusy(false);
     }
   }
 
