@@ -150,6 +150,22 @@ export function useVendorActivity(memberId: string, isAdmin: boolean) {
   return { collab: data?.collab ?? EMPTY, customer: data?.customer ?? EMPTY, loaded: !!data };
 }
 
+/**
+ * Unread replies from support, for the red badge on the support card.
+ *
+ * `?badge=1` reads one integer off one row — this poll runs for every signed-in
+ * person on every tab, so it must never touch the messages table. Signed-out
+ * passes `null` and SWR skips the request entirely.
+ */
+export function useSupportUnread() {
+  const { isSignedIn } = useAuth();
+  const { data, mutate } = useSWR<{ unread?: number }>(
+    isSignedIn ? "/api/support?badge=1" : null,
+    { refreshInterval: 60_000 },
+  );
+  return { unread: data?.unread ?? 0, refresh: mutate };
+}
+
 // The actor's collaborations. Shared key with the Messages tab, so the
 // dashboard's "Needs you" list and the Collaborations cards paint from one
 // fetch and agree on what's outstanding.

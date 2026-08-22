@@ -11,7 +11,7 @@ import { FeedbackLink } from "@/components/FeedbackWidget";
 // Both inboxes count: the vendor portal's is as much a chat surface as the
 // shopper one, and it was getting 354px of marketing under the message box.
 // Community chat rooms are the same shape — a thread with a pinned composer.
-const FULL_SCREEN = ["/messages", "/vendor/messages", "/community"];
+const FULL_SCREEN = ["/messages", "/vendor/messages", "/community", "/support/chat"];
 
 export function SiteFooter() {
   const pathname = usePathname();

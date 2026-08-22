@@ -24,6 +24,7 @@ import { LocalDirectory } from "@/components/home/LocalDirectory";
 import { HomeSearch } from "@/components/home/HomeSearch";
 import { CommunityFeed } from "@/components/feed/CommunityFeed";
 import { HOME_TABS, DEFAULT_HOME_TAB, toHomeTab, rememberHomeTab, type HomeTab } from "@/lib/home-tab";
+import { SupportCard } from "@/components/support/SupportCard";
 import { useIsMdUp } from "@/lib/use-media-query";
 import {
   useHomeHeader,
@@ -645,6 +646,14 @@ export function HomeTabs() {
           on a row that already ends in three toggles. */}
       <div className={`mx-auto px-4 pt-3 md:px-8 ${titleWidth}`}>
         <CityHeader />
+      </div>
+
+      {/* One card, above the body, OUTSIDE the tab switch — so it is on every
+          tab without being written three times and without re-mounting (and
+          re-polling) each time you switch. Renders nothing at all when signed
+          out. */}
+      <div className={`mx-auto px-4 pt-3 md:px-8 ${titleWidth}`}>
+        <SupportCard />
       </div>
 
       {/* Body — only the active tab mounts, keeping the page light per view. */}

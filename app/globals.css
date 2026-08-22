@@ -35,6 +35,20 @@
   }
 }
 
+/* A full-screen view (a chat) pins the document to the viewport: the PAGE never
+   scrolls, and the one region inside it that asked to scroll is the only thing
+   that moves. Set by components/layout/ViewportLock.
+   `min-height: 0` on <main> is not optional — a flex child defaults to
+   min-height:auto and refuses to shrink under its content, so without it the
+   transcript grows the column and pushes the composer off the screen. */
+body[data-viewport-lock="true"] {
+  height: 100dvh;
+  overflow: hidden;
+}
+body[data-viewport-lock="true"] > main {
+  min-height: 0;
+}
+
 /* An open conversation takes the whole screen: the portal's own nav row (Home /
    Messages) hides, leaving just the app top nav and bottom nav. The chat then
    sizes off --app-chrome rather than --vendor-chrome. Set by MessagesShell. */

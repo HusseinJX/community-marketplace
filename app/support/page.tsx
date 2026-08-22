@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { LifeBuoy, Mail, ShieldCheck, FileText } from "lucide-react";
 import { SITE_NAME } from "@/lib/seo";
+import { SupportCard } from "@/components/support/SupportCard";
 
 export const metadata = {
   title: "Support",
@@ -27,6 +28,11 @@ export default function SupportPage() {
 
       <section className="mx-auto max-w-4xl px-4 py-14 md:px-8 md:py-20">
         <div className="space-y-8">
+          {/* Live chat, for anyone signed in — above the email address, because
+              a reply in the app beats a reply in a day. Signed out this
+              renders nothing and the email below is the way through. */}
+          <SupportCard />
+
           {/* Contact */}
           <div className="rounded-2xl border border-stone-200 bg-white p-4">
             <h2 className="flex items-center gap-2 text-lg font-semibold text-stone-900">
