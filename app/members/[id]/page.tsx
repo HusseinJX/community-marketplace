@@ -33,8 +33,7 @@ import { GroupChat } from "@/components/GroupChat";
 import { PhotoMosaic } from "@/components/business/PhotoMosaic";
 import { AskAssistant } from "@/components/AskAssistant";
 import { getEntitlements } from "@/lib/entitlements";
-import { MEMBER_HERO_IMAGES } from "@/lib/member-images";
-import { usableImages, isPlaceholder } from "@/lib/image-utils";
+import { memberImages } from "@/lib/member-images";
 import { ENDORSEMENTS } from "@/lib/endorsements";
 import { EndorsementRows } from "@/components/EndorsementRows";
 import { MemoriesGrid } from "@/components/posts/MemoriesGrid";
@@ -311,10 +310,8 @@ export default async function MemberProfilePage({
       {/* Hero — a photo mosaic on desktop, the carousel on a phone.
           See components/business/PhotoMosaic. */}
       {(() => {
-        const curated = MEMBER_HERO_IMAGES[id];
-        const apiImages = Array.isArray(p.images) ? usableImages(p.images as string[]) : [];
-        const single = typeof p.imageUrl === "string" && !isPlaceholder(p.imageUrl) ? [p.imageUrl] : [];
-        const heroImages = (curated && curated.length ? curated : apiImages.length ? apiImages : single);
+        // lib/member-images owns the precedence — the owner's own list first.
+        const heroImages = memberImages({ id, profile: p });
         return (
           <div className="mt-2 md:mt-6">
             <PhotoMosaic images={heroImages} alt={name} gradientClass={gradient} />

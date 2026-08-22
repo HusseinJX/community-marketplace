@@ -1,6 +1,5 @@
 import type { Member, MemberProfile } from "./types";
-import { MEMBER_HERO_IMAGES } from "./member-images";
-import { usableImages, isPlaceholder } from "./image-utils";
+import { memberImages } from "./member-images";
 
 // Canonical origin for absolute URLs (canonical tags, sitemap, JSON-LD @id).
 // Trailing slash stripped so `${SITE_URL}/path` never double-slashes.
@@ -118,19 +117,11 @@ export function socialUrls(p: MemberProfile): string[] {
   return Array.from(new Set(urls));
 }
 
-// Hero/profile images for a member — same precedence as the profile page:
-// curated overrides → API gallery → single imageUrl. Returns absolute URLs
-// (the source data is already absolute) for OG tags and JSON-LD `image`.
+// Hero/profile images for a member, for OG tags and JSON-LD `image`. The
+// precedence lives in lib/member-images (the owner's own list first) — this is
+// the same list the page renders, which is the point of an OG image.
 export function resolveHeroImages(id: string, p: MemberProfile): string[] {
-  const curated = MEMBER_HERO_IMAGES[id];
-  if (curated && curated.length) return curated;
-  const gallery = Array.isArray(p.images) ? usableImages(p.images as string[]) : [];
-  if (gallery.length) return gallery;
-  const single =
-    typeof p.imageUrl === "string" && !isPlaceholder(p.imageUrl)
-      ? [p.imageUrl as string]
-      : [];
-  return single;
+  return memberImages({ id, profile: p });
 }
 
 // Milliseconds since epoch for a member's last activity, or 0 if unknown.

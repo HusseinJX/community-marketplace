@@ -5,21 +5,12 @@ import Link from "next/link";
 import Image from "next/image";
 import { Search } from "lucide-react";
 import type { Member } from "@/lib/types";
-import { MEMBER_HERO_IMAGES } from "@/lib/member-images";
-import { usableImages, isPlaceholder } from "@/lib/image-utils";
+import { memberImages } from "@/lib/member-images";
 import { BUSINESS_SIZES, OWNERSHIP_TAGS, matchesFacets } from "@/lib/business-facets";
 import { useDirectory } from "@/lib/data-hooks";
 
 function firstImage(m: Member): string | null {
-  const curated = MEMBER_HERO_IMAGES[m.id];
-  if (curated?.length) return curated[0];
-  const p = m.profile;
-  if (p) {
-    const imgs = Array.isArray(p.images) ? usableImages(p.images) : [];
-    if (imgs.length) return imgs[0];
-    if (p.imageUrl && !isPlaceholder(p.imageUrl)) return p.imageUrl;
-  }
-  return null;
+  return memberImages(m)[0] ?? null;
 }
 
 // Instagram-style Explore: a full-bleed grid of square image tiles.

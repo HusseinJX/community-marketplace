@@ -1,15 +1,17 @@
 import type { MemberProfile } from "./types";
 import { usableImages } from "./image-utils";
 
+/**
+ * Hand-picked imagery for members whose own profile has none — DEMO members
+ * only now.
+ *
+ * It used to hold real members too, and that is a trap: curated images USED TO
+ * WIN over the profile's own, so a vendor who added a photo on /vendor/about
+ * would have seen nothing change anywhere. Anything a member can edit must beat
+ * anything we hardcoded. Xeno's entry was removed because its profile already
+ * carried the identical list.
+ */
 export const MEMBER_HERO_IMAGES: Record<string, string[]> = {
-  // Real members
-  // Xeno — founder, WhatsLocal AI (San Francisco)
-  "89516919-256f-4a95-96df-fc9d285f664a": [
-    "https://xbbnvkvlrucrzobhopgh.supabase.co/storage/v1/object/public/marketplace-media/profile/89516919-256f-4a95-96df-fc9d285f664a/art-1-6.jpeg",
-    "https://xbbnvkvlrucrzobhopgh.supabase.co/storage/v1/object/public/marketplace-media/profile/89516919-256f-4a95-96df-fc9d285f664a/art-2-7.jpeg",
-    "https://xbbnvkvlrucrzobhopgh.supabase.co/storage/v1/object/public/marketplace-media/profile/89516919-256f-4a95-96df-fc9d285f664a/art-3-8.jpeg",
-    "https://xbbnvkvlrucrzobhopgh.supabase.co/storage/v1/object/public/marketplace-media/profile/89516919-256f-4a95-96df-fc9d285f664a/art-4-9.jpeg",
-  ],
   // Demo members
   "demo-dani-cruz": [
     "https://images.unsplash.com/photo-1551913902-c92207136625?auto=format&fit=crop&w=1200&q=70",
@@ -42,21 +44,28 @@ export const MEMBER_HERO_IMAGES: Record<string, string[]> = {
 
 /**
  * Every image a card can show for this member, best first:
- *   1) hand-curated MEMBER_HERO_IMAGES (showcased members)
- *   2) imported profile.images[]
- *   3) the single profile.imageUrl fallback
+ *   1) profile.images[] — what the OWNER set on /vendor/about (or an import)
+ *   2) the single profile.imageUrl fallback
+ *   3) hand-curated MEMBER_HERO_IMAGES, for demo members with no profile of
+ *      their own
+ *
+ * THE OWNER'S LIST WINS. It used to be the other way round, which meant the
+ * profile editor could not change what a showcased member's page showed.
  *
  * All of them pass through `usableImages`, so an untrusted host is the same as
  * no image — which is the point: that is exactly what the card would render.
  * Empty means the card falls back to a coloured gradient.
+ *
+ * ONE implementation, five readers (member page, explore, browse, SEO, cards).
+ * Each used to carry its own copy of this precedence.
  */
 export function memberImages(member: { id: string; profile?: MemberProfile | null }): string[] {
-  const curated = usableImages(MEMBER_HERO_IMAGES[member.id]);
-  if (curated.length) return curated;
   const p = member.profile ?? {};
-  const imported = Array.isArray(p.images) ? usableImages(p.images as string[]) : [];
-  if (imported.length) return imported;
-  return usableImages(p.imageUrl ? [p.imageUrl as string] : []);
+  const own = Array.isArray(p.images) ? usableImages(p.images as string[]) : [];
+  if (own.length) return own;
+  const single = usableImages(p.imageUrl ? [p.imageUrl as string] : []);
+  if (single.length) return single;
+  return usableImages(MEMBER_HERO_IMAGES[member.id]);
 }
 
 /** True when a card would show a real photo rather than a gradient. */

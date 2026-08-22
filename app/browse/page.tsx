@@ -18,16 +18,10 @@ import { useLocation } from "@/lib/location";
 import { FilterSidebar } from "@/components/FilterSidebar";
 import { matchesFacets } from "@/lib/business-facets";
 import { groupMembers } from "@/lib/browse-groups";
-import { MEMBER_HERO_IMAGES } from "@/lib/member-images";
-import { usableImages, isPlaceholder } from "@/lib/image-utils";
+import { hasMemberImage } from "@/lib/member-images";
 
 function memberHasImage(m: Member): boolean {
-  if (MEMBER_HERO_IMAGES[m.id]?.length) return true;
-  const p = m.profile;
-  if (!p) return false;
-  if (Array.isArray(p.images) && usableImages(p.images).length > 0) return true;
-  if (p.imageUrl && !isPlaceholder(p.imageUrl)) return true;
-  return false;
+  return hasMemberImage(m);
 }
 
 type ViewMode = "grid" | "map";

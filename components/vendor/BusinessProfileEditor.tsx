@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Loader2, Check, ExternalLink, AlertCircle } from "lucide-react";
+import { ProfileImagesEditor } from "@/components/vendor/ProfileImagesEditor";
 import {
   LinkEditor,
   brokenLinks,
@@ -67,11 +68,14 @@ const inputClass =
 export function BusinessProfileEditor({
   memberId,
   initialDetails,
+  initialImages,
   /** The public page, so they can check their work. */
   publicHref,
 }: {
   memberId: string;
   initialDetails: BusinessDetails;
+  /** The gallery, in display order. Managed on its own — see ProfileImagesEditor. */
+  initialImages: string[];
   publicHref: string;
 }) {
   const [details, setDetails] = useState<BusinessDetails>(initialDetails);
@@ -171,6 +175,12 @@ export function BusinessProfileEditor({
             <input value={details.name} readOnly className={`${inputClass} bg-stone-50 text-stone-500`} />
           </Field>
         )}
+
+        {/* Photos first: it is the half of the page a passer-by reads before a
+            single word, and it was the half this screen could not touch.
+            Saves on its own, not with the button at the bottom — see the
+            component. */}
+        <ProfileImagesEditor memberId={memberId} initialImages={initialImages} />
 
         <Field label="About" hint="A few sentences. What you do, and what makes it worth the walk.">
           <textarea

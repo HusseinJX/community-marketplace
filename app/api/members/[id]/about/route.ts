@@ -4,10 +4,18 @@ import { patchMember } from '@/lib/api'
 import type { MemberProfile } from '@/lib/types'
 import { invalidateMembers } from '@/lib/cache'
 
+/** A profile is a gallery, not an album. */
+const MAX_IMAGES = 12
+
 // PATCH — edit a member's public "about" fields (bio + basic details). Owner or
 // admin only.
 //
-// Body: { bio?, category?, city?, neighborhood?, address?, hours?, instagram?, website? }
+// Body: { bio?, category?, city?, neighborhood?, address?, hours?, instagram?, website?, images? }
+//
+// `images` is the member's PHOTO GALLERY, in display order — the first one is
+// the cover, so `imageUrl` is written from it in the same call. Sending `[]`
+// removes them all, which is a thing a vendor is allowed to do; that is why the
+// key is only read when it is present.
 //
 // `instagram` and `website` are ALSO reachable through the links route, which
 // is the surface that owns every platform handle. They stay here because this
@@ -35,6 +43,25 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if ('hours' in body) fields.businessHours = str(body.hours) || ''
   if ('instagram' in body) fields.instagramHandle = (str(body.instagram) || '').replace(/^@/, '')
   if ('website' in body) fields.websiteUrl = str(body.website) || ''
+  if ('images' in body) {
+    // Server-side truth about the list: strings, https, deduped, capped. The
+    // client uploads through /api/upload and sends back what it got, so this is
+    // not the only line of defence — but it is the one that runs for every
+    // caller, including one that never touched the uploader.
+    const raw: unknown[] = Array.isArray(body.images) ? body.images : []
+    const images: string[] = Array.from(
+      new Set(
+        raw
+          .map((u) => str(u))
+          .filter((u): u is string => !!u && u.startsWith('https://'))
+      )
+    ).slice(0, MAX_IMAGES)
+    fields.images = images
+    // The cover follows the order. Every surface that shows ONE photo reads
+    // imageUrl, so leaving it behind would mean a card still showing a picture
+    // the vendor deleted.
+    fields.imageUrl = images[0] ?? ''
+  }
 
   if (Object.keys(fields).length === 0) {
     return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })

@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { getVendorProfile } from '@/lib/vendor-connect'
 import { demoMemberId, isDemoActive } from '@/lib/demo-server'
 import { getMember } from '@/lib/api'
+import { memberImages } from '@/lib/member-images'
 import { BusinessProfileEditor, type BusinessDetails } from '@/components/vendor/BusinessProfileEditor'
 
 export const metadata = { title: 'Business profile' }
@@ -21,6 +22,7 @@ export default async function VendorAboutPage() {
   const memberId = profile?.member_id ?? (demo ? await demoMemberId() : null)
 
   let details: BusinessDetails = {}
+  let images: string[] = []
   if (memberId) {
     try {
       const m = await getMember(memberId)
@@ -30,6 +32,7 @@ export default async function VendorAboutPage() {
             name?: string; businessName?: string; businessDescription?: string; bio?: string
             category?: string; city?: string; neighborhood?: string
             businessAddress?: string; businessHours?: string
+            images?: string[]; imageUrl?: string
           }
         }
       })?.member?.profile
@@ -42,6 +45,9 @@ export default async function VendorAboutPage() {
         address: p?.businessAddress || undefined,
         hours: p?.businessHours || undefined,
       }
+      // The same list the public page draws, in the same order — editing it
+      // anywhere else would be editing something the vendor can't see.
+      images = memberImages({ id: memberId, profile: p ?? null })
     } catch {
       /* connector slow/unavailable → an empty form rather than an error page */
     }
@@ -60,6 +66,7 @@ export default async function VendorAboutPage() {
         <BusinessProfileEditor
           memberId={memberId}
           initialDetails={details}
+          initialImages={images}
           publicHref={`/members/${memberId}`}
         />
       ) : (
