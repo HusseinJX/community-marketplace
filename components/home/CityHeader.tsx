@@ -29,6 +29,16 @@ import { nearestCity, liveCities, isCityLive, cityById, CITIES, type City } from
 import { trackConversion } from "@/lib/analytics";
 
 const FALLBACK: City | undefined = liveCities()[0];
+
+/**
+ * How near "nearest city" has to be before we'll put its name on the screen.
+ *
+ * Generous on purpose: someone an hour outside a city we cover is, for every
+ * purpose this header serves, in that city's orbit. It exists to catch the
+ * other case — a visitor on another continent, where the nearest pin in the
+ * list is meaningless and printing it is a confidently wrong statement.
+ */
+const NEAR_MILES = 150;
 const INTEREST_KEY = "wl_city_interest";
 
 export function CityHeader({
@@ -70,10 +80,22 @@ export function CityHeader({
   // Nearest city we know of, and the nearest we actually cover. Before the
   // position settles — or after a refusal — we say nothing rather than claim a
   // city, because a wrong "Near you in …" is worse than no line at all.
-  const near = position ? nearestCity(position.lat, position.lng)?.city ?? null : null;
-  const live = position
-    ? nearestCity(position.lat, position.lng, { liveOnly: true })?.city ?? null
+  //
+  // WITHIN REACH, not merely nearest. `nearestCity` has no upper bound, so from
+  // Tokyo it answers "San Francisco" — 5,100 miles away — and the header then
+  // said "San Francisco" as though you were standing in it. Nearest is only a
+  // useful answer while it is also near; past that it is a wrong one, and the
+  // honest reply is that we are not in your part of the world yet.
+  const nearest = position ? nearestCity(position.lat, position.lng) : null;
+  const near = nearest && nearest.miles <= NEAR_MILES ? nearest.city : null;
+  // Where they'd have to go. Deliberately unbounded — this one is allowed to be
+  // thousands of miles away, because naming it is the whole point.
+  const coverHit = position
+    ? nearestCity(position.lat, position.lng, { liveOnly: true })
     : null;
+  const live = coverHit?.city ?? null;
+  // Somewhere on earth, but nowhere near anything we know about.
+  const far = !!nearest && !near;
 
   const nav = variant === "nav";
 
@@ -94,6 +116,48 @@ export function CityHeader({
   // needs a way IN, so once the attempt has settled with nothing we show the
   // globe on its own rather than an empty space.
   if (!settled) return null;
+
+  // Far from everything we know. We DO know where they are, so saying nothing
+  // would be the one wrong answer available: the page would look identical to
+  // a refused permission, and a visitor from Nairobi or Osaka would be shown a
+  // San Francisco directory with no word about why. We cannot name their city
+  // — nothing here reverse-geocodes, and buying a lookup to print a name we'd
+  // do nothing else with is not worth it — so we name the distance instead,
+  // which is the part that actually explains the page.
+  if (far) {
+    if (nav) {
+      return passive ? null : (
+        <div className="flex min-w-0 items-center gap-1">
+          <span className="truncate t-meta text-stone-400">Pick a city</span>
+          <CityPicker current={null} />
+        </div>
+      );
+    }
+    return (
+      <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5">
+        <p className="text-[13px] text-amber-900">
+          We&apos;re not in your part of the world yet
+          {live && coverHit ? (
+            <>
+              {" "}
+              — the nearest city we cover is{" "}
+              <span className="font-semibold">{live.city}</span>,{" "}
+              {Math.round(coverHit.miles).toLocaleString()} miles away.
+            </>
+          ) : (
+            "."
+          )}
+        </p>
+        <p className="mt-1.5 text-[12px] text-amber-800">
+          You can still look around — pick a city to browse.
+        </p>
+        <div className="mt-2">
+          <CityPicker current={null} />
+        </div>
+      </div>
+    );
+  }
+
   if (!near) {
     // Passive surfaces stay quiet — see the prop's note.
     return nav && !passive ? (
@@ -115,12 +179,15 @@ export function CityHeader({
     return nav ? <CityTitle city={near} nav /> : null;
   }
 
-  // Not served. This is the one thing that stays on the PAGE — it's a
-  // paragraph and a button, and it could never live in a nav bar. In the nav
-  // we name the nearest city we DO cover instead, so the switcher is still
-  // reachable from up there.
+  // Not served. The paragraph and button stay on the PAGE — they could never
+  // live in a nav bar — but the nav names the SAME city the paragraph does.
+  //
+  // It used to name the nearest city we cover instead, so the header read "San
+  // Francisco" directly above "We're not in New York yet". Two lines, two
+  // cities, one screen: whichever one you believed, the other looked broken.
+  // The nav says where you are; the paragraph says what that means.
   if (nav) {
-    if (cover) return <CityTitle city={cover} nav />;
+    if (near) return <CityTitle city={near} nav />;
     return passive ? null : (
       <div className="flex min-w-0 items-center gap-1">
         <span className="truncate t-meta text-stone-400">Pick a city</span>

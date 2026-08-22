@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { MapPin, X } from "lucide-react";
 import {
   DEV_LOCATION_ENABLED,
@@ -21,8 +21,19 @@ import { clearStoredPosition, setCityOverride } from "@/lib/home-position";
  */
 export function DevLocationToggle() {
   const [open, setOpen] = useState(false);
-  // Read at render, not into state: the value only changes through a reload.
-  const current = DEV_LOCATION_ENABLED ? devLocation() : null;
+  // Read AFTER mount, never during render.
+  //
+  // localStorage does not exist on the server, so reading it in the render body
+  // made the server produce "Real location" and the client produce "New York" —
+  // a hydration mismatch, which React answers by throwing away the server tree
+  // and re-rendering the whole page on the client. That is what surfaced the
+  // second error too: re-rendering the tree walks the inline theme <script> in
+  // the root layout, which is legal to SSR and not legal to render client-side.
+  // One bug, two messages.
+  const [current, setCurrent] = useState<DevLocation | null>(null);
+  useEffect(() => {
+    setCurrent(devLocation());
+  }, []);
 
   if (!DEV_LOCATION_ENABLED) return null;
 
