@@ -41,11 +41,11 @@ if (!token) {
 }
 console.log(`token: ${token.length} chars · shop from env: ${shopIdFromEnv || '(none)'}`)
 
-const { listShops, listProducts, savePrintifyCreds } = await import('../lib/printify.ts')
+const { listShops, listProducts, savePrintifyCreds } = await import('../lib/printify')
 
 const shops = await listShops(token)
 console.log(`\nshops (${shops.length}):`)
-for (const s of shops) console.log(`  ${s.id}  ${s.title}  [${s.salesChannel ?? '—'}]`)
+for (const sh of shops) console.log(`  ${sh.id}  ${sh.title}`)
 
 const shopId = shopIdFromEnv || String(shops[0]?.id ?? '')
 if (!shopId) { console.error('No shop to use.'); process.exit(1) }
@@ -68,7 +68,7 @@ if (doSave) {
 }
 
 if (doSync) {
-  const { syncPrintifyCatalog } = await import('../lib/printify-commerce.ts')
+  const { syncPrintifyCatalog } = await import('../lib/printify-commerce')
   const res = await syncPrintifyCatalog(memberId, 'Xeno')
   console.log(`SYNCED: imported ${res.imported} · updated ${res.updated} · skipped ${res.skipped}`)
 }

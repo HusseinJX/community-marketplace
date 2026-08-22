@@ -4,7 +4,8 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Store } from "lucide-react";
 import { getProductById, getProductsByMember } from "@/lib/vendor-connect";
-import { AddToCart } from "@/components/shop/AddToCart";
+import { baseName } from "@/lib/product-variants";
+import { VariantPicker } from "@/components/shop/VariantPicker";
 import { kindOf, KIND_DEFS } from "@/lib/product-kind";
 
 // A product's own page. Server-rendered, like the member profile it belongs
@@ -32,10 +33,10 @@ export async function generateMetadata({
   if (!product) return { title: "Product not found", robots: { index: false, follow: false } };
 
   return {
-    title: `${product.name} — ${product.member_name}`,
+    title: `${baseName(product.name)} — ${product.member_name}`,
     description:
       product.description?.slice(0, 160) ||
-      `${product.name} from ${product.member_name}, on WhatsLocal.`,
+      `${baseName(product.name)} from ${product.member_name}, on WhatsLocal.`,
     alternates: { canonical: `/products/${product.id}` },
     openGraph: product.image_url ? { images: [product.image_url] } : undefined,
   };
@@ -51,8 +52,22 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
   if (!product) notFound();
 
   const kind = kindOf(product.kind);
-  const siblings = (await getProductsByMember(product.member_id))
-    .filter((p) => p.id !== product.id)
+  const catalogue = await getProductsByMember(product.member_id);
+
+  // Everything that is the same THING as this row: the other sizes and colours
+  // Printify prices separately and the importer therefore stored as their own
+  // rows. A hand-made product has no siblings and gets a picker of one, which
+  // renders as a plain price.
+  const pid = (product as unknown as { printify_product_id?: string | null }).printify_product_id;
+  const variants = (pid ? catalogue.filter((p) => (p as unknown as { printify_product_id?: string | null }).printify_product_id === pid) : [product])
+    .sort((a, b) => a.price - b.price);
+  const listingName = baseName(product.name);
+
+  // "More from" must not offer the same shirt in another size as if it were
+  // another product.
+  const siblings = catalogue
+    .filter((p) => !variants.some((v) => v.id === p.id))
+    .filter((p, i, arr) => arr.findIndex((q) => baseName(q.name) === baseName(p.name)) === i)
     .slice(0, 4);
 
   return (
@@ -92,19 +107,14 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
           </Link>
 
           <h1 className="mt-2 text-2xl font-semibold tracking-tight text-stone-900 sm:text-3xl">
-            {product.name}
+            {listingName}
           </h1>
 
-          <div className="mt-3 flex items-center gap-3">
-            <span className="text-xl font-semibold text-stone-900">
-              {priceLabel(product.price, product.currency)}
+          {kind !== "good" && (
+            <span className="mt-3 inline-block rounded-full bg-stone-100 px-2.5 py-1 text-xs font-medium text-stone-600">
+              {KIND_DEFS[kind].label}
             </span>
-            {kind !== "good" && (
-              <span className="rounded-full bg-stone-100 px-2.5 py-1 text-xs font-medium text-stone-600">
-                {KIND_DEFS[kind].label}
-              </span>
-            )}
-          </div>
+          )}
 
           {product.description && (
             <p className="mt-5 whitespace-pre-line text-[15px] leading-relaxed text-stone-700">
@@ -112,13 +122,20 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
             </p>
           )}
 
+          {/* Price, the size/colour chips and the button are one control — the
+              price has to be the price of what is selected, or the number on
+              screen is not the number charged. */}
           <div className="mt-6">
-            <AddToCart
-              id={`${product.member_id}__${product.name}`}
-              name={product.name}
+            <VariantPicker
+              variants={variants.map((v) => ({
+                id: v.id,
+                label: v.name.slice(listingName.length).replace(/^ — /, ""),
+                price: v.price,
+                name: v.name,
+              }))}
+              currency={product.currency}
               memberId={product.member_id}
               memberName={product.member_name}
-              price={product.price}
             />
           </div>
 
@@ -149,7 +166,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
                     />
                   )}
                 </div>
-                <p className="mt-1.5 truncate text-sm font-medium text-stone-900">{p.name}</p>
+                <p className="mt-1.5 truncate text-sm font-medium text-stone-900">{baseName(p.name)}</p>
                 <p className="text-sm text-stone-600">{priceLabel(p.price, p.currency)}</p>
               </Link>
             ))}

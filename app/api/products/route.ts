@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getAllActiveProducts } from '@/lib/vendor-connect'
+import { groupVariants, type VariantRow } from '@/lib/product-variants'
 
 export const runtime = 'nodejs'
 
@@ -12,16 +13,30 @@ export const revalidate = 60
 
 /** What a card and a product page need. Kept to that — no description here;
  *  the full row is read on the product page itself, where it is shown. */
-export interface ShopProduct {
+export interface ShopVariant {
   id: string
-  name: string
+  /** "Black / L" — empty for a product with no variants. */
+  label: string
   price: number
+  image: string | null
+}
+
+export interface ShopProduct {
+  /** The cheapest variant's id — what a card links to. */
+  id: string
+  /** The listing's name, without the variant suffix. */
+  name: string
+  /** The cheapest variant's price; `toPrice` differs when sizes cost more. */
+  price: number
+  toPrice: number
   currency: string
   image: string | null
   memberId: string
   memberName: string
   kind: string
   createdAt: string
+  /** One entry per buyable variant. Length 1 for a plain product. */
+  variants: ShopVariant[]
 }
 
 export async function GET() {
@@ -30,18 +45,39 @@ export async function GET() {
     // No hidden-member filter here, deliberately — see the note in
     // lib/hidden-members.ts. That list keeps a BUSINESS out of the directory;
     // it is not a rule about the things they sell.
-    const products: ShopProduct[] = rows
-      .map((p) => ({
-        id: p.id,
-        name: p.name,
-        price: p.price,
-        currency: p.currency || 'usd',
-        image: p.image_url ?? null,
-        memberId: p.member_id,
-        memberName: p.member_name,
-        kind: p.kind || 'good',
-        createdAt: (p as unknown as { created_at?: string }).created_at ?? '',
-      }))
+    //
+    // Grouped into LISTINGS: the importer writes one row per Printify variant,
+    // so an ungrouped grid shows nine identical shirts differing only in a size
+    // printed after an em dash. See lib/product-variants.
+    type Row = VariantRow & { raw: (typeof rows)[number] }
+    const flat: Row[] = rows.map((p) => ({
+      id: p.id,
+      name: p.name,
+      price: p.price,
+      image: p.image_url ?? null,
+      printifyProductId:
+        (p as unknown as { printify_product_id?: string | null }).printify_product_id ?? null,
+      raw: p,
+    }))
+
+    const products: ShopProduct[] = groupVariants(flat).map((g) => ({
+      id: g.lead.id,
+      name: g.name,
+      price: g.fromPrice,
+      toPrice: g.toPrice,
+      currency: g.lead.raw.currency || 'usd',
+      image: g.lead.image,
+      memberId: g.lead.raw.member_id,
+      memberName: g.lead.raw.member_name,
+      kind: g.lead.raw.kind || 'good',
+      createdAt: (g.lead.raw as unknown as { created_at?: string }).created_at ?? '',
+      variants: g.variants.map((v) => ({
+        id: v.id,
+        label: v.name.slice(g.name.length).replace(/^ — /, ''),
+        price: v.price,
+        image: v.image,
+      })),
+    }))
     return NextResponse.json({ products })
   } catch {
     // Empty rather than a 500: the tab renders its own empty state, and a

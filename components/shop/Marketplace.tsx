@@ -165,12 +165,21 @@ function ProductCard({ product }: { product: ShopProduct }) {
         >
           <Heart className={`h-4 w-4 ${faved ? "fill-rose-500 text-rose-500" : ""}`} />
         </button>
-        <button
-          onClick={stop(() => addToCart(stored))}
-          className="absolute inset-x-3 bottom-3 translate-y-2 rounded-full bg-stone-900 px-3.5 py-2 text-[13px] font-medium text-white opacity-0 shadow transition group-hover:translate-y-0 group-hover:opacity-100"
-        >
-          {inCart ? "Added ✓" : "Quick add"}
-        </button>
+        {/* Quick add is for a listing with ONE thing in it. Where a size has to
+            be chosen, the card sends you to the page to choose it rather than
+            picking the cheapest on your behalf and posting you a small. */}
+        {product.variants.length > 1 ? (
+          <span className="pointer-events-none absolute inset-x-3 bottom-3 translate-y-2 rounded-full bg-white/95 px-3.5 py-2 text-center text-[13px] font-medium text-stone-800 opacity-0 shadow transition group-hover:translate-y-0 group-hover:opacity-100">
+            {product.variants.length} options
+          </span>
+        ) : (
+          <button
+            onClick={stop(() => addToCart(stored))}
+            className="absolute inset-x-3 bottom-3 translate-y-2 rounded-full bg-stone-900 px-3.5 py-2 text-[13px] font-medium text-white opacity-0 shadow transition group-hover:translate-y-0 group-hover:opacity-100"
+          >
+            {inCart ? "Added ✓" : "Quick add"}
+          </button>
+        )}
       </div>
       <div className="p-3">
         {/* The vendor, where the category used to be. It is the line that
@@ -182,7 +191,11 @@ function ProductCard({ product }: { product: ShopProduct }) {
         </p>
         <div className="mt-1 flex items-baseline justify-between gap-2">
           <h3 className="min-w-0 truncate text-sm font-medium text-stone-900">{product.name}</h3>
+          {/* "from" only when the sizes actually differ in price — a shirt
+              that costs the same in every size should not look like it has a
+              catch. */}
           <span className="shrink-0 text-sm font-semibold text-stone-900">
+            {product.toPrice > product.price ? "from " : ""}
             {priceLabel(product.price)}
           </span>
         </div>

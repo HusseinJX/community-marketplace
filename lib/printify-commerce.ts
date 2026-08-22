@@ -61,10 +61,20 @@ export async function syncPrintifyCatalog(
       // don't — "Tote bag / Default" reads like a bug on a storefront.
       const name = p.variants.length > 1 && v.title ? `${p.title} — ${v.title}` : p.title
 
+      // Keyed on PRODUCT **and** variant, and it has to be both.
+      //
+      // A Printify variant id identifies a blank, not a listing: variant 73204
+      // is "Black / L" of one particular Comfort Colors tee, and every design
+      // printed on that blank shares it. Keyed on the variant alone, the second
+      // design to import found the first one's row and UPDATED it — so 26
+      // products collapsed to 13, and the surviving row's
+      // printify_product_id was whichever design happened to sync last. That is
+      // not a missing listing, it is an order that prints the wrong artwork.
       const { data: existing } = await db()
         .from('products')
         .select('id')
         .eq('member_id', memberId)
+        .eq('printify_product_id', p.productId)
         .eq('printify_variant_id', v.variantId)
         .maybeSingle()
 

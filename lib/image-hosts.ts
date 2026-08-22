@@ -9,6 +9,17 @@
 //
 // Keep them here, together, so a new source cannot be half-added again.
 
+/**
+ * Product imagery from a connected commerce platform. Not "tolerated" — a
+ * vendor's catalogue is the whole point of connecting one, and without the
+ * host here every POD listing renders as a broken image while the URL sits
+ * correctly in the database. That failure is silent in both directions, which
+ * is the reason this file exists.
+ */
+export const CATALOG_IMAGE_HOSTS = [
+  "images-api.printify.com", // Printify product mockups
+] as const;
+
 /** Our own storage. Anything here we uploaded. */
 export const OWN_MEDIA_HOSTS = [
   "xbbnvkvlrucrzobhopgh.supabase.co", // Supabase Storage (marketplace-media)
@@ -54,6 +65,7 @@ export const TOLERATED_IMAGE_HOSTS = [
 /** Everything next/image is allowed to optimise. */
 export const REMOTE_IMAGE_HOSTS: readonly string[] = [
   ...OWN_MEDIA_HOSTS,
+  ...CATALOG_IMAGE_HOSTS,
   ...EVENT_POSTER_HOSTS,
   ...TOLERATED_IMAGE_HOSTS,
 ];
@@ -61,5 +73,6 @@ export const REMOTE_IMAGE_HOSTS: readonly string[] = [
 /** Everything we are willing to actually SHOW. */
 export const DISPLAYABLE_IMAGE_HOSTS: readonly string[] = [
   ...OWN_MEDIA_HOSTS,
+  ...CATALOG_IMAGE_HOSTS,
   ...EVENT_POSTER_HOSTS,
 ];
