@@ -24,6 +24,24 @@ function maskPhone(raw?: string | null): string | null {
   return `(•••) •••-${d.slice(-4)}`;
 }
 
+/**
+ * The page a DEMO claim is pointed at.
+ *
+ * /joindemo can't use a real member: claiming one would flip its status and
+ * relink it to whoever is running the demo. So the claim entry gets a stand-in
+ * with the shape of a canvassed listing — a name, an address, and a number to
+ * pretend to text. Nothing here is fetched and nothing is written.
+ */
+const DEMO_CLAIM = {
+  id: "demo-join",
+  name: "Rosa's Tamales",
+  address: "600 Guerrero St, San Francisco, CA",
+  phoneHint: "(•••) •••-4417",
+};
+
+/** The plan picker on the final screen. See the note at its render block. */
+const SHOW_PLANS: boolean = false;
+
 // Self-serve "fresh join" — matches the rep-flow mockup:
 //   pick type → who you are + phone (code #1, Clerk) → confirm →
 //   (entities) find business on Google → verify ownership (code #2, Twilio) →
@@ -123,7 +141,12 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
   async function logOutThenJoin() {
     setSigningOut(true);
     try {
-      await clerk.signOut({ redirectUrl: "/join" });
+      // Back to THIS url, query and all. Dropping it would send someone who
+      // tapped "claim" on a specific business to a blank "what are you setting
+      // up?" — the page they were claiming, forgotten on the way out.
+      const back =
+        typeof window === "undefined" ? "/join" : `/join${window.location.search}`;
+      await clerk.signOut({ redirectUrl: back });
     } catch {
       setSigningOut(false);
     }
@@ -145,8 +168,46 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
   // the guard never flashes before the resume effect runs.
   const [midFlow, setMidFlow] = useState(() => {
     if (typeof window === "undefined") return false;
+    // `?claimed=` is a person who has just proved they own the page and is
+    // being handed the REST of onboarding. They are signed in by definition, so
+    // without this the "log out first" guard below would meet them one screen
+    // after they signed in and tell them to sign out again.
+    try {
+      if (new URLSearchParams(window.location.search).get("claimed")) return true;
+    } catch { /* ignore */ }
     try { return !!sessionStorage.getItem("join_apple_resume"); } catch { return false; }
   });
+
+  /**
+   * An existing member this flow was pointed at, and which stage of it.
+   *
+   *   ?claim=<id>   — "Is this your business?" on a page that already exists.
+   *                   Enters at the SAME `who` step a fresh join reaches after
+   *                   the Google search, because that is the same moment: the
+   *                   listing is settled, the account is not.
+   *   ?claimed=<id> — already verified, coming back for the rest.
+   *
+   * The claim does NOT get its own screens. It used to: a separate page with
+   * its own sign-in and its own verification, which is how it drifted into
+   * offering "paste your Google Maps URL" as proof of ownership — a link
+   * anyone can copy off the listing they are trying to steal. One flow, one
+   * ownership check: a code texted to the number on the listing.
+   */
+  const { claimId, claimedId } = useMemo(() => {
+    if (typeof window === "undefined") return { claimId: "", claimedId: "" };
+    try {
+      const q = new URLSearchParams(window.location.search);
+      return {
+        claimId: q.get("claim")?.trim() ?? "",
+        claimedId: q.get("claimed")?.trim() ?? "",
+      };
+    } catch {
+      return { claimId: "", claimedId: "" };
+    }
+  }, []);
+
+  /** Set while claiming an existing page — suppresses the search-based steps. */
+  const [claimTarget, setClaimTarget] = useState<{ id: string; name: string; address: string | null } | null>(null);
 
   // business (entities)
   const [pq, setPq] = useState("");
@@ -244,6 +305,18 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
     setErr("");
   }
 
+  /** DEMO only: enter at the claim door, with a stand-in for the listing. */
+  function startDemoClaim() {
+    setKind("vendor");
+    setRemote(false);
+    setErr("");
+    setMemberId(DEMO_CLAIM.id);
+    setBizName(DEMO_CLAIM.name);
+    setSeed({ name: DEMO_CLAIM.name, address: DEMO_CLAIM.address, city: "San Francisco" });
+    setClaimTarget({ id: DEMO_CLAIM.id, name: DEMO_CLAIM.name, address: DEMO_CLAIM.address });
+    setStep("who");
+  }
+
   // Return to the onboarding main menu (the type picker) from any step, clearing
   // the transient step state so a fresh start isn't polluted by the last attempt.
   function backToMenu() {
@@ -255,6 +328,9 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
     // The chosen listing is transient state too — starting over as an artist
     // while a bakery is still selected is exactly the pollution this clears.
     setPicked(null);
+    // Same for the page a claim was pointed at: without this, "start over"
+    // walks back into the type picker still claiming the last business.
+    setClaimTarget(null);
   }
 
   /**
@@ -278,11 +354,16 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
       // — either by picking a listing or by saying they are not on Maps, and
       // both are reversible while nothing has been created yet.
       case "who":
+        // A claim was pointed at one specific page — there is no search behind
+        // it, and "start over" is not a step back.
+        if (claimTarget) return null;
         return isArtist ? "type" : "business";
       // Verifying the wrong listing is the most likely reason to go back, and
-      // the search is where you fix it.
+      // the search is where you fix it. A claim has no search behind it — the
+      // page was chosen by whoever tapped "is this your business?" — so back
+      // would land on a screen this run never saw.
       case "code2":
-        return "business";
+        return claimTarget ? null : "business";
       // links / interview / sellways / done sit AFTER the member exists.
       default:
         return null;
@@ -302,6 +383,121 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
     }
     setStep(to);
   }
+
+  /**
+   * Enter the flow at `who` for a page that ALREADY EXISTS.
+   *
+   * A fresh join reaches `who` having just picked its listing out of Google.
+   * A claim arrives having been pointed at one — canvassed off a map, printed
+   * on a card, sitting in the directory. Same state, so the same screen: your
+   * name, your role, and the account you will manage the page with. Then the
+   * identical `working → code2` pair sends and checks a code on the listing's
+   * own number, and the identical `links → setup → interview → sellways` runs
+   * after it.
+   *
+   * No session needed to LOOK: everything this reads is on the public profile
+   * page. The session is created on the very next screen, which is where every
+   * write starts needing one.
+   */
+  useEffect(() => {
+    if (!claimId) return;
+    let cancelled = false;
+    setStep("working");
+    (async () => {
+      try {
+        const res = await fetch(`/api/join/resume?memberId=${encodeURIComponent(claimId)}`);
+        const data = await res.json();
+        if (cancelled) return;
+        if (!res.ok) throw new Error(data?.error || "Couldn't open that page.");
+
+        const type: Kind =
+          data.memberType === "artist" || data.memberType === "organizer" ? data.memberType : "vendor";
+        setKind(type);
+        setMemberId(data.memberId);
+        setBizName(data.name || "");
+        setSeed(data.seed ?? {});
+        setClaimTarget({ id: data.memberId, name: data.name || "", address: data.address ?? null });
+        // Already signed in and already the owner — nothing left to verify.
+        if (data.stage === "resume") {
+          setMidFlow(true);
+          setStep("links");
+          return;
+        }
+        setStep("who");
+      } catch (e) {
+        if (cancelled) return;
+        setErr(e instanceof Error ? e.message : "Couldn't open that page.");
+        setStep("type");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [claimId]);
+
+  /**
+   * Resume onboarding for a page that was CLAIMED rather than created here.
+   *
+   * /claim/[memberId] does the first three steps by other means — the listing
+   * was found (someone canvassing tapped it on a map, or it was already in the
+   * directory), the account is signed in, and ownership was proved by a code
+   * texted to the listing's own number. What it never did is the rest: links,
+   * catalogue, payouts, the interview. So it hands over here.
+   *
+   * Straight to `links`, which is exactly where confirmOwnership() lands the
+   * flow that came the long way. The steps behind it are not skipped, they
+   * already happened — which is why previousStep() offers no way back to them.
+   *
+   * The server checks the id belongs to this account (/api/join/resume); a URL
+   * is editable and everything downstream writes to the member it is handed.
+   */
+  useEffect(() => {
+    if (!claimedId || !isLoaded) return;
+    // Signed out with a `?claimed=` in hand means a link that outlived its
+    // session — a card scanned on a different phone, a bookmark. The claim
+    // page is where signing in happens, and it lands back here afterwards.
+    if (!isSignedIn) {
+      router.replace(`/claim/${encodeURIComponent(claimedId)}`);
+      return;
+    }
+    let cancelled = false;
+    setStep("working");
+    (async () => {
+      try {
+        const res = await fetch(`/api/join/resume?memberId=${encodeURIComponent(claimedId)}`);
+        const data = await res.json();
+        if (cancelled) return;
+        if (!res.ok) throw new Error(data?.error || "Couldn't pick up where you left off.");
+
+        setMemberId(data.memberId);
+        setBizName(data.name || "");
+        setKind(data.memberType === "artist" || data.memberType === "organizer" ? data.memberType : "vendor");
+        setSeed(data.seed ?? {});
+
+        // What the page already knows — for a canvassed profile that is the
+        // website and phone Google had. Prefilled rows, same as the flow that
+        // came through the search. A failure here is not worth stopping for:
+        // the step opens empty instead.
+        try {
+          const l = await fetch(`/api/members/${encodeURIComponent(claimedId)}/links`);
+          const d = await l.json();
+          if (!cancelled && l.ok && Array.isArray(d.links)) setLinkSeed(d.links);
+        } catch { /* opens empty */ }
+
+        if (!cancelled) setStep("links");
+      } catch (e) {
+        if (cancelled) return;
+        // Not their page, or the connector is down. Either way this is not a
+        // place to strand them: the dashboard is theirs and works.
+        setErr(e instanceof Error ? e.message : "Couldn't pick up where you left off.");
+        router.replace("/vendor");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [claimedId, isLoaded, isSignedIn]);
 
   // In-app Apple sign-in uses a full redirect (the native token strategy is
   // gated to Clerk's native SDK, and Google-style popups don't work in WKWebView).
@@ -353,10 +549,82 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
   // the ownership code goes out.
   function afterSignedIn() {
     setStep("working");
+    // Claiming a page that already exists: nothing to create, so this goes
+    // straight to the ownership check on the number that page already carries.
+    if (claimTarget) {
+      void claimExisting();
+      return;
+    }
     // An artist never had an anchor; a remote entity has chosen not to have
     // one. Both create their page here rather than claiming a listing.
     if (isArtist || remote) void finishSelfOwned();
     else void claimPicked();
+  }
+
+  /**
+   * Ownership check for an existing page: text a code to the number ON THAT
+   * LISTING and make them read it back.
+   *
+   * The ONLY proof accepted for an entity, here and in /api/claim. The old
+   * standalone claim page also offered "paste your Google Maps URL or Place
+   * ID", which proves nothing whatsoever — both are public, printed on the
+   * listing itself, and copyable by the exact person you are trying to keep
+   * out. It is gone.
+   *
+   * A person's page (artist and friends) has no anchor and never did — the
+   * account IS the claim, same as the artist path in a fresh join.
+   */
+  async function claimExisting() {
+    setBusy(true);
+    setErr("");
+    try {
+      if (isArtist) {
+        await fetch("/api/claim", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ memberId, method: "self_owned", value: "me", ownerName: name.trim() }),
+        });
+        await fetch("/api/vendor/profile", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ memberId }),
+        });
+        setStep("links");
+        return;
+      }
+
+      // DEMO: no member, no session, no SMS. Show a plausible masked number as
+      // the verify target and move on — same stub claimPicked() uses.
+      if (demo) {
+        setPhoneHint(DEMO_CLAIM.phoneHint);
+        setStep("code2");
+        return;
+      }
+
+      const otp = await (await fetch("/api/otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ memberId }),
+      })).json();
+      if (!otp.sent) {
+        // No number on the listing, or the send failed. There is no second
+        // method to fall back to and inventing one is how this went wrong the
+        // first time — so it stops here and hands them to a human.
+        setErr(
+          otp.error ||
+            "This listing has no phone number we can text, so we can't verify it automatically. Message our team and we'll sort it out.",
+        );
+        setStep("who");
+        return;
+      }
+      setPhoneHint(otp.phoneHint || null);
+      setStep("code2");
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Something went wrong.");
+      setStep("who");
+    } finally {
+      setBusy(false);
+    }
   }
 
   // ── Step 2 (primary): sign in with Google / Apple (Clerk OAuth popup) ───────
@@ -618,7 +886,16 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
       const res = await (await fetch("/api/claim", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ memberId, method: "phone_otp", value: code.trim() }),
+        // Who they are rides along with the proof: on a claimed page nothing
+        // else ever asks, and a page whose owner is unnamed is a page we can't
+        // address in an email or a phone call.
+        body: JSON.stringify({
+          memberId,
+          method: "phone_otp",
+          value: code.trim(),
+          ownerName: name.trim() || undefined,
+          ownerRole: role || undefined,
+        }),
       })).json();
       if (!res.verified && !res.ok) throw new Error(res.error || "That code didn't match the business's number.");
       await fetch("/api/vendor/profile", {
@@ -783,7 +1060,11 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
               after the search: for an entity it is now find (1) → claim (2) →
               verify (3). It said "Step 2 of 2 · the business" on the search
               screen, which is the first thing an entity now sees. */}
-          {isArtist
+          {claimTarget
+            ? step === "who"
+              ? "Step 1 of 2 · your account"
+              : "Step 2 of 2 · verify"
+            : isArtist
             ? "Artist"
             : remote
               // Find → claim → verify is the ANCHORED flow. Remote skips the
@@ -831,6 +1112,32 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
           </div>
           <p className="text-[13px] text-stone-400">Business &amp; org prove an anchor. Artists are people — self-owned.</p>
 
+          {/* DEMO ONLY — the other door into this same flow.
+              A business that is already on WhatsLocal (canvassed off the map,
+              handed a card, found in the directory) doesn't start here: it taps
+              "Is this your business?" on its own page, and /claim/<id> sends it
+              to /join?claim=<id>, which opens at `who` with the listing already
+              settled. There is no real page to claim in a demo, so this button
+              stands in for that tap and everything after it is the real thing.
+              Never rendered on /join. */}
+          {demo && (
+            <div className="rounded-2xl border-2 border-dashed border-amber-300 bg-amber-50/60 p-4">
+              <p className="text-[13px] font-semibold text-amber-900">
+                Or: they&apos;re already on WhatsLocal
+              </p>
+              <p className="mt-0.5 text-[13px] leading-relaxed text-amber-800/80">
+                What a business sees after tapping <b>Is this your business?</b> on a page we
+                already made for them — the same flow, minus the search.
+              </p>
+              <button
+                onClick={startDemoClaim}
+                className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full bg-amber-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-800"
+              >
+                <ShieldCheck className="h-4 w-4" /> Claim {DEMO_CLAIM.name}
+              </button>
+            </div>
+          )}
+
           {/* Already have a vendor account (e.g. onboarded on another device)?
               Open the login modal — on success it goes straight to the dashboard
               (forceRedirectUrl), so it never lands back on this onboarding page. */}
@@ -869,24 +1176,32 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
           {/* What they just picked, shown while they sign in. The listing is the
               reason they are on this screen, and losing sight of it mid-flow is
               how someone ends up wondering whether the tap registered. */}
-          {!isArtist && picked && (
+          {!isArtist && (picked || claimTarget) && (
             <div className="flex items-center gap-3 rounded-2xl border border-stone-200 bg-stone-50 p-3">
               <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white">
                 <Store className="h-5 w-5 text-stone-500" />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[15px] font-semibold text-stone-900">{picked.name}</span>
+                <span className="block truncate text-[15px] font-semibold text-stone-900">
+                  {picked?.name ?? claimTarget?.name}
+                </span>
                 <span className="block truncate text-[13px] text-stone-500">
-                  {(picked.seed.address as string) || "From your Google listing"}
+                  {(picked?.seed.address as string) ||
+                    claimTarget?.address ||
+                    "From your Google listing"}
                 </span>
               </span>
-              <button
-                type="button"
-                onClick={() => { setPicked(null); setStep("business"); }}
-                className="shrink-0 text-[13px] font-medium text-stone-500 underline underline-offset-2 hover:text-stone-900"
-              >
-                Change
-              </button>
+              {/* "Change" only where there is something to change TO. A claim
+                  was pointed at one page; the search behind it doesn't exist. */}
+              {picked && (
+                <button
+                  type="button"
+                  onClick={() => { setPicked(null); setStep("business"); }}
+                  className="shrink-0 text-[13px] font-medium text-stone-500 underline underline-offset-2 hover:text-stone-900"
+                >
+                  Change
+                </button>
+              )}
             </div>
           )}
           {/* No listing was claimed, so nothing has told us what the business
@@ -1160,50 +1475,77 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
               ? "You're live on WhatsLocal"
               : "You're verified · live on WhatsLocal"}
           </h1>
-          <p className="text-sm text-stone-500">{bizName} is set up. Pick how you want to participate — start free, upgrade anytime.</p>
+          <p className="text-sm text-stone-500">
+            {bizName} is set up. Selling is free — we take 5% of a sale and nothing when you
+            don&apos;t sell.
+          </p>
 
-          {/* TWO plans here, not three. The $10 Organizer tier is hidden from
-              onboarding (2026-08-13): a middle option at the exact moment
-              someone is deciding whether to bother is the one that turns a
-              yes-or-no into a comparison, and it is the tier that explains
-              itself worst cold — "send invites + host events" means little
-              before you have tried to host anything. It still exists in
-              lib/entitlements.ts and is still sold on /vendor/billing, which is
-              where someone who has hit a limit goes looking. Nothing about
-              billing changed; only what this screen offers.
+          {/* PLANS ARE HIDDEN ON THIS SCREEN (2026-08-22).
+              Every branch below is left intact — flip SHOW_PLANS to restore
+              them. Typed `boolean` rather than the literal `false` for the
+              reason spelled out at SHOW_COLLABS in components/vendor/VendorHome:
+              a literal makes TypeScript treat the branch as unreachable and
+              stop narrowing, which is what broke the build the last time
+              something here was switched off with a bare `false &&`.
 
-              Native shows NO PRICES (Apple 3.1.1 — in-app prices must come from
-              StoreKit, which they do on /vendor/billing via IAP). That branch is
-              load-bearing; do not collapse it to save a few lines. */}
-          <div className="space-y-2 pt-2 text-left">
-            {/* Must match lib/entitlements.ts (FREE_CAN / PRO_CAN), and for a
-                week it did not: this screen still sold Pro as "sell online"
-                after commerce moved into FREE_CAN on 2026-08-14. Every vendor
-                finishing onboarding was told selling costs $30/mo — the exact
-                wall that change removed, put back in the one place where
-                someone decides whether to bother. Free sells and we take 5%;
-                Pro is the agent and analytics. */}
-            <button
-              onClick={() => router.push("/vendor")}
-              className="block w-full rounded-xl border border-stone-200 p-4 text-left transition hover:bg-stone-50"
-            >
-              <b className="text-stone-900">Free</b> — your page, posts, and selling (we take 5%)
-              {!native && <span className="float-right text-stone-500">$0</span>}
-            </button>
-            {/* Pro goes STRAIGHT to the payment screen. It used to be an <a> to
-                /vendor/billing that, mid-onboarding, landed on a page the
-                session could not always open yet — from the demo it looked like
-                the button did nothing at all. `router.push` keeps the client
-                session, and billing is where the purchase legitimately happens
-                (Stripe on web, StoreKit natively). */}
-            <button
-              onClick={() => router.push("/vendor/billing")}
-              className="block w-full rounded-xl border-2 border-coral-500 p-4 text-left transition hover:bg-coral-50"
-            >
-              <b className="text-stone-900">Pro</b> — AI agent (text + voice) + analytics
-              {!native && <span className="float-right text-stone-500">$30/mo</span>}
-            </button>
-          </div>
+              Why hidden: the last screen of onboarding is the moment someone
+              has finished, not the moment to sell to them. Selling is free
+              (2026-08-14) — the only thing Pro adds is the AI agent, which
+              means nothing to a vendor who has not yet had a customer ask a
+              question. It is still one tap away on /vendor/billing, which is
+              where somebody who has hit a limit actually goes.
+
+              What goes with them: the auto-renew disclosure. Apple 3.1.2
+              requires it WHEREVER subscription pricing is presented — with no
+              prices on this screen there is nothing to disclose, and
+              components/billing/BillingPlans carries its own copy on the page
+              that does present them. Restore both together or neither. */}
+          {SHOW_PLANS && (
+            <>
+            {/* TWO plans here, not three. The $10 Organizer tier is hidden from
+                onboarding (2026-08-13): a middle option at the exact moment
+                someone is deciding whether to bother is the one that turns a
+                yes-or-no into a comparison, and it is the tier that explains
+                itself worst cold — "send invites + host events" means little
+                before you have tried to host anything. It still exists in
+                lib/entitlements.ts and is still sold on /vendor/billing, which is
+                where someone who has hit a limit goes looking. Nothing about
+                billing changed; only what this screen offers.
+
+                Native shows NO PRICES (Apple 3.1.1 — in-app prices must come from
+                StoreKit, which they do on /vendor/billing via IAP). That branch is
+                load-bearing; do not collapse it to save a few lines. */}
+            <div className="space-y-2 pt-2 text-left">
+              {/* Must match lib/entitlements.ts (FREE_CAN / PRO_CAN), and for a
+                  week it did not: this screen still sold Pro as "sell online"
+                  after commerce moved into FREE_CAN on 2026-08-14. Every vendor
+                  finishing onboarding was told selling costs $30/mo — the exact
+                  wall that change removed, put back in the one place where
+                  someone decides whether to bother. Free sells and we take 5%;
+                  Pro is the agent and analytics. */}
+              <button
+                onClick={() => router.push("/vendor")}
+                className="block w-full rounded-xl border border-stone-200 p-4 text-left transition hover:bg-stone-50"
+              >
+                <b className="text-stone-900">Free</b> — your page, posts, and selling (we take 5%)
+                {!native && <span className="float-right text-stone-500">$0</span>}
+              </button>
+              {/* Pro goes STRAIGHT to the payment screen. It used to be an <a> to
+                  /vendor/billing that, mid-onboarding, landed on a page the
+                  session could not always open yet — from the demo it looked like
+                  the button did nothing at all. `router.push` keeps the client
+                  session, and billing is where the purchase legitimately happens
+                  (Stripe on web, StoreKit natively). */}
+              <button
+                onClick={() => router.push("/vendor/billing")}
+                className="block w-full rounded-xl border-2 border-coral-500 p-4 text-left transition hover:bg-coral-50"
+              >
+                <b className="text-stone-900">Pro</b> — AI agent (text + voice) + analytics
+                {!native && <span className="float-right text-stone-500">$30/mo</span>}
+              </button>
+            </div>
+            </>
+          )}
 
           {/* Shop setup and the interview are both BEHIND them now (2026-08-22
               — links → shop → payments → interview → here), so this is the way
@@ -1231,15 +1573,20 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
               Go to your dashboard
             </button>
           </div>
-          {/* Auto-renewable subscription disclosure — required (Guideline 3.1.2)
-              wherever subscription pricing is presented. Purchase completes on
-              /vendor/billing; this screen only advertises the plans + prices. */}
           <div className="mx-auto max-w-md space-y-1.5 pt-2 text-[11px] leading-relaxed text-stone-400">
-            <p>
-              Paid plans are auto-renewing monthly subscriptions. Payment is charged to your{" "}
-              {native ? "Apple ID" : "payment method"} at confirmation and renews unless canceled at
-              least 24 hours before the period ends.
-            </p>
+            {/* Auto-renewable subscription disclosure — required (Guideline
+                3.1.2) wherever subscription pricing is PRESENTED, which is why
+                it hangs off the same flag as the prices. It rides with the plan
+                cards, not with the screen. */}
+            {SHOW_PLANS && (
+              <p>
+                Paid plans are auto-renewing monthly subscriptions. Payment is charged to your{" "}
+                {native ? "Apple ID" : "payment method"} at confirmation and renews unless canceled
+                at least 24 hours before the period ends.
+              </p>
+            )}
+            {/* The policy links stay either way: an account was just created,
+                and these are the terms it was created under. */}
             <p className="flex items-center justify-center gap-x-3">
               <a href="/terms" target="_blank" rel="noopener noreferrer" className="underline hover:text-stone-600">
                 Terms of Use (EULA)

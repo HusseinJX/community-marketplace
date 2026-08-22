@@ -2,6 +2,78 @@
 
 Split out of CLAUDE.md (2026-08-13). Newest first, as it was written.
 
+## 2026-08-22 — one claim flow, and the paste-a-link hole
+
+**A Maps URL is not proof of anything.** The standalone claim page offered "verify by
+Google Maps listing — paste your Maps URL or Place ID". Both are public, both are printed
+on the listing being claimed, and both are copyable by exactly the person you are trying
+to keep out. It existed because the claim was a SECOND implementation of onboarding — its
+own sign-in, its own verification, its own idea of proof — and the weaker one was the one
+printed on the NFC cards. Removed from the UI and refused in `/api/claim`, which now
+accepts `phone_otp` (a code texted to the number on the listing) and `self_owned` (a
+person's own page) and nothing else. A UI that stops offering a back door has not closed
+it; the check belongs on the route.
+
+**So the claim IS the join flow now.** `/claim/<id>` — printed on cards, encoded in QRs,
+returned by Canvass as `claimUrl` — is a redirect to `/join?claim=<id>`, which enters at
+the same `who` step a fresh join reaches after the Google search. Same moment (listing
+settled, account not), so the same screen: your name, your role, sign in. Then the
+identical `working → code2` OTP pair and the identical `links → setup → interview →
+sellways`. One flow, one ownership check, one set of screens to keep true. `/api/join/resume`
+decides the stage server-side (`claim` for an unclaimed page, `resume` for one you already
+own) because the id sits in an editable URL and everything downstream writes to whatever
+member it is handed. The claim also stamps `ownerName`/`ownerRole` — a claimed page used
+to have no owner name at all, since only the creation path ever asked.
+
+**No plans on the last screen** (`SHOW_PLANS = false`). The end of onboarding is the moment
+someone has finished, not the moment to sell to them, and Pro is now the AI agent — which
+means nothing to a vendor who has not yet had a customer ask a question. The auto-renew
+disclosure hangs off the same flag: Apple 3.1.2 requires it wherever pricing is PRESENTED,
+so it rides with the prices, not with the screen.
+
+## 2026-08-22 — the dashboard's buttons became hubs
+
+**Shop and Profile open a hub, not a screen.** Shop was going straight to the catalogue,
+which made orders and payouts feel like a different part of the app; Profile was opening
+an edit form, which is a form you can edit by accident. `/vendor/shop` holds products,
+orders and integrations; `/vendor/profile` holds edit, the public page, billing, the
+agent, giving and resources. Petitions is hidden for vendors — a shopper surface that was
+asking a business owner to go be a citizen while they were trying to run a shop.
+Side effect worth keeping: the dashboard stopped doing a Stripe account lookup and a full
+orders fetch to feed a count and a plan label that now live where they are shown.
+
+**A price in a server component needs `components/billing/NativeGate`.** Apple 3.1.1 says
+an in-app price must come from StoreKit, and the hub pages are server components that
+cannot call `useIsNativeApp`. Any block naming a subscription price outside
+`/vendor/billing` goes behind that gate.
+
+## 2026-08-22 — the owner's photos beat ours
+
+**Anything a member can edit must beat anything we hardcoded.** `memberImages()` put
+`MEMBER_HERO_IMAGES` above `profile.images`, and Xeno was in that map — so the new photo
+editor on `/vendor/about` would have saved correctly and changed nothing on screen. The
+owner's list wins now; curated is a fallback for demo members with no profile of their
+own. Five copies of that precedence (member page, explore, browse, SEO, cards) collapsed
+into the one function.
+
+**`images[]` writes `imageUrl` in the same call.** Every surface that shows ONE photo
+reads `imageUrl`, so leaving it behind means a card still showing a picture the vendor
+deleted. Order is the meaning: first = cover, no second flag to disagree with the list.
+
+## 2026-08-22 — support is a conversation, not an inbox
+
+**One thread per person, not per ticket.** Someone who wrote last month about a payout and
+today about a photo is one conversation to them; splitting it loses what we already know.
+`support_threads.clerk_user_id` is UNIQUE, service-role only (the rows hold whatever
+someone chose to tell support), and unread lives as two COUNTERS rather than a read
+timestamp plus `count(*)` — the badge is polled by every signed-in person on every tab, so
+that read has to be one row. Every write goes through `lib/support.ts`, which is what
+keeps the counters honest: sending raises the other side's and zeroes your own, because
+writing a reply means you have read what you are replying to.
+
+**Both transcripts carry `data-private`.** PostHog replay is at 100%, and this is the
+surface where people say the things they only say when they need help.
+
 ## 2026-08-22 — four buttons, and a first post
 
 **The vendor dashboard's top level is Shop · Posts · Events · Profile.** Fourteen equal

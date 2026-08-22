@@ -40,6 +40,38 @@ All notable changes to this project are documented here.
   refused — storing the verdict, Google's formatting and the coordinates.
 - Bookings is back on the onboarding screen, first of four ways to sell.
 
+### Added (support, photos, hubs — same branch, 2026-08-22)
+- **Support chat.** A "Chat with our team" card on top of every home tab (signed-in only)
+  opens `/support/chat`; we answer from a Support tab in `/vendor/admin`. One thread per
+  person (`support_threads`/`support_messages`, service-role only, migration
+  `20260822220000`), unread as counters so the badge poll reads one row. Red badge with a
+  count on the card; unanswered threads sort to the top of the staff inbox. Staff replies
+  notify push **and** email. `scripts/support-smoke.mts` covers the counters.
+- **A vendor can finally manage their profile photos** (`/vendor/about` → Photos): add,
+  remove, and pick the cover. `PATCH /api/members/[id]/about` takes `images[]` and writes
+  `imageUrl` from the first one.
+- **The vendor dashboard's four buttons became hubs.** `/vendor/shop` (products · orders ·
+  integrations) and `/vendor/profile` (edit · public page · billing · agent · giving ·
+  resources). Petitions is hidden for vendors. The dashboard stopped doing a Stripe
+  lookup + orders fetch it no longer displays.
+
+### Changed (support, photos, hubs)
+- **The owner's own list of images now beats the hardcoded one.** `MEMBER_HERO_IMAGES`
+  used to win over `profile.images`, so a vendor's edits would have changed nothing on
+  screen. Five copies of that precedence (member page, explore, browse, SEO, cards) now
+  call one function.
+- **Claiming a page enters the REAL join flow.** `/claim/<id>` is a redirect to
+  `/join?claim=<id>`, which opens at the same `who` step a fresh join reaches after the
+  Google search — name, role, sign-in — then the same OTP, then links → catalogue →
+  payouts → interview. The standalone claim page is gone, and with it its
+  **"paste your Google Maps URL or Place ID" verification**, which proved nothing: both
+  are public and printed on the listing. `/api/claim` now refuses every method except
+  `phone_otp` and `self_owned`, and stamps `ownerName`/`ownerRole` on the claimed page.
+- Home tabs read **Events · Shops · Products · Feed**, and `/` opens on Events again.
+- The plan cards are hidden on onboarding's last screen (`SHOW_PLANS`), along with the
+  auto-renew disclosure they require.
+- `/joindemo` gained a second door under the type cards — a demo of the claim entry.
+
 ### Changed (later still — four buttons, and a first post)
 - **Onboarding's last screen offers a first post before the dashboard.** "Make your first
   post" → `/share?vendor=1`; the dashboard is the link underneath. A page nobody has
