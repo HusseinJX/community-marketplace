@@ -10,8 +10,6 @@ import {
   Search,
   ShoppingBag,
   SlidersHorizontal,
-  Star,
-  Truck,
   X,
 } from "lucide-react";
 import Image from "next/image";
@@ -433,36 +431,13 @@ export function Marketplace({
           </div>
         </div>
 
-        {/* Trust strip */}
-        <div className="mt-14 grid gap-4 sm:grid-cols-3">
-          {[
-            {
-              icon: <Truck className="h-5 w-5 text-stone-600" />,
-              title: "Free shipping",
-              body: "On all orders over $75. Ships within 2–3 business days.",
-            },
-            {
-              icon: <Star className="h-5 w-5 text-stone-600" />,
-              title: "Made in small batches",
-              body: "Every item is crafted with care by independent makers.",
-            },
-            {
-              icon: <ArrowLeft className="h-5 w-5 text-stone-600" />,
-              title: "Easy returns",
-              body: "30-day hassle-free returns. No questions asked.",
-            },
-          ].map((t) => (
-            <div key={t.title} className="card-soft flex items-start gap-4 p-4">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-stone-100">
-                {t.icon}
-              </div>
-              <div>
-                <p className="font-semibold text-stone-900">{t.title}</p>
-                <p className="mt-0.5 text-sm text-stone-500">{t.body}</p>
-              </div>
-            </div>
-          ))}
-        </div>
+        {/* What was here: a "trust strip" promising free shipping over $75,
+            small-batch making, and 30-day no-questions returns. None of it is
+            ours to promise. Fulfilment belongs to each vendor — pickup, their
+            own delivery, Uber, or Printify — and so do returns; the platform
+            takes 5% and never touches the parcel. A marketplace that states a
+            shipping and returns policy it does not operate is not decorating,
+            it is making a commitment on a stranger's behalf. */}
       </div>
 
       {/* The filter sidebar itself. Outside the page container on purpose —
