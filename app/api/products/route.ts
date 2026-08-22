@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
 import { getAllActiveProducts } from '@/lib/vendor-connect'
-import { isHiddenMember } from '@/lib/hidden-members'
 
 export const runtime = 'nodejs'
 
@@ -28,10 +27,10 @@ export interface ShopProduct {
 export async function GET() {
   try {
     const rows = await getAllActiveProducts()
+    // No hidden-member filter here, deliberately — see the note in
+    // lib/hidden-members.ts. That list keeps a BUSINESS out of the directory;
+    // it is not a rule about the things they sell.
     const products: ShopProduct[] = rows
-      // Curated-out members are absent from every public listing, and a
-      // storefront is one. See lib/hidden-members.
-      .filter((p) => !isHiddenMember(p.member_id))
       .map((p) => ({
         id: p.id,
         name: p.name,

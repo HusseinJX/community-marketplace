@@ -16,6 +16,20 @@
 // Readers: lib/api.ts (listMembers → directory, explore, landing, sitemap) and
 // lib/vendor-connect.ts (getPublicEvents / getMemberEvents → the events feed),
 // plus the For-you feed's own query in app/api/events/personalize.
+//
+// ── ONE DELIBERATE EXCEPTION: the shop (2026-08-22) ────────────────────────
+// The marketplace does NOT filter on this list. A hidden member's PRODUCTS are
+// listed and their product pages resolve.
+//
+// The rule above is about a LISTING — being one of the local businesses a
+// stranger browses. A product is not a listing; it is a thing for sale, and a
+// storefront that hides real stock while it has almost none is not curating,
+// it is empty. The two reasons for hiding a member both survive it: the
+// reviewer's demo vendor has no products, and our own listing still stays out
+// of the directory it would otherwise compete in.
+//
+// So this is not an oversight to tidy up. If you are here because the shop
+// shows Xeno and the directory does not, that is the intended state.
 export const HIDDEN_MEMBER_IDS: readonly string[] = [
   "03e75c7c-28bf-44ee-ab0d-82379a4f75cd", // WhatsLocal Review (Demo Vendor) — exists for App Review
   "89516919-256f-4a95-96df-fc9d285f664a", // Xeno — our own founder profile

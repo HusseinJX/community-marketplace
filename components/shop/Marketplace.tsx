@@ -40,6 +40,9 @@ const KIND_LABELS: Record<string, string> = {
   ticket: "Tickets",
 };
 
+/** Products per page. */
+const PAGE_SIZE = 24;
+
 /** The price slider's ceiling. At the top it means "no limit". */
 const MAX_PRICE = 200;
 
@@ -221,6 +224,14 @@ export function Marketplace({
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [showFilters, setShowFilters] = useState(false); // the filter sidebar
   const [quickFilter, setQuickFilter] = useState("All");
+  const [page, setPage] = useState(1);
+
+  // Back to the first page whenever the result set changes underneath you.
+  // Without it, typing a search while on page 2 lands on page 2 of three
+  // results — an empty grid, with the matches you asked for out of sight.
+  useEffect(() => {
+    setPage(1);
+  }, [search, selectedCategory, maxPrice, quickFilter, sort]);
 
   const { products, loading } = useShopProducts();
 
@@ -251,6 +262,14 @@ export function Marketplace({
       if (sort === "newest") return (b.createdAt || "").localeCompare(a.createdAt || "");
       return 0;
     });
+
+  // Paging is over the FILTERED list, so narrowing the results narrows the
+  // pages with them.
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  // Filtering while deep in the list would otherwise leave you on a page that
+  // no longer exists, looking at an empty grid with results behind you.
+  const current = Math.min(page, pageCount);
+  const paged = filtered.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE);
 
   const sortLabel = SORT_OPTIONS.find((o) => o.value === sort)?.label ?? "Featured";
 
@@ -402,30 +421,44 @@ export function Marketplace({
               // area of a shop card on a laptop, so switching tabs changed how
               // big the world looked rather than what was in it.
               <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
-                {filtered.map((p) => (
+                {paged.map((p) => (
                   <ProductCard key={p.id} product={p} />
                 ))}
               </div>
             )}
 
-            {/* Pagination */}
+            {/* Pagination — pages that exist, and it moves.
+                It was `[1, 2, 3].map(...)` with no handler on any of them: a
+                catalogue of nine items offered three pages, two of which were
+                unreachable because clicking did nothing. Now the count comes
+                from the results, so a single page shows a single 1, and the
+                arrow stops at the end. */}
             {filtered.length > 0 && (
               <div className="mt-10 flex items-center justify-center gap-1">
-                {[1, 2, 3].map((page) => (
+                {Array.from({ length: pageCount }, (_, i) => i + 1).map((n) => (
                   <button
-                    key={page}
+                    key={n}
+                    onClick={() => setPage(n)}
+                    aria-current={n === current ? "page" : undefined}
                     className={`inline-flex h-9 w-9 items-center justify-center rounded-xl text-sm font-semibold transition ${
-                      page === 1
+                      n === current
                         ? "bg-stone-900 text-white"
                         : "text-stone-600 hover:bg-stone-100 hover:text-stone-900"
                     }`}
                   >
-                    {page}
+                    {n}
                   </button>
                 ))}
-                <button className="ml-1 inline-flex h-9 w-9 items-center justify-center rounded-xl text-stone-600 transition hover:bg-stone-100 hover:text-stone-900">
-                  <ArrowRight className="h-4 w-4" />
-                </button>
+                {pageCount > 1 && (
+                  <button
+                    onClick={() => setPage(Math.min(pageCount, current + 1))}
+                    disabled={current >= pageCount}
+                    aria-label="Next page"
+                    className="ml-1 inline-flex h-9 w-9 items-center justify-center rounded-xl text-stone-600 transition hover:bg-stone-100 hover:text-stone-900 disabled:opacity-30 disabled:hover:bg-transparent"
+                  >
+                    <ArrowRight className="h-4 w-4" />
+                  </button>
+                )}
               </div>
             )}
           </div>

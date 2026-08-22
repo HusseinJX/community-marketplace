@@ -4,7 +4,6 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Store } from "lucide-react";
 import { getProductById, getProductsByMember } from "@/lib/vendor-connect";
-import { isHiddenMember } from "@/lib/hidden-members";
 import { AddToCart } from "@/components/shop/AddToCart";
 import { kindOf, KIND_DEFS } from "@/lib/product-kind";
 
@@ -46,11 +45,10 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
   const { id } = await params;
   const product = await getProductById(id);
 
-  // Missing, delisted, or belonging to a curated-out member. A hidden member
-  // is absent from every public listing, so its products must not be reachable
-  // by URL either — otherwise the listing is hidden and the thing it sells is
-  // not, which is not hidden at all.
-  if (!product || isHiddenMember(product.member_id)) notFound();
+  // Missing or delisted. NOT filtered on hidden-members: that list keeps a
+  // business out of the directory, and a product page is not a directory entry
+  // — see the note in lib/hidden-members.ts.
+  if (!product) notFound();
 
   const kind = kindOf(product.kind);
   const siblings = (await getProductsByMember(product.member_id))
