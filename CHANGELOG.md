@@ -29,6 +29,25 @@ All notable changes to this project are documented here.
   a real per-step Back button and the interview seeded with what the vendor just listed.
 - The collapsing home header is scroll-linked rather than a threshold firing an animation.
 
+### Added (later that day — Printify, variants, verified addresses)
+- **Printify connected**, and the storefront is now the xen0 catalogue: 26 designs / 199
+  variant rows, matching that site's own `products.json` exactly. The four hand-made XENO
+  tees are hidden, not deleted. First live Printify calls ever made, including a real
+  $4.75 postage quote; `createOrder` is still unproven.
+- **Size and colour on the product page.** Rows stay one-per-variant (right for the money);
+  the reading side groups them by `printify_product_id`. Checkout is untouched.
+- **Pickup addresses are checked against Google once, on save** — a `locality` result is
+  refused — storing the verdict, Google's formatting and the coordinates.
+- Bookings is back on the onboarding screen, first of four ways to sell.
+
+### Fixed (same)
+- **The Printify importer was overwriting designs.** Keyed on `(member_id, variant_id)`, but
+  a variant id identifies a blank, not a listing — every design on the same tee shares
+  "Black / L". 26 products collapsed to 13, and the surviving row pointed at whichever design
+  synced last: an order that prints the wrong artwork.
+- `images-api.printify.com` was on neither host list, so the first POD catalogue killed the
+  shop page.
+
 ### Added
 - **A business can onboard with no fixed address** (not on Google Maps → self-owned claim),
   and its posts tag where the person actually is.
