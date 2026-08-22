@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getVendorSettings, getProductsByMember } from '@/lib/vendor-connect'
 import { basketFulfillment, type BasketFulfillment } from '@/lib/product-kind'
 import { printifyLinesFor } from '@/lib/printify-commerce'
-import { effectiveDeliveryMode, selfDeliveryRules, pickupAddressFor } from '@/lib/fulfillment'
+import { effectiveDeliveryMode, selfDeliveryRules, pickupOfferFor } from '@/lib/fulfillment'
 
 // What fulfillment options does this vendor actually offer?
 //
@@ -37,7 +37,9 @@ export async function GET(
       deliveryMode: 'none',
       deliveryAvailable: false,
       selfDelivery: null,
+      pickupAvailable: false,
       pickupAddress: null,
+      pickupNote: null,
     })
   }
 
@@ -52,13 +54,15 @@ export async function GET(
       deliveryAvailable: true,
       shippingOnly: true,
       selfDelivery: null,
+      pickupAvailable: false,
       pickupAddress: null,
+      pickupNote: null,
     })
   }
 
   const settings = await getVendorSettings(memberId)
   const mode = effectiveDeliveryMode(settings)
-  const pickupAddress = await pickupAddressFor(memberId, settings)
+  const pickup = await pickupOfferFor(memberId, settings)
 
   // Self-delivery rules go to the browser so the buyer sees the fee, the
   // free-over threshold and the minimum BEFORE typing an address — the fee is
@@ -83,8 +87,12 @@ export async function GET(
           notes: self.notes,
         }
       : null,
-    // Null rather than '' so the UI can tell "no address on file" (show a
-    // "the vendor will contact you" line) from a real address.
-    pickupAddress: pickupAddress || null,
+    // Pickup is OFFERED only when the vendor has said where — an address, or
+    // their own note about where to meet. Without one there is nothing to tell
+    // the buyer, and "they'll contact you" is a promise we were making on the
+    // vendor's behalf after taking the money.
+    pickupAvailable: pickup.available,
+    pickupAddress: pickup.address || null,
+    pickupNote: pickup.note || null,
   })
 }

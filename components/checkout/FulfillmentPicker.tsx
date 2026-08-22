@@ -38,7 +38,10 @@ interface Options {
   deliveryMode: DeliveryMode
   deliveryAvailable: boolean
   selfDelivery: SelfRules | null
+  /** False when the vendor has stated no address and no arrangement. */
+  pickupAvailable?: boolean
   pickupAddress: string | null
+  pickupNote?: string | null
 }
 
 function money(cents: number) {
@@ -85,8 +88,7 @@ export function FulfillmentPicker({
         setOpts(d)
         // A basket with nothing to hand over is payable immediately — there is
         // no address to take and no time to arrange, so asking for either would
-        // be inventing a step. Otherwise pickup is the default and the
-        // fallback: if a vendor doesn't deliver, the buyer just gets an address.
+        // be inventing a step.
         if (d.shippingOnly) {
           // Posted, so delivery is the only mode — and it isn't payable until
           // postage has been quoted for a real address.
@@ -94,9 +96,26 @@ export function FulfillmentPicker({
           onChange(null)
           return
         }
-        onChange({ type: d.basket === 'digital' ? 'digital' : d.basket === 'service' ? 'service' : 'pickup' })
+        if (d.basket === 'digital' || d.basket === 'service') {
+          onChange({ type: d.basket === 'digital' ? 'digital' : 'service' })
+          return
+        }
+        // PICKUP IS NO LONGER THE FALLBACK. It was: any physical basket
+        // defaulted to pickup, so a vendor who had stated neither an address
+        // nor an arrangement still took the money, and the buyer found out
+        // afterwards that nobody had said where to go.
+        const canPickup = (d.pickupAvailable ?? !!d.pickupAddress) === true
+        if (canPickup) {
+          setType('pickup')
+          onChange({ type: 'pickup' })
+        } else {
+          // Delivery is the only way this can happen, and it needs a quote
+          // first — so nothing is payable yet.
+          setType('delivery')
+          onChange(null)
+        }
       })
-      .catch(() => alive && setOpts({ deliveryMode: 'none', deliveryAvailable: false, selfDelivery: null, pickupAddress: null }))
+      .catch(() => alive && setOpts({ deliveryMode: 'none', deliveryAvailable: false, selfDelivery: null, pickupAvailable: false, pickupAddress: null, pickupNote: null }))
     return () => { alive = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [memberId])
@@ -106,7 +125,9 @@ export function FulfillmentPicker({
     setError(null)
     if (next === 'pickup') {
       setQuote(null)
-      onChange({ type: 'pickup' })
+      // The button is hidden without an arrangement; this is the belt to that
+      // brace, because "payable" is the one state worth being paranoid about.
+      onChange(pickupOffered ? { type: 'pickup' } : null)
     } else {
       // Not payable until a quote exists — the parent hides Pay until onChange
       // hands it a complete delivery.
@@ -219,6 +240,17 @@ export function FulfillmentPicker({
     )
   }
 
+  // Whether pickup can be offered at all, and the one line the buyer reads.
+  //
+  // `pickupAvailable` is the server's answer; the address fallback keeps an
+  // older client honest if it ever meets a newer server, and vice versa. The
+  // line is the vendor's address or the vendor's own words — never a sentence
+  // we invented on their behalf.
+  const pickupOffered = opts.pickupAvailable ?? !!opts.pickupAddress
+  const pickupLine = opts.pickupAddress
+    ? <>Collect from <span className="font-medium">{opts.pickupAddress}</span>.{opts.pickupNote ? ` ${opts.pickupNote}` : ''}</>
+    : <>{opts.pickupNote}</>
+
   if (opts.basket === 'service') {
     return (
       <div className="rounded-xl bg-stone-50 p-3">
@@ -232,6 +264,24 @@ export function FulfillmentPicker({
     )
   }
 
+  // No delivery AND no stated pickup: there is no way to hand this over, so
+  // there is nothing to buy. Blocked BEFORE payment — the alternative is
+  // taking someone's money for an arrangement that does not exist, which is
+  // what "the vendor will contact you about collecting your order" used to be.
+  if (!opts.deliveryAvailable && !pickupOffered) {
+    return (
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+        <p className="flex items-center gap-2 text-sm font-medium text-amber-900">
+          <Store className="h-4 w-4 text-amber-600" /> Not ready to sell this yet
+        </p>
+        <p className="mt-1 text-sm text-amber-800">
+          This seller hasn&apos;t said how you&apos;d get it — no collection point and no
+          delivery. Message them from their page and they can turn it on.
+        </p>
+      </div>
+    )
+  }
+
   // Nothing to choose — say where to collect and move on.
   if (!opts.deliveryAvailable) {
     return (
@@ -239,11 +289,7 @@ export function FulfillmentPicker({
         <p className="flex items-center gap-2 text-sm font-medium text-stone-800">
           <Store className="h-4 w-4 text-stone-400" /> Pickup
         </p>
-        <p className="mt-1 text-sm text-stone-600">
-          {opts.pickupAddress
-            ? <>Collect from <span className="font-medium">{opts.pickupAddress}</span>. They&apos;ll let you know when it&apos;s ready.</>
-            : "The vendor will contact you about collecting your order."}
-        </p>
+        <p className="mt-1 text-sm text-stone-600">{pickupLine}</p>
       </div>
     )
   }
@@ -257,7 +303,7 @@ export function FulfillmentPicker({
 
   return (
     <div className="space-y-3">
-      <div className={'flex gap-2 ' + (shippingOnly ? 'hidden' : '')}>
+      <div className={'flex gap-2 ' + (shippingOnly || !pickupOffered ? 'hidden' : '')}>
         {(['pickup', 'delivery'] as const).map(t => (
           <button
             key={t}
@@ -276,11 +322,7 @@ export function FulfillmentPicker({
       </div>
 
       {type === 'pickup' ? (
-        <p className="rounded-xl bg-stone-50 p-3 text-sm text-stone-600">
-          {opts.pickupAddress
-            ? <>Collect from <span className="font-medium">{opts.pickupAddress}</span>.</>
-            : 'The vendor will contact you about collecting your order.'}
-        </p>
+        <p className="rounded-xl bg-stone-50 p-3 text-sm text-stone-600">{pickupLine}</p>
       ) : (
         <div className="space-y-2 rounded-xl bg-stone-50 p-3">
           {/* State the vendor's own terms BEFORE the address form. The fee is

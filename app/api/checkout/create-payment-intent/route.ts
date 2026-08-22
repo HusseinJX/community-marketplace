@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { stripe, calculateFees } from '@/lib/stripe-server'
 import { getVendorSettings, getProductsByMember, type DeliveryAddressJson } from '@/lib/vendor-connect'
 import { getConnectPayoutState } from '@/lib/connect-status'
-import { effectiveDeliveryMode, selfDeliveryRules, quoteSelfDelivery } from '@/lib/fulfillment'
+import { effectiveDeliveryMode, selfDeliveryRules, quoteSelfDelivery, pickupOfferFor } from '@/lib/fulfillment'
 import { basketFulfillment } from '@/lib/product-kind'
 import { printifyLinesFor, quotePrintifyShipping } from '@/lib/printify-commerce'
 import { rateLimit } from '@/lib/rate-limit'
@@ -104,6 +104,25 @@ export async function POST(request: Request) {
             : 'pickup'
     const settings = fulfillment === 'delivery' && !isPod ? await getVendorSettings(memberId) : null
     const mode = isPod ? 'printify' : effectiveDeliveryMode(settings)
+
+    // Pickup is only real when the vendor has said WHERE — an address, or their
+    // own note about where to meet. The picker hides it without one, but the
+    // client is not what makes it true: this is the same rule as the delivery
+    // check below, and it exists because pickup used to be the silent fallback
+    // for every physical basket. A vendor with no arrangement was taking money
+    // for a handover nobody had described.
+    if (fulfillment === 'pickup') {
+      const offer = await pickupOfferFor(memberId)
+      if (!offer.available) {
+        return NextResponse.json(
+          {
+            error: 'PICKUP_UNAVAILABLE',
+            message: 'This seller hasn\'t said where to collect from yet.',
+          },
+          { status: 400 }
+        )
+      }
+    }
 
     if (fulfillment === 'delivery') {
       if (mode === 'none') {

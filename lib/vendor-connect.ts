@@ -499,6 +499,12 @@ export interface VendorSettings {
   /** Legacy flag, kept in step on write. Prefer delivery_mode. */
   uber_direct_enabled: boolean
   uber_pickup_address: string | null
+  /**
+   * Where to collect, for a vendor with no address to collect from (migration
+   * 20260822170000). Either this or an address must exist before pickup is
+   * offered — see pickupOfferFor in lib/fulfillment.
+   */
+  pickup_note?: string | null
   uber_pickup_phone: string | null
   /** Self-delivery rules. Read them through `selfDeliveryRules()`. */
   self_delivery_fee_cents?: number

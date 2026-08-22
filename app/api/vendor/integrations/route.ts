@@ -46,6 +46,7 @@ export async function PATCH(request: Request) {
     deliveryMode,
     uberDirectEnabled,
     uberPickupAddress,
+    pickupNote,
     uberPickupPhone,
     selfDeliveryFeeCents,
     selfDeliveryFreeOverCents,
@@ -57,6 +58,7 @@ export async function PATCH(request: Request) {
     deliveryMode?: 'none' | 'self' | 'uber'
     uberDirectEnabled?: boolean
     uberPickupAddress?: string
+    pickupNote?: string
     uberPickupPhone?: string
     selfDeliveryFeeCents?: number
     selfDeliveryFreeOverCents?: number | null
@@ -104,6 +106,9 @@ export async function PATCH(request: Request) {
     fields.uber_direct_enabled = mode === 'uber'
   }
   if (uberPickupAddress !== undefined) fields.uber_pickup_address = uberPickupAddress.trim() || null
+  // Empty clears it — and clearing BOTH this and the address turns pickup off,
+  // which is the honest consequence rather than a hidden one.
+  if (pickupNote !== undefined) fields.pickup_note = pickupNote.trim().slice(0, 200) || null
   if (uberPickupPhone !== undefined) fields.uber_pickup_phone = uberPickupPhone.trim() || null
 
   const cents = (v: unknown) => Math.max(0, Math.round(Number(v) || 0))

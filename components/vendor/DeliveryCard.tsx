@@ -9,6 +9,8 @@ interface Props {
   mode: DeliveryMode
   pickupAddress: string | null
   pickupPhone: string | null
+  /** Free-text collection arrangement, for a vendor with no address. */
+  pickupNote?: string | null
   /** False when the platform has no Uber credentials — the courier option stays locked. */
   uberAvailable: boolean
   selfFeeCents: number
@@ -39,6 +41,7 @@ export function DeliveryCard({
   mode: initialMode,
   pickupAddress,
   pickupPhone,
+  pickupNote,
   uberAvailable,
   selfFeeCents,
   selfFreeOverCents,
@@ -49,6 +52,7 @@ export function DeliveryCard({
   const [mode, setMode] = useState<DeliveryMode>(initialMode)
   const [address, setAddress] = useState(pickupAddress ?? '')
   const [phone, setPhone] = useState(pickupPhone ?? '')
+  const [note, setNote] = useState(pickupNote ?? '')
   const [fee, setFee] = useState(toDollars(selfFeeCents))
   const [freeOver, setFreeOver] = useState(toDollars(selfFreeOverCents))
   const [minOrder, setMinOrder] = useState(toDollars(selfMinOrderCents))
@@ -70,6 +74,7 @@ export function DeliveryCard({
           deliveryMode: nextMode,
           uberPickupAddress: address,
           uberPickupPhone: phone,
+          pickupNote: note,
           selfDeliveryFeeCents: toCents(fee),
           // Blank means "no such rule", which is null — not zero. A zero
           // free-over threshold would make every order free delivery.
@@ -175,6 +180,27 @@ export function DeliveryCard({
             placeholder="(415) 555-0132"
             className="mt-1 w-full rounded-md border border-stone-300 bg-white px-2.5 py-1.5 text-sm outline-none focus:border-indigo-400"
           />
+        </label>
+        {/* The address is what most vendors have; this is for the ones who
+            don't. Pickup is not offered at checkout without one or the other —
+            a buyer used to be told "the vendor will contact you about
+            collecting your order", which was a promise made on the vendor's
+            behalf, after payment, about an arrangement nobody had made. */}
+        <label className="block">
+          <span className="text-sm text-stone-600">
+            No fixed address? Say where to meet
+          </span>
+          <input
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="Outside the Ferry Building, Saturdays 9–1"
+            className="mt-1 w-full rounded-md border border-stone-300 bg-white px-2.5 py-1.5 text-sm outline-none focus:border-indigo-400"
+          />
+          {!address.trim() && !note.trim() && (
+            <span className="mt-1 block text-xs text-amber-700">
+              Without one of these, pickup isn&apos;t offered at checkout.
+            </span>
+          )}
         </label>
       </div>
 

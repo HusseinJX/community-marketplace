@@ -32,6 +32,53 @@ export async function pickupAddressFor(
   }
 }
 
+/**
+ * Can this vendor be collected from at all, and what does the buyer get told?
+ *
+ * Pickup is not a default. It used to be: every physical basket was offered
+ * pickup, and a vendor with no address produced "the vendor will contact you
+ * about collecting your order" — a promise made on their behalf, after payment,
+ * about an arrangement nobody had made. Now the vendor has to have said
+ * something: a real address, or a note about where to meet.
+ *
+ * `available` is the gate. `label` is what the buyer reads, and is never
+ * invented — it is the vendor's own address or the vendor's own words.
+ */
+/**
+ * Is this string somewhere you could actually turn up to?
+ *
+ * The address fallback reads the business profile, and for a member with no
+ * street address that yields their CITY — "San Francisco, CA". Offering pickup
+ * on the strength of that is the same empty promise as offering it on nothing:
+ * the buyer reads "Collect from San Francisco, CA" and knows no more than
+ * before, having already paid.
+ *
+ * The test is deliberately crude and errs toward asking: a street number, or a
+ * named place with a locality after it ("Ferry Building, San Francisco, CA").
+ * A vendor it wrongly refuses has the pickup note sitting right beside the
+ * address field, and a sentence in their own words beats a guess of ours.
+ */
+function isCollectable(address: string): boolean {
+  const a = address.trim()
+  if (!a) return false
+  // Drop a trailing postcode first, or "Oakland, CA 94607" passes on the
+  // strength of the ZIP — still a city, and you cannot turn up to a city.
+  const withoutZip = a.replace(/\b\d{5}(-\d{4})?\b\s*$/, '').trim()
+  if (/\d/.test(withoutZip)) return true
+  return withoutZip.split(',').filter((part) => part.trim()).length >= 3
+}
+
+export async function pickupOfferFor(
+  memberId: string,
+  settings?: VendorSettings | null
+): Promise<{ available: boolean; address: string; note: string }> {
+  const s = settings ?? (await getVendorSettings(memberId))
+  const note = (s?.pickup_note ?? '').trim()
+  const raw = await pickupAddressFor(memberId, s)
+  const address = isCollectable(raw) ? raw : ''
+  return { available: !!(address || note), address, note }
+}
+
 export interface PickupContact {
   address: string
   phone: string
