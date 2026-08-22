@@ -40,6 +40,18 @@ All notable changes to this project are documented here.
   refused — storing the verdict, Google's formatting and the coordinates.
 - Bookings is back on the onboarding screen, first of four ways to sell.
 
+### Changed (dashboard, later on 2026-08-22)
+- **Six buttons, not four**: `Shop · Posts · Events / Messages · Tools · Profile`. Messages
+  was reachable only from the portal's nav row — a place you look for a section, not for a
+  person waiting on you. **Tools** (`/vendor/tools`) holds the agent, giving and resources,
+  which were on Profile: a profile is what people read about you, and none of them appear
+  on it.
+- **Messages opens on Customers** — first tab and default section; Collaborations now
+  carries `?tab=collabs` (the default tab is the one with no param). `?tab=customers` and
+  the old `/vendor/network` links both still resolve.
+- Profile is Edit profile + Plan & billing, with **View public page as a pill on the title
+  row** — it is the only item there that leaves the portal.
+
 ### Added (support, photos, hubs — same branch, 2026-08-22)
 - **Support chat.** A "Chat with our team" card on top of every home tab (signed-in only)
   opens `/support/chat`; we answer from a Support tab in `/vendor/admin`. One thread per

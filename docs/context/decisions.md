@@ -31,6 +31,23 @@ means nothing to a vendor who has not yet had a customer ask a question. The aut
 disclosure hangs off the same flag: Apple 3.1.2 requires it wherever pricing is PRESENTED,
 so it rides with the prices, not with the screen.
 
+## 2026-08-22 — six buttons, and Messages opens on customers
+
+**Messages earned a button.** It was reachable only from the portal's own nav row, which
+is where you go looking for a section — not where you look for a person waiting on you.
+**Tools** earned one too, and took the agent, giving and resources off Profile: a profile
+is what people read about you, and none of those three appear on it. Profile is now what
+it says — the page and the plan — with "View public page" as a pill on the title row,
+because it is the only thing there that leaves the portal and as a tile it read as a
+fourth setting.
+
+**Customers is the first tab and the default.** A vendor opening Messages is nearly always
+answering somebody; collaborations are what they browse when nobody is waiting. The URL
+rule moved with the default — the default tab is the one with no `?tab=` — so
+Collaborations carries `?tab=collabs` now and every old `/vendor/network` link still lands
+on it. Same shape as the home tabs: order and default are separate settings written in one
+place, and they must be changed together or the landing tab is not the first one.
+
 ## 2026-08-22 — the dashboard's buttons became hubs
 
 **Shop and Profile open a hub, not a screen.** Shop was going straight to the catalogue,

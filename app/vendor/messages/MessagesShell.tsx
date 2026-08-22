@@ -35,7 +35,11 @@ export function MessagesShell({
   plan: string
   adminDemo: boolean
 }) {
-  const [section, setSection] = useState<Section>('collabs')
+  // CUSTOMERS FIRST (2026-08-22). A vendor opening Messages is nearly always
+  // answering a customer; collaborations are the thing they browse when nobody
+  // is waiting on them. It also matches the URL rule below — the default tab is
+  // the one with no ?tab= param.
+  const [section, setSection] = useState<Section>('customers')
   // When a conversation is open in any section (a collab thread, a customer
   // transcript, an assistant chat), the section renders full-screen and we hide
   // the "Messages" title + tab bar. The open section owns its own back button.
@@ -60,7 +64,7 @@ export function MessagesShell({
   const [seenCollab, setSeenCollab] = useState<SeenMap>({})
   const [seenCustomer, setSeenCustomer] = useState<SeenMap>({})
 
-  // Deep-linkable (?tab=customers), so the old /vendor/network links can land
+  // Deep-linkable (?tab=collabs), so the old /vendor/network links still land
   // straight on Collaborations.
   useEffect(() => {
     const q = new URLSearchParams(window.location.search).get('tab')
@@ -101,14 +105,17 @@ export function MessagesShell({
     setChatOpen(false)
     setSection(next)
     const url = new URL(window.location.href)
-    if (next === 'collabs') url.searchParams.delete('tab')
+    // The DEFAULT tab is the one without a param, so this moved with the
+    // default. `?tab=customers` still resolves — isSection() accepts both, and
+    // old links carrying it simply land where they always did.
+    if (next === 'customers') url.searchParams.delete('tab')
     else url.searchParams.set('tab', next)
     window.history.replaceState(null, '', url.toString())
   }
 
   const tabs: { key: Section; label: string; Icon: typeof Users; unread: number }[] = [
-    { key: 'collabs', label: 'Collaborations', Icon: Users, unread: collabUnread },
     { key: 'customers', label: 'Customers', Icon: MessageSquare, unread: customerUnread },
+    { key: 'collabs', label: 'Collaborations', Icon: Users, unread: collabUnread },
   ]
 
   return (

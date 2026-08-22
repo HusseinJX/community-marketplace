@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Package, Calendar, UserCircle, Radio } from 'lucide-react'
+import { Package, Calendar, UserCircle, Radio, MessageSquare, Wrench } from 'lucide-react'
 import { PLAN_KEY, PlanSwitch, type Tier } from '@/components/vendor/PlanSwitch'
 import { CollabMatchHero } from '@/components/vendor/CollabMatchHero'
 import { Opportunities } from '@/components/vendor/Opportunities'
@@ -132,7 +132,7 @@ export function VendorHome({
       )}
       */}
 
-      {/* Top level: four buttons, nothing else. Two up on a phone, four across
+      {/* Top level: six buttons, nothing else. Two up on a phone, three across
           on a laptop.
           Each one opens a HUB, not a screen: Shop holds products, orders and
           integrations; Profile holds edit, billing, the agent, giving and
@@ -141,10 +141,17 @@ export function VendorHome({
           dashboard carrying a list of everything under the buttons. Posts is
           the exception, because posting is one thing: it points at the vendor
           door of /share (the composer), not at the memories flow. */}
-      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
         <BigTile href="/vendor/shop" Icon={Package} label="Shop" />
         <BigTile href="/share?vendor=1" Icon={Radio} label="Posts" />
         <BigTile href="/vendor/events" Icon={Calendar} label="Events" />
+        {/* Messages was reachable only from the portal's own nav row, which is
+            a place you look for a section rather than a place you look for a
+            person waiting on you. */}
+        <BigTile href="/vendor/messages" Icon={MessageSquare} label="Messages" />
+        {/* Things a business USES — the agent, giving, resources — as opposed
+            to what it IS, which is Profile. */}
+        <BigTile href="/vendor/tools" Icon={Wrench} label="Tools" />
         <BigTile href="/vendor/profile" Icon={UserCircle} label="Profile" />
       </div>
 
@@ -215,10 +222,10 @@ export function VendorHome({
       )}
 
       {/* Everything that used to be listed here now lives behind one of the
-          four buttons above:
+          six buttons above:
             Products / Orders / Integrations  → /vendor/shop
-            Edit profile / Plan & billing / Your agent / Giving / Resources
-                                              → /vendor/profile
+            Edit profile / Plan & billing     → /vendor/profile
+            Your agent / Giving / Resources   → /vendor/tools
             My events                         → the Events button
             Post / Go live                    → the Posts button
           Petitions is HIDDEN for vendors (2026-08-22) — it is a shopper

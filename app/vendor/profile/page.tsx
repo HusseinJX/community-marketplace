@@ -1,22 +1,23 @@
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
-import { CreditCard, ExternalLink, Heart, LifeBuoy, MessageCircle, UserCircle } from "lucide-react";
+import { CreditCard, ExternalLink, UserCircle } from "lucide-react";
 import { getVendorProfile } from "@/lib/vendor-connect";
 import { isAdmin } from "@/lib/admin";
 import { demoMemberId, isDemoActive } from "@/lib/demo-server";
 import { getEntitlements, PLAN_META } from "@/lib/entitlements";
 import { HubTile } from "@/components/vendor/HubTile";
-import { NativeGate } from "@/components/billing/NativeGate";
 
 export const metadata = { title: "Profile" };
 
 // The Profile button opens THIS, not the edit form.
 //
-// "Profile" to a vendor means everything about them rather than about their
-// shop: the page people read, what they pay us, the agent that answers for
-// them, and what they give back. Opening straight into a form full of text
-// fields answered only one of those and hid the rest under a heading on the
-// dashboard.
+// "Profile" means the page people read about you and what you pay us to have
+// it. Opening straight into a form full of text fields answered only half of
+// that, and a form that opens on tap is a form you can edit by accident.
+//
+// The agent, giving and resources used to be here and moved to /vendor/tools —
+// none of them appear on the profile, and "things you use" is a different
+// question from "who you are".
 export default async function VendorProfileHubPage({
   searchParams,
 }: {
@@ -31,80 +32,43 @@ export default async function VendorProfileHubPage({
 
   const entitlements = memberId ? await getEntitlements(memberId) : null;
   const plan = entitlements?.plan ?? (demo ? "pro" : "free");
-  const isPro = plan === "pro" || plan === "enterprise";
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-stone-900">Profile</h1>
-        <p className="mt-1 text-sm text-stone-500">Your page, your plan, and what you give back.</p>
+      {/* The public page is a PILL on the title row, not a tile in the list.
+          It is the only item here that leaves the portal — it doesn't manage
+          anything, it shows you the thing all of this is about — and as a tile
+          it read as a fourth setting. On the title row it reads as what it is:
+          "here's mine". */}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-stone-900">Profile</h1>
+          <p className="mt-1 text-sm text-stone-500">Your page, and your plan.</p>
+        </div>
+        {memberId && (
+          <Link
+            href={`/members/${memberId}`}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-stone-300 bg-white px-3.5 py-2 text-[13px] font-semibold text-stone-800 transition hover:border-stone-900"
+          >
+            <ExternalLink className="h-3.5 w-3.5" /> View public page
+          </Link>
+        )}
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        {/* Edit is a TILE, not this page. Someone opening "Profile" is as often
-            checking what it says as changing it, and a form that opens on tap
-            is a form you can edit by accident. */}
         <HubTile
           href="/vendor/about"
           Icon={UserCircle}
           label="Edit profile"
           desc="Photos, details & all your links"
         />
-        {memberId && (
-          <HubTile
-            href={`/members/${memberId}`}
-            Icon={ExternalLink}
-            label="View public page"
-            desc="What shoppers see"
-          />
-        )}
         <HubTile
           href="/vendor/billing"
           Icon={CreditCard}
           label="Plan & billing"
           desc={`Current plan: ${PLAN_META[plan].label}`}
         />
-        {/* The agent is what Pro actually is now (selling went free
-            2026-08-14). Shown either way: to a Pro vendor it's the thing they
-            bought, and to everyone else it's the one thing worth knowing Pro
-            is for — but the PRICE only ever renders on web (Apple 3.1.1 says
-            an in-app price must come from StoreKit, which /vendor/billing
-            does). See components/billing/NativeGate. */}
-        <HubTile
-          href={isPro ? "/vendor/assistant" : "/vendor/billing"}
-          Icon={MessageCircle}
-          label="Your agent"
-          desc={isPro ? "Train your customer-service AI" : "Let an AI answer your customers · Pro"}
-        />
-        <HubTile href="/vendor/giving" Icon={Heart} label="Giving" desc="Log a gift to a local org" />
-        <HubTile
-          href="/vendor/resources"
-          Icon={LifeBuoy}
-          label="Resources"
-          desc="Grants, permits & local programs"
-        />
       </div>
-
-      {!isPro && (
-        <NativeGate>
-          <div className="card-soft p-4">
-            <p className="text-[15px] font-semibold text-stone-900">
-              Let an AI answer your customers
-            </p>
-            <p className="mt-1 text-[13px] leading-snug text-stone-600">
-              Your own agent replies to questions by text and by phone, trained on your business.
-              Pro is $30/mo. Selling stays free either way — we take 5% of a sale, and nothing when
-              you don&apos;t sell.
-            </p>
-            <Link
-              href="/vendor/billing"
-              className="mt-3 inline-flex rounded-full bg-stone-900 px-3.5 py-2 text-[13px] font-semibold text-white transition hover:bg-stone-800"
-            >
-              See plans
-            </Link>
-          </div>
-        </NativeGate>
-      )}
     </div>
   );
 }
