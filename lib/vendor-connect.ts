@@ -505,6 +505,12 @@ export interface VendorSettings {
    * offered — see pickupOfferFor in lib/fulfillment.
    */
   pickup_note?: string | null
+  /** Google found the pickup address when it was SAVED (20260822190000). */
+  pickup_verified?: boolean
+  pickup_lat?: number | null
+  pickup_lng?: number | null
+  /** Google's own formatting of it — what the buyer is shown. */
+  pickup_formatted?: string | null
   uber_pickup_phone: string | null
   /** Self-delivery rules. Read them through `selfDeliveryRules()`. */
   self_delivery_fee_cents?: number

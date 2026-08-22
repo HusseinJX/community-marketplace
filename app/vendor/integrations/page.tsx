@@ -15,6 +15,8 @@ interface Settings {
   uber_pickup_address: string | null
   uber_pickup_phone: string | null
   pickup_note?: string | null
+  pickup_verified?: boolean
+  pickup_formatted?: string | null
   self_delivery_fee_cents?: number
   self_delivery_free_over_cents?: number | null
   self_delivery_min_order_cents?: number | null
@@ -265,6 +267,8 @@ export default function VendorIntegrationsPage() {
         pickupAddress={settings?.uber_pickup_address ?? null}
         pickupPhone={settings?.uber_pickup_phone ?? null}
         pickupNote={settings?.pickup_note ?? null}
+        pickupVerified={settings?.pickup_verified ?? false}
+        pickupFormatted={settings?.pickup_formatted ?? null}
         uberAvailable={uberAvailable}
         selfFeeCents={settings?.self_delivery_fee_cents ?? 0}
         selfFreeOverCents={settings?.self_delivery_free_over_cents ?? null}

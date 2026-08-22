@@ -74,7 +74,19 @@ export async function pickupOfferFor(
 ): Promise<{ available: boolean; address: string; note: string }> {
   const s = settings ?? (await getVendorSettings(memberId))
   const note = (s?.pickup_note ?? '').trim()
+
+  // Verified beats guessed. When the vendor's address was checked against
+  // Google as they saved it (see /api/vendor/integrations), we show GOOGLE's
+  // formatting of it and skip the heuristic entirely — it only ever existed
+  // because nothing had asked.
+  if (s?.pickup_verified) {
+    const address = (s.pickup_formatted || s.uber_pickup_address || '').trim()
+    if (address) return { available: true, address, note }
+  }
+
   const raw = await pickupAddressFor(memberId, s)
+  // The fallback, for rows saved before verification existed and for addresses
+  // that come off the business profile rather than being typed here.
   const address = isCollectable(raw) ? raw : ''
   return { available: !!(address || note), address, note }
 }

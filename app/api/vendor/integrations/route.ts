@@ -6,6 +6,7 @@ import { gateCapability } from '@/lib/gate'
 import { uberConfigured } from '@/lib/uber-direct'
 import { normalizeZip } from '@/lib/fulfillment'
 import { stripe } from '@/lib/stripe-server'
+import { placesSearch } from '@/lib/places'
 
 export async function GET() {
   const { userId } = await auth()
@@ -105,7 +106,42 @@ export async function PATCH(request: Request) {
     fields.delivery_mode = mode
     fields.uber_direct_enabled = mode === 'uber'
   }
-  if (uberPickupAddress !== undefined) fields.uber_pickup_address = uberPickupAddress.trim() || null
+  if (uberPickupAddress !== undefined) {
+    const typed = uberPickupAddress.trim()
+    fields.uber_pickup_address = typed || null
+
+    // ── Check it against Google, ONCE, here ────────────────────────────────
+    // Not per checkout: Google bills per request, a pickup address changes
+    // maybe once a year, and a lookup per shopper is a bill that grows with
+    // traffic for an answer that never changes (lib/places.ts spending rules).
+    // Here it is one call on a deliberate save, and the vendor is present to
+    // read the answer.
+    //
+    // Storing the verdict is what lets checkout stop guessing: `isCollectable`
+    // was a regex standing in for "is this somewhere you could turn up to",
+    // and Google answers that properly. The coordinates come free with the
+    // same request, so the map and the directions button get them too.
+    const previous = existing?.uber_pickup_address?.trim() ?? ''
+    if (!typed) {
+      fields.pickup_verified = false
+      fields.pickup_lat = null
+      fields.pickup_lng = null
+      fields.pickup_formatted = null
+    } else if (typed !== previous || !existing?.pickup_verified) {
+      // Re-checked only when it CHANGED (or was never checked) — re-saving an
+      // unchanged address must not re-buy the same answer.
+      const hits = await placesSearch(typed, { limit: 1, region: 'us' })
+      const hit = hits[0]
+      // A result that is a street address, not a city: Google returns
+      // something for "San Francisco" too, and that is exactly the input this
+      // is here to reject.
+      const precise = !!hit && !!hit.lat && !!hit.lng && !hit.types?.includes('locality')
+      fields.pickup_verified = precise
+      fields.pickup_lat = precise ? hit.lat : null
+      fields.pickup_lng = precise ? hit.lng : null
+      fields.pickup_formatted = precise ? hit.address || typed : null
+    }
+  }
   // Empty clears it — and clearing BOTH this and the address turns pickup off,
   // which is the honest consequence rather than a hidden one.
   if (pickupNote !== undefined) fields.pickup_note = pickupNote.trim().slice(0, 200) || null

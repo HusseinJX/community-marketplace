@@ -11,6 +11,9 @@ interface Props {
   pickupPhone: string | null
   /** Free-text collection arrangement, for a vendor with no address. */
   pickupNote?: string | null
+  /** Google found the address when it was last saved. */
+  pickupVerified?: boolean
+  pickupFormatted?: string | null
   /** False when the platform has no Uber credentials — the courier option stays locked. */
   uberAvailable: boolean
   selfFeeCents: number
@@ -42,6 +45,8 @@ export function DeliveryCard({
   pickupAddress,
   pickupPhone,
   pickupNote,
+  pickupVerified,
+  pickupFormatted,
   uberAvailable,
   selfFeeCents,
   selfFreeOverCents,
@@ -53,6 +58,11 @@ export function DeliveryCard({
   const [address, setAddress] = useState(pickupAddress ?? '')
   const [phone, setPhone] = useState(pickupPhone ?? '')
   const [note, setNote] = useState(pickupNote ?? '')
+  // The verdict from the last save. Editing the field invalidates it on
+  // screen immediately — claiming an address is verified while it is being
+  // retyped is the one moment the badge would be lying.
+  const [verified, setVerified] = useState(!!pickupVerified)
+  const [formatted, setFormatted] = useState(pickupFormatted ?? '')
   const [fee, setFee] = useState(toDollars(selfFeeCents))
   const [freeOver, setFreeOver] = useState(toDollars(selfFreeOverCents))
   const [minOrder, setMinOrder] = useState(toDollars(selfMinOrderCents))
@@ -91,6 +101,10 @@ export function DeliveryCard({
         setMode(initialMode)
       } else {
         setMode((data.settings?.delivery_mode as DeliveryMode) ?? nextMode)
+        // The server checked the address against Google while saving; take its
+        // answer rather than assuming the save succeeded means it was found.
+        setVerified(!!data.settings?.pickup_verified)
+        setFormatted((data.settings?.pickup_formatted as string) ?? '')
         setSaved(true)
       }
     } catch {
@@ -167,7 +181,7 @@ export function DeliveryCard({
           </span>
           <input
             value={address}
-            onChange={(e) => setAddress(e.target.value)}
+            onChange={(e) => { setAddress(e.target.value); setVerified(false); }}
             placeholder="123 Valencia St, San Francisco, CA 94110"
             className="mt-1 w-full rounded-md border border-stone-300 bg-white px-2.5 py-1.5 text-sm outline-none focus:border-indigo-400"
           />
@@ -186,6 +200,18 @@ export function DeliveryCard({
             a buyer used to be told "the vendor will contact you about
             collecting your order", which was a promise made on the vendor's
             behalf, after payment, about an arrangement nobody had made. */}
+        {address.trim() && (
+          verified ? (
+            <p className="-mt-1 text-xs text-emerald-700">
+              Found on Google{formatted && formatted !== address ? ` — ${formatted}` : ''}
+            </p>
+          ) : (
+            <p className="-mt-1 text-xs text-stone-400">
+              Checked against Google when you save. A city on its own isn&apos;t enough to
+              collect from.
+            </p>
+          )
+        )}
         <label className="block">
           <span className="text-sm text-stone-600">
             No fixed address? Say where to meet
