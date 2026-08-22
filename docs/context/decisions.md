@@ -2,6 +2,43 @@
 
 Split out of CLAUDE.md (2026-08-13). Newest first, as it was written.
 
+## 2026-08-22 — a business without an address, and where its posts happen
+
+**"We don't have a fixed address" is a checkbox in step 1 of `/join`, and it means
+"not on Google Maps".** Those are the same axis, not two: a listing IS the anchor, so a
+business that has one is anchored and wants to be — the listing is what gives its page
+directions to the door, verified ownership and its existing reviews. There is no such
+thing as anchored-and-remote, and offering it as a second question would have invited
+people to tick it while holding a listing they'd then have given up for nothing.
+
+- **Ticked, the Google search step is skipped entirely** and the entity takes the path
+  artists have always taken: create the page, claim `self_owned`, no ownership OTP. That
+  is not a shortcut around verification — it is the *only* verification available. An
+  entity normally proves itself by answering the phone on its own listing; with no
+  listing there is no phone to answer. Same standing as a person, for the same reason.
+- **The kind is preserved.** A remote bakery is filed as a vendor, not an artist. Being
+  unanchored changes how it was verified, not what it is, and mis-filing it would put it
+  in the wrong half of every listing on the site.
+- **A warning, not a caution.** Ticking it says: only do this if you're genuinely not on
+  Maps, because linking a listing is something we cannot add for you later.
+- **The artist flow is untouched.** Their own "I work remotely" checkbox stays on the
+  name screen where it has always been, asking their question — "don't ask me for a home
+  city" — which is not the entity question. The two share one `remote` flag because a
+  person with no home city and a business with no address want the same thing from the
+  rest of the flow, but they are asked separately because they are asked for different
+  reasons. (`finishArtist` became `finishSelfOwned` and now serves both; the request an
+  artist produces is byte-identical to before.)
+
+**A post is tagged to the business only when the business has a PIN.** The rule was the
+label; it is now the coordinates. `/api/me/business-location` returns a label built from
+address-or-city, and for a remote member that is at most "San Francisco" — which would
+read as a precise claim, place a map pin on a neighbourhood centroid, and not be where
+the person is. So: no coordinates, no business tag, and the device fix stands. The
+Current/Business toggle hides itself for the same reason.
+
+This is what makes a remote vendor's posts land where they actually are, with no flag to
+store anywhere: remote is the ABSENCE of an anchor, so absence is what the code tests.
+
 ## 2026-08-14 — selling is free; the Square launch path was broken end to end
 
 **Commerce moved to the free tier.** `commerce: true` in `FREE_CAN` (`lib/entitlements.ts`),

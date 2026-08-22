@@ -281,7 +281,9 @@ export function ShareComposer() {
   }
 
   function applyBusinessLocation() {
-    if (!bizLocation) return;
+    // Guarded on the pin, not the label — the toggle that calls this is hidden
+    // without one, and this is the half that would place the post.
+    if (!bizLocation || !bizCoords) return;
     setLocSource("business");
     setLocError(null);
     setLocation(bizLocation);
@@ -313,8 +315,19 @@ export function ShareComposer() {
         // Read from the URL rather than the `vendorMode` state: this closure was
         // created on mount, before that state was set, so it would still see
         // false. The URL is where that state comes from anyway.
+        //
+        // ONLY WITH A PIN. A business tags its posts at the business because
+        // that is where the post happened — which holds exactly as long as the
+        // business is somewhere. A remote one (no fixed address, no Maps
+        // listing — see the "no fixed address" step in /join) has no such
+        // place, and its profile carries at most a city. Tagging every post
+        // "San Francisco" would be worse than useless: it reads as a precise
+        // claim, it is what the map would place a pin on, and it is not where
+        // the person is. So the anchor is the coordinates, not the label — no
+        // coordinates, no business tag, and the device fix captured below
+        // stands instead.
         const isVendor = new URLSearchParams(window.location.search).get("vendor") === "1";
-        if (isVendor && d?.location) {
+        if (isVendor && d?.location && bizCoordsFromApi) {
           setLocSource("business");
           setLocError(null);
           setLocation(String(d.location));
@@ -717,8 +730,13 @@ export function ShareComposer() {
           wherever they happen to be, and that is genuinely worth confirming. */}
       {!goLive && !vendorMode && (
         <div>
-          {/* Current / Business toggle — only when a business location exists. */}
-          {bizLocation && (
+          {/* Current / Business toggle — only when the business is somewhere.
+              A label without coordinates is not a place you can tag a post to:
+              it would put "San Francisco" on a post and a pin on nothing. A
+              remote business has exactly that and no more, so it is offered
+              the current location only — which is the right answer for it
+              anyway, since where it is IS wherever the person is. */}
+          {bizLocation && bizCoords && (
             <div className="mb-2 inline-flex rounded-full bg-stone-100 p-0.5 text-[13px] font-medium">
               <button
                 type="button"
@@ -814,9 +832,15 @@ export function ShareComposer() {
           given anywhere on screen. */}
       {vendorMode && !goLive && !location && !locating && (
         <p className="text-xs text-amber-700">
-          We couldn&apos;t work out where to tag this post. Add your address in{" "}
-          <a href="/vendor/about" className="underline">your business profile</a>, or turn on
-          location for this site.
+          We couldn&apos;t work out where to tag this post.{" "}
+          {bizCoords ? (
+            <>Turn on location for this site to post.</>
+          ) : (
+            <>
+              Turn on location for this site, or add an address in{" "}
+              <a href="/vendor/about" className="underline">your business profile</a>.
+            </>
+          )}
         </p>
       )}
 

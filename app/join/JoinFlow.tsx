@@ -231,7 +231,10 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
   // immediately after their name.
   function pickType(k: Kind) {
     setKind(k);
-    setStep(k === "artist" ? "who" : "business");
+    // Remote means "not on Google Maps" — see the checkbox in step 1 — so
+    // there is no listing to search for and nothing to claim. Straight to the
+    // name-and-sign-in step, which is where a person has always gone.
+    setStep(k === "artist" || remote ? "who" : "business");
     setErr("");
   }
 
@@ -258,18 +261,26 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
     try { raw = sessionStorage.getItem("join_apple_resume"); } catch { /* ignore */ }
     if (!raw) return;
     try { sessionStorage.removeItem("join_apple_resume"); } catch { /* ignore */ }
-    let s: { kind?: Kind; name?: string; role?: string; city?: string; picked?: Picked | null };
+    let s: { kind?: Kind; name?: string; role?: string; city?: string; picked?: Picked | null; remote?: boolean; bizName?: string };
     try { s = JSON.parse(raw); } catch { return; }
     const k: Kind = s.kind ?? "vendor";
     setKind(k);
     setName(s.name ?? "");
     setRole(s.role ?? "Owner");
     setCity(s.city ?? "");
+    setRemote(!!s.remote);
+    if (s.bizName) setBizName(s.bizName);
     setMidFlow(true);
     setStep("working");
     // Values are passed explicitly — the setState calls above haven't flushed.
-    if (k === "artist") {
-      void finishArtist({ name: s.name ?? "", city: s.city ?? "" });
+    if (k === "artist" || s.remote) {
+      void finishSelfOwned({
+        name: s.name ?? "",
+        city: s.city ?? "",
+        bizName: s.bizName ?? "",
+        kind: k,
+        role: s.role ?? "Owner",
+      });
     } else if (s.picked) {
       // The chosen listing survives the redirect too. Without it the person
       // would come back signed in and be asked to find their business again,
@@ -290,7 +301,9 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
   // the ownership code goes out.
   function afterSignedIn() {
     setStep("working");
-    if (isArtist) void finishArtist();
+    // An artist never had an anchor; a remote entity has chosen not to have
+    // one. Both create their page here rather than claiming a listing.
+    if (isArtist || remote) void finishSelfOwned();
     else void claimPicked();
   }
 
@@ -301,6 +314,9 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
   // sets the session on the shared client, then the promise below resolves.
   async function oauthSignUp(strategy: "oauth_google" | "oauth_apple") {
     if (!name.trim()) return setErr(isArtist ? "Add your name or stage name." : "Add your name.");
+    if (remote && !isArtist && !bizName.trim()) {
+      return setErr(kind === "organizer" ? "Add your organization's name." : "Add your business name.");
+    }
     setErr("");
     // DEMO: no real OAuth — behave like a completed sign-in.
     if (demo) {
@@ -322,7 +338,7 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
     if (isNativeApp()) {
       if (strategy === "oauth_apple") {
         try {
-          sessionStorage.setItem("join_apple_resume", JSON.stringify({ kind, name, role, city, picked }));
+          sessionStorage.setItem("join_apple_resume", JSON.stringify({ kind, name, role, city, picked, remote, bizName }));
         } catch { /* ignore */ }
         setBusy(true);
         try {
@@ -572,8 +588,25 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
   // ── Artist finish: create self-owned member + link ─────────────────────────
   // `override` lets the Apple-redirect resume pass values that setState hasn't
   // flushed yet; otherwise it reads the live form state.
-  async function finishArtist(override?: { name: string; city: string }) {
+  /**
+   * The self-owned path: no Maps anchor, so no listing to claim and no
+   * ownership OTP to send. Two kinds of person arrive here.
+   *
+   *   an ARTIST — always. They are a person; there was never an anchor.
+   *   a REMOTE business or org — they ticked "no fixed address" in step 1,
+   *     which means they are not on Google Maps. See pickType.
+   *
+   * Verification is the reason these share a path rather than looking alike by
+   * coincidence: an entity normally proves itself by answering the phone on
+   * its own Maps listing. With no listing there is no such proof available, so
+   * the claim is `self_owned` — the same standing an artist has.
+   */
+  async function finishSelfOwned(override?: { name: string; city: string; bizName?: string; kind?: Kind; role?: string }) {
+    const k = override?.kind ?? kind;
+    const asArtist = k === "artist";
     const nm = override?.name ?? name;
+    // The page's name. An artist IS the page; a remote business typed one.
+    const pageName = asArtist ? nm : (override?.bizName ?? bizName).trim() || nm;
     const ct = override?.city ?? (remote ? "" : city);
     setBusy(true);
     setErr("");
@@ -581,8 +614,8 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
       // DEMO: no member created — seed the interview from the artist form and go.
       if (demo) {
         setMemberId("demo-join");
-        setBizName(nm);
-        setSeed({ name: nm, city: ct.trim() || null });
+        setBizName(pageName);
+        setSeed({ name: pageName, city: ct.trim() || null });
         setStep("links");
         return;
       }
@@ -591,9 +624,14 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           profile: {
-            name: nm,
-            memberType: "artist",
+            name: pageName,
+            // The kind they picked, kept as-is. A remote business is a
+            // business — being unanchored changes how it was verified, not
+            // what it is, and filing it as an artist would put it in the wrong
+            // half of every listing on the site.
+            memberType: k,
             ownerName: nm,
+            ownerRole: asArtist ? undefined : (override?.role ?? role),
             city: ct.trim() || undefined,
           },
           mode: "self",
@@ -601,10 +639,10 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
       })).json();
       if (!created.memberId) throw new Error(created.error || "Couldn't create your page.");
       setMemberId(created.memberId);
-      setBizName(nm);
-      // Artists have no Maps anchor — the seed (name + city + IG) is what the
-      // web-search research keys off to open the interview knowing them.
-      setSeed({ name: nm, city: ct.trim() || null });
+      setBizName(pageName);
+      // No Maps anchor — the seed (name + city) is what the web-search research
+      // keys off to open the interview already knowing something about them.
+      setSeed({ name: pageName, city: ct.trim() || null });
       await fetch("/api/claim", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -683,11 +721,16 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
               screen, which is the first thing an entity now sees. */}
           {isArtist
             ? "Artist"
-            : step === "business"
-              ? "Step 1 of 3 · your business"
-              : step === "who"
-                ? "Step 2 of 3 · your account"
-                : "Step 3 of 3 · verify"}
+            : remote
+              // Find → claim → verify is the ANCHORED flow. Remote skips the
+              // first and has nothing to verify against, so counting steps
+              // that will never arrive would be a lie about what is left.
+              ? "No fixed address"
+              : step === "business"
+                ? "Step 1 of 3 · your business"
+                : step === "who"
+                  ? "Step 2 of 3 · your account"
+                  : "Step 3 of 3 · verify"}
         </p>
       )}
       {err && <p className="mb-4 rounded-lg bg-rose-50 px-3.5 py-2 text-[13px] text-rose-700">{err}</p>}
@@ -724,6 +767,52 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
           </div>
           <p className="text-[13px] text-stone-400">Business &amp; org prove an anchor. Artists are people — self-owned.</p>
 
+          {/* ── No fixed address ────────────────────────────────────────────
+              A modifier on the choice above, not a fourth kind: a remote
+              bakery is still a bakery. It belongs on THIS screen because it
+              decides where the next tap goes — ticked, there is no listing to
+              search for, so the Google step is skipped entirely.
+
+              "Remote" and "on Google Maps" are the same axis, not two: if you
+              have a listing you are anchored, and you want to be, because the
+              listing is what gives the profile directions, verified ownership
+              and your reviews. So the warning below is not a caution about
+              risk — it is telling someone who does have a listing that they
+              are about to give up something they want. */}
+          <div className="mt-4 space-y-3">
+            <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-stone-200 bg-white px-4 py-3.5">
+              <input
+                type="checkbox"
+                checked={remote}
+                onChange={(e) => setRemote(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 rounded border-stone-300 accent-stone-900"
+              />
+              <span className="min-w-0">
+                <span className="block text-[15px] font-medium text-stone-900">
+                  We don&apos;t have a fixed address
+                </span>
+                <span className="block text-[13px] leading-relaxed text-stone-500">
+                  No storefront and no Google Maps listing — remote, mobile, or
+                  wherever the work is.
+                </span>
+              </span>
+            </label>
+
+            {remote && (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3.5">
+                <p className="text-[14px] font-medium text-amber-900">
+                  Only tick this if you&apos;re genuinely not on Google Maps.
+                </p>
+                <p className="mt-1 text-[13px] leading-relaxed text-amber-800">
+                  If you do have a listing, leave this unticked and find it on the
+                  next screen. Linking it is what gives your page directions to
+                  your door, verified ownership, and your existing reviews — none
+                  of which we can add later on our own.
+                </p>
+              </div>
+            )}
+          </div>
+
           {/* Already have a vendor account (e.g. onboarded on another device)?
               Open the login modal — on success it goes straight to the dashboard
               (forceRedirectUrl), so it never lands back on this onboarding page. */}
@@ -743,7 +832,16 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
         <div className="space-y-5">
           <StepHeader
             icon={UserRound}
-            title={isArtist ? "What should we call you?" : `Claim ${bizName || "your business"}`}
+            title={
+              isArtist
+                ? "What should we call you?"
+                : remote
+                  // Nothing was claimed — there was no listing to claim. Asking
+                  // someone to "Claim Rosa's Tamales" when they are about to
+                  // type that name themselves reads as a bug.
+                  ? `Set up your ${kind === "organizer" ? "organization" : "business"}`
+                  : `Claim ${bizName || "your business"}`
+            }
             sub={
               isArtist
                 ? "A couple of details, then continue with Google or Apple."
@@ -771,6 +869,22 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
               >
                 Change
               </button>
+            </div>
+          )}
+          {/* No listing was claimed, so nothing has told us what the business
+              is called. An artist's own name is their page; a business needs
+              its own field. */}
+          {remote && !isArtist && (
+            <div className="space-y-1.5">
+              <label className="block text-[13px] font-medium text-stone-500">
+                {kind === "organizer" ? "Organization name" : "Business name"}
+              </label>
+              <input
+                value={bizName}
+                onChange={(e) => setBizName(e.target.value)}
+                placeholder={kind === "organizer" ? "e.g. Mission Bike Collective" : "e.g. Rosa's Tamales"}
+                className="h-13 w-full rounded-xl border border-stone-300 px-4 text-[15px] outline-none transition focus:border-stone-900"
+              />
             </div>
           )}
           <div className="space-y-1.5">
