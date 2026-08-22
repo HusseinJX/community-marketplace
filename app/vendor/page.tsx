@@ -1,11 +1,11 @@
 import { auth, currentUser } from '@clerk/nextjs/server'
 import Link from "next/link";
-import { getVendorProfile, getVendorConnectAccount, getOrdersByMember, getVendorSettings } from "@/lib/vendor-connect";
+import { getVendorProfile, getVendorConnectAccount, getVendorSettings } from "@/lib/vendor-connect";
 import { isAdmin } from "@/lib/admin";
 import { stripe } from "@/lib/stripe-server";
 import { demoMemberId, isDemoActive } from "@/lib/demo-server";
 import { getMember } from "@/lib/api";
-import { getEntitlements, PLAN_META } from "@/lib/entitlements";
+import { getEntitlements } from "@/lib/entitlements";
 import { SITE_URL } from "@/lib/seo";
 import { VendorHome } from "@/components/vendor/VendorHome";
 import { SellChecklist, type SellStep } from "@/components/vendor/SellChecklist";
@@ -36,7 +36,6 @@ export default async function VendorDashboard({
   const admin = isAdmin(userId);
 
   let stripeStatus: "none" | "pending" | "active" = "none";
-  let orderCount = 0;
   let shopConnected = false;
   let deliveryOn = false;
   if (profile) {
@@ -51,8 +50,6 @@ export default async function VendorDashboard({
         stripeStatus = "pending";
       }
     }
-    const orders = await getOrdersByMember(profile.member_id);
-    orderCount = orders.length;
     const settings = await getVendorSettings(profile.member_id);
     shopConnected = !!settings?.composio_connection_id;
     deliveryOn = !!settings?.uber_direct_enabled;
@@ -68,8 +65,9 @@ export default async function VendorDashboard({
     (admin && requested) || profile?.member_id || (demo ? await demoMemberId() : null);
 
   const entitlements = memberId ? await getEntitlements(memberId) : null;
+  // The plan NAME is shown on /vendor/profile now, next to the billing tile
+  // that leads to it. Here it only decides what the tier preview switch opens on.
   const plan = entitlements?.plan ?? (demo ? "pro" : "free");
-  const planLabel = PLAN_META[plan].label;
 
   const profileUrl = memberId ? `${SITE_URL}/members/${memberId}` : null;
 
@@ -170,9 +168,7 @@ export default async function VendorDashboard({
       {!demo && profile && sellSteps && <SellChecklist steps={sellSteps} />} */}
 
       <VendorHome
-        orderCount={orderCount}
         plan={plan}
-        planLabel={planLabel}
         memberId={memberId}
         memberName={businessName}
         isAdmin={admin}

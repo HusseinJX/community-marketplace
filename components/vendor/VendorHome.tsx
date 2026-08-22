@@ -1,11 +1,8 @@
 'use client'
 
-import { Children, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import {
-  Package, ShoppingCart, Calendar, ArrowRight, UserCircle,
-  MessageCircle, CreditCard, Radio, LifeBuoy, Heart, Plug, PenLine,
-} from 'lucide-react'
+import { Package, Calendar, UserCircle, Radio } from 'lucide-react'
 import { PLAN_KEY, PlanSwitch, type Tier } from '@/components/vendor/PlanSwitch'
 import { CollabMatchHero } from '@/components/vendor/CollabMatchHero'
 import { Opportunities } from '@/components/vendor/Opportunities'
@@ -15,7 +12,6 @@ import { MyLineups } from '@/components/vendor/MyLineups'
 // restoring the feature a two-file change instead of uncommenting one block.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { EventLinkImport } from '@/components/vendor/EventLinkImport'
-import { useIsNativeApp } from '@/lib/native'
 
 // The vendor front door: who to team up with, and what's already looking for you.
 // Everything else on this page is plumbing and sits below, in one list.
@@ -59,40 +55,18 @@ function BigTile({ href, Icon, label }: { href: string; Icon: typeof Package; la
   )
 }
 
-function Tile({ href, Icon, label, desc }: { href: string; Icon: typeof Package; label: string; desc?: string }) {
-  return (
-    <Link href={href} className="card-soft card-hover flex items-center justify-between p-4">
-      <span className="flex items-center gap-3">
-        <Icon className="h-5 w-5 text-indigo-500" />
-        <span>
-          <span className="block text-sm font-semibold text-stone-900">{label}</span>
-          {desc && <span className="block text-xs text-stone-500">{desc}</span>}
-        </span>
-      </span>
-      <ArrowRight className="h-4 w-4 text-stone-400" />
-    </Link>
-  )
-}
-
-// A labelled group of tiles. Kept out of the render when it has no visible
-// children so a tier that hides every tile in a group hides the heading too.
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  const items = Children.toArray(children).filter(Boolean)
-  if (items.length === 0) return null
-  return (
-    <div>
-      <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-stone-400">{title}</h2>
-      <div className="grid gap-3 sm:grid-cols-2">{items}</div>
-    </div>
-  )
-}
+// Tile + Section (the dashboard's own grouped list) were deleted with the list
+// itself — the hub pages use components/vendor/HubTile, which is the same row
+// in one place. Restore from git if the grouped dashboard ever comes back.
 
 export function VendorHome({
-  orderCount, plan, planLabel, memberId, memberName = 'A local business', isAdmin = false, demo = false,
+  plan, memberId, memberName = 'A local business', isAdmin = false, demo = false,
 }: {
-  orderCount: number
+  // Only the tier switch reads this now — the order count and the plan LABEL
+  // moved to the hub pages that show them (/vendor/shop, /vendor/profile),
+  // which took a Stripe account lookup and an orders fetch off every dashboard
+  // load with them.
   plan: string
-  planLabel: string
   // Null until a member profile is linked — the matcher needs a member to seed
   // complementary matches from, so we fall back to a static CTA card.
   memberId?: string | null
@@ -104,7 +78,6 @@ export function VendorHome({
 }) {
   const initial: Tier = plan === 'member' ? 'member' : plan === 'free' ? 'free' : 'pro'
   const [tier, setTier] = useState<Tier>(initial)
-  const native = useIsNativeApp() // iOS: no subscription price/upsell (Apple 3.1.1)
 
   useEffect(() => {
     const v = localStorage.getItem(PLAN_KEY)
@@ -118,7 +91,6 @@ export function VendorHome({
   }
 
   const rank = tier === 'pro' ? 2 : tier === 'member' ? 1 : 0
-  const isPro = rank >= 2
   // Sending collab invites is a Basic (Member+) capability; Pro is shop + agent.
   const canInvite = rank >= 1
 
@@ -161,13 +133,19 @@ export function VendorHome({
       */}
 
       {/* Top level: four buttons, nothing else. Two up on a phone, four across
-          on a laptop. Posts points at the vendor door of /share (the composer),
-          not at the memories flow. */}
+          on a laptop.
+          Each one opens a HUB, not a screen: Shop holds products, orders and
+          integrations; Profile holds edit, billing, the agent, giving and
+          resources. Shop used to open the catalogue directly, which made orders
+          and payouts feel like a different part of the app — and left the
+          dashboard carrying a list of everything under the buttons. Posts is
+          the exception, because posting is one thing: it points at the vendor
+          door of /share (the composer), not at the memories flow. */}
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <BigTile href="/vendor/products" Icon={Package} label="Shop" />
+        <BigTile href="/vendor/shop" Icon={Package} label="Shop" />
         <BigTile href="/share?vendor=1" Icon={Radio} label="Posts" />
         <BigTile href="/vendor/events" Icon={Calendar} label="Events" />
-        <BigTile href="/vendor/about" Icon={UserCircle} label="Profile" />
+        <BigTile href="/vendor/profile" Icon={UserCircle} label="Profile" />
       </div>
 
       {/* Commitments before discovery: an event you already said yes to
@@ -236,73 +214,17 @@ export function VendorHome({
         </div>
       )}
 
-      {/* ── Everything else: grouped. Pro tools lead when the tier is Pro; then
-             the things you touch often; then the tools you dip into. Tier-hidden
-             tiles drop out and an empty group drops its heading too. */}
-      <div className="space-y-6">
-        {/* Selling is free as of 2026-08-14, so the shop leads for EVERY vendor.
-            This group used to be "Pro tools" gated on isPro, which meant a free
-            vendor saw a price where the tools should have been. */}
-        {/* Products, Posts, Events and Business profile are NOT repeated here —
-            they are the four buttons at the top of the page. What's left is
-            what those four don't cover. */}
-        <Section title="Your shop">
-          <Tile
-            href="/vendor/orders"
-            Icon={ShoppingCart}
-            label="Orders"
-            desc={orderCount > 0 ? `${orderCount} to date` : 'No orders yet'}
-          />
-          {/* One home for the external hookups: shop catalog, delivery, and
-              the payout bank account. Was two tiles (Shop & delivery + Payouts)
-              pointing at two pages; consolidated into /vendor/integrations. */}
-          <Tile href="/vendor/integrations" Icon={Plug} label="Integrations" desc="Shop, delivery & bank payouts" />
-        </Section>
-
-        {/* What Pro is now actually for. */}
-        {isPro ? (
-          <Section title="Pro tools">
-            <Tile href="/vendor/assistant" Icon={MessageCircle} label="Your agent" desc="Train your customer-service AI" />
-          </Section>
-        ) : native ? null : (
-          // The price + CTA stays off iOS entirely (Apple 3.1.1); natively the
-          // upgrade lives in /vendor/billing behind StoreKit.
-          <Section title="Pro tools">
-            <div className="card-soft p-4 sm:col-span-2">
-              <p className="text-[15px] font-semibold text-stone-900">Let an AI answer your customers</p>
-              <p className="mt-1 text-[13px] leading-snug text-stone-600">
-                Your own agent replies to questions by text and by phone, trained on your
-                business. Pro is $30/mo. Selling stays free either way — we take 5% of a sale,
-                and nothing when you don&apos;t sell.
-              </p>
-              <Link
-                href="/vendor/billing"
-                className="mt-3 inline-flex rounded-full bg-stone-900 px-3.5 py-2 text-[13px] font-semibold text-white transition hover:bg-stone-800"
-              >
-                See plans
-              </Link>
-            </div>
-          </Section>
-        )}
-
-        {/* "Community" rather than "Tools": these three are the neighbourhood
-            half of the portal — what you give, what's available to you, and
-            what people are organising around. "Tools" was a name for whatever
-            was left over, and it had the account settings in it. */}
-        <Section title="Community">
-          <Tile href="/vendor/giving" Icon={Heart} label="Giving" desc="Log a gift to a local org" />
-          {/* Moved out of the top nav — useful, but not the wedge. */}
-          <Tile href="/vendor/resources" Icon={LifeBuoy} label="Resources" desc="Grants, permits & local programs" />
-          <Tile href="/petitions" Icon={PenLine} label="Petitions" desc="Local causes worth backing" />
-        </Section>
-
-        {/* The account, on its own. These are the two you go looking for when
-            something is wrong or you want to change what you're paying — not
-            things you browse past on the way to your orders. */}
-        <Section title="Account">
-          <Tile href="/vendor/billing" Icon={CreditCard} label="Plan & billing" desc={`Current plan: ${planLabel}`} />
-        </Section>
-      </div>
+      {/* Everything that used to be listed here now lives behind one of the
+          four buttons above:
+            Products / Orders / Integrations  → /vendor/shop
+            Edit profile / Plan & billing / Your agent / Giving / Resources
+                                              → /vendor/profile
+            My events                         → the Events button
+            Post / Go live                    → the Posts button
+          Petitions is HIDDEN for vendors (2026-08-22) — it is a shopper
+          surface, still live at /petitions, and it was the one tile here that
+          asked a business owner to go and be a citizen while they were trying
+          to run a shop. */}
 
       {/* Tier preview — pinned at the bottom (demo scaffolding). Flips what the
           whole dashboard shows; the shared key carries it to the collab surfaces. */}
