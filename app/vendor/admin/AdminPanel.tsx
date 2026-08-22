@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Shield, UserPlus, FileText, Search, Check, Package, Calendar, ExternalLink, Star, PenSquare, ImagePlus, X, Loader2, Store, Radio, Globe, ChevronDown, ClipboardCheck, ShieldAlert, MessagesSquare } from "lucide-react";
+import { Shield, UserPlus, FileText, Search, Check, Package, Calendar, ExternalLink, UserCircle, Star, PenSquare, ImagePlus, X, Loader2, Store, Radio, Globe, ChevronDown, ClipboardCheck, ShieldAlert, MessagesSquare } from "lucide-react";
 import { OnboardManager } from "../onboard/OnboardManager";
 import { FeaturedManager } from "../featured/FeaturedManager";
 import { LineupImportManager } from "@/components/admin/LineupImportManager";
@@ -477,8 +477,9 @@ function ActOnBehalf() {
           {(picked.type || picked.city) && (
             <p className="text-xs text-stone-500">{[picked.type, picked.city].filter(Boolean).join(" · ")}</p>
           )}
-          <p className="mt-3 mb-2 text-xs text-stone-500">Add content on their behalf — Products &amp; Events include AI capture (snap a menu, flyer, or schedule); Live lets you post or schedule what they&apos;re showing (World Cup, UFC, etc.):</p>
+          <p className="mt-3 mb-2 text-xs text-stone-500">Add content on their behalf — Edit profile covers their photos, bio and links; Products &amp; Events include AI capture (snap a menu, flyer, or schedule); Live lets you post or schedule what they&apos;re showing (World Cup, UFC, etc.):</p>
           <div className="flex flex-wrap gap-2">
+            <ActionLink href={`/vendor/about?memberId=${picked.id}`} icon={UserCircle} label="Edit profile" />
             <ActionLink href={`/vendor/products?memberId=${picked.id}`} icon={Package} label="Products" />
             <ActionLink href={`/vendor/events?memberId=${picked.id}`} icon={Calendar} label="Events" />
             <ActionLink href={`/vendor/live?memberId=${picked.id}`} icon={Radio} label="Live" />

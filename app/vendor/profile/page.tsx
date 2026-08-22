@@ -57,7 +57,7 @@ export default async function VendorProfileHubPage({
 
       <div className="grid gap-3 sm:grid-cols-2">
         <HubTile
-          href="/vendor/about"
+          href={admin && requested ? `/vendor/about?memberId=${requested}` : "/vendor/about"}
           Icon={UserCircle}
           label="Edit profile"
           desc="Photos, details & all your links"

@@ -1,6 +1,7 @@
 import { auth } from '@clerk/nextjs/server'
 import Link from 'next/link'
 import { getVendorProfile } from '@/lib/vendor-connect'
+import { isAdmin } from '@/lib/admin'
 import { demoMemberId, isDemoActive } from '@/lib/demo-server'
 import { getMember } from '@/lib/api'
 import { memberImages } from '@/lib/member-images'
@@ -15,11 +16,22 @@ export const metadata = { title: 'Business profile' }
 // they live in three places and the /links route already knows how to
 // reassemble them, so the editor fetches them itself rather than this page
 // growing a second copy of that rule.
-export default async function VendorAboutPage() {
+export default async function VendorAboutPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ memberId?: string }>
+}) {
   const { userId } = await auth()
+  const { memberId: requested } = await searchParams
   const demo = !userId && (await isDemoActive())
   const profile = userId ? await getVendorProfile(userId) : null
-  const memberId = profile?.member_id ?? (demo ? await demoMemberId() : null)
+  // Admins may edit any business (Act on behalf) — same rule the products,
+  // events and live pages already follow, and the same rule the PATCH route
+  // enforces server-side via resolveActor(). Everyone else edits their own.
+  const admin = isAdmin(userId)
+  const memberId =
+    (admin && requested) || profile?.member_id || (demo ? await demoMemberId() : null)
+  const onBehalf = !!(admin && requested && requested !== profile?.member_id)
 
   let details: BusinessDetails = {}
   let images: string[] = []
@@ -57,9 +69,19 @@ export default async function VendorAboutPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-semibold text-stone-900">Business profile</h1>
-        <p className="mt-1 text-sm text-stone-500">
-          Everything shoppers see on your page — your details and all your links.
-        </p>
+        {onBehalf ? (
+          // Acting on behalf edits SOMEONE ELSE'S public page, so say whose
+          // before the form does anything — same badge products/events show.
+          <p className="mt-1 text-sm text-stone-500">
+            Editing{' '}
+            <span className="font-medium text-stone-900">{details.name || memberId}</span>
+            <span className="ml-2 rounded-full bg-stone-900 px-2 py-0.5 text-xs text-white">admin</span>
+          </p>
+        ) : (
+          <p className="mt-1 text-sm text-stone-500">
+            Everything shoppers see on your page — your details and all your links.
+          </p>
+        )}
       </div>
 
       {memberId ? (
