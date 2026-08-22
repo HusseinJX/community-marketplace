@@ -66,7 +66,18 @@ Deploy-blocked follow-ups, in order:
   self delivery, digital. Retitled "Four ways to sell here" — only three of them are a handover,
   so naming them by what you sell rather than how it travels keeps bookings from reading as the
   odd one out.
-- **Printify is BUILT but nothing is connected** (2026-08-22 recheck). `vendor_secrets` has ZERO
+- ✅ **Printify CONNECTED and the catalogue is live (2026-08-22).** Xeno's token is in
+  `vendor_secrets`; `scripts/printify-connect.mts <memberId> --token-from <envfile> [--save]
+  [--sync]` is the tool. 26 designs / 199 variant rows, all active — the same 26 products and
+  199 variants the xen0 site lists, verified against its own `products.json`. The four
+  hand-made XENO tees are `active = false` (hidden, not deleted). First live API calls ever
+  made: listShops, listProducts and a real postage quote (\$4.75, Observer tee Black/L to
+  1 Ferry Building). **Still unproven: createOrder** — no paid POD order has been pushed, so
+  the last step of the dropship path is still theory. That is now what "charge one real card"
+  would settle.
+- **Six "Copy of Copy of …" duplicates are live on the storefront**, because the xen0 Printify
+  shop contains them. Delete them in Printify and re-sync, or hide those rows.
+- ~~**Printify is BUILT but nothing is connected**~~ (superseded 2026-08-22). `vendor_secrets` has ZERO
   rows and all four XENO tees are `source: 'manual'` with null `printify_product_id` — so
   dropshipping is not "unavailable", it is simply unconnected. Connecting a token in
   Integrations → Print on demand and running `syncPrintifyCatalog` links products, after which a
