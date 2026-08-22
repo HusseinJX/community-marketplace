@@ -14,10 +14,16 @@
 
 export type HomeTab = "events" | "feed" | "shop" | "products";
 
-// ORDER: Products · Shops · Events (2026-08-13), and Products is also the
-// DEFAULT — see DEFAULT_HOME_TAB below. `?tab=events` still resolves, so old
-// links keep working; they simply carry a param now where they used not to,
-// and `/` no longer means Events.
+// ORDER: Events · Shops · Products · Feed (2026-08-22). It reads outward from
+// what is happening now to what you can buy, and it puts the tab with the
+// shortest shelf life first.
+//
+// The first tab is ALSO the default: `/` renders Events (DEFAULT_HOME_TAB
+// below). They are separate settings and this file is the only place either is
+// written down — for a week they disagreed, and the landing tab was the third
+// pill along, which reads as a bug rather than a choice. `?tab=products` and
+// `?tab=events` both still resolve, so every old link keeps working; bare `/`
+// simply means Events again.
 //
 // For you / What's on are a toggle INSIDE Events, not two
 // top-level tabs: it is the same set of events read two ways, so splitting them
@@ -50,11 +56,11 @@ const TAB_LABELS: Record<HomeTab, string> = {
  * one says products and another says events, `/` renders one tab while the
  * back-link promises another.
  */
-export const DEFAULT_HOME_TAB: HomeTab = "products";
+export const DEFAULT_HOME_TAB: HomeTab = "events";
 
 /** The tabs the selector actually draws, in order. */
 export const HOME_TABS: { id: HomeTab; label: string }[] = (
-  ["products", "shop", "events", "feed"] as const
+  ["events", "shop", "products", "feed"] as const
 ).map((id) => ({ id, label: TAB_LABELS[id] }));
 
 // Both spellings are in the wild — `?tab=events` from before the split, and
@@ -82,13 +88,13 @@ export function rememberHomeTab(tab: HomeTab): void {
   try {
     window.sessionStorage.setItem(KEY, tab);
   } catch {
-    /* private mode — back links just fall back to Events */
+    /* private mode — back links just fall back to the default tab */
   }
   // A tab is also an origin, so leaving home for a detail page comes back here.
   rememberOrigin(homeTabTarget(tab));
 }
 
-/** The tab to send someone back to. Defaults to Events (home's own default). */
+/** The tab to send someone back to. Falls back to home's own default. */
 export function lastHomeTab(): HomeTab {
   if (typeof window === "undefined") return DEFAULT_HOME_TAB;
   try {
@@ -101,7 +107,7 @@ export function lastHomeTab(): HomeTab {
 /** `{ href, label }` for a back link pointing at that tab. */
 export function homeTabTarget(tab: HomeTab): { href: string; label: string } {
   return {
-    // "/" IS the Events tab, so it is the one without a query param.
+    // "/" IS the default tab (Events), so that is the one without a param.
     href: tab === DEFAULT_HOME_TAB ? "/" : `/?tab=${tab}`,
     label: TAB_LABELS[tab] ?? "Events",
   };
