@@ -9,8 +9,8 @@ import {
   Boxes,
   Landmark,
   ShoppingBag,
-  CalendarCheck,
   Download,
+  Truck,
   ExternalLink,
   Check,
   PartyPopper,
@@ -301,25 +301,25 @@ export function ShopSetup({
   return (
     <SetupScreen
       icon={PartyPopper}
-      title="You can sell three different ways"
-      sub="All from the same page, and you can turn any of them on whenever you like."
+      title="Three ways to get it to them"
+      sub="All from the same page. Turn any of them on whenever you like — nothing here is decided now."
     >
       <div className="space-y-3">
         {[
           {
             icon: ShoppingBag,
-            title: "Things people collect",
-            body: "List a product, take the order, and they pick it up from you — or you deliver it yourself and keep the delivery fee.",
+            title: "Pickup",
+            body: "They pay online, you get the order, they collect it from you. No address on file? Checkout tells them you'll be in touch about where.",
           },
           {
-            icon: CalendarCheck,
-            title: "Time people book",
-            body: "A cut, a class, a table, a session. People ask for a time and you confirm it — no calendar to keep in step.",
+            icon: Truck,
+            title: "Self delivery",
+            body: "You drive it over yourself and KEEP the delivery fee — we don't take a cut of it. Set your fee, a minimum order, and the ZIP codes you'll go to.",
           },
           {
             icon: Download,
-            title: "Files people download",
-            body: "A recipe, a preset, a zine, a ticket. Paid for once, delivered straight after — nothing to post.",
+            title: "Digital",
+            body: "A recipe, a preset, a zine. They pay once and the download arrives straight after — nothing to pack, nothing to post.",
           },
         ].map((f) => (
           <div key={f.title} className="flex items-start gap-4 rounded-2xl border border-stone-200 bg-white p-4">
