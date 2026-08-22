@@ -2,6 +2,29 @@
 
 Split out of CLAUDE.md (2026-08-13). Newest first, as it was written.
 
+## 2026-08-22 — four buttons, and a first post
+
+**The vendor dashboard's top level is Shop · Posts · Events · Profile.** Fourteen equal
+tiles asked a vendor to read a menu before doing anything; these four ARE the menu. They
+are not repeated in the list below — what's left there is what the four don't cover
+(orders, payouts, billing, the neighbourhood tools), all still one tap away. Removing
+them would have stranded a vendor's payouts and subscription, which is not what a
+front-door change should cost.
+
+**Onboarding ends by offering a first post, not only a dashboard.** `/share?vendor=1`
+is the primary button; the dashboard is a link beneath it — a link because going to your
+own dashboard is not "skip".
+
+**A capability every vendor can now REACH must state its price.** Events used to be
+hidden from free vendors by a tile gate (`canInvite`), which was cosmetic — the page had
+no server gate, and the write did: `organizeEvents` is Member ($10), enforced in
+`POST/PATCH /api/events/[memberId]`. `EventsManager` threw the 402 away, so Save did
+nothing at all and said nothing. It now renders `UpgradePrompt` and keeps the form as
+typed, so nobody writes their event twice to discover what it costs. **The rule: if a
+surface is reachable by everyone, its 402 is part of the UI.** For the record of what is
+free — profile, posts, discovery, receiving invites, and commerce — see
+`lib/entitlements.ts`; selling is free, hosting is not.
+
 ## 2026-08-22 — the picture is part of the price
 
 **A variant's photograph belongs to the variant, not the product.** Printify returns

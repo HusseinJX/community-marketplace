@@ -1208,10 +1208,29 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
           {/* Shop setup and the interview are both BEHIND them now (2026-08-22
               — links → shop → payments → interview → here), so this is the way
               out, not another step. Pointing it back at "setup" would have run
-              a finished vendor through the catalogue screen a second time. */}
-          <button onClick={() => router.push("/vendor")} className="mt-2 inline-flex items-center gap-2 rounded-full bg-stone-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-stone-800">
-            Go to your dashboard <ArrowRight className="h-4 w-4" />
-          </button>
+              a finished vendor through the catalogue screen a second time.
+
+              TWO ways out, and posting leads. A page nobody has posted to is a
+              page nobody comes back to, and this is the one moment the person
+              is already here, already finished, and has the most to say about
+              what they just set up. The dashboard is still one tap away for
+              anyone who'd rather look around first — it is a link, not a
+              lesser button, because "skip" is not what going to your own
+              dashboard is. */}
+          <div className="flex flex-col items-center gap-2 pt-2">
+            <button
+              onClick={() => router.push("/share?vendor=1")}
+              className="inline-flex items-center gap-2 rounded-full bg-stone-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-stone-800"
+            >
+              Make your first post <ArrowRight className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => router.push("/vendor")}
+              className="text-sm font-medium text-stone-500 underline underline-offset-2 transition hover:text-stone-900"
+            >
+              Go to your dashboard
+            </button>
+          </div>
           {/* Auto-renewable subscription disclosure — required (Guideline 3.1.2)
               wherever subscription pricing is presented. Purchase completes on
               /vendor/billing; this screen only advertises the plans + prices. */}

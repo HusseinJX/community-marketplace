@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Plus, Trash2, Check } from 'lucide-react'
 import { ImageCaptureUploader } from '@/components/ImageCaptureUploader'
+import { UpgradePrompt, upgradeFrom } from '@/components/billing/UpgradePrompt'
 import { demoVendorEvents } from '@/lib/demo-catalog'
 import { EventLocationPicker } from '@/components/events/EventLocationPicker'
 
@@ -37,6 +38,12 @@ export function EventsManager({
   const [events, setEvents] = useState<VEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
+  // Hosting events is a Member ($10) capability, gated server-side in
+  // POST/PATCH /api/events/[memberId]. This page is reachable by every vendor —
+  // it is one of the four buttons on the dashboard — so the 402 has to become
+  // something a free vendor can read. It used to be discarded, and Save simply
+  // did nothing.
+  const [upgrade, setUpgrade] = useState<'member' | 'pro' | null>(null)
   const [form, setForm] = useState({ title: '', event_date: '', event_time: '', location: '', description: '', capacity: '' })
   // Map pin for the new event — defaults to the business location, draggable.
   const businessPin: [number, number] | null =
@@ -64,11 +71,17 @@ export function EventsManager({
       setEvents((e) => e.map((x) => (x.id === id ? { ...x, active: true } : x)))
       return
     }
-    await fetch(`/api/events/${memberId}`, {
+    const res = await fetch(`/api/events/${memberId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, active: true }),
     })
+    const up = upgradeFrom(res.status, await res.json().catch(() => null))
+    if (up) {
+      setUpgrade(up.requires)
+      return
+    }
+    setUpgrade(null)
     load()
   }
 
@@ -101,7 +114,7 @@ export function EventsManager({
       resetForm()
       return
     }
-    await fetch(`/api/events/${memberId}`, {
+    const res = await fetch(`/api/events/${memberId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -113,6 +126,14 @@ export function EventsManager({
         source: 'manual',
       }),
     })
+    // Keep the form as they typed it — clearing a rejected event would make
+    // them write it twice to find out what it costs.
+    const up = upgradeFrom(res.status, await res.json().catch(() => null))
+    if (up) {
+      setUpgrade(up.requires)
+      return
+    }
+    setUpgrade(null)
     resetForm()
     load()
   }
@@ -131,6 +152,13 @@ export function EventsManager({
           <Plus className="h-4 w-4" /> Create
         </button>
       </div>
+
+      {upgrade && (
+        <UpgradePrompt
+          requires={upgrade}
+          message="Hosting events is on the Member plan. Upgrade to create events, run a lineup and collect RSVPs — joining someone else's event stays free."
+        />
+      )}
 
       {showAdd && (
         <div className="card-soft space-y-3 p-4">

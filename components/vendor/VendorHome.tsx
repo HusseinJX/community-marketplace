@@ -38,6 +38,27 @@ type CollabView = 'upcoming' | 'join' | 'create'
 // switched off with a bare `false &&`.
 const SHOW_COLLABS: boolean = false
 
+/**
+ * The four things a vendor came here to do: their shop, their posts, their
+ * events, their page.
+ *
+ * Everything below this grid is plumbing — orders, payouts, billing, the
+ * neighbourhood tools — and it stays reachable, but it stopped being the first
+ * thing on the screen. A dashboard that opens with fourteen equal tiles asks
+ * the vendor to read a menu before doing anything; these four are the menu.
+ */
+function BigTile({ href, Icon, label }: { href: string; Icon: typeof Package; label: string }) {
+  return (
+    <Link
+      href={href}
+      className="card-soft card-hover flex flex-col items-center justify-center gap-2 px-3 py-6 text-center"
+    >
+      <Icon className="h-6 w-6 text-indigo-500" />
+      <span className="text-sm font-semibold text-stone-900">{label}</span>
+    </Link>
+  )
+}
+
 function Tile({ href, Icon, label, desc }: { href: string; Icon: typeof Package; label: string; desc?: string }) {
   return (
     <Link href={href} className="card-soft card-hover flex items-center justify-between p-4">
@@ -139,6 +160,16 @@ export function VendorHome({
       )}
       */}
 
+      {/* Top level: four buttons, nothing else. Two up on a phone, four across
+          on a laptop. Posts points at the vendor door of /share (the composer),
+          not at the memories flow. */}
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <BigTile href="/vendor/products" Icon={Package} label="Shop" />
+        <BigTile href="/share?vendor=1" Icon={Radio} label="Posts" />
+        <BigTile href="/vendor/events" Icon={Calendar} label="Events" />
+        <BigTile href="/vendor/about" Icon={UserCircle} label="Profile" />
+      </div>
+
       {/* Commitments before discovery: an event you already said yes to
           outranks anything you might browse. Self-hides when you're on none. */}
       <MyLineups memberId={memberId ?? undefined} />
@@ -212,8 +243,10 @@ export function VendorHome({
         {/* Selling is free as of 2026-08-14, so the shop leads for EVERY vendor.
             This group used to be "Pro tools" gated on isPro, which meant a free
             vendor saw a price where the tools should have been. */}
+        {/* Products, Posts, Events and Business profile are NOT repeated here —
+            they are the four buttons at the top of the page. What's left is
+            what those four don't cover. */}
         <Section title="Your shop">
-          <Tile href="/vendor/products" Icon={Package} label="Products" desc="Your shop catalog" />
           <Tile
             href="/vendor/orders"
             Icon={ShoppingCart}
@@ -252,14 +285,6 @@ export function VendorHome({
           </Section>
         )}
 
-        <Section title="Quick access">
-          {/* Creating/hosting events is a Basic ($10/mo) capability. */}
-          {canInvite && (
-            <Tile href="/vendor/events" Icon={Calendar} label="My events" desc="Host events + collect RSVPs" />
-          )}
-          <Tile href="/share?vendor=1" Icon={Radio} label="Post / Go live" desc="Share an update or broadcast live" />
-        </Section>
-
         {/* "Community" rather than "Tools": these three are the neighbourhood
             half of the portal — what you give, what's available to you, and
             what people are organising around. "Tools" was a name for whatever
@@ -275,7 +300,6 @@ export function VendorHome({
             something is wrong or you want to change what you're paying — not
             things you browse past on the way to your orders. */}
         <Section title="Account">
-          <Tile href="/vendor/about" Icon={UserCircle} label="Business profile" desc="Your details & all your links" />
           <Tile href="/vendor/billing" Icon={CreditCard} label="Plan & billing" desc={`Current plan: ${planLabel}`} />
         </Section>
       </div>

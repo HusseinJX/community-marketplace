@@ -40,6 +40,19 @@ All notable changes to this project are documented here.
   refused — storing the verdict, Google's formatting and the coordinates.
 - Bookings is back on the onboarding screen, first of four ways to sell.
 
+### Changed (later still — four buttons, and a first post)
+- **Onboarding's last screen offers a first post before the dashboard.** "Make your first
+  post" → `/share?vendor=1`; the dashboard is the link underneath. A page nobody has
+  posted to is a page nobody comes back to, and this is the moment they are finished,
+  still here, and have the most to say about what they just set up.
+- **The vendor dashboard opens with four buttons** — Shop · Posts · Events · Profile —
+  and those four are no longer repeated in the tile list below. Orders, Integrations,
+  Pro tools, Community and Billing stay where they were.
+- **Hosting events shows its price instead of failing silently.** Events is one of the
+  four buttons, so every vendor reaches it, but `organizeEvents` is a Member ($10)
+  capability gated in `POST/PATCH /api/events/[memberId]`. `EventsManager` discarded the
+  402 — Save did nothing at all. It now renders `UpgradePrompt` and keeps the typed form.
+
 ### Added (later still — the picture follows the choice)
 - **A product page has a gallery, and it tracks the picker.** Printify tags every mockup
   with the variants it depicts; we stored one image per row (the product's default), so
