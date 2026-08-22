@@ -4,8 +4,11 @@ Split out of CLAUDE.md (2026-08-13). Newest first, as it was written.
 
 ## 2026-08-22 — a business without an address, and where its posts happen
 
-**"We don't have a fixed address" is a checkbox in step 1 of `/join`, and it means
-"not on Google Maps".** Those are the same axis, not two: a listing IS the anchor, so a
+**"We're not on Google Maps" is a checkbox under the LISTING SEARCH in `/join`.**
+It sits where the failure happens — offered to someone who has just tried to find
+themselves and couldn't — not on the type screen, where it was first built and where
+it asked the question before the person had said what they are or had any reason to
+care. What it means: Those are the same axis, not two: a listing IS the anchor, so a
 business that has one is anchored and wants to be — the listing is what gives its page
 directions to the door, verified ownership and its existing reviews. There is no such
 thing as anchored-and-remote, and offering it as a second question would have invited

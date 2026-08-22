@@ -231,10 +231,12 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
   // immediately after their name.
   function pickType(k: Kind) {
     setKind(k);
-    // Remote means "not on Google Maps" — see the checkbox in step 1 — so
-    // there is no listing to search for and nothing to claim. Straight to the
-    // name-and-sign-in step, which is where a person has always gone.
-    setStep(k === "artist" || remote ? "who" : "business");
+    // Everyone who could have a listing goes and looks for it. "Not on Google
+    // Maps" is answered on THAT screen, by someone who has just tried to find
+    // themselves and couldn't — not asked of someone who hasn't yet said what
+    // they are.
+    setRemote(false);
+    setStep(k === "artist" ? "who" : "business");
     setErr("");
   }
 
@@ -593,8 +595,8 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
    * ownership OTP to send. Two kinds of person arrive here.
    *
    *   an ARTIST — always. They are a person; there was never an anchor.
-   *   a REMOTE business or org — they ticked "no fixed address" in step 1,
-   *     which means they are not on Google Maps. See pickType.
+   *   a REMOTE business or org — they ticked "we're not on Google Maps" under
+   *     the listing search, having failed to find themselves in it.
    *
    * Verification is the reason these share a path rather than looking alike by
    * coincidence: an entity normally proves itself by answering the phone on
@@ -766,52 +768,6 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
             ))}
           </div>
           <p className="text-[13px] text-stone-400">Business &amp; org prove an anchor. Artists are people — self-owned.</p>
-
-          {/* ── No fixed address ────────────────────────────────────────────
-              A modifier on the choice above, not a fourth kind: a remote
-              bakery is still a bakery. It belongs on THIS screen because it
-              decides where the next tap goes — ticked, there is no listing to
-              search for, so the Google step is skipped entirely.
-
-              "Remote" and "on Google Maps" are the same axis, not two: if you
-              have a listing you are anchored, and you want to be, because the
-              listing is what gives the profile directions, verified ownership
-              and your reviews. So the warning below is not a caution about
-              risk — it is telling someone who does have a listing that they
-              are about to give up something they want. */}
-          <div className="mt-4 space-y-3">
-            <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-stone-200 bg-white px-4 py-3.5">
-              <input
-                type="checkbox"
-                checked={remote}
-                onChange={(e) => setRemote(e.target.checked)}
-                className="mt-0.5 h-4 w-4 shrink-0 rounded border-stone-300 accent-stone-900"
-              />
-              <span className="min-w-0">
-                <span className="block text-[15px] font-medium text-stone-900">
-                  We don&apos;t have a fixed address
-                </span>
-                <span className="block text-[13px] leading-relaxed text-stone-500">
-                  No storefront and no Google Maps listing — remote, mobile, or
-                  wherever the work is.
-                </span>
-              </span>
-            </label>
-
-            {remote && (
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3.5">
-                <p className="text-[14px] font-medium text-amber-900">
-                  Only tick this if you&apos;re genuinely not on Google Maps.
-                </p>
-                <p className="mt-1 text-[13px] leading-relaxed text-amber-800">
-                  If you do have a listing, leave this unticked and find it on the
-                  next screen. Linking it is what gives your page directions to
-                  your door, verified ownership, and your existing reviews — none
-                  of which we can add later on our own.
-                </p>
-              </div>
-            )}
-          </div>
 
           {/* Already have a vendor account (e.g. onboarded on another device)?
               Open the login modal — on success it goes straight to the dashboard
@@ -1011,6 +967,59 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
             </p>
           )}
           <p className="text-xs text-stone-400">Typed numbers aren&apos;t accepted — only what Google lists.</p>
+
+          {/* ── Not on Google Maps ──────────────────────────────────────────
+              The escape hatch belongs HERE, under the search, offered to
+              someone who has just tried to find themselves and couldn't. It
+              was on the type screen, which asked the question before they had
+              said what they are and before they had any reason to care.
+
+              "Remote" and "on Google Maps" are the same axis, not two: if you
+              have a listing you are anchored, and you want to be, because the
+              listing is what gives the page directions to your door, verified
+              ownership and your reviews. So the note below is not a warning
+              about risk — it tells someone who does have a listing that they
+              are about to give up something they want. */}
+          <div className="border-t border-stone-100 pt-4">
+            <label className="flex cursor-pointer items-start gap-3">
+              <input
+                type="checkbox"
+                checked={remote}
+                onChange={(e) => setRemote(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 rounded border-stone-300 accent-stone-900"
+              />
+              <span className="min-w-0">
+                <span className="block text-[15px] font-medium text-stone-900">
+                  We&apos;re not on Google Maps
+                </span>
+                <span className="block text-[13px] leading-relaxed text-stone-500">
+                  No fixed address — remote, mobile, or wherever the work is.
+                </span>
+              </span>
+            </label>
+
+            {remote && (
+              <div className="mt-3 space-y-3">
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3.5">
+                  <p className="text-[14px] font-medium text-amber-900">
+                    Only continue this way if you&apos;re genuinely not listed.
+                  </p>
+                  <p className="mt-1 text-[13px] leading-relaxed text-amber-800">
+                    If you do have a listing, search for it above instead. Linking it
+                    is what gives your page directions to your door, verified
+                    ownership, and your existing reviews — none of which we can add
+                    later on our own.
+                  </p>
+                </div>
+                <button
+                  onClick={() => { setErr(""); setStep("who"); }}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-stone-900 py-3 text-[15px] font-semibold text-white transition hover:bg-stone-800"
+                >
+                  Continue without a listing <ArrowRight className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
