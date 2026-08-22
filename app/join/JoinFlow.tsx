@@ -32,7 +32,7 @@ function maskPhone(raw?: string | null): string | null {
 // /api/claim, /api/vendor/profile.
 
 type Kind = "vendor" | "organizer" | "artist";
-type Step = "type" | "who" | "business" | "code2" | "working" | "links" | "interview" | "done" | "setup";
+type Step = "type" | "who" | "business" | "code2" | "working" | "links" | "interview" | "done" | "setup" | "sellways";
 
 const TYPES: { key: Kind; icon: typeof Store; label: string; sub: string }[] = [
   { key: "vendor", icon: Store, label: "A business or vendor", sub: "Shop, bar, restaurant, maker" },
@@ -255,6 +255,52 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
     // The chosen listing is transient state too — starting over as an artist
     // while a bakery is still selected is exactly the pollution this clears.
     setPicked(null);
+  }
+
+  /**
+   * One step back, where back MEANS something.
+   *
+   * Not history and not a simple stack: some of these steps happen to the
+   * account, not just on screen. Once the member is created and the ownership
+   * code is claimed there is nothing behind you to return to, so those steps
+   * return null and show no control at all rather than a button that lands
+   * somewhere nonsensical (a sign-in screen for a session you already have, or
+   * an OTP that has already been accepted).
+   *
+   * Returns the step to go to, or null when there is honestly no way back.
+   */
+  function previousStep(): Step | null {
+    switch (step) {
+      // The listing search is the first thing after picking a type.
+      case "business":
+        return "type";
+      // An artist came straight from the menu. An entity came from the search
+      // — either by picking a listing or by saying they are not on Maps, and
+      // both are reversible while nothing has been created yet.
+      case "who":
+        return isArtist ? "type" : "business";
+      // Verifying the wrong listing is the most likely reason to go back, and
+      // the search is where you fix it.
+      case "code2":
+        return "business";
+      // links / interview / sellways / done sit AFTER the member exists.
+      default:
+        return null;
+    }
+  }
+
+  function goBack() {
+    const to = previousStep();
+    if (!to) return;
+    setErr("");
+    // Going back to the search means the listing you had chosen is no longer
+    // chosen — otherwise "back" would leave a stale pick that the next screen
+    // silently claims.
+    if (to === "business") {
+      setPicked(null);
+      setRemote(false);
+    }
+    setStep(to);
   }
 
   // In-app Apple sign-in uses a full redirect (the native token strategy is
@@ -711,13 +757,25 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
           Demo — real Google search, no real code, nothing saved
         </p>
       )}
-      {step !== "type" && step !== "done" && step !== "setup" && (
-        <button
-          onClick={backToMenu}
-          className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-stone-500 transition hover:text-stone-800"
-        >
-          <ArrowLeft className="h-4 w-4" /> Back to menu
-        </button>
+      {/* Back one step where there is one, the menu where there isn't, and
+          nothing at all once the account exists — see previousStep(). */}
+      {step !== "type" && step !== "done" && step !== "setup" && step !== "sellways" && (
+        <div className="mb-4 flex items-center gap-3">
+          {previousStep() && (
+            <button
+              onClick={goBack}
+              className="inline-flex items-center gap-1 text-sm font-medium text-stone-500 transition hover:text-stone-800"
+            >
+              <ArrowLeft className="h-4 w-4" /> Back
+            </button>
+          )}
+          <button
+            onClick={backToMenu}
+            className="inline-flex items-center gap-1 text-sm font-medium text-stone-400 transition hover:text-stone-700"
+          >
+            Start over
+          </button>
+        </div>
       )}
       {step !== "type" && step !== "done" && step !== "interview" && step !== "links" && step !== "setup" && (
         <p className="mb-4 text-xs font-medium uppercase tracking-wide text-stone-400">
@@ -1073,7 +1131,17 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
               : seed
           }
           demo={demo}
-          onDone={() => setStep("done")}
+          onDone={() => setStep("sellways")}
+        />
+      )}
+
+      {step === "sellways" && (
+        <ShopSetup
+          memberId={memberId}
+          memberName={bizName}
+          startAt="ready"
+          demo={demo}
+          onFinish={() => setStep("done")}
         />
       )}
 

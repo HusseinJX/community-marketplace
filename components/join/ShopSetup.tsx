@@ -4,6 +4,7 @@ import { useState } from "react";
 import { AddProductsAI } from "@/components/join/AddProductsAI";
 import {
   Loader2,
+  ArrowLeft,
   ArrowRight,
   Boxes,
   Landmark,
@@ -15,8 +16,9 @@ import {
   PartyPopper,
 } from "lucide-react";
 
-// Setting up the shop, straight after the plan screen: catalogue, then money,
-// then what those two just unlocked.
+// Setting up the shop, straight after the links step: catalogue, then money.
+// What those two unlocked is explained on the "ready" screen, which now runs
+// AFTER the interview — see the startAt prop.
 //
 // THE ORDER IS THE POINT. Catalogue first, because a payout account with
 // nothing to sell is a form you filled in for no reason, while a catalogue with
@@ -93,6 +95,14 @@ function Later({ label, onClick }: { label: string; onClick: () => void }) {
 export function ShopSetup({
   memberId,
   memberName,
+  /**
+   * Which half this instance is. "catalog" runs the shop (products, then
+   * payments) and finishes into the interview; "ready" is the three-ways-to-
+   * sell explainer, shown after it. Split because the interview belongs
+   * between them (2026-08-22): the explainer reads as a summary of what you
+   * have set up, and a summary is the wrong thing to interrupt.
+   */
+  startAt = "catalog",
   /** Demo opens no hosted flow and connects nothing. */
   demo = false,
   onProducts,
@@ -100,13 +110,14 @@ export function ShopSetup({
 }: {
   memberId: string;
   memberName: string;
+  startAt?: Sub;
   demo?: boolean;
   /** What they listed here, handed up so the interview can ask about it. */
   onProducts?: (names: string[]) => void;
   onFinish: () => void;
 }) {
   const [added, setAdded] = useState<string[]>([]);
-  const [sub, setSub] = useState<Sub>("catalog");
+  const [sub, setSub] = useState<Sub>(startAt);
   const [busy, setBusy] = useState<"square" | "stripe" | null>(null);
   const [err, setErr] = useState("");
   // "Opened" rather than "connected": the connecting happens in the other tab,
@@ -267,9 +278,18 @@ export function ShopSetup({
           <ExternalLink className="h-5 w-5 shrink-0 text-stone-300" />
         </button>
 
+        {/* Back to the catalogue — the one step in here worth returning to,
+            and the likeliest reason to: you remembered another product. */}
+        <button
+          onClick={() => { setErr(""); setSub("catalog"); }}
+          className="inline-flex items-center gap-1 text-[13px] font-medium text-stone-400 transition hover:text-stone-700"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" /> Back to your products
+        </button>
+
         <div className="space-y-2 pt-2">
-          <Next label="Next" onClick={() => { setErr(""); setSub("ready"); }} />
-          <Later label="Skip, I'm not selling yet" onClick={() => { setErr(""); setSub("ready"); }} />
+          <Next label="Next — tell us about you" onClick={() => { setErr(""); onFinish(); }} />
+          <Later label="Skip, I'm not selling yet" onClick={() => { setErr(""); onFinish(); }} />
         </div>
       </SetupScreen>
     );
@@ -314,11 +334,10 @@ export function ShopSetup({
         ))}
       </div>
 
-      {/* The interview comes after this now, not the dashboard — and it opens
-          knowing whatever was listed two screens ago, which is the point of
-          doing the shop first. */}
+      {/* Last screen of onboarding: the shop is set up and the interview is
+          done, so this is a summary of what they can now do with it. */}
       <div className="space-y-2 pt-2">
-        <Next label="Last thing — tell us about you" onClick={onFinish} />
+        <Next label="Finish" onClick={onFinish} />
         <a
           href={`/members/${memberId}`}
           className="block w-full py-1 text-center text-[13px] font-medium text-stone-400 transition hover:text-stone-700"
