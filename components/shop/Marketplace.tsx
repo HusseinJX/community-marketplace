@@ -142,10 +142,10 @@ function ProductCard({
           {inCart ? "Added ✓" : "Quick add"}
         </button>
       </div>
-      <div className="p-4">
-        <p className="text-xs uppercase tracking-wide text-stone-500">{product.category}</p>
+      <div className="p-3">
+        <p className="text-[11px] uppercase tracking-wide text-stone-500">{product.category}</p>
         <div className="mt-1 flex items-baseline justify-between gap-2">
-          <h3 className="text-base font-medium text-stone-900">{product.name}</h3>
+          <h3 className="min-w-0 truncate text-sm font-medium text-stone-900">{product.name}</h3>
           <div className="flex items-baseline gap-1.5">
             {product.compareAt && (
               <span className="text-xs text-stone-400 line-through">${product.compareAt}</span>
@@ -343,7 +343,11 @@ export function Marketplace({
                 <p className="font-medium">No products match your filters</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-4 xl:grid-cols-3">
+              // Same density as the Shops grid (LocalDirectory) — 2 / 3 / 4.
+              // It was 2 up to xl, which made a product card roughly twice the
+              // area of a shop card on a laptop, so switching tabs changed how
+              // big the world looked rather than what was in it.
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
                 {filtered.map((p) => (
                   <ProductCard
                     key={p.id}
