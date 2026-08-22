@@ -74,6 +74,42 @@ export async function getProductsByMember(memberId: string): Promise<SupabasePro
   return data as SupabaseProduct[]
 }
 
+/**
+ * Every live product on the marketplace, newest first.
+ *
+ * The storefront's own query. It exists because the shop grid used to be
+ * twelve invented products in a file, and the only per-member reads available
+ * would have meant one round-trip per vendor to rebuild what one query does.
+ *
+ * ACTIVE ONLY — this is a browse surface. The post-payment rule (use
+ * getAllProductsByMember, because they already paid) does not apply here and
+ * must not be relaxed into it.
+ */
+export async function getAllActiveProducts(limit = 200): Promise<SupabaseProduct[]> {
+  const { data, error } = await supabase
+    .from('products')
+    .select('*')
+    .eq('active', true)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+
+  if (error || !data) return []
+  return data as SupabaseProduct[]
+}
+
+/** One product by id, for its own page. Null when missing or not listed. */
+export async function getProductById(id: string): Promise<SupabaseProduct | null> {
+  const { data, error } = await supabase
+    .from('products')
+    .select('*')
+    .eq('id', id)
+    .eq('active', true)
+    .maybeSingle()
+
+  if (error || !data) return null
+  return data as SupabaseProduct
+}
+
 // Owner/admin view — includes drafts (active=false) for the approval queue.
 export async function getAllProductsByMember(memberId: string): Promise<SupabaseProduct[]> {
   const { data, error } = await supabase

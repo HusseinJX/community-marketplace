@@ -6,7 +6,6 @@ import {
   ArrowLeft,
   ArrowRight,
   ChevronDown,
-  GitCompare,
   Heart,
   Search,
   ShoppingBag,
@@ -15,160 +14,179 @@ import {
   Truck,
   X,
 } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
 import { useStore, type StoredProduct } from "@/lib/store";
+import { useShopProducts } from "@/lib/data-hooks";
+import type { ShopProduct } from "@/app/api/products/route";
 
 // ─── Types & Data ──────────────────────────────────────────────────────────────
 
-type Category = "Apparel" | "Headwear" | "Accessories" | "Home";
-type Badge = "New" | "Bestseller" | "Low stock" | "Sale";
+// The storefront is the products table. It used to be twelve objects in this
+// file — Sunbeam Tee, Dusk Hoodie — with invented ratings ("4.8 · 214
+// reviews"), gradient placeholders for photos, and `memberId: "wl-shop"`,
+// which is not a vendor, so adding one to the cart built a basket checkout
+// could never resolve. That shipped to production.
+//
+// What replaced it is narrower on purpose. A real product row has a name, a
+// price, an image, a vendor and a kind. It has no rating, no review count, no
+// compare-at price and no colourways, because nothing in this app records
+// those — so the card no longer has them either. The only badge left is "New",
+// which is created_at and therefore true.
 
-type Product = {
-  id: string;
-  name: string;
-  price: number;
-  compareAt?: number;
-  category: Category;
-  color: string;
-  badge?: Badge;
-  rating: number;
-  reviews: number;
-  colors: string[];
+/** Products are grouped by what they ARE, since nothing tags them by aisle. */
+const KIND_LABELS: Record<string, string> = {
+  good: "Goods",
+  service: "Services",
+  digital: "Digital",
+  ticket: "Tickets",
 };
 
-const products: Product[] = [
-  { id: "tee-sun", name: "Sunbeam Tee", price: 38, category: "Apparel", color: "from-amber-200 to-orange-300", badge: "Bestseller", rating: 4.8, reviews: 214, colors: ["#f59e0b", "#0f172a", "#f5f5f4"] },
-  { id: "hoodie-dusk", name: "Dusk Hoodie", price: 84, compareAt: 98, category: "Apparel", color: "from-indigo-300 to-violet-400", badge: "Sale", rating: 4.9, reviews: 132, colors: ["#6366f1", "#1e293b", "#a78bfa"] },
-  { id: "cap-field", name: "Field Cap", price: 32, category: "Headwear", color: "from-emerald-200 to-teal-300", badge: "New", rating: 4.7, reviews: 58, colors: ["#10b981", "#0f172a", "#fef3c7"] },
-  { id: "tote-grove", name: "Grove Tote", price: 24, category: "Accessories", color: "from-lime-200 to-emerald-300", rating: 4.6, reviews: 88, colors: ["#84cc16", "#f5f5f4"] },
-  { id: "mug-ember", name: "Ember Mug", price: 18, category: "Home", color: "from-rose-200 to-orange-300", badge: "Low stock", rating: 4.5, reviews: 41, colors: ["#fb7185", "#fde68a"] },
-  { id: "pin-set", name: "WhatsLocal Pin Set", price: 14, category: "Accessories", color: "from-sky-200 to-indigo-300", rating: 4.8, reviews: 26, colors: ["#0ea5e9", "#6366f1"] },
-  { id: "crew-mesa", name: "Mesa Crewneck", price: 72, category: "Apparel", color: "from-stone-300 to-stone-500", badge: "New", rating: 4.7, reviews: 73, colors: ["#78716c", "#1c1917", "#e7e5e4"] },
-  { id: "bottle-river", name: "River Bottle", price: 28, category: "Home", color: "from-cyan-200 to-blue-300", rating: 4.4, reviews: 19, colors: ["#06b6d4", "#0f172a"] },
-  { id: "beanie-pine", name: "Pine Beanie", price: 26, category: "Headwear", color: "from-emerald-300 to-emerald-500", rating: 4.6, reviews: 47, colors: ["#059669", "#1c1917"] },
-  { id: "scarf-haze", name: "Haze Scarf", price: 48, compareAt: 60, category: "Accessories", color: "from-fuchsia-200 to-pink-300", badge: "Sale", rating: 4.5, reviews: 33, colors: ["#e879f9", "#f5f5f4"] },
-  { id: "tee-canyon", name: "Canyon Tee", price: 38, category: "Apparel", color: "from-orange-200 to-red-300", rating: 4.7, reviews: 96, colors: ["#f97316", "#1c1917", "#fef3c7"] },
-  { id: "candle-grove", name: "Grove Candle", price: 22, category: "Home", color: "from-amber-100 to-yellow-200", badge: "New", rating: 4.9, reviews: 12, colors: ["#facc15"] },
-];
+/** The price slider's ceiling. At the top it means "no limit". */
+const MAX_PRICE = 200;
 
-// Map a shop product into the shared cart/favorites store shape (price in cents).
-function toStored(p: Product): StoredProduct {
-  return { id: p.id, name: p.name, memberId: "wl-shop", memberName: "WhatsLocal Shop", price: p.price * 100 };
+/** Listed within this many days still reads as new. */
+const NEW_DAYS = 30;
+
+function isNew(p: ShopProduct): boolean {
+  if (!p.createdAt) return false;
+  const t = Date.parse(p.createdAt);
+  return Number.isFinite(t) && Date.now() - t < NEW_DAYS * 86_400_000;
 }
 
-const CATEGORIES: Category[] = ["Apparel", "Headwear", "Accessories", "Home"];
+/** Prices are stored in cents. Everything user-facing is dollars. */
+function dollars(cents: number): number {
+  return cents / 100;
+}
 
-// Quick filters — a horizontal pill row above the grid. Orthogonal to the
-// sidebar (category/price), so they compose with it rather than duplicate it.
-const QUICK_FILTERS: { label: string; test: (p: Product) => boolean }[] = [
+function priceLabel(cents: number): string {
+  const d = dollars(cents);
+  // Free is a real price here — a $0 row means free, not "price missing".
+  if (d === 0) return "Free";
+  return d % 1 === 0 ? `$${d}` : `$${d.toFixed(2)}`;
+}
+
+/**
+ * The cart's id convention, and it is not cosmetic: checkout resolves a basket
+ * by member_id + product NAME (see api/checkout/create-payment-intent). A card
+ * that invented its own id would add something no server could price.
+ */
+function toStored(p: ShopProduct): StoredProduct {
+  return {
+    id: `${p.memberId}__${p.name}`,
+    name: p.name,
+    memberId: p.memberId,
+    memberName: p.memberName,
+    price: p.price,
+  };
+}
+
+/** A stable placeholder for a product with no photo — never a fake photo. */
+const GRADIENTS = [
+  "from-amber-200 to-orange-300",
+  "from-sky-200 to-blue-300",
+  "from-violet-200 to-purple-300",
+  "from-emerald-200 to-teal-300",
+  "from-rose-200 to-pink-300",
+  "from-lime-200 to-emerald-300",
+];
+function gradientFor(seed: string): string {
+  let h = 0;
+  for (const c of seed) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return GRADIENTS[h % GRADIENTS.length];
+}
+
+// Quick filters — a horizontal pill row above the grid. Every one of these
+// answers from a real column. "Bestsellers", "On sale" and "Top rated" are
+// gone with the data that never existed to support them.
+const QUICK_FILTERS: { label: string; test: (p: ShopProduct) => boolean }[] = [
   { label: "All", test: () => true },
-  { label: "New arrivals", test: (p) => p.badge === "New" },
-  { label: "Bestsellers", test: (p) => p.badge === "Bestseller" },
-  { label: "On sale", test: (p) => p.badge === "Sale" || p.compareAt != null },
-  { label: "Under $30", test: (p) => p.price < 30 },
-  { label: "Top rated", test: (p) => p.rating >= 4.8 },
+  { label: "New arrivals", test: isNew },
+  { label: "Under $30", test: (p) => dollars(p.price) < 30 },
 ];
 const SORT_OPTIONS = [
   { value: "featured", label: "Featured" },
   { value: "newest", label: "Newest" },
   { value: "price-asc", label: "Price: Low to High" },
   { value: "price-desc", label: "Price: High to Low" },
-  { value: "top-rated", label: "Top rated" },
 ];
-const SIDEBAR_COLORS = ["#0f172a", "#f5f5f4", "#6366f1", "#10b981", "#f59e0b", "#fb7185", "#06b6d4", "#facc15"];
 
-// ─── Badge component ───────────────────────────────────────────────────────────
+// ─── Product card ─────────────────────────────────────────────────────────────
 
-function BadgePill({ badge }: { badge: Badge }) {
-  const styles: Record<Badge, string> = {
-    Sale: "bg-rose-600 text-white",
-    New: "bg-stone-900 text-white",
-    Bestseller: "bg-amber-400 text-stone-900",
-    "Low stock": "bg-white text-stone-800 ring-1 ring-stone-300",
-  };
-  return (
-    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${styles[badge]}`}>
-      {badge}
-    </span>
-  );
-}
-
-// ─── Product Card (grid) ───────────────────────────────────────────────────────
-
-function ProductCard({
-  product,
-  compared,
-  onToggleCompare,
-}: {
-  product: Product;
-  compared: boolean;
-  onToggleCompare: () => void;
-}) {
+/**
+ * A card is a LINK to the product's own page now. It used to be a div whose
+ * only actions were favourite, compare and quick-add — so a shopper could put
+ * something in a basket but never read what it was.
+ *
+ * The buttons on top of it stay buttons, and stop the click from reaching the
+ * link. Favourite and add-to-cart are things you do to a product without
+ * leaving the grid; that is the whole reason they are on the card.
+ */
+function ProductCard({ product }: { product: ShopProduct }) {
   const { toggleFavorite, isFavorite, addToCart, isInCart } = useStore();
-  const faved = isFavorite(product.id);
-  const inCart = isInCart(product.id);
+  const stored = toStored(product);
+  const faved = isFavorite(stored.id);
+  const inCart = isInCart(stored.id);
+  const fresh = isNew(product);
+
+  const stop = (fn: () => void) => (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    fn();
+  };
 
   return (
-    <article className="group overflow-hidden rounded-2xl border border-stone-200 bg-white transition">
-      {/* Square. The 4:5 portrait crop is a fashion-lookbook shape — it made
-          each card tall enough that two of them filled a phone screen, and a
-          local marketplace is mugs and candles as often as it is apparel. */}
-      <div className={`relative aspect-square bg-gradient-to-br ${product.color}`}>
-        {product.badge && (
+    <Link
+      href={`/products/${product.id}`}
+      className="group block overflow-hidden rounded-2xl border border-stone-200 bg-white transition hover:shadow-[var(--shadow-lift)]"
+    >
+      <div className={`relative aspect-square bg-gradient-to-br ${gradientFor(product.name)}`}>
+        {product.image && (
+          <Image
+            src={product.image}
+            alt={product.name}
+            fill
+            sizes="(min-width:1280px) 260px, (min-width:768px) 33vw, 50vw"
+            className="object-cover"
+          />
+        )}
+        {fresh && (
           <div className="absolute left-3 top-3">
-            <BadgePill badge={product.badge} />
+            <span className="inline-flex items-center rounded-full bg-stone-900 px-2 py-0.5 text-[10px] font-semibold text-white">
+              New
+            </span>
           </div>
         )}
         <button
-          onClick={() => toggleFavorite(toStored(product))}
+          onClick={stop(() => toggleFavorite(stored))}
           className="absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-stone-700 backdrop-blur transition hover:text-rose-600"
-          aria-label="Favorite"
+          aria-label={faved ? "Remove from saved" : "Save"}
         >
           <Heart className={`h-4 w-4 ${faved ? "fill-rose-500 text-rose-500" : ""}`} />
         </button>
         <button
-          onClick={onToggleCompare}
-          className={`absolute right-3 top-12 inline-flex h-8 w-8 items-center justify-center rounded-full backdrop-blur transition ${
-            compared ? "bg-indigo-600 text-white" : "bg-white/90 text-stone-700 hover:text-indigo-600"
-          }`}
-          aria-label="Compare"
-          title="Compare"
-        >
-          <GitCompare className="h-4 w-4" />
-        </button>
-        <button
-          onClick={() => addToCart(toStored(product))}
+          onClick={stop(() => addToCart(stored))}
           className="absolute inset-x-3 bottom-3 translate-y-2 rounded-full bg-stone-900 px-3.5 py-2 text-[13px] font-medium text-white opacity-0 shadow transition group-hover:translate-y-0 group-hover:opacity-100"
         >
           {inCart ? "Added ✓" : "Quick add"}
         </button>
       </div>
       <div className="p-3">
-        <p className="text-[11px] uppercase tracking-wide text-stone-500">{product.category}</p>
+        {/* The vendor, where the category used to be. It is the line that
+            actually helps here: everything in this grid is somebody's, and
+            whose it is decides where it ships from and who you're buying
+            from. */}
+        <p className="truncate text-[11px] uppercase tracking-wide text-stone-500">
+          {product.memberName}
+        </p>
         <div className="mt-1 flex items-baseline justify-between gap-2">
           <h3 className="min-w-0 truncate text-sm font-medium text-stone-900">{product.name}</h3>
-          <div className="flex items-baseline gap-1.5">
-            {product.compareAt && (
-              <span className="text-xs text-stone-400 line-through">${product.compareAt}</span>
-            )}
-            <span className="text-sm font-semibold text-stone-900">${product.price}</span>
-          </div>
-        </div>
-        <div className="mt-2 flex items-center gap-1.5 text-xs text-stone-500">
-          <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-          <span className="font-medium text-stone-700">{product.rating.toFixed(1)}</span>
-          <span>· {product.reviews} reviews</span>
-        </div>
-        <div className="mt-3 flex items-center gap-1.5">
-          {product.colors.map((c) => (
-            <span
-              key={c}
-              className="h-3.5 w-3.5 rounded-full ring-1 ring-stone-200"
-              style={{ backgroundColor: c }}
-            />
-          ))}
+          <span className="shrink-0 text-sm font-semibold text-stone-900">
+            {priceLabel(product.price)}
+          </span>
         </div>
       </div>
-    </article>
+    </Link>
   );
 }
 
@@ -199,26 +217,32 @@ export function Marketplace({
   const [ownSearch, setOwnSearch] = useState("");
   const external = query != null;
   const search = external ? query : ownSearch;
-  const [selectedCategory, setSelectedCategory] = useState<Category | "All">("All");
-  const [maxPrice, setMaxPrice] = useState(100);
+  const [selectedCategory, setSelectedCategory] = useState<string>("All");
+  const [maxPrice, setMaxPrice] = useState(MAX_PRICE);
   const [sort, setSort] = useState("featured");
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [showFilters, setShowFilters] = useState(false); // the filter sidebar
   const [quickFilter, setQuickFilter] = useState("All");
 
-  // Compare — pick up to 4 products, then open a side-by-side panel.
-  const [compare, setCompare] = useState<string[]>([]);
-  const [showCompare, setShowCompare] = useState(false);
-  const toggleCompare = (id: string) =>
-    setCompare((c) => (c.includes(id) ? c.filter((x) => x !== id) : c.length >= 4 ? c : [...c, id]));
-  const compareProducts = products.filter((p) => compare.includes(p.id));
+  const { products, loading } = useShopProducts();
 
-  // Filter + sort
+  // The kinds actually present, in a fixed order. Offering "Digital" as a
+  // filter when nothing digital is listed is a filter that can only ever
+  // return nothing.
+  const categories = ["good", "service", "digital", "ticket"].filter((k) =>
+    products.some((p) => (p.kind || "good") === k),
+  );
+
+  // Filter + sort. Every clause reads a column that exists.
   const filtered = products
     .filter((p) => {
-      if (selectedCategory !== "All" && p.category !== selectedCategory) return false;
-      if (p.price > maxPrice) return false;
-      if (search && !p.name.toLowerCase().includes(search.toLowerCase())) return false;
+      if (selectedCategory !== "All" && (p.kind || "good") !== selectedCategory) return false;
+      // The slider tops out at MAX_PRICE, and at the top it means "no limit"
+      // rather than "nothing dearer than this" — otherwise a $400 item would
+      // be unreachable with the filter untouched.
+      if (maxPrice < MAX_PRICE && dollars(p.price) > maxPrice) return false;
+      if (search && !`${p.name} ${p.memberName}`.toLowerCase().includes(search.toLowerCase()))
+        return false;
       const quick = QUICK_FILTERS.find((q) => q.label === quickFilter);
       if (quick && !quick.test(p)) return false;
       return true;
@@ -226,7 +250,7 @@ export function Marketplace({
     .sort((a, b) => {
       if (sort === "price-asc") return a.price - b.price;
       if (sort === "price-desc") return b.price - a.price;
-      if (sort === "top-rated") return b.rating - a.rating;
+      if (sort === "newest") return (b.createdAt || "").localeCompare(a.createdAt || "");
       return 0;
     });
 
@@ -337,10 +361,42 @@ export function Marketplace({
             than taking a column out of it. */}
         <div>
           <div className="min-w-0">
-            {filtered.length === 0 ? (
-              <div className="flex flex-col items-center justify-center gap-3 py-24 text-stone-400">
+            {loading ? (
+              // Skeletons in the real grid, so the page doesn't jump when the
+              // catalogue lands.
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div key={i} className="animate-pulse overflow-hidden rounded-2xl border border-stone-200 bg-white">
+                    <div className="aspect-square bg-stone-100" />
+                    <div className="space-y-2 p-3">
+                      <div className="h-2.5 w-1/2 rounded bg-stone-100" />
+                      <div className="h-3.5 w-3/4 rounded bg-stone-200" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : filtered.length === 0 ? (
+              // Two different nothings, and saying the wrong one is its own
+              // bug: "no products match your filters" in front of someone who
+              // has set no filters blames them for an empty shop.
+              <div className="flex flex-col items-center justify-center gap-3 py-24 text-center text-stone-400">
                 <ShoppingBag className="h-10 w-10" />
-                <p className="font-medium">No products match your filters</p>
+                {products.length === 0 ? (
+                  <>
+                    <p className="font-medium text-stone-600">No products listed yet</p>
+                    <p className="max-w-xs text-sm">
+                      When local businesses list what they sell, it shows up here.
+                    </p>
+                    <Link
+                      href="/join"
+                      className="mt-1 rounded-full bg-stone-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-stone-800"
+                    >
+                      Sell something local
+                    </Link>
+                  </>
+                ) : (
+                  <p className="font-medium">No products match your filters</p>
+                )}
               </div>
             ) : (
               // Same density as the Shops grid (LocalDirectory) — 2 / 3 / 4.
@@ -349,12 +405,7 @@ export function Marketplace({
               // big the world looked rather than what was in it.
               <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
                 {filtered.map((p) => (
-                  <ProductCard
-                    key={p.id}
-                    product={p}
-                    compared={compare.includes(p.id)}
-                    onToggleCompare={() => toggleCompare(p.id)}
-                  />
+                  <ProductCard key={p.id} product={p} />
                 ))}
               </div>
             )}
@@ -421,53 +472,12 @@ export function Marketplace({
         onClose={() => setShowFilters(false)}
         selectedCategory={selectedCategory}
         onSelectCategory={setSelectedCategory}
+        categories={categories}
         maxPrice={maxPrice}
         onMaxPriceChange={setMaxPrice}
       />
 
-      {/* Compare bar — floats once you pick products */}
-      {compare.length > 0 && !showCompare && (
-        <div className="fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-40 flex justify-center px-4">
-          <div className="flex items-center gap-3 rounded-full border border-stone-200 bg-white px-4 py-2.5 shadow-lg">
-            <GitCompare className="h-4 w-4 text-indigo-600" />
-            <span className="text-sm font-medium text-stone-800">{compare.length} to compare</span>
-            <button
-              onClick={() => setShowCompare(true)}
-              disabled={compare.length < 2}
-              className="rounded-full bg-stone-900 px-3.5 py-1.5 text-[13px] font-semibold text-white transition hover:bg-stone-700 disabled:opacity-40"
-            >
-              Compare
-            </button>
-            <button onClick={() => setCompare([])} className="text-xs text-stone-500 hover:text-stone-800">
-              Clear
-            </button>
-          </div>
-        </div>
-      )}
 
-      {/* Compare modal — side by side */}
-      {showCompare && compareProducts.length > 0 && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4" onClick={() => setShowCompare(false)}>
-          <div
-            className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-t-2xl bg-white sm:rounded-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between border-b border-stone-100 px-4 py-3">
-              <p className="text-sm font-semibold text-stone-900">Compare ({compareProducts.length})</p>
-              <button onClick={() => setShowCompare(false)} className="rounded-full p-1.5 text-stone-400 hover:bg-stone-100">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="overflow-x-auto p-4">
-              <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${compareProducts.length}, minmax(140px, 1fr))` }}>
-                {compareProducts.map((p) => (
-                  <CompareColumn key={p.id} product={p} onRemove={() => toggleCompare(p.id)} />
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -494,13 +504,15 @@ function ProductFilterSidebar({
   onClose,
   selectedCategory,
   onSelectCategory,
+  categories,
   maxPrice,
   onMaxPriceChange,
 }: {
   open: boolean;
   onClose: () => void;
-  selectedCategory: Category | "All";
-  onSelectCategory: (c: Category | "All") => void;
+  selectedCategory: string;
+  onSelectCategory: (c: string) => void;
+  categories: string[];
   maxPrice: number;
   onMaxPriceChange: (n: number) => void;
 }) {
@@ -565,7 +577,7 @@ function ProductFilterSidebar({
           <div>
             <p className="section-label mb-3">Category</p>
             <div className="flex flex-col gap-1">
-              {(["All", ...CATEGORIES] as (Category | "All")[]).map((cat) => (
+              {["All", ...categories].map((cat) => (
                 <button
                   key={cat}
                   onClick={() => onSelectCategory(cat)}
@@ -575,7 +587,7 @@ function ProductFilterSidebar({
                       : "text-stone-600 hover:bg-stone-50 hover:text-stone-900"
                   }`}
                 >
-                  {cat}
+                  {cat === "All" ? "All" : KIND_LABELS[cat] ?? cat}
                 </button>
               ))}
             </div>
@@ -586,45 +598,26 @@ function ProductFilterSidebar({
             <p className="section-label mb-3">Price range</p>
             <div className="mb-2 flex items-center justify-between text-xs text-stone-500">
               <span>$0</span>
-              <span className="font-semibold text-stone-900">${maxPrice}</span>
+              <span className="font-semibold text-stone-900">
+                {maxPrice >= MAX_PRICE ? "Any" : `$${maxPrice}`}
+              </span>
             </div>
             <input
               type="range"
               min={0}
-              max={100}
+              max={MAX_PRICE}
               value={maxPrice}
               onChange={(e) => onMaxPriceChange(Number(e.target.value))}
               className="w-full accent-stone-900"
             />
           </div>
 
-          {/* Availability */}
-          <div>
-            <p className="section-label mb-3">Availability</p>
-            <div className="flex flex-col gap-2">
-              {["In stock", "On sale", "New arrivals"].map((opt) => (
-                <label key={opt} className="flex cursor-pointer items-center gap-2.5 text-sm text-stone-600">
-                  <input type="checkbox" className="rounded border-stone-300 accent-stone-900" />
-                  {opt}
-                </label>
-              ))}
-            </div>
-          </div>
-
-          {/* Color swatches */}
-          <div>
-            <p className="section-label mb-3">Color</p>
-            <div className="flex flex-wrap gap-2">
-              {SIDEBAR_COLORS.map((c) => (
-                <button
-                  key={c}
-                  className="h-7 w-7 rounded-full ring-2 ring-transparent ring-offset-2 transition hover:ring-stone-400"
-                  style={{ background: c }}
-                  aria-label={c}
-                />
-              ))}
-            </div>
-          </div>
+          {/* What used to be here: an "Availability" checkbox group (In stock /
+              On sale / New arrivals) and a row of colour swatches. Neither was
+              wired to anything — no state, no handler — and none of the three
+              things they filtered on exists as data. A control that cannot
+              change what you see is worse than no control: it reads as a
+              filter you have already applied. */}
         </div>
 
         <div
@@ -641,42 +634,5 @@ function ProductFilterSidebar({
       </aside>
     </>,
     document.body,
-  );
-}
-
-// ─── Compare column ────────────────────────────────────────────────────────────
-
-// One column of the compare panel.
-function CompareColumn({ product, onRemove }: { product: Product; onRemove: () => void }) {
-  const { addToCart, isInCart } = useStore();
-  const rows: [string, React.ReactNode][] = [
-    ["Price", <span key="p" className="font-semibold">${product.price}{product.compareAt ? <span className="ml-1 text-xs text-stone-400 line-through">${product.compareAt}</span> : null}</span>],
-    ["Category", product.category],
-    ["Rating", `${product.rating.toFixed(1)} (${product.reviews})`],
-    ["Colors", <span key="c" className="flex gap-1">{product.colors.map((c) => <span key={c} className="h-3.5 w-3.5 rounded-full ring-1 ring-stone-200" style={{ background: c }} />)}</span>],
-  ];
-  return (
-    <div className="min-w-0">
-      <div className={`relative aspect-square rounded-xl bg-gradient-to-br ${product.color}`}>
-        <button onClick={onRemove} className="absolute right-1.5 top-1.5 inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/90 text-stone-600" aria-label="Remove">
-          <X className="h-3.5 w-3.5" />
-        </button>
-      </div>
-      <p className="mt-2 truncate text-sm font-semibold text-stone-900">{product.name}</p>
-      <dl className="mt-2 space-y-1.5 text-[13px]">
-        {rows.map(([label, val]) => (
-          <div key={label}>
-            <dt className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">{label}</dt>
-            <dd className="text-stone-700">{val}</dd>
-          </div>
-        ))}
-      </dl>
-      <button
-        onClick={() => addToCart(toStored(product))}
-        className="mt-3 w-full rounded-lg bg-stone-900 px-3 py-1.5 text-[13px] font-semibold text-white transition hover:bg-stone-700"
-      >
-        {isInCart(product.id) ? "Added ✓" : "Add to cart"}
-      </button>
-    </div>
   );
 }

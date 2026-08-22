@@ -7,6 +7,7 @@ import type { Member } from "@/lib/types";
 import type { LiveBroadcast } from "@/components/live/types";
 import type { FeedEvent } from "@/app/api/events/feed/route";
 import type { Post } from "@/lib/posts";
+import type { ShopProduct } from "@/app/api/products/route";
 import type { Activity } from "@/lib/unread";
 import type { CollaborationSummary } from "@/lib/collab-network";
 import { fetchLiveBroadcasts } from "@/lib/demo-live-fixtures";
@@ -70,6 +71,12 @@ export function useBroadcasts() {
 export function useEventsFeed() {
   const { data, isLoading } = useSWR<{ events?: FeedEvent[] }>("/api/events/feed");
   return { events: data?.events ?? NONE, loading: isLoading && !data };
+}
+
+/** Every live product on the marketplace. Shared by /shop and the home tab. */
+export function useShopProducts() {
+  const { data, isLoading } = useSWR<{ products?: ShopProduct[] }>("/api/products");
+  return { products: data?.products ?? NO_PRODUCTS, loading: isLoading && !data };
 }
 
 /** Community share posts (from the share composer / posts table). */
@@ -237,6 +244,7 @@ export function useSavedMembers() {
 }
 
 // Stable identity so consumers' useMemo deps don't churn on every render.
+const NO_PRODUCTS: ShopProduct[] = [];
 const NONE: never[] = [];
 const EMPTY: Activity[] = [];
 const EMPTY_COLLABS: CollaborationSummary[] = [];
