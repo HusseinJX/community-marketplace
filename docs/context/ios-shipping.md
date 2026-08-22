@@ -9,6 +9,27 @@ Split out of CLAUDE.md. The condensed version lives there; this is the authorita
 
 **Requires a new Xcode build + App Review** (anything compiled into the IPA): **splash screen** (`ios/App/App/Assets.xcassets` + `Splash.storyboard`) and **app icon**; app name / version / build number; **`capacitor.config.ts` itself** — it's compiled to `capacitor.config.json` inside the bundle, so `allowNavigation`, `presentationOptions`, `contentInset`, `backgroundColor`, and even changing `server.url` all need a rebuild; Capacitor plugins (NFC, camera barcode, Google auth, push, StoreKit IAP); `Info.plist` permission strings; `App.entitlements`; the offline fallback page in `www/`.
 
+**⏳ WAITING ON A NEW BUILD — iPad (patched 2026-08-22, NOT shipped).** The app renders on
+an iPad as a phone-sized window in the middle of the screen. That is not a CSS problem and
+no web deploy can fix it: `ios/App/App.xcodeproj/project.pbxproj` had
+`TARGETED_DEVICE_FAMILY = 1` (iPhone only) in **both** Debug and Release, so iPadOS runs it
+in iPhone compatibility mode and never tells the site the screen is 1024pt wide. Patched on
+disk to `"1,2"` (Universal) in `~/Desktop/dev/whatslocal-ios` — **uncommitted, because that
+directory is not a git repo.** What still has to happen:
+
+- a new Xcode build + App Review (it is compiled into the IPA),
+- **iPad screenshots in App Store Connect become mandatory** — 13" display; a binary
+  declaring iPad support will not pass submission without them,
+- open it in the iPad simulator at half-width first: `UIRequiresFullScreen` is not set, so
+  Split View will resize the webview and review will try it.
+
+Already in place, so nothing else needs touching: `LaunchScreen.storyboard` exists (without
+one iOS letterboxes even a universal app) and `UISupportedInterfaceOrientations~ipad`
+already declares all four orientations. The site itself was checked at 1024×1366 and
+1366×1024 — desktop layout, no horizontal scroll, bottom nav correctly giving way to the
+top nav. `UIRequiredDeviceCapabilities = ["armv7"]` is legacy Capacitor-template noise;
+left alone deliberately so the build changes one thing.
+
 **THE RULES — a web deploy is still bound by App Store guidelines. Breaking one of these gets the app PULLED, not merely rejected, because it never passed review:**
 1. **NEVER render a Stripe subscription checkout when `isNativeApp()`.** Apple 3.1.1 forbids selling digital subscriptions outside IAP. **This is no longer a "hide the paywall" rule — iOS SELLS subscriptions, via StoreKit IAP (live since 2026-07-29; a real Apple-sourced `subscriptions` row exists in prod).** What the rule means now:
    - **The purchase happens on `/vendor/billing` only**, through `BillingPlans` → `lib/native-iap.ts` → the native `Iap` plugin. Web keeps Stripe. Both write the same `subscriptions` table, so `getEntitlements()` has one source of truth.

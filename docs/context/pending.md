@@ -37,6 +37,15 @@ Deploy-blocked follow-ups, in order:
 3. **`JOINDEMO_PASSWORD` fails closed in production** (no default, by design). Confirm it is set
    on CapRover or `/joindemo` can never be unlocked for anyone you send the link to.
 
+### ⏳ Needs a NEW iOS BUILD (not a web deploy) — set 2026-08-22
+
+- **iPad shows a phone-sized window.** `TARGETED_DEVICE_FAMILY` was `1` (iPhone only), so
+  iPadOS runs the app in compatibility mode. Patched to `"1,2"` on disk in
+  `~/Desktop/dev/whatslocal-ios` (that directory has **no git repo**, so the change is
+  unversioned — `git init` it or copy the diff before touching anything else there).
+  Ship with the next Xcode build; iPad screenshots become mandatory in App Store Connect
+  at that point. Full note in `docs/context/ios-shipping.md`.
+
 ### Outstanding TASKS (2026-08-22 additions)
 - **AI product suggestions from Google Maps photos — NOT BUILT, needs a decision.** Asked for,
   then narrowed to "add products with AI", which shipped (photograph a menu → `/api/ai/extract`).
