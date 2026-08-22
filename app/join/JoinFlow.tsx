@@ -1054,7 +1054,16 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500">
             <Check className="h-6 w-6 text-white" />
           </div>
-          <h1 className="text-xl font-bold text-stone-900">You&apos;re verified · live on WhatsLocal</h1>
+          {/* Only an entity that answered the code on its own Google listing has
+              VERIFIED anything. An artist never had a listing, and a remote
+              business chose not to have one — both are self-owned claims, and
+              telling them they are "verified" describes a check that did not
+              happen, on the one screen they will remember. */}
+          <h1 className="text-xl font-bold text-stone-900">
+            {isArtist || remote
+              ? "You're live on WhatsLocal"
+              : "You're verified · live on WhatsLocal"}
+          </h1>
           <p className="text-sm text-stone-500">{bizName} is set up. Pick how you want to participate — start free, upgrade anytime.</p>
 
           {/* TWO plans here, not three. The $10 Organizer tier is hidden from
@@ -1071,12 +1080,18 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
               StoreKit, which they do on /vendor/billing via IAP). That branch is
               load-bearing; do not collapse it to save a few lines. */}
           <div className="space-y-2 pt-2 text-left">
-            {/* Must match lib/entitlements.ts (FREE_CAN / PRO_CAN). */}
+            {/* Must match lib/entitlements.ts (FREE_CAN / PRO_CAN), and for a
+                week it did not: this screen still sold Pro as "sell online"
+                after commerce moved into FREE_CAN on 2026-08-14. Every vendor
+                finishing onboarding was told selling costs $30/mo — the exact
+                wall that change removed, put back in the one place where
+                someone decides whether to bother. Free sells and we take 5%;
+                Pro is the agent and analytics. */}
             <button
               onClick={() => setStep("setup")}
               className="block w-full rounded-xl border border-stone-200 p-4 text-left transition hover:bg-stone-50"
             >
-              <b className="text-stone-900">Free</b> — your page, posts + event invites
+              <b className="text-stone-900">Free</b> — your page, posts, and selling (we take 5%)
               {!native && <span className="float-right text-stone-500">$0</span>}
             </button>
             {/* Pro goes STRAIGHT to the payment screen. It used to be an <a> to
@@ -1089,7 +1104,7 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
               onClick={() => router.push("/vendor/billing")}
               className="block w-full rounded-xl border-2 border-coral-500 p-4 text-left transition hover:bg-coral-50"
             >
-              <b className="text-stone-900">Pro</b> — AI agent + sell online
+              <b className="text-stone-900">Pro</b> — AI agent (text + voice) + analytics
               {!native && <span className="float-right text-stone-500">$30/mo</span>}
             </button>
           </div>
