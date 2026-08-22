@@ -8,7 +8,7 @@
 
 import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
-import { deleteOwnPost } from '@/lib/posts'
+import { deleteOwnPost, invalidatePosts } from '@/lib/posts'
 import { deleteVideosSafe } from '@/lib/youtube'
 import { isAdmin } from '@/lib/admin'
 import { rateLimit } from '@/lib/rate-limit'
@@ -40,6 +40,8 @@ export async function DELETE(
     // than fire-and-forget because the caller deserves to know whether the
     // video actually went with it.
     const videosDeleted = await deleteVideosSafe(videoUrls)
+    // A deleted post must not linger in the cached feed.
+    invalidatePosts()
     return NextResponse.json({ deleted: true, videosDeleted })
   } catch (err) {
     return NextResponse.json(

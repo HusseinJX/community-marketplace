@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
-import { createPost, getPosts, getPostsByMemberId, getPostsByEventId, getReactionsForPosts } from '@/lib/posts'
+import { createPost, getPosts, getPostsByMemberId, getPostsByEventId, getReactionsForPosts, invalidatePosts } from '@/lib/posts'
 import { isDemoMode } from '@/lib/demo-admin'
 import { rateLimit } from '@/lib/rate-limit'
 import { screen } from '@/lib/ai-moderation'
@@ -126,6 +126,10 @@ export async function POST(request: Request) {
       moderation_status: verdict.action === 'review' ? 'pending' : 'allowed',
     })
     if (heldEventId) void attachModerationContentId(heldEventId, post.id)
+    // The feed reads through a tagged cache — without this the author lands
+    // back on a feed their own post is missing from, which reads as the post
+    // having failed.
+    invalidatePosts()
     // `pending` tells the composer to say "we're checking this" instead of
     // dropping the author into a feed their own post is missing from.
     return NextResponse.json({ post, pending: verdict.action === 'review' })

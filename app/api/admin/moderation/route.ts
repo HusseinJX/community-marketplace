@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { invalidatePosts } from '@/lib/posts'
 import { auth } from '@clerk/nextjs/server'
 import { isAdmin } from '@/lib/admin'
 import {
@@ -68,9 +69,14 @@ export async function POST(req: Request) {
       const { purged, videoUrls } = await purgePost(b.postId)
       if (!purged) return NextResponse.json({ error: 'not_found' }, { status: 404 })
       const videosDeleted = await deleteVideosSafe(videoUrls)
+      invalidatePosts()
       return NextResponse.json({ ok: true, videosDeleted, videosFound: videoUrls.length })
     }
     else return NextResponse.json({ error: 'bad_request' }, { status: 400 })
+    // Every branch above (clear, uphold, remove, restore, ban) changes what
+    // the cached feed shows. A post taken down for abuse must not linger in
+    // it for another minute, so the tag is cleared before answering.
+    invalidatePosts()
     return NextResponse.json({ ok: true })
   } catch {
     return NextResponse.json({ error: 'failed' }, { status: 500 })

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { invalidatePosts } from '@/lib/posts'
 import { auth } from '@clerk/nextjs/server'
 import { rateLimit } from '@/lib/rate-limit'
 import { reportPost } from '@/lib/moderation'
@@ -23,6 +24,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       reason,
       note: (b.note ?? '').toString().slice(0, 500) || null,
     })
+    // A report can cross the auto-remove threshold inside reportPost.
+    invalidatePosts()
     return NextResponse.json({ ok: true })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to report'
