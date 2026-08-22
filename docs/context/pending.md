@@ -62,9 +62,17 @@ Deploy-blocked follow-ups, in order:
   named place with a locality after it, ZIP stripped first. It will wrongly refuse some real
   collection points — those vendors have the pickup-note field beside the address, which is the
   intended escape, but if refusals show up in support this is the place to look.
-- **Bookings lost its slot on the onboarding "three ways" screen** (replaced by self delivery, as
-  asked). Request-to-book still exists and still works; nothing surfaces it during onboarding
-  any more.
+- ✅ **Bookings is back on the onboarding screen** (2026-08-22), first of four: bookings, pickup,
+  self delivery, digital. Retitled "Four ways to sell here" — only three of them are a handover,
+  so naming them by what you sell rather than how it travels keeps bookings from reading as the
+  odd one out.
+- **Printify is BUILT but nothing is connected** (2026-08-22 recheck). `vendor_secrets` has ZERO
+  rows and all four XENO tees are `source: 'manual'` with null `printify_product_id` — so
+  dropshipping is not "unavailable", it is simply unconnected. Connecting a token in
+  Integrations → Print on demand and running `syncPrintifyCatalog` links products, after which a
+  POD basket routes itself: `printifyLinesFor` marks it `shippingOnly`, pickup and vendor
+  delivery disappear, postage is quoted before payment, and the paid order is pushed to Printify.
+  That whole path has still never touched the live API — the first connect IS the test.
 
 ### Outstanding TASKS
 - ✅ **Request-to-book AND Square Appointments are BUILT (2026-08-10)** — see Bookings below. ⚠️ **Square's live API calls are UNVERIFIED** (no account connected), but `square_env` supports Square's **sandbox**, so this one CAN be verified without risking a real business: `npx tsx scripts/square-smoke.mts <sandbox-token>` exercises locations, services and availability for real. Do that before any vendor connects.

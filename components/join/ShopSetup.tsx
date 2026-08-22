@@ -9,6 +9,7 @@ import {
   Boxes,
   Landmark,
   ShoppingBag,
+  CalendarCheck,
   Download,
   Truck,
   ExternalLink,
@@ -299,13 +300,21 @@ export function ShopSetup({
   // the first: told up front it is a features list nobody has any use for yet;
   // told here it is a list of things you can now go and do.
   return (
+    // Four, and only three of them are a handover — bookings is time, not a
+    // parcel. Named for what you sell rather than how it travels, so the odd
+    // one out isn't odd.
     <SetupScreen
       icon={PartyPopper}
-      title="Three ways to get it to them"
+      title="Four ways to sell here"
       sub="All from the same page. Turn any of them on whenever you like — nothing here is decided now."
     >
       <div className="space-y-3">
         {[
+          {
+            icon: CalendarCheck,
+            title: "Bookings",
+            body: "A cut, a class, a table, a session. They ask for a time and you confirm it — or offer a different one. No calendar to keep in step.",
+          },
           {
             icon: ShoppingBag,
             title: "Pickup",
