@@ -27,9 +27,10 @@ CapRover stores no git hash — the version number is meaningless without this t
 
 | CapRover version | Deployed | Git commit | Tag |
 |---|---|---|---|
-| **v131** | 2026-08-13 22:00 UTC | `1aa1452` | `prod-v131` |
+| **v132** (live) | 2026-08-22 21:26 UTC | `3798f58` | `prod-v132` |
+| v131 | 2026-08-13 22:00 UTC | `1aa1452` | `prod-v131` |
 
-**To go back to v131:**
+**To go back one deploy (v132 → v131):**
 
 - **Fast** — CapRover dashboard → `marketplace` → Deployment → pick v131 → revert. The
   image is already on the droplet; no build, no upload.
