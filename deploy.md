@@ -19,6 +19,32 @@ Production runs as a **CapRover** app on a DigitalOcean droplet.
 
 ---
 
+## Rollback — what was live before this deploy
+
+Every deploy adds a CapRover **version**; the droplet keeps the last **50**, so going back
+is a click, not a rebuild. Record the version + the commit here EVERY time, because
+CapRover stores no git hash — the version number is meaningless without this table.
+
+| CapRover version | Deployed | Git commit | Tag |
+|---|---|---|---|
+| **v131** | 2026-08-13 22:00 UTC | `1aa1452` | `prod-v131` |
+
+**To go back to v131:**
+
+- **Fast** — CapRover dashboard → `marketplace` → Deployment → pick v131 → revert. The
+  image is already on the droplet; no build, no upload.
+- **Slow** (if the image is gone) — `git checkout prod-v131 && npm run build`, then the
+  normal package + upload below.
+
+**⚠️ A rollback does not undo the database.** Migrations applied on 2026-08-22 —
+`20260822170000` pickup_arrangement, `20260822190000` pickup_verified, `20260822210000`
+product_images, `20260822220000` support_chat — are all additive (new columns and tables),
+so v131 runs fine against them. Two data changes also survive a rollback: 153 of Xeno's
+Printify product rows were set `active = false` (the non-xen0 designs), and any profile
+photos edited through the new editor.
+
+---
+
 ## TL;DR — routine deploy
 
 ```bash
