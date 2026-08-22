@@ -408,6 +408,22 @@ body[data-chat-open="true"] [data-vendor-nav] {
    (#fb-overlay) stays visible. */
 #fb-btn { display: none !important; }
 
+/* And hide its "Your name (optional)" field.
+   The modal only opens for a signed-in person now (see FeedbackLink), and the
+   widget's own payload already reads `identity.author` — the Clerk name we
+   hand it via identify() — whenever the field is left empty. So the input asks
+   a question we have already answered, and the only thing a reader can do with
+   it is contradict their own account.
+
+   Done in CSS because the markup belongs to a script served from another
+   deployment (~/Desktop/dev/feedbase). The field is still in the DOM and the
+   widget still reads it; it reads empty, which is exactly the fallback path.
+   The :has() rule takes the wrapper so no empty row is left behind — where it
+   isn't supported, the label and input still go and only a small gap remains. */
+#fb-modal label[for="fb-author"],
+#fb-modal #fb-author { display: none !important; }
+#fb-modal form > div:has(> #fb-author) { display: none !important; }
+
 /* Native app feel (Capacitor iOS WKWebView): kill the long-press callout menu
    (Open Link / Copy / Share) and the gray tap-highlight flash on interactive
    elements + images. Text content (paragraphs, articles) stays selectable;
