@@ -2,6 +2,41 @@
 
 All notable changes to this project are documented here.
 
+## [Unreleased] — storefront, onboarding, images (branch `design/airbnb-system`, 2026-08-22)
+
+> **NOT DEPLOYED.** 32 commits (`1aa1452..f102d12`). Prod still runs ~`1aa1452`.
+
+### Fixed
+- **Production served every image unoptimized.** `sharp` could not load in the container —
+  the Dockerfile copied `sharp/` and `@img/` but not `semver`, which it requires at load
+  time — and Next falls back to the source image when optimization fails, silently. 4.78MB
+  of event posters where 468KB would do. Fixed, with a build-time assertion so it cannot
+  regress silently again.
+- The join flow's last screen sold "Pro — AI agent + sell online, $30/mo" for a week after
+  commerce moved into the free tier, and told self-owned members they were "verified".
+- The nav named one city while the banner named another; `nearestCity` had no upper bound,
+  so from Tokyo the header read "San Francisco".
+- Product cards matched the shops grid; the search/tab-switcher gap was restored on desktop.
+
+### Changed
+- **The shop is the products table.** The storefront was 12 hardcoded demo products with
+  invented review counts. Products now have their own pages (`/products/[id]`). Every card
+  field with no column behind it was removed rather than faked, along with the compare panel
+  and two filter controls that were never wired to anything.
+- The "trust strip" promising free shipping and 30-day returns is gone — fulfilment and
+  returns belong to each vendor.
+- **Onboarding**: links → products → payments → interview → three ways to sell → done, with
+  a real per-step Back button and the interview seeded with what the vendor just listed.
+- The collapsing home header is scroll-linked rather than a threshold firing an animation.
+
+### Added
+- **A business can onboard with no fixed address** (not on Google Maps → self-owned claim),
+  and its posts tag where the person actually is.
+- **Pickup requires a stated arrangement** — an address you could turn up to, or a new
+  `vendor_settings.pickup_note`. Enforced server-side in `create-payment-intent`.
+- Catalogue from a photo during onboarding (`/api/ai/extract`), plus manual entry.
+- `/api/products`, `/api/posts` tag-based caching, and a dev-only location simulator.
+
 ## [Unreleased] — commerce, live, social shell (branch `feat/collab-rooms`)
 
 > **Deployed to CapRover prod 2026-08-04** (two deploys): the event-feed/tab work, the

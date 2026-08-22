@@ -21,6 +21,51 @@ Ordered by risk. Everything below is correct in code and against the database; t
 5. **The vendor-facing Delivery and Printify cards have not been seen rendered** (same auth reason). Buyer-side checkout WAS driven in a browser for pickup, self-delivery, service and digital baskets.
 6. **Uber Direct**: still blocked on account activation at Uber's end; re-run the quote probe before pushing `UBER_DIRECT_*` to prod.
 
+### ⛔ NOT DEPLOYED — everything from 2026-08-22 (set 2026-08-22)
+**32 commits (`1aa1452..f102d12`) are committed and NOT deployed.** Prod is still running
+~`1aa1452`, which means prod still has: the broken image optimizer, the 12 demo products in
+the shop, the "Pro — sell online $30/mo" plan card, and pickup offered with no arrangement.
+The single highest-value item in this file is now **deploy**, and the demo gate is mandatory:
+`npm run build` → `PORT=3100 npx next start` → `curl -sI :3100/vendor` **must** be 307.
+
+Deploy-blocked follow-ups, in order:
+1. **The sharp fix only takes effect on deploy.** Until then every image on prod ships at full
+   source resolution. Verify after deploying: `curl -sI 'https://whatslocal.ai/_next/image?url=%2Flogo.png&w=256&q=75'` must return `content-type: image/avif`, not `image/png`.
+2. **Xeno cannot currently be bought from.** Its four tees are the entire storefront, and it has
+   no pickup arrangement and no delivery — so checkout correctly refuses. Add a pickup note in
+   Integrations → Delivery (or turn on self-delivery) before testing a real card.
+3. **`JOINDEMO_PASSWORD` fails closed in production** (no default, by design). Confirm it is set
+   on CapRover or `/joindemo` can never be unlocked for anyone you send the link to.
+
+### Outstanding TASKS (2026-08-22 additions)
+- **AI product suggestions from Google Maps photos — NOT BUILT, needs a decision.** Asked for,
+  then narrowed to "add products with AI", which shipped (photograph a menu → `/api/ai/extract`).
+  The Maps half was left out deliberately: **nothing in this app fetches Places photos** —
+  `lib/places.ts` has no photo code, and the images already on a member profile come from the
+  connector's own bucket (`zahabbucket.nyc3.digitaloceanspaces.com`), not Google. Doing it for
+  real means new billable Places Photo calls AND repurposing Google-licensed photos into stored,
+  model-derived product images, which their terms do not obviously allow. Use the connector's
+  own photos instead, or decide the Google path deliberately.
+- **`/joindemo` cannot show the one failure that matters.** In the real flow, a listing with no
+  verifiable phone bounces back to the search with "This listing has no phone we can verify" —
+  the most common real dead end. The demo marches straight to the code screen. A few lines to
+  detect it and show the real error; worth doing before showing the demo to anyone.
+- **`deviceSizes` caps at 1280**, so a full-width hero on a 2x desktop display (wants ~2560px)
+  tops out and may look soft now that the optimizer actually resizes. Adding 1536/1920 costs
+  bytes and decode memory — weigh against the iOS OOM history before changing it.
+- **`/api/events/feed` is 122KB of JSON**, much of it event descriptions the cards never render.
+  Trimming the payload is the next real win on home after the hydration waterfall.
+- **Home is `force-dynamic` + client-only**, so the sequence is HTML → JS → hydrate → fetch →
+  render → images. Server-rendering the first payload into SWR `fallbackData` collapses roughly
+  a second of dead time before the first image byte is requested.
+- **The shop's `isCollectable()` is a heuristic** (`lib/fulfillment.ts`): a street number, or a
+  named place with a locality after it, ZIP stripped first. It will wrongly refuse some real
+  collection points — those vendors have the pickup-note field beside the address, which is the
+  intended escape, but if refusals show up in support this is the place to look.
+- **Bookings lost its slot on the onboarding "three ways" screen** (replaced by self delivery, as
+  asked). Request-to-book still exists and still works; nothing surfaces it during onboarding
+  any more.
+
 ### Outstanding TASKS
 - ✅ **Request-to-book AND Square Appointments are BUILT (2026-08-10)** — see Bookings below. ⚠️ **Square's live API calls are UNVERIFIED** (no account connected), but `square_env` supports Square's **sandbox**, so this one CAN be verified without risking a real business: `npx tsx scripts/square-smoke.mts <sandbox-token>` exercises locations, services and availability for real. Do that before any vendor connects.
 - **Digital**: re-enabled and live. **Printify**: live but unverified (above).
