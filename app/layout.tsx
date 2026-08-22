@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { ClerkAuthProvider } from "@/components/auth/ClerkAuthProvider";
 import { AppHeader } from "@/components/AppHeader";
 import { BottomNav } from "@/components/BottomNav";
+import { DevLocationToggle } from "@/components/dev/DevLocationToggle";
 import { AppBanner } from "@/components/AppBanner";
 import { SiteFooter } from "@/components/SiteFooter";
 import { StoreProvider } from "@/lib/store";
@@ -98,6 +99,8 @@ export default function RootLayout({
               aria-hidden
             />
             <BottomNav />
+            {/* Renders nothing in a production build. */}
+            <DevLocationToggle />
             <FeedbackWidget />
             <PushInit />
             <DemoExitWatcher />

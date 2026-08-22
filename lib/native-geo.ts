@@ -4,6 +4,8 @@
 // `window.Capacitor`. On the web (no native shell) this reports unavailable and
 // the caller falls back to `navigator.geolocation`.
 
+import { devLocation } from "@/lib/dev-location";
+
 interface GeoPosition {
   coords: { latitude: number; longitude: number };
 }
@@ -65,6 +67,12 @@ export async function getNativePosition(opts: PositionOptions = {}): Promise<[nu
 // geolocation on the web. Rejects on denial/unavailable so callers can fall
 // back silently. Coarse + cached by default — see the note above.
 export async function getUserPosition(opts: PositionOptions = {}): Promise<[number, number]> {
+  // Pretending to be elsewhere (dev only, compiled out of a production build).
+  // It sits at the very top so that EVERY consumer of a position is behind the
+  // same lie — including the native path, which is otherwise the one that
+  // would keep quietly answering with the real device fix.
+  const pretend = devLocation();
+  if (pretend) return [pretend.lat, pretend.lng];
   if (nativeGeoAvailable()) return getNativePosition(opts);
   return new Promise((resolve, reject) => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {

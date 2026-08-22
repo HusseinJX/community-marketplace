@@ -128,6 +128,12 @@ The load-bearing subset. Full list in `docs/context/conventions.md`.
 ```bash
 npm run dev
 ```
+**Everything here sorts by distance, and you are always in San Francisco.** The dev-only
+pill at the bottom-left (`components/dev/DevLocationToggle.tsx`) replaces the device fix
+everywhere at once — distance sort, event ranking, map pin, post location tag — so the
+out-of-area view an out-of-town visitor gets is actually reachable. It overrides
+`getUserPosition`, NOT the city header: a city override simulates a San Franciscan
+browsing Oakland, this simulates an Oaklander. Compiled out of a production build.
 **Never run two `next dev` servers from this repo at once** — they share `.next` and corrupt the Turbopack cache (intermittent 500s). Fix: kill all + `rm -rf .next` + one server.
 
 ## Deploying (marketplace → CapRover)

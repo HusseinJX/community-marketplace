@@ -97,6 +97,22 @@ export function readStoredPosition(): Position | null {
   }
 }
 
+/**
+ * Throw away the cached fix so the next read asks again.
+ *
+ * Exists for the dev location toggle: the cache is what makes a simulated
+ * location look like it didn't work — the override changes what
+ * `getUserPosition` returns, but home never calls it, because it already has
+ * yesterday's real fix sitting in localStorage.
+ */
+export function clearStoredPosition(): void {
+  try {
+    window.localStorage.removeItem(KEY);
+  } catch {
+    /* private mode */
+  }
+}
+
 export function storePosition(pos: Position): void {
   try {
     const r = (n: number) => Math.round(n * 1000) / 1000;
