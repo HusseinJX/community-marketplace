@@ -195,6 +195,10 @@ export default function AboutPage() {
             width={1122}
             height={1402}
             className="h-auto w-full"
+            // The page is max-w-3xl with padding, so it never renders wider
+            // than ~720px. Without this the browser assumes the full viewport
+            // and fetches a candidate twice the size it will draw.
+            sizes="(min-width:768px) 720px, 100vw"
             priority
           />
         </div>
