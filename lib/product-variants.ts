@@ -23,6 +23,8 @@ export interface VariantRow {
   name: string
   price: number
   image: string | null
+  /** Every mockup of THIS variant, cover first. Empty for a single-photo product. */
+  images?: string[]
   printifyProductId?: string | null
 }
 

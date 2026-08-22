@@ -1,11 +1,15 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowLeft, Heart, ShoppingBag } from 'lucide-react'
+import { Heart } from 'lucide-react'
 import { useStore } from '@/lib/store'
+import { ProductLink, ProductThumb } from '@/components/shop/ProductThumbLink'
 
 export default function FavoritesPage() {
-  const { favorites, toggleFavorite, addToCart, removeFromCart, isInCart } = useStore()
+  // No add-to-cart here. A saved list is a list of things you meant to look at
+  // again, and looking again is what the product page is for — with the size,
+  // the colour and the description that a one-line row can't carry.
+  const { favorites, toggleFavorite } = useStore()
 
   return (
     <div className="mx-auto max-w-3xl px-4 pb-24 pt-8 md:px-8">
@@ -33,12 +37,15 @@ export default function FavoritesPage() {
         </div>
       ) : (
         <div className="mt-6 space-y-3">
-          {favorites.map((product) => {
-            const inC = isInCart(product.id)
-            return (
-              <div key={product.id} className="card-soft flex items-start justify-between gap-4 p-4">
+          {favorites.map((product) => (
+            <div key={product.id} className="card-soft flex items-start justify-between gap-4 p-4">
+              {/* The picture first, then the name, both the same link back. */}
+              <div className="flex min-w-0 items-start gap-3">
+                <ProductThumb product={product} />
                 <div className="min-w-0">
-                  <div className="font-medium text-stone-900">{product.name}</div>
+                  <ProductLink product={product} className="font-medium text-stone-900 hover:underline">
+                    {product.name}
+                  </ProductLink>
                   <div className="mt-1 text-sm text-stone-500">
                     by{' '}
                     <Link
@@ -54,29 +61,16 @@ export default function FavoritesPage() {
                     </div>
                   )}
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    onClick={() => inC ? removeFromCart(product.id) : addToCart(product)}
-                    className={
-                      'rounded-full px-3.5 py-1.5 text-xs font-medium transition ' +
-                      (inC
-                        ? 'bg-indigo-600 text-white'
-                        : 'border border-stone-200 bg-white text-stone-700 hover:border-indigo-300 hover:text-indigo-700')
-                    }
-                  >
-                    {inC ? 'In cart' : '+ Cart'}
-                  </button>
-                  <button
-                    onClick={() => toggleFavorite(product)}
-                    aria-label="Remove from favorites"
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-full text-rose-500 transition hover:bg-rose-50"
-                  >
-                    <Heart className="h-4 w-4 fill-rose-500" />
-                  </button>
-                </div>
               </div>
-            )
-          })}
+              <button
+                onClick={() => toggleFavorite(product)}
+                aria-label="Remove from favorites"
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-rose-500 transition hover:bg-rose-50"
+              >
+                <Heart className="h-4 w-4 fill-rose-500" />
+              </button>
+            </div>
+          ))}
         </div>
       )}
     </div>

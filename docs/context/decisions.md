@@ -2,6 +2,42 @@
 
 Split out of CLAUDE.md (2026-08-13). Newest first, as it was written.
 
+## 2026-08-22 — the picture is part of the price
+
+**A variant's photograph belongs to the variant, not the product.** Printify returns
+3–35 mockups per product, each tagged with the `variant_ids` it depicts; the importer
+kept one — the product default — for every row. So the colour chips changed the price
+and left the wrong hat on screen. On a print-on-demand catalogue "Black / L" and
+"Navy / L" are different photographs, and a picker that doesn't change the picture is
+the storefront agreeing to sell you something other than what you are looking at. Rows
+now carry `products.image_urls` (their own variant's mockups, default first, capped at
+8, falling back to the product's whole gallery for untagged items like a mug), and the
+gallery, the chips and Add-to-cart share ONE selection (`components/shop/ProductBuy.tsx`).
+The page stays a server component: the prose passes through as `children`.
+
+**No quick add anywhere.** It was already gone from the shop card ("the card links, the
+page sells"); it survived on the member profile, `/favorites` and the feed's vendor post
+card. Same argument in all three: buying from a list means buying without the
+description and, on anything with sizes, without the choice that decides what arrives.
+Consequence worth stating — the feed card can't link to a product page at all, because
+a feed item carries a name and a price but no `products` row, so it links to the seller.
+
+**A basket line is a picture then a name, and both are the link back.** `StoredProduct`
+grew `image` and `productId` when product pages shipped; nothing filled them. Now the
+CHOSEN variant's photo and row id go into the basket, so the cart shows the navy one.
+Both fields stay OPTIONAL and both surfaces degrade to plain text — a cart saved before
+this exists, and a line that isn't a link beats one that 404s.
+
+**Vendor rows link only when live.** `/products/[id]` reads `active` rows only, so
+linking a draft would hand a vendor a 404 for something that plainly exists.
+
+**Hiding a Printify product is OUR decision, not Printify's.** All 26 of xen0's products
+come back `visible: true` — the hide list lives in that site's own `store-config.json`,
+which we can't read at runtime. So the 18 non-xen0 designs were deactivated here using
+the mechanism that already exists (`active = false`), which puts them in the vendor
+portal's drafts rather than deleting them. A re-sync can't un-hide them: updates never
+touch `active`. A NEW Printify product still lands as a draft and needs approving.
+
 ## 2026-08-22 — a business without an address, and where its posts happen
 
 **"We're not on Google Maps" is a checkbox under the LISTING SEARCH in `/join`.**

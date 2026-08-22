@@ -4,10 +4,8 @@ import Link from "next/link";
 import type { VendorPostFeedItem } from "@/lib/demo-feed";
 import { authorColor, initials } from "@/lib/demo-feed";
 import { ImageCarousel } from "@/components/ImageCarousel";
-import { useStore } from "@/lib/store";
 
 export function VendorPostCard({ item }: { item: VendorPostFeedItem }) {
-  const { isInCart, addToCart, removeFromCart } = useStore();
   const color = authorColor(item.author.type);
 
   return (
@@ -51,26 +49,17 @@ export function VendorPostCard({ item }: { item: VendorPostFeedItem }) {
               <div className="truncate text-sm font-medium text-stone-900">{item.product.name}</div>
               <div className="text-sm text-stone-500">${(item.product.price / 100).toFixed(2)}</div>
             </div>
-            <button
-              onClick={() =>
-                isInCart(item.product!.id)
-                  ? removeFromCart(item.product!.id)
-                  : addToCart({
-                      id: item.product!.id,
-                      name: item.product!.name,
-                      memberId: item.product!.memberId,
-                      memberName: item.product!.memberName,
-                      price: item.product!.price,
-                    })
-              }
-              className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition ${
-                isInCart(item.product.id)
-                  ? "bg-stone-900 text-white hover:bg-stone-800"
-                  : "bg-indigo-600 text-white hover:bg-indigo-700"
-              }`}
+            {/* No add-to-cart from a post. A feed item carries a product's
+                name and price but not its products row, so there is nothing
+                here to price a size or a colour by — and buying from a card
+                skips the page that decides both. The seller's shop is the
+                honest destination. */}
+            <Link
+              href={`/members/${item.product.memberId}`}
+              className="shrink-0 rounded-full bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-indigo-700"
             >
-              {isInCart(item.product.id) ? "✓ In cart" : "+ Cart"}
-            </button>
+              View
+            </Link>
           </div>
         )}
 

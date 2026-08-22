@@ -87,7 +87,13 @@ Split out of CLAUDE.md. CLAUDE.md keeps a condensed map; this is the full per-su
 - `app/city/` — place hub (`page.tsx` index) + `[slug]/page.tsx` landing (params derived from live data)
 - `public/llms.txt` — static AI-crawler manifest
 - `components/auth-nav.tsx` — `'use client'` Clerk component with `Show`/`SignInButton`/`UserButton` + favorites/cart icons
-- `components/ShopSection.tsx` — client component for cart/favorites on vendor profiles
+- `components/ShopSection.tsx` — the profile's product list. Grouped into listings and
+  LINKED to `/products/[id]`; no add-to-cart (see decisions, 2026-08-22). Favourite only.
+- `app/products/[id]/page.tsx` — a product's own page. Server component; the buying half
+  is `components/shop/ProductBuy.tsx`, which owns the selection shared by
+  `ProductGallery` (per-variant mockups from `products.image_urls`) and `VariantPicker`.
+- `components/shop/ProductThumbLink.tsx` — the photo-then-name line shared by `/cart`
+  and `/favorites`, degrading to plain text when a stored item predates `productId`.
 - `components/DeliveryRequestModal.tsx` — post-payment modal; collects dropoff address, quotes Uber fee, confirms delivery
 - `lib/store.tsx` — cart + favorites context backed by localStorage
 - `lib/stripe-server.ts` — server-side Stripe singleton + `calculateFees()` (5% platform fee)

@@ -19,6 +19,8 @@ export interface ShopVariant {
   label: string
   price: number
   image: string | null
+  /** This variant's own mockups, cover first — the picker swaps the gallery. */
+  images: string[]
 }
 
 export interface ShopProduct {
@@ -55,6 +57,7 @@ export async function GET() {
       name: p.name,
       price: p.price,
       image: p.image_url ?? null,
+      images: p.image_urls ?? (p.image_url ? [p.image_url] : []),
       printifyProductId:
         (p as unknown as { printify_product_id?: string | null }).printify_product_id ?? null,
       raw: p,
@@ -76,6 +79,7 @@ export async function GET() {
         label: v.name.slice(g.name.length).replace(/^ — /, ''),
         price: v.price,
         image: v.image,
+        images: v.images ?? (v.image ? [v.image] : []),
       })),
     }))
     return NextResponse.json({ products })

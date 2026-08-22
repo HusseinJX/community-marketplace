@@ -40,6 +40,29 @@ All notable changes to this project are documented here.
   refused — storing the verdict, Google's formatting and the coordinates.
 - Bookings is back on the onboarding screen, first of four ways to sell.
 
+### Added (later still — the picture follows the choice)
+- **A product page has a gallery, and it tracks the picker.** Printify tags every mockup
+  with the variants it depicts; we stored one image per row (the product's default), so
+  choosing Navy changed the price and left a black hat on screen. Each row now carries its
+  own variant's mockups (`products.image_urls`, default first) and the gallery, the chips
+  and the Add-to-cart button share one selection. Front, back, left, right, as thumbnails.
+- **The cart and the saved list show the thing.** Both lines are a photo then a name, both
+  linking back to the product page. `StoredProduct.image`/`productId` were added a commit
+  earlier and nothing was filling them.
+- **The vendor portal's live rows open their public page** — the fastest way to check your
+  own listing. Drafts deliberately don't: `/products/[id]` reads active rows only.
+
+### Changed (same)
+- **Quick add is gone everywhere it was left**: the member profile's Shop & Products list,
+  `/favorites`, and the feed's vendor post card. Buying from a list means buying without
+  the description and, on anything with sizes, without the choice that decides what
+  arrives. Every one of those surfaces is now a link to the page that sells.
+- **The profile's product list is grouped into listings**, like the shop grid — Xeno's was
+  46 near-identical variant rows.
+- **The storefront is the eight xen0 products only.** Printify marks all 26 `visible`; the
+  hide list lives in that site's `store-config.json`, so the other 18 were deactivated here
+  (`active = false`). They sit in the vendor portal's drafts, approvable, not deleted.
+
 ### Fixed (same)
 - **The Printify importer was overwriting designs.** Keyed on `(member_id, variant_id)`, but
   a variant id identifies a blank, not a listing — every design on the same tee shares

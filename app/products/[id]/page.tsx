@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, Store } from "lucide-react";
 import { getProductById, getProductsByMember } from "@/lib/vendor-connect";
 import { baseName } from "@/lib/product-variants";
-import { VariantPicker } from "@/components/shop/VariantPicker";
+import { ProductBuy } from "@/components/shop/ProductBuy";
 import { kindOf, KIND_DEFS } from "@/lib/product-kind";
 
 // A product's own page. Server-rendered, like the member profile it belongs
@@ -79,75 +79,53 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
         <ArrowLeft className="h-4 w-4" /> Products
       </Link>
 
-      <div className="grid gap-6 md:grid-cols-2 md:gap-10">
-        {/* Image, or an honest absence of one — never a stand-in photo. */}
-        <div className="relative aspect-square overflow-hidden rounded-2xl bg-stone-100">
-          {product.image_url ? (
-            <Image
-              src={product.image_url}
-              alt={product.name}
-              fill
-              sizes="(min-width:768px) 480px, 100vw"
-              className="object-cover"
-              priority
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center text-sm text-stone-400">
-              No photo yet
-            </div>
-          )}
-        </div>
+      <ProductBuy
+        alt={listingName}
+        currency={product.currency}
+        memberId={product.member_id}
+        memberName={product.member_name}
+        variants={variants.map((v) => ({
+          id: v.id,
+          label: v.name.slice(listingName.length).replace(/^ — /, ""),
+          price: v.price,
+          name: v.name,
+          // The gallery of THIS variant. A row imported before the gallery
+          // existed still has its cover, so the page never renders empty while
+          // waiting for a re-sync.
+          images: v.image_urls?.length ? v.image_urls : v.image_url ? [v.image_url] : [],
+        }))}
+      >
+        <Link
+          href={`/members/${product.member_id}`}
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-stone-500 transition hover:text-stone-900"
+        >
+          <Store className="h-4 w-4" /> {product.member_name}
+        </Link>
 
-        <div className="min-w-0">
-          <Link
-            href={`/members/${product.member_id}`}
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-stone-500 transition hover:text-stone-900"
-          >
-            <Store className="h-4 w-4" /> {product.member_name}
-          </Link>
+        <h1 className="mt-2 text-2xl font-semibold tracking-tight text-stone-900 sm:text-3xl">
+          {listingName}
+        </h1>
 
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-stone-900 sm:text-3xl">
-            {listingName}
-          </h1>
+        {kind !== "good" && (
+          <span className="mt-3 inline-block rounded-full bg-stone-100 px-2.5 py-1 text-xs font-medium text-stone-600">
+            {KIND_DEFS[kind].label}
+          </span>
+        )}
 
-          {kind !== "good" && (
-            <span className="mt-3 inline-block rounded-full bg-stone-100 px-2.5 py-1 text-xs font-medium text-stone-600">
-              {KIND_DEFS[kind].label}
-            </span>
-          )}
-
-          {product.description && (
-            <p className="mt-5 whitespace-pre-line text-[15px] leading-relaxed text-stone-700">
-              {product.description}
-            </p>
-          )}
-
-          {/* Price, the size/colour chips and the button are one control — the
-              price has to be the price of what is selected, or the number on
-              screen is not the number charged. */}
-          <div className="mt-6">
-            <VariantPicker
-              variants={variants.map((v) => ({
-                id: v.id,
-                label: v.name.slice(listingName.length).replace(/^ — /, ""),
-                price: v.price,
-                name: v.name,
-              }))}
-              currency={product.currency}
-              memberId={product.member_id}
-              memberName={product.member_name}
-            />
-          </div>
-
-          {/* No ratings, no review count, no "12 people are viewing this".
-              Nothing in this app records any of it, and inventing it is how a
-              storefront stops being worth believing. */}
-          <p className="mt-4 text-[13px] text-stone-500">
-            Sold by {product.member_name}. You pay them directly — WhatsLocal takes 5% of the item
-            price.
+        {product.description && (
+          <p className="mt-5 whitespace-pre-line text-[15px] leading-relaxed text-stone-700">
+            {product.description}
           </p>
-        </div>
-      </div>
+        )}
+
+        {/* No ratings, no review count, no "12 people are viewing this".
+            Nothing in this app records any of it, and inventing it is how a
+            storefront stops being worth believing. */}
+        <p className="mt-4 text-[13px] text-stone-500">
+          Sold by {product.member_name}. You pay them directly — WhatsLocal takes 5% of the item
+          price.
+        </p>
+      </ProductBuy>
 
       {siblings.length > 0 && (
         <section className="mt-14">

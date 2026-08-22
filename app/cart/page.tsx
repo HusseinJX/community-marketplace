@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Heart, Minus, Plus, ShoppingBag, X } from "lucide-react";
 import { useStore } from "@/lib/store";
+import { ProductLink, ProductThumb } from "@/components/shop/ProductThumbLink";
 import { useRouter } from "next/navigation";
 
 export default function CartPage() {
@@ -64,37 +65,46 @@ export default function CartPage() {
               const lineTotal = (product.price ?? 0) * qty;
               return (
                 <div key={product.id} className="card-soft flex items-start justify-between gap-4 p-4">
-                  <div className="min-w-0">
-                    <div className="font-medium text-stone-900">{product.name}</div>
-                    <div className="mt-1 text-sm text-stone-500">
-                      by{" "}
-                      <Link
-                        href={`/members/${product.memberId}`}
-                        className="text-indigo-700 hover:underline"
-                      >
-                        {product.memberName}
-                      </Link>
-                    </div>
+                  {/* The picture first, then the name, and both are the same
+                      link back to the product. A basket is the last place
+                      somebody checks they picked the right colour, and a list
+                      of names can't answer that. */}
+                  <div className="flex min-w-0 items-start gap-3">
+                    <ProductThumb product={product} />
+                    <div className="min-w-0">
+                      <ProductLink product={product} className="font-medium text-stone-900 hover:underline">
+                        {product.name}
+                      </ProductLink>
+                      <div className="mt-1 text-sm text-stone-500">
+                        by{" "}
+                        <Link
+                          href={`/members/${product.memberId}`}
+                          className="text-indigo-700 hover:underline"
+                        >
+                          {product.memberName}
+                        </Link>
+                      </div>
 
-                    <div className="mt-3 inline-flex items-center rounded-full border border-stone-200 bg-white">
-                      <button
-                        onClick={() => decrementCartItem(product.id)}
-                        aria-label="Decrease quantity"
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-full text-stone-700 transition hover:bg-stone-100 disabled:opacity-40"
-                        disabled={qty <= 1}
-                      >
-                        <Minus className="h-3.5 w-3.5" />
-                      </button>
-                      <span className="min-w-[2ch] px-2 text-center text-sm font-medium tabular-nums text-stone-900">
-                        {qty}
-                      </span>
-                      <button
-                        onClick={() => incrementCartItem(product.id)}
-                        aria-label="Increase quantity"
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-full text-stone-700 transition hover:bg-stone-100"
-                      >
-                        <Plus className="h-3.5 w-3.5" />
-                      </button>
+                      <div className="mt-3 inline-flex items-center rounded-full border border-stone-200 bg-white">
+                        <button
+                          onClick={() => decrementCartItem(product.id)}
+                          aria-label="Decrease quantity"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full text-stone-700 transition hover:bg-stone-100 disabled:opacity-40"
+                          disabled={qty <= 1}
+                        >
+                          <Minus className="h-3.5 w-3.5" />
+                        </button>
+                        <span className="min-w-[2ch] px-2 text-center text-sm font-medium tabular-nums text-stone-900">
+                          {qty}
+                        </span>
+                        <button
+                          onClick={() => incrementCartItem(product.id)}
+                          aria-label="Increase quantity"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full text-stone-700 transition hover:bg-stone-100"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
 

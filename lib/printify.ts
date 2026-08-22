@@ -12,6 +12,9 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
 const API = 'https://api.printify.com/v1'
 
+/** How many mockups a single listing is worth. Beyond this nobody scrolls. */
+const GALLERY_MAX = 8
+
 let client: SupabaseClient | null = null
 function db(): SupabaseClient {
   if (!client) {
@@ -138,6 +141,14 @@ export interface PrintifyVariant {
   /** Printify prices in CENTS, same unit as `products.price`. */
   priceCents: number
   enabled: boolean
+  /**
+   * The mockups that actually depict THIS variant, default first.
+   *
+   * Printify tags every image with the variant ids it shows, which is the only
+   * reason a colour picker can change the picture: "Navy / L" and "Black / L"
+   * are different photographs, not the same photograph relabelled.
+   */
+  images: string[]
 }
 
 export interface PrintifyProduct {
@@ -145,6 +156,8 @@ export interface PrintifyProduct {
   title: string
   description: string | null
   imageUrl: string | null
+  /** Every distinct mockup, for products whose images carry no variant tags. */
+  images: string[]
   variants: PrintifyVariant[]
 }
 
@@ -164,15 +177,38 @@ export async function listProducts(token: string, shopId: string, limit = 50): P
 
   return rows.map((r) => {
     const p = r as Record<string, unknown>
-    const images = Array.isArray(p.images) ? (p.images as Record<string, unknown>[]) : []
-    const cover = images.find((i) => i.is_default) ?? images[0]
+    const rawImages = Array.isArray(p.images) ? (p.images as Record<string, unknown>[]) : []
+    // Default first, everywhere. The default mockup is what the card shows, so
+    // opening the product must not jump to a different camera angle.
+    const images = [...rawImages].sort((a, b) => (b.is_default ? 1 : 0) - (a.is_default ? 1 : 0))
+    const cover = images[0]
     const variants = Array.isArray(p.variants) ? (p.variants as Record<string, unknown>[]) : []
+
+    // variant id → its own mockups. Capped, because a 35-image product would
+    // otherwise put a filmstrip nobody scrolls into every row of the table.
+    const byVariant = new Map<string, string[]>()
+    for (const img of images) {
+      const src = img.src ? String(img.src) : ''
+      if (!src) continue
+      const ids = Array.isArray(img.variant_ids) ? img.variant_ids : []
+      for (const id of ids) {
+        const key = String(id)
+        const list = byVariant.get(key) ?? []
+        if (list.length < GALLERY_MAX && !list.includes(src)) list.push(src)
+        byVariant.set(key, list)
+      }
+    }
+
+    const allImages = Array.from(
+      new Set(images.map((i) => (i.src ? String(i.src) : '')).filter(Boolean))
+    ).slice(0, GALLERY_MAX)
 
     return {
       productId: String(p.id ?? ''),
       title: String(p.title ?? 'Untitled'),
       description: p.description ? stripHtml(String(p.description)).slice(0, 500) : null,
       imageUrl: cover?.src ? String(cover.src) : null,
+      images: allImages,
       variants: variants.map((v) => ({
         variantId: String(v.id ?? ''),
         title: String(v.title ?? ''),
@@ -180,6 +216,10 @@ export async function listProducts(token: string, shopId: string, limit = 50): P
         // Printify keeps disabled variants on the product; selling one would be
         // an order Printify refuses to print.
         enabled: v.is_enabled !== false,
+        // Falls back to the product's own gallery: some products (a mug, a
+        // sticker) carry untagged images, and showing every angle of the one
+        // thing they sell is right there.
+        images: byVariant.get(String(v.id ?? '')) ?? allImages,
       })),
     }
   })

@@ -17,12 +17,18 @@ export function AddToCart({
   memberId,
   memberName,
   price,
+  image,
+  productId,
 }: {
   id: string;
   name: string;
   memberId: string;
   memberName: string;
   price: number;
+  /** Carried into the basket so a cart line can show the thing, not its name. */
+  image?: string | null;
+  /** The products row, so the cart line can link back to where it came from. */
+  productId?: string | null;
 }) {
   const { addToCart, isInCart } = useStore();
   const inCart = isInCart(id);
@@ -30,7 +36,7 @@ export function AddToCart({
   return (
     <div className="flex flex-wrap items-center gap-3">
       <button
-        onClick={() => addToCart({ id, name, memberId, memberName, price })}
+        onClick={() => addToCart({ id, name, memberId, memberName, price, image, productId })}
         className="inline-flex items-center gap-2 rounded-full bg-stone-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-stone-800"
       >
         {inCart ? <Check className="h-4 w-4" /> : <ShoppingBag className="h-4 w-4" />}

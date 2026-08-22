@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import Link from 'next/link'
 import { Plus, Trash2, Check } from 'lucide-react'
 import { ImageCaptureUploader } from '@/components/ImageCaptureUploader'
 import { UpgradePrompt, upgradeFrom } from '@/components/billing/UpgradePrompt'
@@ -262,8 +263,12 @@ export function ProductsManager({
 }
 
 function ProductRow({ p, onApprove, onDelete }: { p: Product; onApprove?: () => void; onDelete: () => void }) {
-  return (
-    <div className="flex items-center gap-3 rounded-xl border border-stone-200 bg-white p-3">
+  // A live product opens the page a shopper sees — the fastest way for a vendor
+  // to check their own listing. A DRAFT deliberately doesn't: /products/[id]
+  // reads active rows only, so linking one would hand them a 404 for something
+  // that plainly exists. Approve it and the row becomes a link.
+  const body = (
+    <>
       {p.image_url ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={p.image_url} alt={p.name} className="h-12 w-12 rounded-lg object-cover" />
@@ -274,6 +279,21 @@ function ProductRow({ p, onApprove, onDelete }: { p: Product; onApprove?: () => 
         <p className="truncate text-sm font-medium text-stone-900">{p.name}</p>
         <p className="truncate text-xs text-stone-500">{p.description}</p>
       </div>
+    </>
+  )
+
+  return (
+    <div className="flex items-center gap-3 rounded-xl border border-stone-200 bg-white p-3">
+      {p.active ? (
+        <Link
+          href={`/products/${p.id}`}
+          className="flex min-w-0 flex-1 items-center gap-3 transition hover:opacity-80"
+        >
+          {body}
+        </Link>
+      ) : (
+        <div className="flex min-w-0 flex-1 items-center gap-3">{body}</div>
+      )}
       <span className="text-sm font-semibold text-stone-900">${(p.price / 100).toFixed(2)}</span>
       {p.source && p.source.startsWith('ai_') && <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs text-indigo-700">AI</span>}
       {onApprove && (

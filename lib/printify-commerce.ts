@@ -78,6 +78,12 @@ export async function syncPrintifyCatalog(
         .eq('printify_variant_id', v.variantId)
         .maybeSingle()
 
+      // THIS variant's own mockups, not the product's cover. A colour picker
+      // that leaves a black shirt on screen when you choose Navy is confirming
+      // the wrong thing, and the buyer finds out when the parcel arrives.
+      const gallery = v.images.length > 0 ? v.images : p.images
+      const cover = gallery[0] ?? p.imageUrl
+
       const row = {
         member_id: memberId,
         member_name: memberName,
@@ -85,7 +91,8 @@ export async function syncPrintifyCatalog(
         description: p.description,
         price: v.priceCents,
         currency: 'usd',
-        image_url: p.imageUrl,
+        image_url: cover,
+        image_urls: gallery.length > 0 ? gallery : null,
         source: 'printify',
         kind: 'good',
         printify_product_id: p.productId,

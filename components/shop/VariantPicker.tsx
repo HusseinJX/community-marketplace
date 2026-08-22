@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { variantParts } from "@/lib/product-variants";
 import { AddToCart } from "@/components/shop/AddToCart";
 
@@ -11,6 +11,8 @@ export interface PickableVariant {
   price: number;
   /** The row's own name, which is what the cart and checkout resolve by. */
   name: string;
+  /** This variant's own mockups. Read by the gallery, not by this component. */
+  images: string[];
 }
 
 function priceLabel(cents: number, currency = "usd"): string {
@@ -39,13 +41,19 @@ export function VariantPicker({
   currency,
   memberId,
   memberName,
+  selectedId,
+  onSelect,
 }: {
   variants: PickableVariant[];
   currency: string;
   memberId: string;
   memberName: string;
+  /** CONTROLLED — the gallery has to move with the chips, so the selection is
+   *  owned one level up rather than hidden in here. */
+  selectedId: string;
+  onSelect: (id: string) => void;
 }) {
-  const [selectedId, setSelectedId] = useState(variants[0]?.id ?? "");
+  const setSelectedId = onSelect;
   const selected = variants.find((v) => v.id === selectedId) ?? variants[0];
 
   const axes = useMemo(() => {
@@ -152,6 +160,10 @@ export function VariantPicker({
         memberId={memberId}
         memberName={memberName}
         price={selected.price}
+        // The CHOSEN variant's photo and row, so the basket shows the navy one
+        // and links back to the page that sold it.
+        image={selected.images[0] ?? null}
+        productId={selected.id}
       />
     </div>
   );

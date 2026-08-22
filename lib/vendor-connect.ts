@@ -52,6 +52,8 @@ export interface SupabaseProduct {
   price: number
   currency: string
   image_url: string | null
+  /** Ordered gallery for this row; image_url is its first entry. Printify only. */
+  image_urls?: string[] | null
   active: boolean
   source?: string
   /** good | service | digital | ticket. Read via kindOf() — see lib/product-kind.ts. */
