@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { JoinFlow } from "../join/JoinFlow";
 import { JoinDemoGate } from "@/components/join/JoinDemoGate";
@@ -16,5 +17,9 @@ export const dynamic = "force-dynamic";
 export default async function JoinDemoPage() {
   const unlocked = await isJoinDemoActive();
   if (!unlocked) return <JoinDemoGate />;
-  return <JoinFlow demo />;
+  return (
+    <Suspense fallback={null}>
+      <JoinFlow demo />
+    </Suspense>
+  );
 }

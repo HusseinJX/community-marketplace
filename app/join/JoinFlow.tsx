@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useClerk, useAuth } from "@clerk/nextjs";
 import { VendorPhoneLogin } from "@/components/auth/VendorPhoneLogin";
 import { Store, Users, Mic, Search, Loader2, Check, ArrowRight, ArrowLeft, LogOut, LogIn, UserRound, ShieldCheck } from "lucide-react";
@@ -166,18 +166,6 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
   // already signed in, so it's suppressed once the flow is underway. Initialize
   // true when returning from the in-app Apple redirect (a resume is pending), so
   // the guard never flashes before the resume effect runs.
-  const [midFlow, setMidFlow] = useState(() => {
-    if (typeof window === "undefined") return false;
-    // `?claimed=` is a person who has just proved they own the page and is
-    // being handed the REST of onboarding. They are signed in by definition, so
-    // without this the "log out first" guard below would meet them one screen
-    // after they signed in and tell them to sign out again.
-    try {
-      if (new URLSearchParams(window.location.search).get("claimed")) return true;
-    } catch { /* ignore */ }
-    try { return !!sessionStorage.getItem("join_apple_resume"); } catch { return false; }
-  });
-
   /**
    * An existing member this flow was pointed at, and which stage of it.
    *
@@ -193,18 +181,34 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
    * anyone can copy off the listing they are trying to steal. One flow, one
    * ownership check: a code texted to the number on the listing.
    */
-  const { claimId, claimedId } = useMemo(() => {
-    if (typeof window === "undefined") return { claimId: "", claimedId: "" };
-    try {
-      const q = new URLSearchParams(window.location.search);
-      return {
-        claimId: q.get("claim")?.trim() ?? "",
-        claimedId: q.get("claimed")?.trim() ?? "",
-      };
-    } catch {
-      return { claimId: "", claimedId: "" };
-    }
-  }, []);
+  // Read from the ROUTER, not window.location.
+  //
+  // This used to be `new URLSearchParams(window.location.search)` in a
+  // useMemo([]) — correct on a hard load, empty on a soft one. "Claim this
+  // business" is a <Link> to /claim/<id>, which server-redirects to
+  // /join?claim=<id>; the App Router follows that as a client navigation and
+  // this component mounts BEFORE history.pushState has put the new query in
+  // window.location. So claimId was "", the claim effect below never fired,
+  // and `step` sat on its initial "type" — the person who tapped a specific
+  // business got "What are you setting up?", which is the exact failure the
+  // comment in logOutThenJoin was written to prevent. Pasting the same URL
+  // worked, which is why it survived: the NFC card and the QR are hard loads.
+  //
+  // useSearchParams is driven by router state, so it is right on both.
+  const search = useSearchParams();
+  const claimId = search.get("claim")?.trim() ?? "";
+  const claimedId = search.get("claimed")?.trim() ?? "";
+
+
+  const [midFlow, setMidFlow] = useState(() => {
+    // `?claimed=` is a person who has just proved they own the page and is
+    // being handed the REST of onboarding. They are signed in by definition, so
+    // without this the "log out first" guard below would meet them one screen
+    // after they signed in and tell them to sign out again. Read off the router
+    // for the same reason claimId is — window.location lags a soft navigation.
+    if (claimedId) return true;
+    try { return !!sessionStorage.getItem("join_apple_resume"); } catch { return false; }
+  });
 
   /** Set while claiming an existing page — suppresses the search-based steps. */
   const [claimTarget, setClaimTarget] = useState<{ id: string; name: string; address: string | null } | null>(null);
