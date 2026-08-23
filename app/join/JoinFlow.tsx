@@ -210,6 +210,14 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
     try { return !!sessionStorage.getItem("join_apple_resume"); } catch { return false; }
   });
 
+  /**
+   * Acting on behalf: an admin pointed at someone else's page. They take the
+   * same `who` step (the owner's name and role is the thing that screen is
+   * for), but the ownership check is skipped — the code goes to the business's
+   * phone — and nothing links the page to the admin's own account.
+   */
+  const [adminActing, setAdminActing] = useState(false);
+
   /** Set while claiming an existing page — suppresses the search-based steps. */
   const [claimTarget, setClaimTarget] = useState<{ id: string; name: string; address: string | null } | null>(null);
 
@@ -427,6 +435,12 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
           setStep("links");
           return;
         }
+        // An admin acting on behalf is signed in already, so midFlow has to go
+        // up or the "log out first" guard would meet them instead of the form.
+        if (data.admin) {
+          setAdminActing(true);
+          setMidFlow(true);
+        }
         setStep("who");
       } catch (e) {
         if (cancelled) return;
@@ -592,6 +606,23 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ memberId }),
+        });
+        setStep("links");
+        return;
+      }
+
+      // Acting on behalf. No OTP (the code goes to the business, not to the
+      // admin) and no /api/claim (it links vendor_profiles to the CALLER, which
+      // would quietly make the admin the vendor for someone else's business).
+      // The one thing the who step produced that would otherwise be lost is the
+      // owner's name and role, so that is written straight to the profile.
+      if (adminActing) {
+        await fetch(`/api/members/${memberId}/about`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ownerName: name.trim(), ownerRole: role }),
+        }).catch(() => {
+          /* a detail on the profile, not the reason they are here */
         });
         setStep("links");
         return;
@@ -1065,7 +1096,10 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
               verify (3). It said "Step 2 of 2 · the business" on the search
               screen, which is the first thing an entity now sees. */}
           {claimTarget
-            ? step === "who"
+            // No verify step when acting on behalf, so no count that ends in one.
+            ? adminActing
+              ? "Acting on behalf"
+              : step === "who"
               ? "Step 1 of 2 · your account"
               : "Step 2 of 2 · verify"
             : isArtist
@@ -1169,12 +1203,19 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
                   // someone to "Claim Rosa's Tamales" when they are about to
                   // type that name themselves reads as a bug.
                   ? `Set up your ${kind === "organizer" ? "organization" : "business"}`
-                  : `Claim ${bizName || "your business"}`
+                  // An admin is not claiming it — they are setting it up for
+                  // the person who owns it, and saying "Claim" would describe
+                  // the wrong thing happening to the wrong account.
+                  : adminActing
+                    ? `Set up ${bizName || "this business"}`
+                    : `Claim ${bizName || "your business"}`
             }
             sub={
               isArtist
                 ? "A couple of details, then continue with Google or Apple."
-                : "Tell us who you are, then sign in — this is the account you'll manage the page with."
+                : adminActing
+                  ? "Who runs this business? We record their name and role on the page — you stay signed in as you."
+                  : "Tell us who you are, then sign in — this is the account you'll manage the page with."
             }
           />
           {/* What they just picked, shown while they sign in. The listing is the
@@ -1225,12 +1266,16 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
             </div>
           )}
           <div className="space-y-1.5">
-            <label className="block text-[13px] font-medium text-stone-500">Your name</label>
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder={isArtist ? "Your name or stage name" : "Your name"} className="h-13 w-full rounded-xl border border-stone-300 px-4 text-[15px] outline-none transition focus:border-stone-900" />
+            <label className="block text-[13px] font-medium text-stone-500">
+              {adminActing ? "Owner's name" : "Your name"}
+            </label>
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder={isArtist ? "Your name or stage name" : adminActing ? "Who runs it" : "Your name"} className="h-13 w-full rounded-xl border border-stone-300 px-4 text-[15px] outline-none transition focus:border-stone-900" />
           </div>
           {!isArtist && (
             <div className="space-y-1.5">
-              <label className="block text-[13px] font-medium text-stone-500">Your role at the business</label>
+              <label className="block text-[13px] font-medium text-stone-500">
+                {adminActing ? "Their role at the business" : "Your role at the business"}
+              </label>
               <select value={role} onChange={(e) => setRole(e.target.value)} className="h-13 w-full rounded-xl border border-stone-300 bg-white px-4 text-[15px] outline-none transition focus:border-stone-900">
                 {["Owner", "Manager", "Team member"].map((r) => <option key={r}>{r}</option>)}
               </select>
@@ -1269,7 +1314,21 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
               </label>
             </div>
           )}
-          {/* Primary: sign in with Google / Apple. */}
+          {/* Primary: sign in with Google / Apple — unless an admin is acting on
+              behalf, who is signed in already. Offering them a sign-in would ask
+              them to swap accounts to do their job, and taking the OAuth branch
+              would try to create a second one. */}
+          {adminActing ? (
+            <div className="space-y-2 pt-1">
+              <button
+                onClick={() => afterSignedIn()}
+                disabled={busy || !name.trim()}
+                className="inline-flex w-full items-center justify-center gap-2.5 rounded-full bg-stone-900 px-4 py-3 text-sm font-semibold text-white hover:bg-stone-800 disabled:opacity-60"
+              >
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Continue
+              </button>
+            </div>
+          ) : (
           <div className="space-y-2 pt-1">
             <button
               onClick={() => oauthSignUp("oauth_google")}
@@ -1286,8 +1345,11 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <AppleIcon />} Continue with Apple
             </button>
           </div>
+          )}
           <p className="text-xs text-stone-400">
-            {isArtist
+            {adminActing
+              ? "Acting on behalf — no code is sent, and the page stays linked to its own owner."
+              : isArtist
               ? "You'll finish setting up your page next."
               : "Next we'll send a code to the number on the listing, to check you can answer it."}
           </p>

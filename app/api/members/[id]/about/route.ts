@@ -10,7 +10,8 @@ const MAX_IMAGES = 12
 // PATCH — edit a member's public "about" fields (bio + basic details). Owner or
 // admin only.
 //
-// Body: { bio?, category?, city?, neighborhood?, address?, hours?, instagram?, website?, images? }
+// Body: { bio?, category?, city?, neighborhood?, address?, hours?, instagram?,
+//         website?, images?, ownerName?, ownerRole? }
 //
 // `images` is the member's PHOTO GALLERY, in display order — the first one is
 // the cover, so `imageUrl` is written from it in the same call. Sending `[]`
@@ -43,6 +44,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if ('hours' in body) fields.businessHours = str(body.hours) || ''
   if ('instagram' in body) fields.instagramHandle = (str(body.instagram) || '').replace(/^@/, '')
   if ('website' in body) fields.websiteUrl = str(body.website) || ''
+  // Who we are dealing with at this business. Normally stamped by /api/claim
+  // when someone proves ownership; also written here so an ADMIN setting a page
+  // up on behalf can record the owner's name and role WITHOUT /api/claim
+  // linking the business to the admin's own account. Same resolveActor gate as
+  // every other field on this route.
+  if ('ownerName' in body) fields.ownerName = str(body.ownerName) || ''
+  if ('ownerRole' in body) fields.ownerRole = str(body.ownerRole) || ''
   if ('images' in body) {
     // Server-side truth about the list: strings, https, deduped, capped. The
     // client uploads through /api/upload and sends back what it got, so this is
