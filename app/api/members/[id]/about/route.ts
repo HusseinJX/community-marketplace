@@ -10,7 +10,7 @@ const MAX_IMAGES = 12
 // PATCH — edit a member's public "about" fields (bio + basic details). Owner or
 // admin only.
 //
-// Body: { bio?, category?, city?, neighborhood?, address?, hours?, instagram?,
+// Body: { bio?, story?, category?, city?, neighborhood?, address?, hours?, instagram?,
 //         website?, images?, ownerName?, ownerRole? }
 //
 // `images` is the member's PHOTO GALLERY, in display order — the first one is
@@ -37,6 +37,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   const fields: Partial<MemberProfile> = {}
   if ('bio' in body) fields.businessDescription = str(body.bio) || ''
+  // The longer history. Written by enrichment, correctable by the business.
+  if ('story' in body) fields.story = str(body.story) || ''
   if ('category' in body) fields.category = str(body.category) || ''
   if ('city' in body) fields.city = str(body.city) || ''
   if ('neighborhood' in body) fields.neighborhood = str(body.neighborhood) || ''

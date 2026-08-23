@@ -229,6 +229,10 @@ export default async function MemberProfilePage({
     ? (p.notes as string[]).join(" · ")
     : (p.notes as string | undefined);
   const bio = (p.approvedBlurb || p.personalNote || p.businessDescription || notesStr || "") as string;
+  // Never falls back to the bio — a page repeating the same paragraph under two
+  // headings looks like a bug, and the point of this one is that it says
+  // something About doesn't.
+  const story = (p.story || "") as string;
   const memberType = (p.memberType as string | undefined)?.toLowerCase() ?? "";
   const gradient = TYPE_GRADIENTS[memberType] ?? "from-stone-200 to-stone-300";
 
@@ -379,6 +383,20 @@ export default async function MemberProfilePage({
                 <p className="whitespace-pre-line leading-relaxed text-stone-800">{bio}</p>
               </Section>
             )
+          )}
+
+          {/* The longer history, under About because it is the same subject at
+              more length — how it started and who is behind it, where About is
+              what they do. Rendered only when there IS one: enrichment fills it
+              from live web research, so an older or thinner listing has none,
+              and an empty "Our story" heading would read as something missing
+              rather than something absent. Editable at /vendor/about, which
+              matters because it is inferred about the business rather than
+              written by it. */}
+          {story && (
+            <Section title="Our story">
+              <p className="whitespace-pre-line leading-relaxed text-stone-800">{story}</p>
+            </Section>
           )}
 
           {/* Hours, address and the map sit DIRECTLY under About.

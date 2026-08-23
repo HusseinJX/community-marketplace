@@ -36,6 +36,8 @@ import {
 export interface BusinessDetails {
   name?: string;
   bio?: string;
+  /** The longer history behind the business — see the field below. */
+  story?: string;
   category?: string;
   city?: string;
   neighborhood?: string;
@@ -123,6 +125,7 @@ export function BusinessProfileEditor({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             bio: details.bio ?? "",
+            story: details.story ?? "",
             category: details.category ?? "",
             city: details.city ?? "",
             neighborhood: details.neighborhood ?? "",
@@ -188,6 +191,21 @@ export function BusinessProfileEditor({
             onChange={(e) => up("bio", e.target.value)}
             rows={5}
             placeholder="We're a family bakery on Valencia, open since 2011…"
+            className={`${inputClass} resize-y leading-relaxed`}
+          />
+        </Field>
+
+        {/* Written by the enrichment pass from live web research, which is why
+            it is EDITABLE and not just displayed: it is inferred about you
+            rather than written by you, so the business has to be able to
+            correct it. Enrichment only ever fills empty fields, so an edit
+            here is never overwritten later. */}
+        <Field label="Our story" hint="How it started, who's behind it. Longer than the About — this is the history.">
+          <textarea
+            value={details.story ?? ""}
+            onChange={(e) => up("story", e.target.value)}
+            rows={5}
+            placeholder="Started as a market stall in 2016, run by two sisters…"
             className={`${inputClass} resize-y leading-relaxed`}
           />
         </Field>

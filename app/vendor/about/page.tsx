@@ -43,7 +43,7 @@ export default async function VendorAboutPage({
       const p = (m as {
         member?: {
           profile?: {
-            name?: string; businessName?: string; businessDescription?: string; bio?: string
+            name?: string; businessName?: string; businessDescription?: string; bio?: string; story?: string
             category?: string; city?: string; neighborhood?: string
             businessAddress?: string; businessHours?: string
             images?: string[]; imageUrl?: string
@@ -53,6 +53,7 @@ export default async function VendorAboutPage({
       details = {
         name: p?.businessName || p?.name || undefined,
         bio: p?.businessDescription || p?.bio || undefined,
+        story: p?.story || undefined,
         category: p?.category || undefined,
         city: p?.city || undefined,
         neighborhood: p?.neighborhood || undefined,
