@@ -103,6 +103,10 @@ export interface Member {
   source?: "web" | "sms" | "google_places_harvest";
   status?: "unclaimed" | "claimed";
   lastActiveAt?: FirestoreTimestamp | string | null;
+  // When the member was first created (connector: db.js sets it on insert).
+  // Absent on rows that predate the field — see lib/member-new.ts, which
+  // treats "no createdAt" as "not new" rather than guessing from lastActiveAt.
+  createdAt?: FirestoreTimestamp | string | null;
 }
 
 export interface EventSuggestion {

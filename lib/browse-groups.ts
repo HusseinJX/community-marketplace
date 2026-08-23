@@ -80,6 +80,27 @@ const OTHER: BrowseGroup = { key: "other", label: "More local", emoji: "✨", ma
 
 // Bucket members into their groups, preserving input order within each group and
 // dropping empty groups. Anything unmatched falls into a final "More local" row.
+/**
+ * The one rail that is not a category.
+ *
+ * Everything in BROWSE_GROUPS buckets EXCLUSIVELY — first match wins — which
+ * is right for categories (a bakery belongs under Food & drink, not under
+ * three rails) and wrong for "new": a business that had just joined would be
+ * pulled OUT of the category it actually belongs to for a fortnight, so
+ * finding it would depend on knowing it was new. This rail is additive
+ * instead, prepended by the directory after the exclusive grouping has run.
+ * Its members appear twice on purpose: once here because they are new, once
+ * under their category because that is what they are.
+ */
+export const RECENTLY_JOINED: BrowseGroup = {
+  key: "recently-joined",
+  label: "Recently joined",
+  emoji: "✨",
+  // Never used for bucketing — this group is added by hand, not matched.
+  // Membership is decided by isNewMember() in lib/member-new.ts.
+  match: () => false,
+};
+
 export function groupMembers(members: Member[]): { group: BrowseGroup; members: Member[] }[] {
   const buckets = new Map<string, Member[]>();
   const other: Member[] = [];

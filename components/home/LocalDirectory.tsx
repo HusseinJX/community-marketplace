@@ -7,9 +7,10 @@ import { MemberCard } from "@/components/MemberCard";
 import { CategorySplit } from "@/components/home/CategorySplit";
 import { memberPoint } from "@/lib/map-adapters";
 import { RailHeader } from "@/components/home/RailHeader";
-import { groupMembers } from "@/lib/browse-groups";
-import { useDirectory } from "@/lib/data-hooks";
+import { groupMembers, RECENTLY_JOINED } from "@/lib/browse-groups";
+import { useDirectory, useDirectorySearch } from "@/lib/data-hooks";
 import { hasMemberImage } from "@/lib/member-images";
+import { isNewMember, newestFirst } from "@/lib/member-new";
 import { useHomePosition, refreshHomePosition, type Position } from "@/lib/home-position";
 import { byDistance, milesTo } from "@/lib/proximity";
 
@@ -81,6 +82,9 @@ export function LocalDirectory({
   // Shared, server-cached directory (same key as /explore — one request, cached
   // across tab switches, and the connector call runs server-side not in-browser).
   const { members } = useDirectory();
+  // A typed query searches the whole directory, not the cached first page.
+  const { results: searchHits, loading: searchLoading, active: serverSearch } =
+    useDirectorySearch(query);
   const { position, settled } = useHomePosition();
 
   // A local override so the "turn on location" button can supply a fresh fix
@@ -107,12 +111,28 @@ export function LocalDirectory({
   const q = query.trim().toLowerCase();
   const searching = q.length > 0;
 
+  // While searching, the pool is the server's answer over EVERY member; only
+  // browsing reads the cached first page. A named business is required either
+  // way (a nameless row renders as an empty tile), but the PHOTO rule is
+  // lifted the moment someone types — see the note above.
+  const pool = serverSearch ? searchHits : members;
+
   const visible = useMemo(
     () =>
-      members.filter(
-        (m) => m.profile?.name && (searching || hasMemberImage(m)),
+      pool.filter(
+        (m) =>
+          (m.profile?.name || m.profile?.businessName) &&
+          // The photo rule, and its two exemptions. Browsing, a business with
+          // nothing to show renders as a gradient tile that reads as broken,
+          // so the shelf asks for a picture first. But it is a shelf rule, not
+          // a truth about the business, and it is wrong in two moments:
+          // someone who TYPED a name wants that business, picture or not; and
+          // a business added in the last fortnight has not had time to add one
+          // — hiding it until it does is indistinguishable, to the person who
+          // just added it, from the add having failed.
+          (searching || hasMemberImage(m) || isNewMember(m)),
       ),
-    [members, searching],
+    [pool, searching],
   );
 
   // Name first, then what the business IS — so "bakery" finds the bakeries and
@@ -120,8 +140,13 @@ export function LocalDirectory({
   // word that names a rail also finds its members.
   const matched = useMemo(() => {
     if (!searching) return visible;
+    // The server already matched `searchHits` (across fields the cards don't
+    // draw), so re-running the narrower client haystack over them would throw
+    // away real results. Only the local fallback — a single character, or a
+    // request still in flight — needs filtering here.
+    if (serverSearch) return visible;
     return visible.filter((m) => memberHaystack(m).includes(q));
-  }, [visible, searching, q]);
+  }, [visible, searching, serverSearch, q]);
 
   // Measure once, then sort and filter off the measurement — never recompute a
   // haversine inside a comparator.
@@ -141,7 +166,29 @@ export function LocalDirectory({
     return map;
   }, [ranked]);
 
-  const groups = useMemo(() => groupMembers(ranked.map((d) => d.m)), [ranked]);
+  // Rails are distance-ordered, EXCEPT that a newly added business leads the
+  // category it lands in. Distance answers "what is near me"; it is the wrong
+  // answer to "did the business I just added actually go in", which is what
+  // someone checks the shelf for the day they add one. Forty tiles deep in
+  // its own rail reads as not added at all.
+  //
+  // Applied per group, not to `ranked` — the flat list and the search results
+  // stay purely by distance, and a new arrival leads exactly one rail: its
+  // own. See lib/member-new.ts for why this keys on createdAt and not
+  // lastActiveAt.
+  const groups = useMemo(() => {
+    const ordered = ranked.map((d) => d.m);
+    const byCategory = groupMembers(ordered).map((g) => ({
+      ...g,
+      members: newestFirst(g.members),
+    }));
+    // The additive rail, first on the shelf. Distance still orders it under
+    // the newest-first split, so "new AND near" leads it.
+    const fresh = newestFirst(ordered.filter((m) => isNewMember(m)));
+    return fresh.length
+      ? [{ group: RECENTLY_JOINED, members: fresh }, ...byCategory]
+      : byCategory;
+  }, [ranked]);
 
   // Which category is expanded into the list+map split, by group key.
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -238,8 +285,14 @@ export function LocalDirectory({
         // One flat grid, still nearest-first. Same card as the rails draw, so a
         // result and a shelf tile are the same object.
         ranked.length === 0 ? (
+          // "No results" is only true once the answer is IN. Saying it while
+          // the request is in flight tells someone their business isn't there,
+          // a beat before it appears — which is the exact thing they typed the
+          // name to check.
           <p className="t-body text-stone-400">
-            No local businesses match “{query.trim()}”.
+            {searchLoading
+              ? "Searching…"
+              : `No local businesses match “${query.trim()}”.`}
           </p>
         ) : (
           <>

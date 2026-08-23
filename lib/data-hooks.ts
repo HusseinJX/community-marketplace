@@ -92,6 +92,28 @@ export function useDirectory() {
 }
 
 /**
+ * Business search that covers the WHOLE directory.
+ *
+ * `useDirectory` is the first browse page only (limit 100), so filtering it in
+ * the browser searches a slice and calls it the directory — a business past
+ * that cut is simply not findable, which reads as "the business I added isn't
+ * there". /api/directory?search= runs the match server-side over every member
+ * before slimming, so it also matches fields the cards never draw.
+ *
+ * Below two characters there is nothing worth a round trip: the key is null,
+ * SWR doesn't fetch, and the caller falls back to filtering what it has.
+ * Same shape /explore already uses — this is that, as a shared key.
+ */
+export function useDirectorySearch(term: string) {
+  const q = term.trim();
+  const active = q.length >= 2;
+  const { data, isLoading } = useSWR<{ members?: Member[] }>(
+    active ? `/api/directory?search=${encodeURIComponent(q)}` : null,
+  );
+  return { results: data?.members ?? NONE, loading: active && isLoading && !data, active };
+}
+
+/**
  * Superadmin-curated home rails. FeaturedLists (home) and FeaturedDetail
  * (/featured/[id]) share this one key, so opening "See all" is instant.
  * Generic over the list shape the caller casts to.

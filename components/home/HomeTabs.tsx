@@ -148,8 +148,43 @@ export function HomeTabs() {
   // The scroll driver lives in an effect; the pin needs to reach into it.
   const drive = useRef<((p: number, hold: boolean) => void) | null>(null);
 
+  // ── The fold is a POINTER-DEVICE behaviour ─────────────────────────────
+  // On a phone it was the wrong trade. The whole mechanism above exists to
+  // buy back vertical space from a header that a mouse wheel scrolls past in
+  // one flick; a touch scroll is momentum-driven and lands wherever the
+  // finger left it, so the magnet is forever snapping under a thumb that has
+  // already stopped caring — and every snap moves the list the reader is
+  // looking at. Add rubber-band overscroll and a URL bar that shows and hides
+  // on its own scroll, and the header ends up animating against two other
+  // things moving at once. That is the "really bad" of it: not the easing,
+  // the fact that anything moves at all.
+  //
+  // So mobile keeps the header it had before the fold shipped — open, still,
+  // identical tabs in identical order. Desktop keeps the fold, where the
+  // space is worth buying and the input is precise. 640px is Tailwind's `sm`,
+  // the same line the rest of this file breaks on.
+  const [foldEnabled, setFoldEnabled] = useState(false);
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const mq = window.matchMedia("(min-width: 640px)");
+    const sync = () => setFoldEnabled(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
   useEffect(() => {
     const root = document.documentElement;
+
+    // Phone: no listeners, no rAF loop, no property. Removing it rather than
+    // writing 0 lets the :root default own the value, so a desktop window
+    // dragged narrow mid-fold lands open instead of frozen half-way.
+    if (!foldEnabled) {
+      root.style.removeProperty("--hdr-p");
+      root.classList.remove("wl-hdr-moving");
+      setHeaderCollapsed(false);
+      return;
+    }
     const reduce =
       typeof window.matchMedia === "function" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -339,7 +374,7 @@ export function HomeTabs() {
       // the root layout and would otherwise stay folded on the next page.
       root.style.removeProperty("--hdr-p");
     };
-  }, [store]);
+  }, [store, foldEnabled]);
 
   // Tapping the compact pill is the one move with no gesture behind it, so it
   // is a magnet rather than a track: aim at open and HOLD there, against a
