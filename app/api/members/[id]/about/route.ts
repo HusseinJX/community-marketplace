@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { resolveActor } from '@/lib/admin'
 import { patchMember } from '@/lib/api'
 import type { MemberProfile } from '@/lib/types'
-import { invalidateMembers } from '@/lib/cache'
+import { invalidateMembers, invalidateMember } from '@/lib/cache'
 
 /** A profile is a gallery, not an album. */
 const MAX_IMAGES = 12
@@ -79,6 +79,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     await patchMember(id, fields)
     // Profile edits change what the directory shows + matches on.
     invalidateMembers()
+    invalidateMember(id)
     return NextResponse.json({ ok: true, fields })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to update'

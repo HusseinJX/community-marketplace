@@ -11,7 +11,7 @@ import {
   type StoredLink,
   type CustomLink,
 } from '@/lib/links'
-import { invalidateMembers } from '@/lib/cache'
+import { invalidateMembers, invalidateMember } from '@/lib/cache'
 
 // The member's links, saved in one call — from the /join links step, and from
 // anywhere later that edits the same set.
@@ -157,6 +157,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     if (Object.keys(fields).length > 0) {
       await patchMember(id, fields)
       invalidateMembers()
+      invalidateMember(id)
     }
 
     // Written whole, replacing what was there — the client always sends the

@@ -1,7 +1,8 @@
 import { revalidateTag } from 'next/cache'
+import { MEMBERS_TAG, memberTag } from './cache-tags'
 
-/** Cache tag for the whole-directory snapshot (lib/landing.ts fetchAllMembers). */
-export const MEMBERS_TAG = 'members'
+// Re-exported so existing importers of '@/lib/cache' keep working.
+export { MEMBERS_TAG, memberTag }
 
 /**
  * Bust the cached directory snapshot.
@@ -29,5 +30,31 @@ export function invalidateMembers(): void {
     revalidateTag(MEMBERS_TAG, { expire: 0 })
   } catch {
     /* not in a revalidatable context — the 24h TTL still bounds staleness */
+  }
+}
+
+/**
+ * Bust the cached copy of ONE member.
+ *
+ * getMember() is fetched with `revalidate: 300`, and for a long time it carried
+ * no tag at all — so nothing could clear it. A vendor added a photo on
+ * /vendor/about, the PATCH genuinely succeeded, and then the page read a copy
+ * of the profile up to five minutes old and showed no photo. It looked like the
+ * upload had failed, so they uploaded again; eventually the window expired and
+ * one of the attempts appeared to "work". Every write that changes what a
+ * member's own page shows has to call this, or the person making the edit is
+ * the last to see it.
+ *
+ * Separate from invalidateMembers(), which clears the whole-directory snapshot:
+ * a photo change matters to this member's page immediately, and to the
+ * directory's ranking eventually.
+ *
+ * Fire-and-forget, same as invalidateMembers.
+ */
+export function invalidateMember(id: string): void {
+  try {
+    revalidateTag(memberTag(id), { expire: 0 })
+  } catch {
+    /* not in a revalidatable context — the 300s TTL still bounds staleness */
   }
 }

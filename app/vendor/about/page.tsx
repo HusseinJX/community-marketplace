@@ -37,7 +37,9 @@ export default async function VendorAboutPage({
   let images: string[] = []
   if (memberId) {
     try {
-      const m = await getMember(memberId)
+      // fresh: this is the screen that EDITS the profile, so it must never
+      // show a cached copy of what was just saved (see getMember).
+      const m = await getMember(memberId, { fresh: true })
       const p = (m as {
         member?: {
           profile?: {

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
-import { invalidateMembers } from '@/lib/cache'
+import { invalidateMembers, invalidateMember } from '@/lib/cache'
 import { setVendorProfile } from '@/lib/vendor-connect'
 import { patchMember } from '@/lib/api'
 
@@ -131,7 +131,9 @@ export async function POST(request: Request) {
     }
   }
 
-  // Claiming flips status (and indexability) — refresh the directory snapshot.
+  // Claiming flips status (and indexability) — refresh the directory snapshot,
+  // and this member's own page, which now shows an owner.
   invalidateMembers()
+  invalidateMember(memberId)
   return NextResponse.json({ verified: true, claimed: true, method: verifyResult.method })
 }

@@ -32,13 +32,26 @@ export function ProfileImagesEditor({
   initialImages: string[];
 }) {
   const [images, setImages] = useState<string[]>(initialImages);
+  // The authoritative list, readable synchronously.
+  //
+  // Every handler used to build its next list from the `images` CLOSURE, which
+  // is a snapshot from the render it was created in. An upload takes seconds —
+  // long enough for a removal, a "make cover", or a second batch to land first
+  // — and when it finished it wrote `[...images, ...added]` from the list as it
+  // was BEFORE any of that. The other change silently disappeared, and the
+  // upload that "worked" was the one that happened to finish last.
+  const imagesRef = useRef<string[]>(initialImages);
+  const applyImages = (next: string[]) => {
+    imagesRef.current = next;
+    setImages(next);
+  };
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
   async function persist(next: string[]) {
-    const previous = images;
-    setImages(next); // optimistic — the grid must feel like a grid
+    const previous = imagesRef.current;
+    applyImages(next); // optimistic — the grid must feel like a grid
     setError(null);
     try {
       const res = await fetch(`/api/members/${memberId}/about`, {
@@ -49,7 +62,7 @@ export function ProfileImagesEditor({
       if (!res.ok) throw new Error(`save failed (${res.status})`);
     } catch {
       // Put it back. A photo that looks saved and isn't is worse than an error.
-      setImages(previous);
+      applyImages(previous);
       setError("Couldn't save that change. Try again.");
     }
   }
@@ -58,10 +71,14 @@ export function ProfileImagesEditor({
     if (!files?.length) return;
     setBusy(true);
     setError(null);
-    const added: string[] = [];
     try {
-      for (const file of Array.from(files)) {
-        if (!file.type.startsWith("image/")) continue;
+      const picked = Array.from(files).filter((f) => f.type.startsWith("image/"));
+
+      // In PARALLEL. These were uploaded one at a time, so picking five photos
+      // meant five full round trips end to end — each one a multi-megabyte
+      // phone picture — and the whole wait happened before anything appeared.
+      // They don't depend on each other, so they don't have to queue.
+      const uploadOne = async (file: File) => {
         const form = new FormData();
         form.append("file", file);
         // The server resolves the actor anyway; this is what lets an admin act
@@ -70,9 +87,15 @@ export function ProfileImagesEditor({
         const res = await fetch("/api/upload", { method: "POST", body: form });
         const body = await res.json().catch(() => null);
         if (!res.ok || !body?.url) throw new Error(body?.error || "upload failed");
-        added.push(body.url as string);
-      }
-      if (added.length) await persist([...images, ...added]);
+        return body.url as string;
+      };
+
+      // Promise.all keeps the results in the order they were picked, so the
+      // cover ends up being the photo the vendor chose first rather than
+      // whichever upload happened to finish first.
+      const added = await Promise.all(picked.map(uploadOne));
+      // From the REF, not the closure — see the note on imagesRef.
+      if (added.length) await persist([...imagesRef.current, ...added]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
     } finally {
@@ -104,7 +127,7 @@ export function ProfileImagesEditor({
             )}
 
             <button
-              onClick={() => persist(images.filter((u) => u !== src))}
+              onClick={() => persist(imagesRef.current.filter((u) => u !== src))}
               aria-label="Remove photo"
               className="absolute right-1.5 top-1.5 inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/90 text-stone-700 shadow transition hover:bg-white hover:text-rose-600"
             >
@@ -113,7 +136,7 @@ export function ProfileImagesEditor({
 
             {i > 0 && (
               <button
-                onClick={() => persist([src, ...images.filter((u) => u !== src)])}
+                onClick={() => persist([src, ...imagesRef.current.filter((u) => u !== src)])}
                 className="absolute inset-x-1.5 bottom-1.5 inline-flex items-center justify-center gap-1 rounded-full bg-white/90 py-1 text-[11px] font-medium text-stone-700 shadow transition hover:bg-white"
               >
                 <Star className="h-3 w-3" /> Cover

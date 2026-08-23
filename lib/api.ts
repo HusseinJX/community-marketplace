@@ -10,6 +10,7 @@ import type {
   LineupSuggestion,
 } from "./types";
 import { withoutHiddenMembers } from "./hidden-members";
+import { MEMBERS_TAG, memberTag } from "./cache-tags";
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE ||
@@ -30,10 +31,25 @@ function fnUrl(name: string, params?: Record<string, string | undefined>) {
 // to cached/demo data quickly instead of blocking every navigation.
 const CONNECTOR_TIMEOUT_MS = 4500;
 
-async function getJson<T>(url: string): Promise<T> {
-  // Long server-side cache window; pages can revalidate on-demand.
+async function getJson<T>(url: string, tags?: string[]): Promise<T> {
+  // Long server-side cache window; pages can revalidate on-demand — which
+  // requires a TAG. Without one there is no way to clear an entry early, and a
+  // caller that just wrote to the record reads its own stale copy for the rest
+  // of the window (see invalidateMember in lib/cache.ts).
   const res = await fetch(url, {
-    next: { revalidate: 300 },
+    next: { revalidate: 300, ...(tags?.length ? { tags } : {}) },
+    signal: AbortSignal.timeout(CONNECTOR_TIMEOUT_MS),
+  });
+  if (!res.ok) {
+    throw new Error(`Request failed: ${res.status} ${res.statusText}`);
+  }
+  return res.json() as Promise<T>;
+}
+
+/** Same as getJson, with no caching at any layer. */
+async function getJsonUncached<T>(url: string): Promise<T> {
+  const res = await fetch(url, {
+    cache: "no-store",
     signal: AbortSignal.timeout(CONNECTOR_TIMEOUT_MS),
   });
   if (!res.ok) {
@@ -74,8 +90,25 @@ export async function listMembers(params: ListMembersParams = {}): Promise<Membe
   return res;
 }
 
-export async function getMember(id: string): Promise<MemberResponse> {
-  return getJson<MemberResponse>(fnUrl("marketplace-member", { id }));
+export async function getMember(
+  id: string,
+  opts?: { fresh?: boolean },
+): Promise<MemberResponse> {
+  // `fresh` is for the surfaces where someone is EDITING this member: it skips
+  // BOTH caches in front of Firestore — Next's tagged fetch cache here, and the
+  // connector's per-instance memory cache there (via ?fresh=1). Reading your own
+  // write through either of them is what made an upload look like it failed.
+  if (opts?.fresh) {
+    return getJsonUncached<MemberResponse>(
+      fnUrl("marketplace-member", { id, fresh: "1" }),
+    );
+  }
+  // Tagged per member so a write to this member can clear exactly this entry —
+  // and with MEMBERS_TAG too, so a directory-wide bust takes profiles with it.
+  return getJson<MemberResponse>(fnUrl("marketplace-member", { id }), [
+    MEMBERS_TAG,
+    memberTag(id),
+  ]);
 }
 
 // Create a brand-new member in the connector (Firestore + embeddings). Server-only
