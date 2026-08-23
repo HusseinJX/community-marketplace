@@ -27,21 +27,22 @@ CapRover stores no git hash — the version number is meaningless without this t
 
 | CapRover version | Deployed | Git commit | Tag |
 |---|---|---|---|
-| **v133** (live) | 2026-08-22 23:48 UTC | `5a740c7` | `prod-v133` |
+| **v134** (live) | 2026-08-23 00:29 UTC | `9cecf2a` | `prod-v134` |
+| v133 | 2026-08-22 23:48 UTC | `5a740c7` | `prod-v133` |
 | v132 | 2026-08-22 21:26 UTC | `3798f58` | `prod-v132` |
 | v131 | 2026-08-13 22:00 UTC | `1aa1452` | `prod-v131` |
 
-**To go back one deploy (v133 → v132):**
+**To go back one deploy (v134 → v133):**
 
-- **Fast** — CapRover dashboard → `marketplace` → Deployment → pick v132 → revert. The
+- **Fast** — CapRover dashboard → `marketplace` → Deployment → pick v133 → revert. The
   image is already on the droplet; no build, no upload.
-- **Slow** (if the image is gone) — `git checkout prod-v132 && npm run build`, then the
+- **Slow** (if the image is gone) — `git checkout prod-v133 && npm run build`, then the
   normal package + upload below.
 
 **⚠️ A rollback does not undo the database.** Migrations applied on 2026-08-22 —
 `20260822170000` pickup_arrangement, `20260822190000` pickup_verified, `20260822210000`
 product_images, `20260822220000` support_chat — are all additive (new columns and tables),
-so v132 and v131 both run fine against them (v133 adds no migration). Two data changes also survive a rollback: 153 of Xeno's
+so v132 and v131 both run fine against them (neither v133 nor v134 adds a migration). Two data changes also survive a rollback: 153 of Xeno's
 Printify product rows were set `active = false` (the non-xen0 designs), and any profile
 photos edited through the new editor.
 
