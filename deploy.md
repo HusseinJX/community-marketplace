@@ -27,7 +27,8 @@ CapRover stores no git hash — the version number is meaningless without this t
 
 | CapRover version | Deployed | Git commit | Tag |
 |---|---|---|---|
-| **v138** (live) | 2026-08-23 05:51 UTC | `a036151` | `prod-v138` |
+| **v139** (live) | 2026-08-25 00:54 UTC | `0de9ddd` | `prod-v139` |
+| v138 | 2026-08-23 05:51 UTC | `a036151` | `prod-v138` |
 | v137 | 2026-08-23 05:39 UTC | `94b10a8` | `prod-v137` |
 | v136 | 2026-08-23 01:59 UTC | `6769673` | `prod-v136` |
 | v135 | 2026-08-23 00:42 UTC | `a933a8b` | `prod-v135` |
@@ -36,17 +37,17 @@ CapRover stores no git hash — the version number is meaningless without this t
 | v132 | 2026-08-22 21:26 UTC | `3798f58` | `prod-v132` |
 | v131 | 2026-08-13 22:00 UTC | `1aa1452` | `prod-v131` |
 
-**To go back one deploy (v138 → v137):**
+**To go back one deploy (v139 → v138):**
 
-- **Fast** — CapRover dashboard → `marketplace` → Deployment → pick v137 → revert. The
+- **Fast** — CapRover dashboard → `marketplace` → Deployment → pick v138 → revert. The
   image is already on the droplet; no build, no upload.
-- **Slow** (if the image is gone) — `git checkout prod-v137 && npm run build`, then the
+- **Slow** (if the image is gone) — `git checkout prod-v138 && npm run build`, then the
   normal package + upload below.
 
 **⚠️ A rollback does not undo the database.** Migrations applied on 2026-08-22 —
 `20260822170000` pickup_arrangement, `20260822190000` pickup_verified, `20260822210000`
 product_images, `20260822220000` support_chat — are all additive (new columns and tables),
-so v132 and v131 both run fine against them (v133–v138 add no migration). Two data changes also survive a rollback: 153 of Xeno's
+so v132 and v131 both run fine against them (v133–v139 add no migration). Two data changes also survive a rollback: 153 of Xeno's
 Printify product rows were set `active = false` (the non-xen0 designs), and any profile
 photos edited through the new editor.
 
