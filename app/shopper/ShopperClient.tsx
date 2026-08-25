@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Show, useUser, useClerk } from "@clerk/nextjs";
-import { LogOut, PenLine, ArrowRight, Receipt, Settings } from "lucide-react";
+import { LogOut, PenLine, ArrowRight, Receipt, Settings, LifeBuoy } from "lucide-react";
 import { DeleteAccountButton } from "@/components/account/DeleteAccountButton";
 import { useLogin } from "@/components/auth/ClerkAuthProvider";
 
@@ -72,10 +72,26 @@ export function ShopperClient() {
         </Link>
       </Show>
 
+      {/* Local resources — the single entry into the community resource
+          explorer. Unhidden: /resources is a real, populated screen and this
+          page is the only route to it for a shopper. */}
+      <Link href="/resources" className="card-soft card-hover flex items-center justify-between p-4">
+        <span className="flex items-center gap-3">
+          <LifeBuoy className="h-5 w-5 shrink-0 text-teal-500" />
+          <span>
+            <span className="block t-strong text-stone-900">Local resources</span>
+            <span className="block t-meta text-stone-500">
+              Food, housing, health, legal aid and community orgs near you — plus a guide that
+              helps you find the right one.
+            </span>
+          </span>
+        </span>
+        <ArrowRight className="h-4 w-4 shrink-0 text-stone-400" />
+      </Link>
+
       {/* Petitions — back after the strip-down. It is the one community
           surface that belongs on a person's own page rather than in browse:
-          signing a local cause is something you do as yourself, and there is
-          no other route to it now that the resources section is gone. */}
+          signing a local cause is something you do as yourself. */}
       <Link href="/petitions" className="card-soft card-hover flex items-center justify-between p-4">
         <span className="flex items-center gap-3">
           <PenLine className="h-5 w-5 shrink-0 text-teal-500" />
