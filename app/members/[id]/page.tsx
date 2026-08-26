@@ -28,6 +28,8 @@ import { MemberTypeBadge } from "@/components/MemberTypeBadge";
 import { EventCard } from "@/components/EventCard";
 import { MiniMap } from "@/components/MiniMap";
 import { ShopSection } from "@/components/ShopSection";
+import { MembershipTiers } from "@/components/membership/MembershipTiers";
+import { getActivePlansByMember, activeMembershipFor } from "@/lib/memberships";
 import { ActionBar } from "@/components/ActionBar";
 import { GroupChat } from "@/components/GroupChat";
 import { PhotoMosaic } from "@/components/business/PhotoMosaic";
@@ -41,6 +43,7 @@ import { readServes, focusLabel } from "@/lib/org-focus";
 import { GivesBackBadges } from "@/components/giving/GivesBackBadges";
 import { BusinessFacets } from "@/components/business/BusinessFacets";
 import { resolveActor } from "@/lib/admin";
+import { auth } from "@clerk/nextjs/server";
 import { readOwnership } from "@/lib/business-facets";
 import { getDemoMember } from "@/lib/demo-members";
 
@@ -245,6 +248,17 @@ export default async function MemberProfilePage({
 
   // Owner/admin can edit the business facets (size + ownership) inline.
   const facetActor = await resolveActor(id).catch(() => null);
+
+  // Membership tiers this business sells, and whether the person looking is
+  // already on one. Both fail soft: a business with no tiers renders nothing,
+  // and a signed-out visitor simply has no membership to find.
+  const membershipPlans = await getActivePlansByMember(id).catch(() => []);
+  const viewerMembership = membershipPlans.length
+    ? await (async () => {
+        const { userId } = await auth();
+        return userId ? activeMembershipFor(userId, id).catch(() => null) : null;
+      })()
+    : null;
   const canEditFacets = !!facetActor && facetActor.memberId === id;
 
   const interests = (p.interests ?? []) as string[];
@@ -732,6 +746,13 @@ export default async function MemberProfilePage({
           </Link>
 
           <MemoriesGrid memberId={id} title={`Tagged at ${name}`} />
+
+          <MembershipTiers
+            plans={membershipPlans}
+            memberName={name}
+            memberId={id}
+            currentPlanId={viewerMembership?.plan_id ?? null}
+          />
 
           <ShopSection
             memberId={id}

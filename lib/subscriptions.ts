@@ -110,14 +110,41 @@ async function memberIdForCustomer(customerId: string): Promise<string | null> {
   return (data as { member_id: string } | null)?.member_id ?? null
 }
 
-/** Apply a Stripe Subscription object to our table (plan/status/period). */
+/**
+ * Apply a Stripe Subscription object to our table (plan/status/period).
+ *
+ * ⚠️ THIS HANDLES PLATFORM PLANS ONLY (Free/Member/Pro — what a business pays
+ * US). Vendors also sell their OWN memberships to shoppers (lib/memberships.ts),
+ * and those are Stripe subscriptions on the same account, arriving through the
+ * same webhook. Two guards keep them apart, and both are load-bearing:
+ *
+ *  1. `kind: membership` metadata is rejected outright.
+ *  2. An unrecognised price is rejected instead of being read as `free`.
+ *
+ * Without them a business owner who joined another business's membership would
+ * resolve to their own member_id through `memberIdForCustomer` (their platform
+ * customer) and `planFromPriceId` would map the vendor's price to `free` — so
+ * paying for someone's Coffee Club would silently cancel the Pro plan they pay
+ * us for, and revoke their AI image credits on the way out.
+ */
 export async function syncFromStripeSubscription(sub: Stripe.Subscription): Promise<void> {
+  if (sub.metadata?.kind === 'membership') return
+
+  const priceId = sub.items.data[0]?.price?.id
+  // A subscription whose price is neither of ours is not ours to act on. Note
+  // this is checked BEFORE resolving the member: `planFromPriceId` answers
+  // 'free' for anything unknown, which is indistinguishable from a real
+  // downgrade once it reaches upsertSubscription.
+  const known =
+    !!priceId &&
+    (priceId === process.env.STRIPE_PRICE_PRO || priceId === process.env.STRIPE_PRICE_MEMBER)
+  if (!known) return
+
   const customerId = typeof sub.customer === 'string' ? sub.customer : sub.customer.id
   const memberId =
     (sub.metadata?.member_id as string | undefined) || (await memberIdForCustomer(customerId))
   if (!memberId) return
 
-  const priceId = sub.items.data[0]?.price?.id
   const canceled = sub.status === 'canceled' || sub.cancel_at_period_end === true && sub.status !== 'active'
   const plan = canceled ? 'free' : planFromPriceId(priceId)
   const periodEnd = sub.items.data[0]?.current_period_end ?? (sub as unknown as { current_period_end?: number }).current_period_end

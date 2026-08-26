@@ -365,7 +365,11 @@ export interface Order {
   /** paid | ready | collected (pickup) | dispatched | delivered (delivery) | refunded */
   status: string
   items: OrderItem[]
+  /** What the buyer paid for the items, AFTER any member discount. */
   subtotal_cents: number
+  /** What a membership took off, and at what rate. Null when there was none. */
+  discount_cents?: number | null
+  member_discount_percent?: number | null
   platform_fee_cents: number
   vendor_amount_cents: number
   /** Chosen by the buyer BEFORE payment, so the delivery fee can be charged. */

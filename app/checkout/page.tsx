@@ -131,8 +131,25 @@ function VendorCheckoutCard({ group, onVendorPaid }: VendorCheckoutCardProps) {
   // flow) meant it was never charged at all.
   const [fulfillment, setFulfillment] = useState<Fulfillment | null>(null)
 
+  // The buyer's membership discount at THIS business, for display. The real
+  // one is derived server-side in create-payment-intent from the same row —
+  // this only exists so the number on the button matches the number charged.
+  const [discountPercent, setDiscountPercent] = useState(0)
+  useEffect(() => {
+    let alive = true
+    fetch(`/api/memberships/discount?memberId=${encodeURIComponent(group.memberId)}`)
+      .then(r => r.json())
+      .then(d => { if (alive) setDiscountPercent(Number(d?.percent) || 0) })
+      .catch(() => {})
+    return () => { alive = false }
+  }, [group.memberId])
+
   const hasAllPrices = group.items.every(item => typeof item.price === 'number')
-  const itemsTotal = group.items.reduce((sum, item) => sum + (item.price ?? 0) * (item.qty ?? 1), 0)
+  const grossItemsTotal = group.items.reduce((sum, item) => sum + (item.price ?? 0) * (item.qty ?? 1), 0)
+  const memberDiscount = discountPercent > 0
+    ? Math.min(grossItemsTotal, Math.round((grossItemsTotal * discountPercent) / 100))
+    : 0
+  const itemsTotal = grossItemsTotal - memberDiscount
   const deliveryFee = fulfillment?.feeCents ?? 0
   const total = itemsTotal + deliveryFee
 
@@ -233,6 +250,13 @@ function VendorCheckoutCard({ group, onVendorPaid }: VendorCheckoutCardProps) {
                   items={group.items.map(i => ({ name: i.name, quantity: i.qty ?? 1 }))}
                   onChange={setFulfillment}
                 />
+
+                {memberDiscount > 0 && (
+                  <div className="flex justify-between text-sm font-medium text-teal-700">
+                    <span>Member discount ({discountPercent}%)</span>
+                    <span>−{formatCents(memberDiscount)}</span>
+                  </div>
+                )}
 
                 {deliveryFee > 0 && (
                   <div className="flex justify-between text-sm text-stone-600">

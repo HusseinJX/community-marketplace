@@ -6,6 +6,8 @@ import { effectiveDeliveryMode, selfDeliveryRules, quoteSelfDelivery, pickupOffe
 import { basketFulfillment } from '@/lib/product-kind'
 import { printifyLinesFor, quotePrintifyShipping } from '@/lib/printify-commerce'
 import { rateLimit } from '@/lib/rate-limit'
+import { auth } from '@clerk/nextjs/server'
+import { memberDiscountPercent, applyDiscount } from '@/lib/memberships'
 
 interface CartItem {
   name: string
@@ -162,7 +164,20 @@ export async function POST(request: Request) {
       )
     }
     const pricedItems = priced as { name: string; price_cents: number; quantity: number }[]
-    const itemsCents = pricedItems.reduce((sum, i) => sum + i.price_cents * i.quantity, 0)
+    const grossItemsCents = pricedItems.reduce((sum, i) => sum + i.price_cents * i.quantity, 0)
+
+    // MEMBER DISCOUNT. Derived here from the buyer's Clerk session and their live
+    // membership row — the client never says it holds one, exactly as it never
+    // says what a product costs. A signed-out buyer simply gets no discount, and
+    // checkout stays guest-friendly.
+    //
+    // Everything downstream (the delivery threshold, the total, our 5%) runs on
+    // the NET figure, so the platform never charges a fee on money nobody paid
+    // and "free delivery over $50" means fifty dollars actually spent.
+    const { userId: buyerUserId } = await auth()
+    const discountPercent = await memberDiscountPercent(buyerUserId, memberId)
+    const memberDiscountCents = applyDiscount(grossItemsCents, discountPercent)
+    const itemsCents = grossItemsCents - memberDiscountCents
     // Trust the server's own arithmetic for the fee, never the client's number:
     // deliveryFeeCents arrives from the browser, so clamp it to >= 0 and only
     // honour it on a delivery order.
@@ -235,6 +250,9 @@ export async function POST(request: Request) {
         memberId,
         items: JSON.stringify(pricedItems.map(i => ({ name: i.name, qty: i.quantity, price_cents: i.price_cents }))),
         subtotal_cents: String(itemsCents),
+        gross_items_cents: String(grossItemsCents),
+        member_discount_cents: String(memberDiscountCents),
+        member_discount_percent: String(discountPercent),
         platform_fee_cents: String(platformFee),
         vendor_amount_cents: String(vendorAmount),
         fulfillment_type: fulfillment,
@@ -251,6 +269,9 @@ export async function POST(request: Request) {
       paymentIntentId: paymentIntent.id,
       amount: totalCents,
       itemsCents,
+      grossItemsCents,
+      memberDiscountCents,
+      memberDiscountPercent: discountPercent,
       deliveryFeeCents: feeCents,
       platformFee,
       vendorAmount,

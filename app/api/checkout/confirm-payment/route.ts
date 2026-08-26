@@ -46,6 +46,10 @@ export async function POST(request: Request) {
     const memberId = meta.memberId ?? ''
     const items = meta.items ? JSON.parse(meta.items) : []
     const subtotalCents = parseInt(meta.subtotal_cents ?? '0', 10) || paymentIntent.amount
+    // What a membership took off. Recorded because subtotal_cents is the net
+    // figure — without this the vendor sees a smaller number with no reason.
+    const discountCents = parseInt(meta.member_discount_cents ?? '0', 10) || 0
+    const discountPercent = parseInt(meta.member_discount_percent ?? '0', 10) || 0
     const platformFeeCents = parseInt(meta.platform_fee_cents ?? '0', 10)
     const vendorAmountCents = parseInt(meta.vendor_amount_cents ?? '0', 10)
 
@@ -76,6 +80,8 @@ export async function POST(request: Request) {
       status: fulfillmentType === 'digital' ? terminalStatusFor('digital') : 'paid',
       items,
       subtotal_cents: subtotalCents,
+      discount_cents: discountCents || null,
+      member_discount_percent: discountPercent || null,
       platform_fee_cents: platformFeeCents,
       vendor_amount_cents: vendorAmountCents,
       fulfillment_type: fulfillmentType,

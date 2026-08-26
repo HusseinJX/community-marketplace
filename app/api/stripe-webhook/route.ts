@@ -103,6 +103,11 @@ export async function POST(request: Request) {
             status: fulfillmentType === 'digital' ? 'delivered' : 'paid',
             items,
             subtotal_cents: parseInt(meta.subtotal_cents ?? '0', 10) || pi.amount,
+            // Mirrors confirm-payment: whichever of the two wins the race to
+            // create this order must record the same discount, or the same
+            // payment describes itself differently depending on who got there.
+            discount_cents: parseInt(meta.member_discount_cents ?? '0', 10) || null,
+            member_discount_percent: parseInt(meta.member_discount_percent ?? '0', 10) || null,
             platform_fee_cents: parseInt(meta.platform_fee_cents ?? '0', 10),
             vendor_amount_cents: parseInt(meta.vendor_amount_cents ?? '0', 10),
             fulfillment_type: fulfillmentType,

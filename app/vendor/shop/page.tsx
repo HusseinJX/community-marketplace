@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
-import { Package, Plug, ShoppingCart } from "lucide-react";
+import { BadgeCheck, Package, Plug, ShoppingCart } from "lucide-react";
 import { getOrdersByMember, getVendorProfile } from "@/lib/vendor-connect";
+import { getMembersForVendor, ENTITLED_STATUSES } from "@/lib/memberships";
 import { isAdmin } from "@/lib/admin";
 import { demoMemberId, isDemoActive } from "@/lib/demo-server";
 import { HubTile } from "@/components/vendor/HubTile";
@@ -29,11 +30,19 @@ export default async function VendorShopPage({
   // The one number worth reading before you tap anything. Orders is the tile a
   // vendor opens hoping for a change, so the tile answers first.
   let orderCount = 0;
+  let memberCount = 0;
   if (memberId) {
     try {
       orderCount = (await getOrdersByMember(memberId)).length;
     } catch {
       /* the tile just says nothing rather than failing the page */
+    }
+    try {
+      memberCount = (await getMembersForVendor(memberId)).filter((m) =>
+        (ENTITLED_STATUSES as unknown as string[]).includes(m.status)
+      ).length;
+    } catch {
+      /* same */
     }
   }
 
@@ -53,6 +62,19 @@ export default async function VendorShopPage({
           Icon={ShoppingCart}
           label="Orders"
           desc={orderCount > 0 ? `${orderCount} to date` : "No orders yet"}
+        />
+        {/* Memberships live under Shop, not Tools: it is a thing they SELL,
+            priced and paid for like anything else in here — the only difference
+            is that it repeats. */}
+        <HubTile
+          href="/vendor/memberships"
+          Icon={BadgeCheck}
+          label="Memberships"
+          desc={
+            memberCount > 0
+              ? `${memberCount} ${memberCount === 1 ? "member" : "members"}`
+              : "Monthly perks for regulars"
+          }
         />
         {/* One home for the external hookups: shop catalog, delivery, and the
             payout bank account. */}
