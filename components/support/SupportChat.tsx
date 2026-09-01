@@ -2,9 +2,23 @@
 
 import { useEffect, useRef, useState } from "react";
 import useSWR from "swr";
+import { createClient } from "@supabase/supabase-js";
 import { Loader2, Send } from "lucide-react";
 import { useSupportUnread } from "@/lib/data-hooks";
 import type { SupportMessage } from "@/lib/support";
+import type { SupportRealtimeConfig } from "@/lib/support-realtime";
+
+const fetchSupportThread = (url: string) =>
+  fetch(url, { cache: "no-store" }).then((response) => {
+    if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+    return response.json();
+  });
+
+interface SupportThreadPayload {
+  threadId: string | null;
+  realtime: SupportRealtimeConfig | null;
+  messages: SupportMessage[];
+}
 
 /**
  * The person's conversation with us.
@@ -14,9 +28,9 @@ import type { SupportMessage } from "@/lib/support";
  * renders what a person SAID has to carry it (see CLAUDE.md → PostHog), and
  * this one holds the things people only say when they need help.
  *
- * Polling, not sockets. Support is a slow conversation — five seconds while the
- * tab is open is indistinguishable from instant to someone typing, and it costs
- * one indexed query.
+ * Realtime when open, polling as fallback. The support tables stay private:
+ * Supabase Broadcast only says "this thread changed", then this component
+ * revalidates through /api/support, where Clerk auth still owns access.
  *
  * A FIXED BOX, not a long page: the page itself never scrolls, the transcript
  * scrolls inside it, and the composer sits at the bottom of the box where the
@@ -25,9 +39,15 @@ import type { SupportMessage } from "@/lib/support";
  * a transcript that grows the page means the reader loses the input.
  */
 export function SupportChat() {
-  const { data, mutate, isLoading } = useSWR<{ messages: SupportMessage[] }>("/api/support", {
-    refreshInterval: 5_000,
-  });
+  const { data, mutate, isLoading } = useSWR<SupportThreadPayload>(
+    "/api/support",
+    fetchSupportThread,
+    {
+      dedupingInterval: 0,
+      refreshInterval: 15_000,
+      revalidateOnFocus: true,
+    },
+  );
   const messages = data?.messages ?? [];
 
   const [draft, setDraft] = useState("");
@@ -36,16 +56,36 @@ export function SupportChat() {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const { refresh: refreshBadge } = useSupportUnread();
 
-  // Opening the page IS reading it — clear the badge, then tell the card that
-  // polls it so the red dot goes the moment they arrive rather than a minute
-  // later.
+  const latestStaffMessageId = [...messages].reverse().find((message) => message.sender === "staff")?.id;
+  const realtimeUrl = data?.realtime?.url;
+  const realtimeAnonKey = data?.realtime?.anonKey;
+  const realtimeChannel = data?.realtime?.channel;
+
+  useEffect(() => {
+    if (!realtimeUrl || !realtimeAnonKey || !realtimeChannel) return;
+
+    const supabase = createClient(realtimeUrl, realtimeAnonKey, {
+      auth: { persistSession: false },
+    });
+    const channel = supabase
+      .channel(realtimeChannel)
+      .on("broadcast", { event: "message" }, () => {
+        void mutate();
+      })
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [mutate, realtimeAnonKey, realtimeChannel, realtimeUrl]);
+
+  // Opening the page IS reading it. If a staff reply lands while the chat is
+  // already open, the polling render below shows it and this clears the badge
+  // for that specific reply without needing to leave and come back.
   useEffect(() => {
     if (!data) return;
     void fetch("/api/support", { method: "PATCH" }).then(() => refreshBadge());
-    // Once per load. Re-running on every poll would fight a reply that lands
-    // while they are reading.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [!!data]);
+  }, [!!data, latestStaffMessageId, refreshBadge]);
 
   // Pin to the newest message. scrollTop on the SCROLLER, not scrollIntoView on
   // a sentinel: the sentinel lands a few pixels short of the bottom padding, so

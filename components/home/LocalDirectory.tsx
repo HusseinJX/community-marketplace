@@ -4,6 +4,7 @@ import { useMemo, useRef, useState, type ReactNode } from "react";
 import { Loader2, LocateFixed } from "lucide-react";
 import type { Member } from "@/lib/types";
 import { MemberCard } from "@/components/MemberCard";
+import { AddToListMenu } from "@/components/AddToListMenu";
 import { CategorySplit } from "@/components/home/CategorySplit";
 import { memberPoint } from "@/lib/map-adapters";
 import { RailHeader } from "@/components/home/RailHeader";
@@ -73,11 +74,13 @@ export function LocalDirectory({
    * typed a word you do.
    */
   query = "",
+  showAddToList = false,
 }: {
   headerAction?: ReactNode;
   belowHeader?: ReactNode;
   showHeading?: boolean;
   query?: string;
+  showAddToList?: boolean;
 } = {}) {
   // Shared, server-cached directory (same key as /explore — one request, cached
   // across tab switches, and the connector call runs server-side not in-browser).
@@ -302,7 +305,13 @@ export function LocalDirectory({
             </p>
             <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
               {ranked.map(({ m, miles }) => (
-                <MemberCard key={m.id} member={m} miles={miles} hasPosition={!!home} />
+                <DirectoryCard
+                  key={m.id}
+                  member={m}
+                  miles={miles}
+                  hasPosition={!!home}
+                  showAddToList={showAddToList}
+                />
               ))}
             </div>
           </>
@@ -319,6 +328,7 @@ export function LocalDirectory({
               members={gm}
               milesById={milesById}
               hasPosition={!!home}
+              showAddToList={showAddToList}
               onExpand={() => {
                 setExpanded(group.key);
                 window.scrollTo({ top: 0 });
@@ -337,6 +347,7 @@ function Rail({
   members,
   milesById,
   hasPosition,
+  showAddToList,
   onExpand,
 }: {
   label: string;
@@ -344,6 +355,7 @@ function Rail({
   members: Member[];
   milesById: Map<string, number | null>;
   hasPosition: boolean;
+  showAddToList: boolean;
   onExpand: () => void;
 }) {
   const scroller = useRef<HTMLDivElement>(null);
@@ -363,10 +375,41 @@ function Rail({
       >
         {members.map((m) => (
           <div key={m.id} className="w-60 shrink-0 sm:w-64">
-            <MemberCard member={m} miles={milesById.get(m.id) ?? null} hasPosition={hasPosition} />
+            <DirectoryCard
+              member={m}
+              miles={milesById.get(m.id) ?? null}
+              hasPosition={hasPosition}
+              showAddToList={showAddToList}
+            />
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function DirectoryCard({
+  member,
+  miles,
+  hasPosition,
+  showAddToList,
+}: {
+  member: Member;
+  miles?: number | null;
+  hasPosition: boolean;
+  showAddToList: boolean;
+}) {
+  const profile = member.profile ?? {};
+  const name = profile.name || profile.businessName || "Local shop";
+
+  return (
+    <div>
+      <MemberCard member={member} miles={miles} hasPosition={hasPosition} />
+      {showAddToList && (
+        <div className="mt-2">
+          <AddToListMenu memberId={member.id} memberName={name} />
+        </div>
+      )}
     </div>
   );
 }

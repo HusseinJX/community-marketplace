@@ -11,6 +11,7 @@
 // input's appearance, never the search state.
 
 import { Search, X, Loader2 } from "lucide-react";
+import { QrScanButton } from "@/components/QrScanButton";
 
 export function EventSearchBar({
   text,
@@ -32,36 +33,37 @@ export function EventSearchBar({
         e.preventDefault();
         onSubmit();
       }}
-      className="rounded-2xl border border-stone-200 bg-white p-3 shadow-sm"
+      className="flex items-center gap-1 rounded-full border border-stone-200 bg-white p-1.5 pl-4 shadow-[var(--shadow-soft)] transition focus-within:shadow-[var(--shadow-lift)] hover:shadow-[var(--shadow-lift)]"
     >
-      <div className="flex items-center gap-2">
-        <Search className="h-4 w-4 shrink-0 text-stone-400" />
+      <Search className="pointer-events-none h-5 w-5 shrink-0 text-stone-500" />
         <input
           value={text}
           onChange={(e) => onTextChange(e.target.value)}
           placeholder="What are you in the mood for?"
           aria-label="Describe what you want to do"
           maxLength={400}
-          className="min-w-0 flex-1 bg-transparent text-[15px] text-stone-900 outline-none placeholder:text-stone-400"
+          className="min-w-0 flex-1 bg-transparent px-3 py-2 t-body text-stone-900 placeholder-stone-400 focus:outline-none"
         />
         {text && (
           <button
             type="button"
             onClick={onClear}
             aria-label="Clear"
-            className="rounded-full p-1 text-stone-400 hover:bg-stone-100 hover:text-stone-700"
+            title="Clear search"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-stone-500 transition hover:bg-stone-100 hover:text-stone-900"
           >
             <X className="h-4 w-4" />
           </button>
         )}
+        <QrScanButton />
         <button
           type="submit"
           disabled={loading}
-          className="shrink-0 rounded-full bg-stone-900 px-4 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+          aria-label="Search events"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-coral-600 text-white transition hover:bg-coral-700 disabled:opacity-50"
         >
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Go"}
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
         </button>
-      </div>
     </form>
   );
 }

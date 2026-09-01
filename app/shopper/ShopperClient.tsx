@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Show, useUser, useClerk } from "@clerk/nextjs";
-import { LogOut, PenLine, ArrowRight, Receipt, Settings, LifeBuoy, BadgeCheck } from "lucide-react";
+import { LogOut, PenLine, ArrowRight, Receipt, Settings, LifeBuoy, BadgeCheck, ListPlus } from "lucide-react";
 import { DeleteAccountButton } from "@/components/account/DeleteAccountButton";
 import { useLogin } from "@/components/auth/ClerkAuthProvider";
 
@@ -84,6 +84,21 @@ export function ShopperClient() {
               <span className="block t-strong text-stone-900">Memberships</span>
               <span className="block t-meta text-stone-500">
                 The local businesses you support, and the perks that come with it.
+              </span>
+            </span>
+          </span>
+          <ArrowRight className="h-4 w-4 shrink-0 text-stone-400" />
+        </Link>
+      </Show>
+
+      <Show when="signed-in">
+        <Link href="/shopper/lists" className="card-soft card-hover flex items-center justify-between p-4">
+          <span className="flex items-center gap-3">
+            <ListPlus className="h-5 w-5 shrink-0 text-teal-500" />
+            <span>
+              <span className="block t-strong text-stone-900">My lists</span>
+              <span className="block t-meta text-stone-500">
+                Shops you saved into your own plans, errands, and places to try.
               </span>
             </span>
           </span>

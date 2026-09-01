@@ -8,6 +8,7 @@ import type { LiveBroadcast } from "@/components/live/types";
 import type { FeedEvent } from "@/app/api/events/feed/route";
 import type { Post } from "@/lib/posts";
 import type { ShopProduct } from "@/app/api/products/route";
+import type { PublicMembershipPlan } from "@/app/api/memberships/plans/route";
 import type { Activity } from "@/lib/unread";
 import type { CollaborationSummary } from "@/lib/collab-network";
 import { fetchLiveBroadcasts } from "@/lib/demo-live-fixtures";
@@ -77,6 +78,12 @@ export function useEventsFeed() {
 export function useShopProducts() {
   const { data, isLoading } = useSWR<{ products?: ShopProduct[] }>("/api/products");
   return { products: data?.products ?? NO_PRODUCTS, loading: isLoading && !data };
+}
+
+/** Public active membership products sold by local businesses. */
+export function useMembershipPlans() {
+  const { data, isLoading } = useSWR<{ plans?: PublicMembershipPlan[] }>("/api/memberships/plans");
+  return { plans: data?.plans ?? NO_MEMBERSHIP_PLANS, loading: isLoading && !data };
 }
 
 /** Community share posts (from the share composer / posts table). */
@@ -283,6 +290,7 @@ export function useSavedMembers() {
 
 // Stable identity so consumers' useMemo deps don't churn on every render.
 const NO_PRODUCTS: ShopProduct[] = [];
+const NO_MEMBERSHIP_PLANS: PublicMembershipPlan[] = [];
 const NONE: never[] = [];
 const EMPTY: Activity[] = [];
 const EMPTY_COLLABS: CollaborationSummary[] = [];

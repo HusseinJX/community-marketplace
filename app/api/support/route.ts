@@ -4,6 +4,7 @@ import { getThread, listMessages, markRead, send, unreadForUser, cleanBody } fro
 import { getVendorProfile } from '@/lib/vendor-connect'
 import { adminUserIds } from '@/lib/admin'
 import { notifyUserSafe } from '@/lib/notify'
+import { supportRealtimeConfig } from '@/lib/support-realtime'
 
 export const runtime = 'nodejs'
 // A conversation is never cacheable, and the badge is read on every tab.
@@ -20,16 +21,18 @@ export const dynamic = 'force-dynamic'
 // tab, so it reads ONE integer off one row and never touches the messages.
 export async function GET(req: Request) {
   const { userId } = await auth()
-  if (!userId) return NextResponse.json({ unread: 0, messages: [] })
+  if (!userId) return NextResponse.json({ unread: 0, messages: [], threadId: null, realtime: null })
 
   const badgeOnly = new URL(req.url).searchParams.get('badge') === '1'
   if (badgeOnly) return NextResponse.json({ unread: await unreadForUser(userId) })
 
   const thread = await getThread(userId)
-  if (!thread) return NextResponse.json({ unread: 0, messages: [] })
+  if (!thread) return NextResponse.json({ unread: 0, messages: [], threadId: null, realtime: null })
   return NextResponse.json({
+    threadId: thread.id,
     unread: thread.user_unread,
     messages: await listMessages(thread.id),
+    realtime: supportRealtimeConfig(thread.id),
   })
 }
 

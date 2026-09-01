@@ -31,7 +31,7 @@ export function AppHeader() {
   return (
     <header
       className={
-        "sticky top-0 z-30 " + (hasSearchBandBelow ? "" : "border-b border-stone-200")
+        "wl-app-header sticky top-0 z-30 " + (hasSearchBandBelow ? "" : "border-b border-stone-200")
       }
       style={{
         paddingTop: "env(safe-area-inset-top)",

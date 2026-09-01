@@ -31,6 +31,7 @@ import { ShopSection } from "@/components/ShopSection";
 import { MembershipTiers } from "@/components/membership/MembershipTiers";
 import { getActivePlansByMember, activeMembershipFor } from "@/lib/memberships";
 import { ActionBar } from "@/components/ActionBar";
+import { SaveBusinessButton } from "@/components/SaveBusinessButton";
 import { GroupChat } from "@/components/GroupChat";
 import { PhotoMosaic } from "@/components/business/PhotoMosaic";
 import { AskAssistant } from "@/components/AskAssistant";
@@ -341,6 +342,7 @@ export default async function MemberProfilePage({
       <header className="mt-4 border-b border-stone-200 pb-5 md:mt-8 md:pb-8">
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="t-hero text-stone-900">{name}</h1>
+          {memberType === "vendor" && <SaveBusinessButton memberId={id} variant="icon" />}
           <MemberTypeBadge type={p.memberType} />
         </div>
         {/* One line of facts under the title, dot-separated — category and

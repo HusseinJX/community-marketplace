@@ -215,6 +215,7 @@ function ProductCard({ product }: { product: ShopProduct }) {
  */
 export function Marketplace({
   embedded = false,
+  showTitle = !embedded,
   /**
    * A keyword from the page's own search box. Passing it takes over this
    * component's toolbar input — embedded in the home tab the header already
@@ -225,6 +226,7 @@ export function Marketplace({
   query,
 }: {
   embedded?: boolean;
+  showTitle?: boolean;
   query?: string;
 }) {
   const [ownSearch, setOwnSearch] = useState("");
@@ -298,6 +300,20 @@ export function Marketplace({
             : "mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8"
         }
       >
+        {showTitle && (
+          <div className="mb-5">
+            <p className="t-meta font-semibold uppercase tracking-[0.18em] text-coral-700">
+              Local products
+            </p>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-stone-950 md:text-5xl">
+              Browse products
+            </h1>
+            <p className="mt-2 max-w-2xl t-body text-stone-600">
+              Shop goods, services, tickets, and digital products from local sellers.
+            </p>
+          </div>
+        )}
+
         {/* Toolbar */}
         <div className="mb-6 flex flex-wrap items-center gap-3">
           <div className="flex-1">

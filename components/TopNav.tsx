@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Search } from "lucide-react";
 import { AccountMenu } from "@/components/AccountMenu";
+import { CartNavMenu } from "@/components/CartNavMenu";
 import { HeaderMenu } from "@/components/HeaderMenu";
 import { CityHeader } from "@/components/home/CityHeader";
 import { useHomeHeader, expandHeader } from "@/lib/home-header";
@@ -174,6 +175,7 @@ export function TopNav() {
             that changes. */}
         <HeaderMenu />
         <AccountMenu />
+        <CartNavMenu />
       </div>
     </div>
   );

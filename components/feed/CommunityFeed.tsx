@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { Rows3, LayoutGrid } from "lucide-react";
 import { type FeedItem, type EventFeedItem, type SharePostFeedItem } from "@/lib/demo-feed";
 import { EventFeedCard } from "@/components/feed/EventFeedCard";
@@ -41,8 +41,9 @@ const CHAT_SLOTS = new Map(
 // Chats sits here rather than as its own home tab: a community chat is another
 // kind of community post, and promoting it to a top-level destination made the
 // home row four wide on a phone for content that belongs beside the posts.
-type Filter = "all" | "shopper" | "vendor" | "chats";
-const TABS: { id: Filter; label: string }[] = [
+export type CommunityFeedFilter = "all" | "shopper" | "vendor" | "chats";
+export type CommunityFeedView = "list" | "board";
+export const COMMUNITY_FEED_FILTERS: { id: CommunityFeedFilter; label: string }[] = [
   { id: "all", label: "All" },
   { id: "shopper", label: "Shoppers" },
   { id: "vendor", label: "Vendors" },
@@ -55,15 +56,41 @@ const TABS: { id: Filter; label: string }[] = [
 export function CommunityFeed({
   eventsOnly = false,
   layout = "feed",
+  filter,
+  onFilterChange,
+  showFilterTabs = true,
+  view,
+  onViewChange,
 }: {
   eventsOnly?: boolean;
   layout?: "feed" | "rail";
+  filter?: CommunityFeedFilter;
+  onFilterChange?: (filter: CommunityFeedFilter) => void;
+  showFilterTabs?: boolean;
+  view?: CommunityFeedView;
+  onViewChange?: (view: CommunityFeedView) => void;
 }) {
-  const [filter, setFilter] = useState<Filter>("all");
+  const [ownFilter, setOwnFilter] = useState<CommunityFeedFilter>("all");
+  const activeFilter = filter ?? ownFilter;
   const [visible, setVisible] = useState(5);
   // "list" = a single narrow column (more vertical); "board" = a Pinterest-style
   // masonry (up to 3 columns on desktop).
-  const [view, setView] = useState<"list" | "board">("list");
+  const [ownView, setOwnView] = useState<CommunityFeedView>("list");
+  const activeView = view ?? ownView;
+
+  const setFilter = (next: CommunityFeedFilter) => {
+    setVisible(5);
+    if (onFilterChange) onFilterChange(next);
+    else setOwnFilter(next);
+  };
+  const setView = (next: CommunityFeedView) => {
+    if (onViewChange) onViewChange(next);
+    else setOwnView(next);
+  };
+
+  useEffect(() => {
+    setVisible(5);
+  }, [activeFilter]);
 
   // Shared, cached datasets — the /api/events/feed and /api/posts keys are the
   // same ones CommunityEventsLive / the Home feed use, so a single Home visit
@@ -154,13 +181,13 @@ export function CommunityFeed({
     if (eventsOnly) return sorted.filter((i) => i.kind === "event");
     // Shoppers = community share posts; Vendors = business content (events +
     // vendor posts). "All" shows everything.
-    if (filter === "shopper") return sorted.filter((i) => i.kind === "share");
-    if (filter === "vendor") return sorted.filter((i) => i.kind === "event" || i.kind === "post");
+    if (activeFilter === "shopper") return sorted.filter((i) => i.kind === "share");
+    if (activeFilter === "vendor") return sorted.filter((i) => i.kind === "event" || i.kind === "post");
     // Chats is not a slice of the post stream — it is its own grid, rendered
     // below instead of this list.
-    if (filter === "chats") return [];
+    if (activeFilter === "chats") return [];
     return sorted;
-  }, [eventsOnly, filter, realEvents, realPosts]);
+  }, [eventsOnly, activeFilter, realEvents, realPosts]);
 
   const shown = filtered.slice(0, visible);
   const hasMore = visible < filtered.length;
@@ -184,15 +211,15 @@ export function CommunityFeed({
     );
   }
 
-  const boardView = view === "board";
+  const boardView = activeView === "board";
 
   return (
     <div>
-      {!eventsOnly && (
+      {!eventsOnly && showFilterTabs && (
         <div className="mb-6 flex items-center justify-between gap-3">
           <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
-            {TABS.map((t) => {
-              const active = filter === t.id;
+            {COMMUNITY_FEED_FILTERS.map((t) => {
+              const active = activeFilter === t.id;
               return (
                 <button
                   key={t.id}
@@ -241,7 +268,7 @@ export function CommunityFeed({
       {/* Chats gets a grid of its own. Everywhere else they are seeded through
           the scroll to be come across; picking the pill is going looking for
           them, and that deserves the whole list at once. */}
-      {filter === "chats" && (
+      {activeFilter === "chats" && (
         <div className="mx-auto max-w-2xl">
           <p className="mb-4 text-sm text-stone-500">
             Group chats rooted to a place. Drop in, see what&apos;s going on, star the ones you

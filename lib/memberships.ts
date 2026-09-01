@@ -103,6 +103,18 @@ export async function getActivePlansByMember(memberId: string): Promise<Membersh
   return (await getPlansByMember(memberId)).filter((p) => p.active)
 }
 
+/** Active membership products across businesses, for public browse surfaces. */
+export async function getActivePlans(limit = 24): Promise<MembershipPlan[]> {
+  const { data } = await supabase
+    .from('membership_plans')
+    .select('*')
+    .eq('active', true)
+    .order('sort_order', { ascending: true })
+    .order('created_at', { ascending: false })
+    .limit(limit)
+  return (data ?? []).map(planRow)
+}
+
 export async function getPlan(planId: string): Promise<MembershipPlan | null> {
   const { data } = await supabase.from('membership_plans').select('*').eq('id', planId).single()
   return data ? planRow(data) : null

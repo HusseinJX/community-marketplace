@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import {
   Newspaper,
@@ -12,7 +13,18 @@ import {
   Sparkles,
   Map as MapIcon,
   CalendarPlus,
+  SlidersHorizontal,
+  BadgePercent,
+  BadgeCheck,
+  Check,
+  Gift,
+  ListPlus,
+  Loader2,
+  LayoutGrid,
+  Rows3,
+  ShieldCheck,
 } from "lucide-react";
+import { useUser } from "@clerk/nextjs";
 import { Marketplace } from "@/components/shop/Marketplace";
 import { EventSearchBar } from "@/components/feed/EventSearchBar";
 import { CityHeader } from "@/components/home/CityHeader";
@@ -20,12 +32,26 @@ import { LiveNowRail } from "@/components/live/LiveNowRail";
 import { CommunityEventsLive } from "@/components/live/CommunityEventsLive";
 import { EventsMapView } from "@/components/live/EventsMapView";
 import { PersonalizedEvents } from "@/components/feed/PersonalizedEvents";
-import { LocalDirectory } from "@/components/home/LocalDirectory";
 import { HomeSearch } from "@/components/home/HomeSearch";
-import { CommunityFeed } from "@/components/feed/CommunityFeed";
+import {
+  CommunityFeed,
+  COMMUNITY_FEED_FILTERS,
+  type CommunityFeedFilter,
+  type CommunityFeedView,
+} from "@/components/feed/CommunityFeed";
 import { HOME_TABS, DEFAULT_HOME_TAB, toHomeTab, rememberHomeTab, type HomeTab } from "@/lib/home-tab";
 import { SupportCard } from "@/components/support/SupportCard";
+import { useLogin } from "@/components/auth/ClerkAuthProvider";
 import { useIsMdUp } from "@/lib/use-media-query";
+import { useDirectory, useMembershipPlans, useShopProducts } from "@/lib/data-hooks";
+import { memberImages } from "@/lib/member-images";
+import { AddToListMenu } from "@/components/AddToListMenu";
+import {
+  savePublicShopperList,
+} from "@/lib/shopper-lists";
+import type { ShopProduct } from "@/app/api/products/route";
+import type { PublicMembershipPlan } from "@/app/api/memberships/plans/route";
+import type { Member } from "@/lib/types";
 import {
   useHomeHeader,
   setHeaderActive,
@@ -116,13 +142,13 @@ export function HomeTabs() {
   const [eventQuery, setEventQuery] = useState("");
   const [eventsLoading, setEventsLoading] = useState(false);
 
-  // Shops and Products search in place: both tabs already hold their whole
-  // catalogue client-side, so the header box filters what is on screen as you
-  // type rather than navigating to /explore and back. One keyword per
-  // catalogue — they list different things, so a word typed against products
-  // shouldn't silently narrow the shops you come back to.
-  const [shopQuery, setShopQuery] = useState("");
+  // Products search in place: the tab already holds the catalogue client-side,
+  // so the header box filters what is on screen as you type.
   const [productQuery, setProductQuery] = useState("");
+  const [feedFilter, setFeedFilter] = useState<CommunityFeedFilter>("all");
+  const [feedView, setFeedView] = useState<CommunityFeedView>("list");
+  const [feedFilterOpen, setFeedFilterOpen] = useState(false);
+  const feedFilterRef = useRef<HTMLDivElement | null>(null);
 
 
   // ── Collapsing header ──────────────────────────────────────────────────
@@ -144,6 +170,25 @@ export function HomeTabs() {
     setHeaderActive(true);
     return () => setHeaderActive(false);
   }, []);
+
+  useEffect(() => {
+    if (!feedFilterOpen) return;
+    const onDown = (event: MouseEvent) => {
+      if (feedFilterRef.current && !feedFilterRef.current.contains(event.target as Node)) {
+        setFeedFilterOpen(false);
+      }
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setFeedFilterOpen(false);
+    };
+
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [feedFilterOpen]);
 
   // The scroll driver lives in an effect; the pin needs to reach into it.
   const drive = useRef<((p: number, hold: boolean) => void) | null>(null);
@@ -376,6 +421,77 @@ export function HomeTabs() {
     };
   }, [store, foldEnabled]);
 
+  useEffect(() => {
+    const root = document.documentElement;
+
+    if (foldEnabled) {
+      root.style.removeProperty("--hdr-title-p");
+      root.classList.remove("wl-title-moving");
+      return;
+    }
+
+    const reduce =
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    let cur = 0;
+    let target = 0;
+    let lastY = window.scrollY;
+    let running = 0;
+    let moving = false;
+
+    const clamp = (v: number) => Math.min(1, Math.max(0, v));
+    const DISTANCE = 72;
+    const CATCH = 0.34;
+
+    const paint = (v: number) => {
+      root.style.setProperty("--hdr-title-p", v.toFixed(3));
+      const inFlight = v > 0.001 && v < 0.999;
+      if (inFlight !== moving) {
+        moving = inFlight;
+        root.classList.toggle("wl-title-moving", inFlight);
+      }
+    };
+
+    const kick = () => {
+      if (!running) running = window.requestAnimationFrame(loop);
+    };
+
+    function loop() {
+      running = 0;
+      const gap = target - cur;
+      if (reduce || Math.abs(gap) < 0.0015) cur = target;
+      else cur += gap * CATCH;
+      paint(cur);
+      if (cur !== target) kick();
+    }
+
+    const onScroll = () => {
+      const y = Math.max(0, window.scrollY);
+      const delta = y - lastY;
+      lastY = y;
+
+      if (y < 12) target = 0;
+      else if (Math.abs(delta) > 0.5) target = clamp(target + delta / DISTANCE);
+      kick();
+    };
+    const onTouchStart = () => {
+      lastY = Math.max(0, window.scrollY);
+    };
+
+    paint(cur);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("touchstart", onTouchStart, { passive: true });
+
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("touchstart", onTouchStart);
+      if (running) window.cancelAnimationFrame(running);
+      root.classList.remove("wl-title-moving");
+      root.style.removeProperty("--hdr-title-p");
+    };
+  }, [foldEnabled]);
+
   // Tapping the compact pill is the one move with no gesture behind it, so it
   // is a magnet rather than a track: aim at open and HOLD there, against a
   // scroll position that still says collapsed. The hold is what keeps it
@@ -396,9 +512,9 @@ export function HomeTabs() {
   // collapsed state still tells you what you're looking at.
   useEffect(() => {
     setHeaderLabel(
-      tab === "events" ? eventQuery : tab === "shop" ? shopQuery : tab === "products" ? productQuery : "",
+      tab === "events" ? eventQuery : tab === "products" ? productQuery : "",
     );
-  }, [tab, eventQuery, shopQuery, productQuery]);
+  }, [tab, eventQuery, productQuery]);
 
   const runEventSearch = () => {
     setEventQuery(eventText);
@@ -536,7 +652,7 @@ export function HomeTabs() {
           // scrolled 700px down would open it far above the viewport and the
           // tap would look like it did nothing. Stuck under the header, it
           // opens where the reader is actually looking.
-          top: "calc(var(--top-nav) + env(safe-area-inset-top))",
+          top: "calc((var(--top-nav) + env(safe-area-inset-top)) * (1 - var(--hdr-title-p, 0)))",
           // The browser must not "helpfully" re-scroll to keep the content
           // below in place when this opens and closes — that compensation is
           // what fought the expand (see the scroll handler above), and it also
@@ -586,13 +702,6 @@ export function HomeTabs() {
                   value={productQuery}
                   onValueChange={setProductQuery}
                   placeholder="Search products"
-                />
-              ) : tab === "shop" ? (
-                <HomeSearch
-                  bare
-                  value={shopQuery}
-                  onValueChange={setShopQuery}
-                  placeholder="Search local businesses"
                 />
               ) : (
                 // Feed — nothing on the page to filter, so the box still
@@ -703,16 +812,105 @@ export function HomeTabs() {
               thing below the page title was a divider, which reads as the end
               of something rather than the start of the feed. */}
           <section className="mx-auto max-w-6xl px-4 pb-24 pt-4 md:px-8">
-            <h2 className="text-xl font-semibold tracking-tight text-stone-900">
-              From the community
-            </h2>
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-xl font-semibold tracking-tight text-stone-900">
+                From the community
+              </h2>
+              <div className="flex items-center gap-2">
+                <div className="hidden shrink-0 items-center gap-0.5 rounded-full border border-stone-200 bg-white p-0.5 sm:flex">
+                  <button
+                    type="button"
+                    onClick={() => setFeedView("list")}
+                    aria-label="List view"
+                    aria-pressed={feedView === "list"}
+                    className={
+                      "inline-flex h-8 w-8 items-center justify-center rounded-full transition " +
+                      (feedView === "list"
+                        ? "bg-stone-900 text-white"
+                        : "text-stone-500 hover:text-stone-800")
+                    }
+                  >
+                    <Rows3 className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFeedView("board")}
+                    aria-label="Grid view"
+                    aria-pressed={feedView === "board"}
+                    className={
+                      "inline-flex h-8 w-8 items-center justify-center rounded-full transition " +
+                      (feedView === "board"
+                        ? "bg-stone-900 text-white"
+                        : "text-stone-500 hover:text-stone-800")
+                    }
+                  >
+                    <LayoutGrid className="h-4 w-4" />
+                  </button>
+                </div>
+                <div ref={feedFilterRef} className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setFeedFilterOpen((open) => !open)}
+                    aria-label="Filter community feed"
+                    aria-expanded={feedFilterOpen}
+                    aria-haspopup="menu"
+                    className={
+                      "grid h-9 w-9 place-items-center rounded-full border transition " +
+                      (feedFilter === "all"
+                        ? "border-stone-200 bg-white text-stone-600 hover:border-stone-300"
+                        : "border-stone-900 bg-stone-900 text-white")
+                    }
+                  >
+                    <SlidersHorizontal className="h-4 w-4" />
+                  </button>
+
+                  {feedFilterOpen && (
+                    <div
+                      role="menu"
+                      className="absolute right-0 top-[calc(100%+8px)] z-30 w-44 overflow-hidden rounded-[var(--r-lg)] border border-stone-200 bg-white py-2 shadow-[var(--shadow-overlay)]"
+                    >
+                      {COMMUNITY_FEED_FILTERS.map(({ id, label }) => {
+                        const active = feedFilter === id;
+                        return (
+                          <button
+                            key={id}
+                            type="button"
+                            role="menuitemradio"
+                            aria-checked={active}
+                            onClick={() => {
+                              setFeedFilter(id);
+                              setFeedFilterOpen(false);
+                            }}
+                            className={
+                              "flex w-full items-center justify-between px-4 py-2.5 text-left t-meta font-semibold transition " +
+                              (active
+                                ? "bg-stone-900 text-white"
+                                : "text-stone-700 hover:bg-stone-50 hover:text-stone-950")
+                            }
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
             {/* The "add your business" ask sits under the heading it belongs
                 to, not at the top of the tab. Above the feed it was the first
                 thing a reader met — a request, before anything worth reading —
                 and it pushed the actual content down. Same placement the Shop
                 tab already uses (LocalDirectory `belowHeader`). */}
             <div className="mb-5 mt-1">{supplyLink}</div>
-            <CommunityFeed layout="feed" />
+            <CommunityFeed
+              layout="feed"
+              filter={feedFilter}
+              onFilterChange={setFeedFilter}
+              showFilterTabs={false}
+              view={feedView}
+              onViewChange={setFeedView}
+            />
           </section>
         </>
       )}
@@ -804,18 +1002,10 @@ export function HomeTabs() {
         </div>
       )}
 
-      {/* Shops — the local business directory. The marketplace used to hang off
-          this tab's heading as a small icon button; it is its own tab now, so
-          there is nothing to link out to from here. */}
+      {/* Shops — a curated commerce landing surface: membership perks, trending
+          products and featured local shops, with the full pages one tap away. */}
       {tab === "shop" && (
-        <div className="pb-24">
-          {/* No title and no supply pitch here: the tab selector above already
-              says Shops and each rail names itself, and the "own a local
-              business?" ask was the first thing a shopper met on a tab made of
-              photographs. It still lives on Events and Feed, and in the
-              footer. */}
-          <LocalDirectory showHeading={false} query={shopQuery} />
-        </div>
+        <ShopDiscovery />
       )}
 
       {/* Products — the same marketplace as /shop, rendered in place. The tab
@@ -832,3 +1022,566 @@ export function HomeTabs() {
     </>
   );
 }
+
+function ShopDiscovery() {
+  const { products, loading: productsLoading } = useShopProducts();
+  const { plans, loading: membershipsLoading } = useMembershipPlans();
+  const { members, loading: shopsLoading } = useDirectory();
+
+  const trending = useMemo(
+    () =>
+      [...products]
+        .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))
+        .slice(0, 6),
+    [products],
+  );
+
+  const featuredShops = useMemo(
+    () =>
+      members
+        .filter((member) => {
+          const profile = member.profile ?? {};
+          return (profile.name || profile.businessName) && memberImages(member).length > 0;
+        })
+        .slice(0, 6),
+    [members],
+  );
+
+  return (
+    <div className="mx-auto max-w-6xl px-4 pb-24 pt-4 md:px-8">
+      <section className="overflow-hidden rounded-[2rem] border border-stone-200 bg-stone-950 text-white shadow-[var(--shadow-lift)]">
+        <div className="grid gap-6 p-5 md:grid-cols-[1.2fr_0.8fr] md:p-7">
+          <div>
+            <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 t-meta font-semibold text-white/80 ring-1 ring-white/15">
+              <BadgePercent className="h-3.5 w-3.5 text-coral-300" />
+              Local memberships
+            </span>
+            <h2 className="mt-4 max-w-2xl text-3xl font-semibold tracking-tight md:text-5xl">
+              One place for the memberships you actually use.
+            </h2>
+            <p className="mt-3 max-w-xl t-body text-white/70">
+              Gyms, MMA studios, pottery classes, yoga spaces, salons, and neighborhood spots can
+              sell recurring memberships here. Shoppers can keep all of them in one account.
+            </p>
+            <div className="mt-5 flex flex-wrap gap-2">
+              {["Gym memberships", "Classes and studios", "Local recurring perks"].map((perk) => (
+                <span
+                  key={perk}
+                  className="rounded-full bg-white/10 px-3 py-1.5 text-sm font-medium text-white/85 ring-1 ring-white/10"
+                >
+                  {perk}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid content-between gap-3 rounded-[1.5rem] bg-white p-4 text-stone-950">
+            <div className="grid gap-3">
+              {[
+                { icon: Gift, title: "Join recurring local offers", copy: "Fitness, martial arts, pottery, yoga, salons, and more." },
+                { icon: ShieldCheck, title: "Manage memberships together", copy: "See active local memberships from one shopper account." },
+                { icon: ShoppingBag, title: "Sell memberships as a business", copy: "Businesses can offer monthly plans directly from their profile." },
+              ].map(({ icon: Icon, title, copy }) => (
+                <div key={title} className="flex gap-3 rounded-2xl bg-stone-50 p-3">
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-coral-50 text-coral-700">
+                    <Icon className="h-5 w-5" />
+                  </span>
+                  <span>
+                    <span className="block text-sm font-semibold">{title}</span>
+                    <span className="mt-0.5 block text-xs leading-5 text-stone-500">{copy}</span>
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="mt-1 grid gap-2 sm:grid-cols-2">
+              <Link
+                href="/memberships"
+                className="group inline-flex items-center justify-center gap-2 rounded-full bg-stone-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-stone-800"
+              >
+                All memberships
+                <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+              </Link>
+              <Link
+                href="/vendor/memberships"
+                className="group inline-flex items-center justify-center gap-2 rounded-full border border-stone-200 bg-white px-4 py-2.5 text-sm font-semibold text-stone-900 transition hover:bg-stone-50"
+              >
+                Sell memberships
+                <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="mt-8">
+        <div className="mb-3 flex items-end justify-between gap-3">
+          <div>
+            <p className="t-meta font-semibold uppercase tracking-[0.16em] text-coral-700">
+              Memberships
+            </p>
+            <h2 className="text-2xl font-semibold tracking-tight text-stone-950">
+              Local memberships to join
+            </h2>
+          </div>
+          <Link
+            href="/memberships"
+            className="hidden shrink-0 items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3 py-2 t-meta font-semibold text-stone-700 transition hover:border-stone-300 sm:inline-flex"
+          >
+            All memberships
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+
+        {membershipsLoading && plans.length === 0 ? (
+          <div className="grid gap-3 md:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div key={index} className="h-72 animate-pulse rounded-3xl bg-stone-200" />
+            ))}
+          </div>
+        ) : plans.length ? (
+          <div className="-mx-4 flex gap-4 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:mx-0 md:grid md:grid-cols-3 md:px-0">
+            {plans.slice(0, 6).map((plan) => (
+              <MembershipProductCard key={plan.id} plan={plan} />
+            ))}
+          </div>
+        ) : (
+          <EmptyShopCard
+            href="/vendor/memberships"
+            title="Sell memberships"
+            copy="Local businesses can add recurring plans for classes, gyms, studios, and regulars."
+          />
+        )}
+      </section>
+
+      <section className="mt-8">
+        <div className="mb-3 flex items-end justify-between gap-3">
+          <div>
+            <p className="t-meta font-semibold uppercase tracking-[0.16em] text-coral-700">
+              Trending
+            </p>
+            <h2 className="text-2xl font-semibold tracking-tight text-stone-950">
+              Products people are checking out
+            </h2>
+          </div>
+          <Link
+            href="/shop"
+            className="hidden shrink-0 items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3 py-2 t-meta font-semibold text-stone-700 transition hover:border-stone-300 sm:inline-flex"
+          >
+            Shop all products
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+
+        {productsLoading && trending.length === 0 ? (
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-5">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <div key={index} className="h-56 animate-pulse rounded-3xl bg-stone-200" />
+            ))}
+          </div>
+        ) : trending.length ? (
+          <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:mx-0 md:grid md:grid-cols-4 md:px-0 lg:grid-cols-5">
+            {trending.map((product) => (
+              <TrendingProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        ) : (
+          <EmptyShopCard href="/shop" title="Shop all products" copy="Browse goods from local vendors and makers." />
+        )}
+      </section>
+
+      <section className="mt-8">
+        <div className="mb-3 flex items-end justify-between gap-3">
+          <div>
+            <p className="t-meta font-semibold uppercase tracking-[0.16em] text-stone-500">
+              Featured shops
+            </p>
+            <h2 className="text-2xl font-semibold tracking-tight text-stone-950">
+              Local spots worth a look
+            </h2>
+          </div>
+          <Link
+            href="/shops"
+            className="hidden shrink-0 items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3 py-2 t-meta font-semibold text-stone-700 transition hover:border-stone-300 sm:inline-flex"
+          >
+            Browse shops
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+
+        {shopsLoading && featuredShops.length === 0 ? (
+          <div className="grid gap-3 md:grid-cols-4 lg:grid-cols-5">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div key={index} className="h-28 animate-pulse rounded-3xl bg-stone-200" />
+            ))}
+          </div>
+        ) : featuredShops.length ? (
+          <div className="grid gap-3 md:grid-cols-4 lg:grid-cols-5">
+            {featuredShops.map((member) => (
+              <FeaturedShopCard key={member.id} member={member} />
+            ))}
+          </div>
+        ) : (
+          <EmptyShopCard href="/shops" title="Browse shops" copy="Explore local businesses, services, and neighborhood spots." />
+        )}
+      </section>
+
+      <section className="mt-8">
+        <div className="mb-3">
+          <p className="t-meta font-semibold uppercase tracking-[0.16em] text-coral-700">
+            Public lists
+          </p>
+          <h2 className="text-2xl font-semibold tracking-tight text-stone-950">
+            Lists from local creators
+          </h2>
+          <p className="mt-1 max-w-2xl t-meta text-stone-500">
+            Browse public lists made by creators, locals, influencers, and tastemakers. Save a list
+            as-is or use it as a starting point for your own.
+          </p>
+        </div>
+        <div className="grid gap-3 md:grid-cols-3">
+          {DEMO_PUBLIC_SHOP_LISTS.map((list) => (
+            <PublicShopListCard key={list.title} list={list} />
+          ))}
+        </div>
+      </section>
+
+    </div>
+  );
+}
+
+function TrendingProductCard({ product }: { product: ShopProduct }) {
+  return (
+    <Link
+      href={`/products/${product.id}`}
+      className="group w-40 shrink-0 overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-[var(--shadow-soft)] transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)] md:w-auto"
+    >
+      <div className={`relative aspect-square bg-gradient-to-br ${gradientFor(product.name)}`}>
+        {product.image && (
+          <Image
+            src={product.image}
+            alt={product.name}
+            fill
+            sizes="(min-width:1024px) 180px, 160px"
+            className="object-cover transition duration-300 group-hover:scale-105"
+          />
+        )}
+      </div>
+      <div className="p-3">
+        <p className="truncate text-[10px] uppercase tracking-wide text-stone-400">
+          {product.memberName}
+        </p>
+        <h3 className="mt-1 truncate text-sm font-semibold text-stone-950">{product.name}</h3>
+        <p className="mt-1 text-sm font-semibold text-coral-700">
+          {product.toPrice > product.price ? "from " : ""}
+          {priceLabel(product.price)}
+        </p>
+      </div>
+    </Link>
+  );
+}
+
+function MembershipProductCard({ plan }: { plan: PublicMembershipPlan }) {
+  const { isSignedIn } = useUser();
+  const openLogin = useLogin();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const perks = [
+    ...(plan.discount_percent ? [`${plan.discount_percent}% off checkout`] : []),
+    ...plan.perks,
+  ].slice(0, 3);
+
+  async function join() {
+    if (!isSignedIn) {
+      openLogin({ redirectUrl: `/?tab=shop` });
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/memberships/join", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ planId: plan.id, returnPath: "/?tab=shop" }),
+      });
+      const data = await response.json();
+      if (data.url) {
+        window.location.assign(data.url);
+        return;
+      }
+      setError(
+        data.error === "vendor_not_ready"
+          ? "This business can't take payments yet."
+          : data.error === "already_member"
+            ? "You're already a member here."
+            : "Couldn't start that just now.",
+      );
+    } catch {
+      setError("Couldn't start that just now.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <article className="flex w-72 shrink-0 flex-col overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-[var(--shadow-soft)] transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)] md:w-auto">
+      <Link href={`/members/${plan.member_id}`} className="group block">
+        <div className={`relative h-32 bg-gradient-to-br ${gradientFor(plan.memberName)}`}>
+          {plan.memberImage && (
+            <Image
+              src={plan.memberImage}
+              alt={plan.memberName}
+              fill
+              sizes="(min-width:768px) 33vw, 288px"
+              className="object-cover transition duration-300 group-hover:scale-105"
+            />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-stone-950/65 via-stone-950/10 to-transparent" />
+          <div className="absolute bottom-3 left-3 right-3">
+            <p className="truncate text-xs font-semibold uppercase tracking-wide text-white/75">
+              {plan.memberCategory || "Local business"}
+            </p>
+            <p className="truncate text-base font-semibold text-white">{plan.memberName}</p>
+          </div>
+        </div>
+      </Link>
+
+      <div className="flex flex-1 flex-col p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="truncate text-base font-semibold text-stone-950">{plan.name}</h3>
+            {plan.description && (
+              <p className="mt-1 line-clamp-2 text-sm leading-5 text-stone-500">{plan.description}</p>
+            )}
+          </div>
+          <span className="shrink-0 rounded-full bg-coral-50 px-2.5 py-1 text-sm font-semibold text-coral-700">
+            {membershipPriceLabel(plan)}
+          </span>
+        </div>
+
+        {perks.length > 0 && (
+          <ul className="mt-4 space-y-2">
+            {perks.map((perk, index) => (
+              <li key={`${perk}-${index}`} className="flex items-start gap-2 text-sm text-stone-700">
+                {index === 0 && plan.discount_percent ? (
+                  <BadgeCheck className="mt-0.5 h-4 w-4 shrink-0 text-coral-600" />
+                ) : (
+                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-stone-400" />
+                )}
+                <span className="line-clamp-1">{perk}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <button
+          type="button"
+          onClick={() => void join()}
+          disabled={busy}
+          className="mt-auto inline-flex w-full items-center justify-center gap-2 rounded-full bg-stone-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-stone-800 disabled:opacity-60"
+        >
+          {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+          Join membership
+        </button>
+        {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+      </div>
+    </article>
+  );
+}
+
+function FeaturedShopCard({ member }: { member: Member }) {
+  const profile = member.profile ?? {};
+  const name = profile.name || profile.businessName || "Local shop";
+  const image = memberImages(member)[0];
+  const subtitle = [profile.neighborhood || profile.city, profile.category as string | undefined]
+    .filter(Boolean)
+    .join(" · ");
+
+  return (
+    <article className="group">
+      <Link href={`/members/${member.id}`} className="block">
+        <div className={`card-media relative aspect-square bg-gradient-to-br ${gradientFor(name)}`}>
+          {image && (
+            <Image
+              src={image}
+              alt={name}
+              fill
+              sizes="(min-width:1024px) 33vw, 100vw"
+              className="object-cover transition duration-300 group-hover:scale-105"
+            />
+          )}
+        </div>
+      </Link>
+      <div className="mt-2 min-w-0">
+        <Link href={`/members/${member.id}`} className="block min-w-0">
+          <div className="flex items-baseline gap-2">
+            <h3 className="truncate text-sm font-semibold text-stone-950">{name}</h3>
+          </div>
+          {subtitle && <p className="mt-0.5 truncate text-xs text-stone-500">{subtitle}</p>}
+        </Link>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <Link href={`/members/${member.id}`} className="inline-flex items-center gap-1 text-xs font-semibold text-coral-700">
+            View shop
+            <ArrowRight className="h-3 w-3 transition group-hover:translate-x-0.5" />
+          </Link>
+          <AddToListMenu memberId={member.id} memberName={name} />
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function PublicShopListCard({ list }: { list: DemoPublicShopList }) {
+  const [saved, setSaved] = useState(false);
+
+  return (
+    <article className="overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-[var(--shadow-soft)]">
+      <div className={`h-2 bg-gradient-to-r ${list.accent}`} />
+      <div className="p-4">
+        <div className="mb-3 flex items-center gap-2">
+          <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full bg-stone-200 ring-2 ring-white">
+            <Image
+              src={list.creatorImage}
+              alt=""
+              fill
+              sizes="32px"
+              className="object-cover"
+            />
+          </div>
+          <p className="min-w-0 truncate text-xs font-semibold uppercase tracking-wide text-stone-400">
+            by {list.creator}
+          </p>
+        </div>
+        <h3 className="text-base font-semibold text-stone-950">{list.title}</h3>
+        <p className="mt-1 text-sm leading-5 text-stone-500">{list.description}</p>
+        <div className="mt-4 space-y-2">
+          {list.members.map((member) => (
+            <div
+              key={member.id}
+              className="flex items-center justify-between gap-2 rounded-2xl bg-stone-50 px-3 py-2 transition hover:bg-stone-100"
+            >
+              <Link href={`/members/${member.id}`} className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold text-stone-900">{member.name}</span>
+                <span className="block text-xs text-stone-500">{member.category}</span>
+              </Link>
+              <AddToListMenu memberId={member.id} memberName={member.name} compact />
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 flex gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              savePublicShopperList(list.title, list.members.map((member) => member.id));
+              setSaved(true);
+            }}
+            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full bg-stone-950 px-3 py-2 text-xs font-semibold text-white transition hover:bg-stone-800"
+          >
+            <ListPlus className="h-3.5 w-3.5" />
+            {saved ? "Saved" : "Save list"}
+          </button>
+          <Link
+            href="/shopper/lists"
+            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full border border-stone-200 px-3 py-2 text-xs font-semibold text-stone-700 transition hover:bg-stone-50"
+          >
+            My lists
+          </Link>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function EmptyShopCard({ href, title, copy }: { href: string; title: string; copy: string }) {
+  return (
+    <Link
+      href={href}
+      className="flex items-center justify-between rounded-3xl border border-dashed border-stone-300 bg-white p-5 text-stone-700 transition hover:border-stone-400"
+    >
+      <span>
+        <span className="block text-sm font-semibold text-stone-950">{title}</span>
+        <span className="mt-1 block text-sm text-stone-500">{copy}</span>
+      </span>
+      <ArrowRight className="h-4 w-4" />
+    </Link>
+  );
+}
+
+function priceLabel(cents: number): string {
+  const dollars = cents / 100;
+  if (dollars === 0) return "Free";
+  return dollars % 1 === 0 ? `$${dollars}` : `$${dollars.toFixed(2)}`;
+}
+
+function membershipPriceLabel(plan: PublicMembershipPlan): string {
+  const dollars = plan.price_cents / 100;
+  const price = dollars % 1 === 0 ? `$${dollars}` : `$${dollars.toFixed(2)}`;
+  return `${price}/${plan.billing_interval === "year" ? "yr" : "mo"}`;
+}
+
+const PRODUCT_GRADIENTS = [
+  "from-amber-200 to-orange-300",
+  "from-sky-200 to-blue-300",
+  "from-violet-200 to-purple-300",
+  "from-emerald-200 to-teal-300",
+  "from-rose-200 to-pink-300",
+  "from-lime-200 to-emerald-300",
+];
+
+function gradientFor(seed: string): string {
+  let hash = 0;
+  for (const char of seed) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  return PRODUCT_GRADIENTS[hash % PRODUCT_GRADIENTS.length];
+}
+
+interface DemoPublicShopList {
+  title: string;
+  creator: string;
+  creatorImage: string;
+  description: string;
+  accent: string;
+  members: Array<{
+    id: string;
+    name: string;
+    category: string;
+  }>;
+}
+
+const DEMO_PUBLIC_SHOP_LISTS: DemoPublicShopList[] = [
+  {
+    title: "Game day spots",
+    creator: "Maya Courtside",
+    creatorImage: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=128&q=80",
+    description: "Bars and restaurants for watch parties, wings, loud rooms, and big screens.",
+    accent: "from-amber-400 via-orange-500 to-coral-600",
+    members: [
+      { id: "demo-courtside-sports-bar", name: "Courtside Sports Bar", category: "Sports bar" },
+      { id: "demo-el-tri-cantina", name: "El Tri Cantina", category: "Cantina" },
+      { id: "demo-the-corner-tap", name: "The Corner Tap", category: "Neighborhood bar" },
+    ],
+  },
+  {
+    title: "Weekend workshops",
+    creator: "Lena Makes",
+    creatorImage: "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=128&q=80",
+    description: "Creative classes, plant sessions, and hands-on things to book with friends.",
+    accent: "from-emerald-400 via-teal-500 to-cyan-500",
+    members: [
+      { id: "demo-dani-cruz", name: "Dani Cruz", category: "Art workshops" },
+      { id: "demo-casa-verde", name: "Casa Verde Plant Co", category: "Plant workshops" },
+      { id: "demo-kira-wave", name: "Kira Wave", category: "Music sessions" },
+    ],
+  },
+  {
+    title: "Late-night food run",
+    creator: "Chef Nico",
+    creatorImage: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=128&q=80",
+    description: "Places to save for after events, games, rehearsals, or a long shift.",
+    accent: "from-stone-700 via-stone-900 to-black",
+    members: [
+      { id: "demo-azteca-grill", name: "Azteca Grill & Bar", category: "Grill & bar" },
+      { id: "demo-highland-pub", name: "Highland Pub", category: "Pub" },
+      { id: "demo-el-tri-cantina", name: "El Tri Cantina", category: "Food & drink" },
+    ],
+  },
+];

@@ -23,8 +23,8 @@ export function SaveBusinessButton({
   className,
 }: {
   memberId: string;
-  /** pill = profile action row · chip = beside Directions · overlay = on the photo */
-  variant?: "pill" | "chip" | "overlay";
+  /** pill = profile action row · chip = beside Directions · overlay = on the photo · icon = profile title row */
+  variant?: "pill" | "chip" | "overlay" | "icon";
   /**
    * Which top corner the overlay sits in. A real prop rather than a `left-2`
    * through `className`, for the reason spelled out in SaveEventButton: both
@@ -61,6 +61,11 @@ export function SaveBusinessButton({
         // Same shape and position as the event save (SaveEventButton) — one
         // gesture, whether the card is a business or an event.
         `absolute ${corner === "left" ? "left-3" : "right-3"} top-3 z-10 grid h-8 w-8 place-items-center rounded-full transition hover:scale-110 active:scale-95`
+      : variant === "icon"
+        ? "inline-grid h-9 w-9 shrink-0 place-items-center rounded-full border transition " +
+          (isSaved
+            ? "border-coral-200 bg-coral-50 text-coral-700"
+            : "border-stone-200 bg-white text-stone-500 hover:border-coral-200 hover:text-coral-700")
       : variant === "chip"
         ? // relative z-10 for the same reason as the Directions chip: the card
           // is a stretched link and this would otherwise sit underneath it.
@@ -72,8 +77,8 @@ export function SaveBusinessButton({
             : "border-stone-200 bg-white text-stone-700 hover:border-coral-200 hover:text-coral-700");
 
   const icon = variant === "chip" ? "h-3 w-3" : variant === "overlay" ? "h-6 w-6" : "h-4 w-4";
-  // The overlay is icon-only — a word would not fit in a 32px circle.
-  const showText = variant !== "overlay";
+  // The overlay and title-row icon are icon-only — a word would not fit.
+  const showText = variant !== "overlay" && variant !== "icon";
 
   return (
     <button

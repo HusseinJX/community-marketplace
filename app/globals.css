@@ -560,6 +560,21 @@ textarea,
    things that still animate on a state change, not on the scroll. */
 :root {
   --hdr-p: 0;
+  --hdr-title-p: 0;
+}
+
+/* Mobile home chrome: the title row scrolls away on downward movement while
+   the search and tab rows stay sticky. Desktop leaves the title row fixed and
+   uses the existing full header fold instead. */
+@media (max-width: 767px) {
+  .wl-app-header {
+    transform: translate3d(
+      0,
+      calc(-1 * (var(--top-nav) + env(safe-area-inset-top)) * var(--hdr-title-p, 0)),
+      0
+    );
+    will-change: transform;
+  }
 }
 
 /* A folding band. The wrapper publishes its own content height as --hdr-h
@@ -602,10 +617,15 @@ textarea,
   }
 }
 
-/* Same band, desktop only — on a phone the tab switcher is the only way out
-   of the tab you're in, so it never folds. */
+/* Same band, desktop only — on a phone the tab switcher stays visible while
+   the title row scrolls away. */
 .wl-fold-md {
   overflow: hidden;
+}
+@media (max-width: 767px) {
+  .wl-fold-md > * {
+    transform: none;
+  }
 }
 @media (min-width: 768px) {
   .wl-fold-md {

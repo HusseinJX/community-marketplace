@@ -1,4 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
+import { broadcastSupportThreadChange } from '@/lib/support-realtime'
 
 // Support chat — the data layer for a person talking to us and us talking back.
 //
@@ -158,6 +159,15 @@ export async function send(opts: {
     .eq('id', thread.id)
     .select()
     .single()
+
+  void broadcastSupportThreadChange({
+    threadId: thread.id,
+    messageId: data.id,
+    sender: opts.sender,
+    createdAt: data.created_at,
+  }).catch(() => {
+    /* realtime is best-effort; polling and push/email remain the fallback */
+  })
 
   return { thread: (updated as SupportThread) ?? thread, message: data as SupportMessage }
 }

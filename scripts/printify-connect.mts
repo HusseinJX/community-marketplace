@@ -70,5 +70,5 @@ if (doSave) {
 if (doSync) {
   const { syncPrintifyCatalog } = await import('../lib/printify-commerce')
   const res = await syncPrintifyCatalog(memberId, 'Xeno')
-  console.log(`SYNCED: imported ${res.imported} · updated ${res.updated} · skipped ${res.skipped}`)
+  console.log(`SYNCED: imported ${res.imported} · updated ${res.updated} · skipped ${res.skipped} · deactivated ${res.deactivated}`)
 }

@@ -9,6 +9,7 @@ import { OnboardManager } from "../onboard/OnboardManager";
 import { FeaturedManager } from "../featured/FeaturedManager";
 import { LineupImportManager } from "@/components/admin/LineupImportManager";
 import { EventDrafts } from "@/components/admin/EventDrafts";
+import { PublicEventFlyerImport } from "@/components/admin/PublicEventFlyerImport";
 import { ModerationQueue } from "@/components/admin/ModerationQueue";
 import { SupportInbox } from "@/components/admin/SupportInbox";
 // The REAL sourcing panel: the registry that actually runs, plus counts from
@@ -119,7 +120,12 @@ export function AdminPanel({ ownerMemberId }: { ownerMemberId: string }) {
       {tab === "featured" && <FeaturedManager />}
       {tab === "sourcing" && <SourcingPanel onDetailChange={setSourcingDetail} />}
 
-      {tab === "drafts" && <EventDrafts />}
+      {tab === "drafts" && (
+        <div className="space-y-4">
+          <PublicEventFlyerImport ownerMemberId={ownerMemberId} />
+          <EventDrafts />
+        </div>
+      )}
 
       {tab === "moderation" && <ModerationQueue />}
 

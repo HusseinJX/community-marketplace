@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Compass, User, Clapperboard, Heart, Ticket, ShoppingBag } from "lucide-react";
+import { Compass, User, Clapperboard } from "lucide-react";
 import { FEATURES } from "@/lib/features";
 
 /**
@@ -17,18 +17,12 @@ import { FEATURES } from "@/lib/features";
  * unlabelled compass is a guess, and the guess costs a tap to check. The bar is
  * 8px taller for it, which is the cheapest 8px in the app.
  *
- * Saved and Tickets are here rather than only in the account menu because both
- * are things you come BACK for — the whole reason to save something is that
- * returning to it should be one tap, and burying it two levels down undoes the
- * feature. (They also live in the menu, for the same reason Airbnb lists
- * Wishlists in both places.)
+ * Saved, Tickets and Cart moved into the top-row cart menu on mobile, keeping
+ * the bottom bar focused on primary movement rather than account utilities.
  */
 const ITEMS = [
   { href: "/", label: "Explore", icon: Compass },
-  { href: "/favorites", label: "Saved", icon: Heart },
   ...(FEATURES.shorts ? [{ href: "/shorts", label: "Shorts", icon: Clapperboard }] : []),
-  { href: "/cart", label: "Cart", icon: ShoppingBag },
-  { href: "/tickets", label: "Tickets", icon: Ticket },
   { href: "/shopper", label: "Profile", icon: User },
 ];
 

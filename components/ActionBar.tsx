@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { UserPlus, HandHeart, MessageSquare, Check, MapPin, Heart, Apple, DollarSign, CreditCard, X, Globe, CalendarClock } from "lucide-react";
 import { GoogleReviewButton } from "@/components/GoogleReviewButton";
+import { AddToListMenu } from "@/components/AddToListMenu";
 import { BookingRequest } from "@/components/booking/BookingRequest";
-import { SaveBusinessButton } from "@/components/SaveBusinessButton";
 import { DirectionsButton } from "@/components/map/DirectionsButton";
 import { PlatformIcon } from "@/components/join/PlatformIcon";
 import { platformById } from "@/lib/links";
@@ -119,6 +119,7 @@ export function ActionBar({
       />
 
       <button
+        hidden
         onClick={() => setFollowing((v) => !v)}
         className={
           following
@@ -132,13 +133,9 @@ export function ActionBar({
 
       {/* Subscribe removed — Follow already covers it. */}
 
-      {/* Was local useState — it looked saved until you reloaded and wrote
-          nothing anywhere. Now the same control, and the same list, as the
-          bookmark on the shop card. */}
-      <SaveBusinessButton memberId={memberId} />
-
       {isVendor && (
         <button
+          hidden
           onClick={logVisit}
           className={
             visits > 0
@@ -153,20 +150,13 @@ export function ActionBar({
       )}
 
       <button
+        hidden
         onClick={() => setSupportOpen(true)}
         className={quiet}
       >
         <HandHeart className="h-4 w-4" />
         Support
       </button>
-
-      <GoogleReviewButton
-        placeId={placeId}
-        name={businessName || memberName}
-        address={businessAddress}
-        mapsUrl={googleMapsUrl}
-        className={reviewPill}
-      />
 
       {canInquire && (
         <button
@@ -179,18 +169,26 @@ export function ActionBar({
         </button>
       )}
 
+      {isVendor && (
+        <AddToListMenu
+          memberId={memberId}
+          memberName={businessName || memberName || "this business"}
+          buttonClassName={quiet}
+        />
+      )}
+
       {/* Book sits at the very end of the row, and is THE action when a
           business can be booked — so it carries the accent. */}
       {isVendor && (
-        <button onClick={() => setBookOpen(true)} className={primary}>
+        <button hidden onClick={() => setBookOpen(true)} className={primary}>
           <CalendarClock className="h-4 w-4" />
           Book
         </button>
       )}
       </div>
 
-      {/* Row 2 — Visit website, then social icons */}
-      {(websiteHref || socials.length > 0) && (
+      {/* Row 2 — Visit website, Google review, then social icons */}
+      {(websiteHref || isVendor || socials.length > 0) && (
         <div className="-mx-4 flex items-center gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] md:mx-0 md:flex-wrap md:overflow-visible md:px-0 md:pb-0 [&::-webkit-scrollbar]:hidden">
           {websiteHref && (
             <a
@@ -203,6 +201,13 @@ export function ActionBar({
               Visit website
             </a>
           )}
+          <GoogleReviewButton
+            placeId={placeId}
+            name={businessName || memberName}
+            address={businessAddress}
+            mapsUrl={googleMapsUrl}
+            className={reviewPill}
+          />
           {socials.map((s) => {
             const plat = platformById(s.platformId);
             return (

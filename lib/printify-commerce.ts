@@ -40,14 +40,16 @@ function db(): SupabaseClient {
 export async function syncPrintifyCatalog(
   memberId: string,
   memberName: string
-): Promise<{ imported: number; updated: number; skipped: number }> {
+): Promise<{ imported: number; updated: number; skipped: number; deactivated: number }> {
   const creds = await getPrintifyCreds(memberId)
-  if (!creds?.shopId) return { imported: 0, updated: 0, skipped: 0 }
+  if (!creds?.shopId) return { imported: 0, updated: 0, skipped: 0, deactivated: 0 }
 
   const products = await listProducts(creds.token, creds.shopId)
   let imported = 0
   let updated = 0
   let skipped = 0
+  let deactivated = 0
+  const liveVariants = new Set<string>()
 
   for (const p of products) {
     for (const v of p.variants) {
@@ -70,6 +72,7 @@ export async function syncPrintifyCatalog(
       // products collapsed to 13, and the surviving row's
       // printify_product_id was whichever design happened to sync last. That is
       // not a missing listing, it is an order that prints the wrong artwork.
+      liveVariants.add(`${p.productId}:${v.variantId}`)
       const { data: existing } = await db()
         .from('products')
         .select('id')
@@ -112,7 +115,30 @@ export async function syncPrintifyCatalog(
     }
   }
 
-  return { imported, updated, skipped }
+  // Removed/disabled Printify variants must leave the public storefront. This
+  // only turns currently-live rows off; it never reactivates vendor-hidden rows.
+  const { data: existingRows } = await db()
+    .from('products')
+    .select('id, active, printify_product_id, printify_variant_id')
+    .eq('member_id', memberId)
+    .eq('source', 'printify')
+    .eq('printify_shop_id', creds.shopId)
+
+  const staleIds = (existingRows ?? [])
+    .filter((row) => {
+      const productId = row.printify_product_id
+      const variantId = row.printify_variant_id
+      return row.active && productId && variantId && !liveVariants.has(`${productId}:${variantId}`)
+    })
+    .map((row) => row.id)
+
+  if (staleIds.length > 0) {
+    const { error } = await db().from('products').update({ active: false }).in('id', staleIds)
+    if (error) throw new Error(`Failed to deactivate stale Printify variants: ${error.message}`)
+    deactivated = staleIds.length
+  }
+
+  return { imported, updated, skipped, deactivated }
 }
 
 // ── Address ──────────────────────────────────────────────────────────────────

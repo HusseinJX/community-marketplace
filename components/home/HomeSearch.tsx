@@ -32,11 +32,14 @@ export function HomeSearch({
   /** Filter mode: pass this to switch the box from navigating to filtering. */
   onValueChange,
   placeholder = "Search local businesses",
+  showFilters = false,
 }: {
   bare?: boolean;
   value?: string;
   onValueChange?: (v: string) => void;
   placeholder?: string;
+  /** Show the facet button even in live-filter mode. Used by Shops as UI scaffolding. */
+  showFilters?: boolean;
 } = {}) {
   const router = useRouter();
   const [own, setOwn] = useState("");
@@ -72,6 +75,7 @@ export function HomeSearch({
   const toggleOwnership = (k: string) =>
     setOwnership((o) => (o.includes(k) ? o.filter((x) => x !== k) : [...o, k]));
   const activeCount = (size ? 1 : 0) + ownership.length;
+  const showFilterButton = !filtering || showFilters;
 
   return (
     <div className={bare ? "" : "mx-auto max-w-6xl px-4 md:px-8"}>
@@ -103,7 +107,7 @@ export function HomeSearch({
               <X className="h-4 w-4" />
             </button>
           )}
-          {!filtering && (
+          {showFilterButton && (
             <button
               type="button"
               onClick={() => setFiltersOpen(true)}
@@ -136,7 +140,7 @@ export function HomeSearch({
         open={filtersOpen}
         onClose={() => {
           setFiltersOpen(false);
-          if (activeCount > 0) toResults();
+          if (!filtering && activeCount > 0) toResults();
         }}
         size={size}
         ownership={ownership}

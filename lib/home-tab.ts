@@ -14,7 +14,7 @@
 
 export type HomeTab = "events" | "feed" | "shop" | "products";
 
-// ORDER: Events · Shops · Products · Feed (2026-08-22). It reads outward from
+// ORDER: Events · Shop · Products · Feed (2026-08-22). It reads outward from
 // what is happening now to what you can buy, and it puts the tab with the
 // shortest shelf life first.
 //
@@ -44,7 +44,7 @@ export type HomeTab = "events" | "feed" | "shop" | "products";
 const TAB_LABELS: Record<HomeTab, string> = {
   events: "Events",
   feed: "Feed",
-  shop: "Shops",
+  shop: "Shop",
   products: "Products",
 };
 
@@ -60,7 +60,7 @@ export const DEFAULT_HOME_TAB: HomeTab = "events";
 
 /** The tabs the selector actually draws, in order. */
 export const HOME_TABS: { id: HomeTab; label: string }[] = (
-  ["events", "shop", "products", "feed"] as const
+  ["events", "shop", "feed"] as const
 ).map((id) => ({ id, label: TAB_LABELS[id] }));
 
 // Both spellings are in the wild — `?tab=events` from before the split, and
