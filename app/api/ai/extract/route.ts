@@ -63,8 +63,34 @@ const EVENTS_SCHEMA = {
           date: { type: ['string', 'null'], description: 'Human-readable date as printed' },
           time: { type: ['string', 'null'] },
           location: { type: ['string', 'null'] },
+          venue_name: { type: ['string', 'null'] },
+          venue_address: { type: ['string', 'null'] },
+          price: { type: ['string', 'null'] },
+          age_limit: { type: ['string', 'null'] },
+          ticket_url: { type: ['string', 'null'] },
+          instagram: { type: ['string', 'null'] },
+          phone: { type: ['string', 'null'] },
+          artists_or_vendors: { type: 'array', items: { type: 'string' } },
+          notes: { type: ['string', 'null'] },
+          raw_text: { type: 'string' },
         },
-        required: ['title', 'description', 'date', 'time', 'location'],
+        required: [
+          'title',
+          'description',
+          'date',
+          'time',
+          'location',
+          'venue_name',
+          'venue_address',
+          'price',
+          'age_limit',
+          'ticket_url',
+          'instagram',
+          'phone',
+          'artists_or_vendors',
+          'notes',
+          'raw_text',
+        ],
         additionalProperties: false,
       },
     },
@@ -131,7 +157,7 @@ export async function POST(req: Request) {
       ? 'Extract every distinct menu item / product from this image. Capture name, a short description if shown, and the price in cents. Do not invent items or prices that are not visible.'
       : mode === 'lineup'
         ? 'This is a festival/market lineup or exhibitor list. Extract every distinct business/vendor/exhibitor name shown. For each, capture the name, a category if shown or clearly implied (Food, Crafts, Music, Nonprofit, etc.), and a short description if present. Do not invent vendors that are not listed.'
-        : 'Extract the event(s) advertised on this flyer/poster: title, description, date, time, and location exactly as printed. Do not invent details.'
+        : 'Extract the event(s) advertised on this flyer/poster. Capture every visible detail: title, description, date, time, venue name, address, price, age limits, ticket links, social handles, phone numbers, artists/vendors, notes, and raw visible text. Do not invent details. If a detail is visible but does not fit another field, include it in notes and raw_text.'
 
   const SCHEMA = mode === 'products' ? PRODUCTS_SCHEMA : mode === 'lineup' ? LINEUP_SCHEMA : EVENTS_SCHEMA
   const SCHEMA_NAME = mode === 'products' ? 'extracted_products' : mode === 'lineup' ? 'extracted_vendors' : 'extracted_events'
@@ -183,7 +209,26 @@ export async function POST(req: Request) {
     })
   }
 
-  const events = (parsed.events as { title: string; description: string | null; date: string | null; time: string | null; location: string | null }[] | undefined) ?? []
+  const events =
+    (parsed.events as
+      | {
+          title: string
+          description: string | null
+          date: string | null
+          time: string | null
+          location: string | null
+          venue_name: string | null
+          venue_address: string | null
+          price: string | null
+          age_limit: string | null
+          ticket_url: string | null
+          instagram: string | null
+          phone: string | null
+          artists_or_vendors: string[]
+          notes: string | null
+          raw_text: string
+        }[]
+      | undefined) ?? []
   return NextResponse.json({
     mode,
     // keep the uploaded flyer as the event poster
@@ -193,6 +238,16 @@ export async function POST(req: Request) {
       event_date: e.date,
       event_time: e.time,
       location: e.location,
+      venue_name: e.venue_name,
+      venue_address: e.venue_address,
+      price: e.price,
+      age_limit: e.age_limit,
+      ticket_url: e.ticket_url,
+      instagram: e.instagram,
+      phone: e.phone,
+      artists_or_vendors: Array.isArray(e.artists_or_vendors) ? e.artists_or_vendors : [],
+      notes: e.notes,
+      raw_text: e.raw_text,
       poster_image_url: imageUrl,
     })),
   })

@@ -76,7 +76,7 @@ export function AdminPanel({ ownerMemberId }: { ownerMemberId: string }) {
           <TabButton active={tab === "behalf"} onClick={() => setTab("behalf")} icon={Search} label="Act on behalf" />
           <TabButton active={tab === "sourcing"} onClick={() => setTab("sourcing")} icon={Globe} label="Sourcing" />
           {/* Sits beside Sourcing: it reviews what Sourcing brings in. */}
-          <TabButton active={tab === "drafts"} onClick={() => setTab("drafts")} icon={ClipboardCheck} label="Scraped drafts" />
+          <TabButton active={tab === "drafts"} onClick={() => setTab("drafts")} icon={ClipboardCheck} label="Events" />
           {/* Reports + anything the AI screener held. Apple gives us 24h. */}
           <TabButton active={tab === "moderation"} onClick={() => setTab("moderation")} icon={ShieldAlert} label="Moderation" />
           {/* People writing to us from the card on every home tab. */}

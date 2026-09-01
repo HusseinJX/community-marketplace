@@ -100,7 +100,7 @@ export function EventDrafts() {
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold tracking-tight text-stone-900">
-            Scraped drafts
+            Events
           </h2>
           <p className="text-sm text-stone-500">
             Held back for a human because this source is parsed with hand-written

@@ -10,12 +10,49 @@ interface EventDraft {
   event_date: string | null;
   event_time: string | null;
   location: string | null;
+  venue_name: string | null;
+  venue_address: string | null;
+  price: string | null;
+  age_limit: string | null;
+  ticket_url: string | null;
+  instagram: string | null;
+  phone: string | null;
+  artists_or_vendors: string[];
+  notes: string | null;
+  raw_text: string | null;
   poster_image_url: string | null;
+  useVenue?: boolean;
+  venueResolution?: {
+    flyerVenueName: string | null;
+    flyerAddress: string | null;
+    query: string | null;
+    confidence: "none" | "low" | "medium" | "high";
+    existingMemberId: string | null;
+    candidate: {
+      placeId: string;
+      name: string;
+      address: string | null;
+      city: string | null;
+      neighborhood: string | null;
+      lat: number | null;
+      lng: number | null;
+      phone: string | null;
+      website: string | null;
+      summary: string | null;
+      rating: number | null;
+      userRatingsTotal: number | null;
+    } | null;
+  } | null;
 }
 
 interface CreatedEvent {
   id: string;
   title: string;
+}
+
+interface CreatedVenue {
+  id: string;
+  name: string;
 }
 
 export function PublicEventFlyerImport({ ownerMemberId }: { ownerMemberId: string }) {
@@ -24,6 +61,7 @@ export function PublicEventFlyerImport({ ownerMemberId }: { ownerMemberId: strin
   const [error, setError] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<EventDraft[]>([]);
   const [created, setCreated] = useState<CreatedEvent[]>([]);
+  const [createdVenues, setCreatedVenues] = useState<CreatedVenue[]>([]);
 
   async function onFile(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -32,6 +70,7 @@ export function PublicEventFlyerImport({ ownerMemberId }: { ownerMemberId: strin
 
     setError(null);
     setCreated([]);
+    setCreatedVenues([]);
     try {
       setBusy("Uploading flyer...");
       const form = new FormData();
@@ -55,7 +94,23 @@ export function PublicEventFlyerImport({ ownerMemberId }: { ownerMemberId: strin
       if (!extracted.ok) throw new Error(extractedBody.error || "Could not read the flyer");
       const events: EventDraft[] = extractedBody.events ?? [];
       if (!events.length) throw new Error("No events found in that flyer");
-      setDrafts(events);
+
+      setBusy("Finding venue...");
+      const resolved = await fetch("/api/admin/public-event-flyer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "resolve", events }),
+      });
+      const resolvedBody = await resolved.json().catch(() => ({}));
+      if (!resolved.ok) throw new Error(resolvedBody.error || "Could not resolve the venue");
+      setDrafts(
+        ((resolvedBody.events ?? []) as EventDraft[]).map((draft) => ({
+          ...draft,
+          useVenue:
+            !!draft.venueResolution?.candidate &&
+            (draft.venueResolution.confidence === "high" || draft.venueResolution.confidence === "medium"),
+        })),
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -79,6 +134,7 @@ export function PublicEventFlyerImport({ ownerMemberId }: { ownerMemberId: strin
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(body.error || "Could not publish events");
       setCreated(body.created ?? []);
+      setCreatedVenues(body.createdVenues ?? []);
       setDrafts([]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -86,6 +142,9 @@ export function PublicEventFlyerImport({ ownerMemberId }: { ownerMemberId: strin
       setBusy(null);
     }
   }
+
+  const toggleVenue = (index: number) =>
+    setDrafts((rows) => rows.map((row, i) => (i === index ? { ...row, useVenue: !row.useVenue } : row)));
 
   return (
     <div className="overflow-hidden rounded-xl border border-stone-200 bg-white">
@@ -164,12 +223,80 @@ export function PublicEventFlyerImport({ ownerMemberId }: { ownerMemberId: strin
                     placeholder="Location"
                     className="w-full rounded-md border border-stone-200 px-2 py-1 text-xs"
                   />
+                  <div className="grid gap-1.5 sm:grid-cols-2">
+                    <input
+                      value={draft.venue_name ?? ""}
+                      onChange={(event) => update(index, { venue_name: event.target.value })}
+                      placeholder="Venue name from flyer"
+                      className="w-full rounded-md border border-stone-200 px-2 py-1 text-xs"
+                    />
+                    <input
+                      value={draft.venue_address ?? ""}
+                      onChange={(event) => update(index, { venue_address: event.target.value })}
+                      placeholder="Venue address from flyer"
+                      className="w-full rounded-md border border-stone-200 px-2 py-1 text-xs"
+                    />
+                  </div>
+                  {draft.venueResolution?.candidate ? (
+                    <div className="rounded-lg border border-sky-100 bg-sky-50 p-2 text-xs text-slate-700">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div>
+                          <p className="font-semibold text-slate-900">
+                            Google match: {draft.venueResolution.candidate.name}
+                          </p>
+                          {draft.venueResolution.candidate.address && (
+                            <p className="mt-0.5 text-slate-600">{draft.venueResolution.candidate.address}</p>
+                          )}
+                          <p className="mt-1 text-[11px] uppercase tracking-wide text-slate-500">
+                            {draft.venueResolution.existingMemberId ? "Existing profile" : "Create unclaimed profile"} ·{" "}
+                            {draft.venueResolution.confidence} confidence
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => toggleVenue(index)}
+                          className={`rounded-full px-3 py-1 text-[11px] font-semibold transition ${
+                            draft.useVenue
+                              ? "bg-slate-900 text-white"
+                              : "border border-slate-200 bg-white text-slate-600"
+                          }`}
+                        >
+                          {draft.useVenue ? "Use venue" : "Use generic"}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border border-amber-100 bg-amber-50 p-2 text-xs text-amber-800">
+                      No confident Google venue match. This will publish under Community flyer unless you edit and rescan.
+                    </div>
+                  )}
+                  <div className="grid gap-1.5 sm:grid-cols-2">
+                    <input
+                      value={draft.price ?? ""}
+                      onChange={(event) => update(index, { price: event.target.value })}
+                      placeholder="Price / cover"
+                      className="w-full rounded-md border border-stone-200 px-2 py-1 text-xs"
+                    />
+                    <input
+                      value={draft.age_limit ?? ""}
+                      onChange={(event) => update(index, { age_limit: event.target.value })}
+                      placeholder="Age limit"
+                      className="w-full rounded-md border border-stone-200 px-2 py-1 text-xs"
+                    />
+                  </div>
                   <textarea
                     value={draft.description ?? ""}
                     onChange={(event) => update(index, { description: event.target.value })}
                     placeholder="Description"
                     rows={2}
                     className="w-full rounded-md border border-stone-200 px-2 py-1 text-xs text-stone-600"
+                  />
+                  <textarea
+                    value={draft.raw_text ?? ""}
+                    onChange={(event) => update(index, { raw_text: event.target.value })}
+                    placeholder="All visible flyer text"
+                    rows={2}
+                    className="w-full rounded-md border border-stone-200 px-2 py-1 text-xs text-stone-500"
                   />
                 </div>
                 <button
@@ -214,6 +341,13 @@ export function PublicEventFlyerImport({ ownerMemberId }: { ownerMemberId: strin
               <Check className="h-4 w-4" /> Published {created.length} event
               {created.length === 1 ? "" : "s"}
             </p>
+            {createdVenues.length > 0 && (
+              <p className="text-xs text-emerald-800">
+                Created {createdVenues.length} venue profile
+                {createdVenues.length === 1 ? "" : "s"}:{" "}
+                {createdVenues.map((venue) => venue.name).join(", ")}
+              </p>
+            )}
             <ul className="space-y-1 text-xs">
               {created.map((event) => (
                 <li key={event.id} className="flex items-center justify-between gap-2">
