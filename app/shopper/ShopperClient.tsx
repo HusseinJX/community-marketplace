@@ -53,12 +53,10 @@ export function ShopperClient() {
           page is now about what you HAVE (orders, causes, account) rather than
           about tuning what you see. */}
 
-      {/* Orders. Points at /tickets because that is the only place a shopper
-          can currently see what they bought — there is no dedicated orders
-          page yet, and a card linking to a 404 is worse than no card. Repoint
-          this the moment one exists. */}
+      {/* Orders. The combined purchase history lives at /orders; /tickets stays
+          the focused QR wallet for events. */}
       <Show when="signed-in">
-        <Link href="/tickets" className="card-soft card-hover flex items-center justify-between p-4">
+        <Link href="/orders" className="card-soft card-hover flex items-center justify-between p-4">
           <span className="flex items-center gap-3">
             <Receipt className="h-5 w-5 shrink-0 text-teal-500" />
             <span>

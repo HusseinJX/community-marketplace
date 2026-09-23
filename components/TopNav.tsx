@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { Search } from "lucide-react";
 import { AccountMenu } from "@/components/AccountMenu";
 import { CartNavMenu } from "@/components/CartNavMenu";
-import { HeaderMenu } from "@/components/HeaderMenu";
 import { CityHeader } from "@/components/home/CityHeader";
 import { useHomeHeader, expandHeader } from "@/lib/home-header";
 
@@ -173,7 +172,6 @@ export function TopNav() {
             being made against a layout that never ships. Light is the only
             public theme; the dark stylesheet in globals.css stays for when
             that changes. */}
-        <HeaderMenu />
         <AccountMenu />
         <CartNavMenu />
       </div>
