@@ -1,105 +1,89 @@
-# Memberships: the wallet, linked plans, and benefits that count
+# Memberships — a marketplace, not a management tool
 
-Spec, 2026-09-23. Nothing here is built. What exists today is in §0.
+Spec, 2026-09-23 (rewritten the same day; §9 records what changed and why).
+Nothing here is built. What exists today is §0.
 
-## The bet
+## The offer
 
-People should manage **every local membership in one place** — the gym, the
-coffee subscription, the climbing wall, the studio. Convenience drives opens;
-opens drive sales. Businesses come for the storefront and stay because their
-members are already here.
+**We are another place to be found, and you pay only on what it produces.**
 
-## 0. What exists today, honestly
+That has always been the pitch — a place to list your shop, your products, your
+membership, and a promise that people will buy. The business changes nothing
+about how it already operates. We are a customer acquisition channel that
+happens to handle billing.
 
-`membership_plans` (`name, description, price_cents, billing_interval, discount_percent, perks jsonb, active, sort_order`)
-and `memberships` (`plan_id, clerk_user_id, status, current_period_end, price_cents, stripe_subscription_id, …`).
-Billing is a Stripe Connect destination charge with our 5% on every renewal.
-`/shopper/memberships` lists what you hold, with renewal date and cancel.
+What we are NOT:
 
-Two things about that are load-bearing for this spec:
+- **Not an aggregator.** We do not import memberships people hold elsewhere.
+  You buy here, so it is here. That is the premise, not a limitation.
+- **Not a replacement for their system.** A gym on Mindbody keeps Mindbody. We
+  sell alongside it.
+- **Not touching their existing customers.** Asking a business for its member
+  list, in exchange for making those members easier to cancel, is a negative
+  offer. There is no version of that worth building.
 
-- **We only know about memberships we sold.** The wallet can never be complete,
-  so "all your local memberships" is not something today's model can deliver.
-- **`perks` is display-only text.** The software enforces exactly one thing:
-  `discount_percent`, applied to all items. "Four studio sessions monthly" is a
-  sentence nobody counts.
+For a business with no system at all, ours **is** their system — plans, billing,
+member list, redemption. Same product, different starting point.
 
-## 1. Two modes
+## 0. What exists today
 
-> **You do not have to own the billing to own the wallet.**
+`membership_plans` (`name, description, price_cents, billing_interval,
+discount_percent, perks jsonb, active, sort_order`) and `memberships`
+(`plan_id, clerk_user_id, status, current_period_end, price_cents,
+stripe_subscription_id, …`). Billing is a Stripe Connect destination charge,
+5% of every renewal. `/shopper/memberships` lists what you hold, with renewal
+date and cancel. `/memberships` browses what is for sale.
 
-| | **Sold here** | **Linked here** |
-|---|---|---|
-| Who bills | Us, via Stripe Connect | The business, wherever they already do |
-| Our cut | 5% of every renewal | Nothing |
-| Exists today | Yes | No |
-| What it unlocks | Revenue | Everything else |
+The gap is not completeness. It is that **`perks` is display-only text** — the
+software enforces exactly one thing, `discount_percent`, applied to every item.
+"Four studio sessions monthly" is a sentence nobody counts.
 
-**Linked** is the wedge, and it is the answer to the question that kills
-adoption: *a gym with 400 members on Mindbody will not move its billing to be
-in an app.* With linked memberships it doesn't have to. Its members add what
-they already hold, the gym gets a presence and a member list for free, and the
-*next* member buys through us because one tap beats a signup form.
+## 1. Everything sold here is real
 
-Sold is the revenue. Linked is what makes the wallet worth opening, and an
-unopened wallet sells nothing.
+Because we bill it, every membership in the wallet is verified by construction.
+No trust ladder, no self-declared tier, no confirming people at a counter, no
+reconciliation against a system we do not control.
 
-## 2. The trust ladder
+This is the largest simplification available and it comes free with the
+marketplace framing. See §9 for the draft that did it the hard way.
 
-A linked membership is self-declared — anyone can claim to be a member. That is
-fine for a wallet and not fine for a discount. So every membership carries a
-`verification`:
+## 2. A member who moves here is new business
 
-| Level | How it got there | May redeem? |
-|---|---|---|
-| `self_declared` | The holder said so | **No** |
-| `vendor_confirmed` | Staff said yes at the counter (see below) | Yes |
-| `billed` | We charge the card, so we know | Yes |
+Someone cancels at the gym and re-subscribes through us. That is **new business
+through this channel**, and it is chargeable.
 
-Only `vendor_confirmed` and `billed` can spend a benefit. A `self_declared`
-membership shows in the wallet, counts towards "you have 6 local memberships",
-and buys nothing. The wallet is allowed to take your word for it; the till is
-not.
+- The business did not lose the customer. Only the rail changed.
+- The customer chose it, because it was more convenient — which is value we
+  created.
+- No marketplace has ever priced on "only customers you did not already have".
+  Shopify merchants pay on repeat buyers who could have phoned; Amazon sellers
+  pay on people who already knew the brand. That is what a channel is.
+- The business has an easy out at all times: do not list, or offer a better
+  deal directly.
 
-### How confirmation actually happens — decided 2026-09-23
+**The one line we hold:** generic consumer marketing, never a named business's
+member base. "Manage your local memberships in one place", pointed at everyone,
+is clean. Going after one gym's specific members would be a different act — and
+we do not have their list, which is the same reason we never ask for it.
 
-**At the counter, on first redemption. Not from a roster.**
+## 3. Pricing, and the order of it
 
-The obvious design is a CSV of member emails, and it is a trap: a synchronisation
-problem in disguise. Upload today, stale tomorrow — members join, lapse, leave —
-and keeping it current means integrating with Mindbody or Square, which is the
-exact thing linked memberships exist to avoid, reintroduced through the back
-door.
+**Percentage first.** "You pay nothing unless it works" is what gets the first
+hundred businesses to yes with no meeting. A monthly fee inverts the risk: they
+pay whether or not it produces, evaluate ROI monthly, and churn on the first
+quiet one. Pre-liquidity that is fatal.
 
-The insight: **confirmation does not need to be complete or current. It only
-needs to be true at the moment of redemption.** So the first time a
-`self_declared` member tries to redeem, the staff screen asks one question:
+**Subscription later, and for the TOOLING rather than the sales** — which is
+already the shape of the business: selling is free, 5% of what sells, Pro at
+$30/mo for the AI agent and analytics (`lib/entitlements.ts`). Membership
+tooling — redemption codes, credit tracking, member lists, campaigns — sits
+naturally in Pro. Two revenue lines, and we never charge anyone for a channel
+that has not yet worked for them.
 
-> *"Sam says they're a member. Are they?"*  **Yes** / **No**
+## 4. Benefits that count
 
-Yes promotes them to `vendor_confirmed` permanently. Two seconds, answered by
-someone standing in front of them who knows better than any export.
-
-Why this beats a roster:
-
-- **Zero onboarding friction.** The business does nothing to begin. Load-bearing
-  for the wedge — the moment step one is "export your member list", most local
-  businesses stop.
-- **Self-limiting in the right direction.** Only members who actually turn up
-  get confirmed, which is exactly the population worth having.
-- **Degrades gracefully.** A wrong yes costs one discount. A stale CSV silently
-  denies real members, which is far worse and much harder to notice.
-
-A bulk import stays available for businesses that ask for it. It must not be
-the path.
-
-A small "claimed by" list in `/vendor/memberships` is still worth having — a
-business that wants to confirm its regulars up front should be able to — but it
-is an option, never a prerequisite.
-
-## 3. Benefits that count
-
-`discount_percent` becomes one row in a typed list.
+`discount_percent` becomes one row in a typed list. This is the change that
+makes memberships generalise past "10% off".
 
 ```sql
 membership_benefits
@@ -112,25 +96,22 @@ membership_benefits
   created_at, updated_at
 ```
 
-- **`percent_off`** — what exists today. `value` is the percent. Optional
-  `product_id` scopes it to one item instead of the whole basket, which is the
-  "member pricing on classes but not on retail" case.
-- **`free_item`** — a pastry with coffee. Consumes a credit.
-- **`credit`** — `value` per `period`. Four studio sessions a month. **This is
-  the one that makes memberships generalise**: a gym, a class pack and a coffee
-  subscription are all credits with different labels.
-- **`access`** — no money, just a yes. Member-only events, a door, early
-  booking.
+- **`percent_off`** — what exists today. Optional `product_id` scopes it to one
+  item rather than the basket: member pricing on classes but not on retail.
+- **`free_item`** — a pastry with the coffee. Consumes a credit.
+- **`credit`** — `value` per `period`. **The one that generalises**: a gym, a
+  class pack and a coffee subscription are all credits with different labels.
+- **`access`** — no money, just a yes. Member-only events, a door, early booking.
 
-Migration is mechanical: every existing plan with `discount_percent > 0` becomes
-one `percent_off` row; `perks[]` strings become `access` rows with no value,
-which is exactly what they are today — a promise, now typed as one.
+Migration is mechanical: every plan with `discount_percent > 0` becomes one
+`percent_off` row, and each `perks[]` string becomes an `access` row with no
+value — precisely what they are today, a promise, now typed as one.
 
-`membership_plans.discount_percent` stays as the cached fast path for checkout
-until benefits ship, then becomes derived. **`memberDiscountPercent()` is the
-only reader**, so there is one place to change.
+`membership_plans.discount_percent` stays as checkout's fast path until benefits
+ship, then becomes derived. **`memberDiscountPercent()` is its only reader**, so
+there is exactly one place to change.
 
-## 4. The credit ledger
+## 5. The credit ledger
 
 Never a counter on a row. Grants and spends, like any balance:
 
@@ -139,96 +120,103 @@ membership_credits
   id, membership_id, benefit_id,
   delta integer,             -- +4 granted, -1 spent
   reason text,               -- 'grant' | 'redeem' | 'expiry' | 'adjust'
-  redemption_id uuid,        -- when it was a spend
+  redemption_id uuid,
   period_start date,         -- which cycle this grant belongs to
   created_at
 ```
 
-Balance is `sum(delta)`. A mutable counter is how you get a member who is owed
-four sessions and has had five — two scanners at one door, a retry, and the
-number is wrong with no way to find out when.
+Balance is `sum(delta)`. A mutable counter is how a member owed four sessions
+has had five — two scanners at one door, one retry, and the number is wrong
+with no way to find out when.
 
-Credits are granted on the cycle boundary by the same Stripe webhook that
+Credits are granted at the cycle boundary by the same Stripe webhook that
 already advances `current_period_end`, keyed on `(membership_id, benefit_id,
 period_start)` so a replayed webhook grants nothing twice. Unused credits expire
-at the cycle end by default — an `expiry` row, never a deletion, so the history
-stays readable.
+at cycle end by default — an `expiry` row, never a deletion, so history stays
+readable.
 
-## 5. Redemption — the part that drives repeat visits
+## 6. Redemption
 
-A listed membership is a monthly glance. A **used** one is weekly. Using it
-means proving it at the counter, and **that machinery already exists**:
-`event_tickets` where the token is the credential, plus the door scanner at
-`/vendor/checkin/[eventId]`.
-
-Same shape, reused deliberately:
+A listed membership is a monthly glance. A **used** one is weekly, and a used
+one does not get cancelled. Using it means proving it at the counter — and that
+machinery already exists: `event_tickets`, where the token is the credential,
+plus the door scanner at `/vendor/checkin/[eventId]`.
 
 ```sql
 membership_redemptions
   id, membership_id, member_id, benefit_id,
-  code text,                 -- short, readable back over a counter
-  redeemed_at, redeemed_by,  -- which staff member scanned it
+  code text,                 -- short, readable back across a counter
+  redeemed_at, redeemed_by,
   created_at
 ```
 
 Rules taken straight from ticketing, because they were learned there:
 
-- **The token is the credential.** The holder's wallet shows a rotating QR; the
-  staff screen shows a short `code` they can read back. **The token never
-  appears in a list**, exactly as the door guest list shows `code` and never
-  `token` — a leaked member list must not become a set of usable benefits.
-- **The redemption row is the lock.** Two scans of the same credit is one spend.
-- **Staff see the outcome, not the balance**: "Yes — 3 sessions left after this"
-  is the whole screen. A scanner that shows a wall of entitlements is a scanner
-  nobody reads.
+- **The token is the credential.** The wallet shows a rotating QR; staff see a
+  short `code`. **The token never appears in a list** — the door guest list
+  shows `code` and never `token`, because a leaked member list must not become
+  a set of usable benefits.
+- **The redemption row is the lock.** Two scans of one credit is one spend.
+- **Staff see the outcome, not the balance.** "Yes — 3 sessions left after
+  this" is the whole screen.
 
-## 6. What the wallet becomes
+This is also what a business with no system of its own is actually buying: not
+just billing, but the thing that works at the till.
 
-`/shopper/memberships` today lists plan, business, price, renewal, cancel.
-With the above it gains the things that make it worth opening weekly:
+## 7. What the shopper gets
 
-- **Everything, not just what we sold** — linked plans sit beside billed ones,
-  with the weaker ones visibly weaker (no Redeem button on `self_declared`).
-- **What you have left** — "3 of 4 sessions", the single most-checked fact
-  about any membership anyone holds.
-- **What you're spending locally, monthly**, across all of them. Nobody knows
-  this number and everybody wants it. It is also, quietly, the strongest
-  retention argument the app has.
-- **Redeem** — the button that turns a list into a habit.
+The hero surface is **discovery**, not management. Nobody opens an app to
+administer one membership; they open it to find what is out there.
+`/memberships` leads, and the wallet is where it lands afterwards.
 
-## 7. Build order
+The wallet then gives what nothing else does — and all three are true precisely
+because everything in it was bought here:
 
-1. **Linked memberships + the trust ladder.** Completes the wallet, unblocks
-   every existing membership business, and needs no new billing. Nothing else
-   here is worth building if the wallet stays half-empty.
-2. **Typed benefits**, with today's `discount_percent` migrated into a
-   `percent_off` row and checkout reading benefits through the one existing
-   reader.
-3. **Credits + redemption**, reusing the ticket/scanner machinery.
-4. **Wallet surfacing** — balances, monthly spend, Redeem.
+- **Every local membership you hold, in one place.**
+- **What you have left** — "3 of 4 sessions" is the most-checked fact about any
+  membership anyone holds, and checking it is what makes someone go.
+- **What you spend locally each month**, across all of them.
 
-## 7a. What we are actually selling the business
+"What you have left" is simultaneously the shopper's value and the business's
+footfall. Same object. That is why it is worth building rather than merely
+convenient.
 
-Not "we'll list your membership" — every directory says that. **"We'll get your
-members to turn up."**
+## 8. Build order
 
-Being the place people manage memberships means being the place people cancel
-them, and vendors will feel that. Leaning into it is the right trade: the wallet
-that makes cancelling easy is the wallet people trust enough to fill, and a
-membership someone USES is a membership they do not cancel. The usage surface is
-the retention product. *"Your members redeemed 340 benefits this month"* is
-worth more to a gym than a hidden cancel button, and it is a number only we can
-show them.
+1. **Typed benefits** — migrate `discount_percent` into a `percent_off` row;
+   checkout reads benefits through the one existing reader.
+2. **Credits + redemption**, reusing the ticket and scanner machinery.
+3. **Wallet surfacing** — balances, monthly spend, Redeem.
+4. **Campaigns**, once there is something worth pointing people at.
 
-## 8. Open questions
+Before any of it: **`membership_plans` is empty.** Five good local memberships
+are worth more than any feature in this document, and the canvass tool already
+does that kind of walking-around work.
 
-- **Does a linked membership ever become billed?** The obvious move once a
-  business sees its members here is "bill through us instead" — one tap for the
-  business, a re-entered card for every member. Probably a per-member offer at
-  their next renewal rather than a migration.
-- **Do benefits ever apply off-platform?** A member buying at the counter, not
-  through checkout. The scanner handles it — but then our 5% never sees that
-  sale, which is correct and worth being deliberate about.
-- **Fraud on `self_declared`.** It buys nothing, so the exposure is a wallet
-  that lies to its owner. Acceptable. It stops being acceptable the moment
-  anyone proposes letting self-declared members redeem.
+## 9. What changed in the rewrite, and why
+
+The first draft had **linked memberships** — importing plans people hold
+elsewhere, a three-level trust ladder, and confirming members at the counter.
+Deleted, because it solved the wrong problem with a mechanism that would not
+have been used: a `self_declared` membership could redeem nothing, so it was a
+line of text a shopper had to type in for no payoff. The wallet would have
+stayed empty anyway, and the ladder would have existed to serve it.
+
+The marketplace framing removes the problem rather than solving it. Everything
+sold here is billed, therefore verified, therefore redeemable.
+
+The draft also hedged the promise to "the channel, not the novelty", on the
+worry that a switching member is not really new. §2 settles it the other way:
+they are new business through this channel, the business keeps the customer,
+and no marketplace has ever priced otherwise.
+
+## 10. Open questions
+
+- **Do benefits ever apply to a counter sale?** A member buying in person, not
+  through checkout. The scanner handles it, but our 5% never sees that sale —
+  correct, and worth being deliberate about rather than discovering later.
+- **Annual plans.** `billing_interval` supports `'year'`; credits with
+  `period: 'month'` on an annual plan need the grant job to run monthly against
+  a yearly cycle. Straightforward, not free.
+- **Refunds and disputes.** A refunded membership with spent credits. Probably:
+  credits stand, the row is marked, nobody claws back a pastry.
