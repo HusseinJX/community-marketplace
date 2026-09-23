@@ -53,7 +53,7 @@ fine for a wallet and not fine for a discount. So every membership carries a
 | Level | How it got there | May redeem? |
 |---|---|---|
 | `self_declared` | The holder said so | **No** |
-| `vendor_confirmed` | The business ticked them off their own list | Yes |
+| `vendor_confirmed` | Staff said yes at the counter (see below) | Yes |
 | `billed` | We charge the card, so we know | Yes |
 
 Only `vendor_confirmed` and `billed` can spend a benefit. A `self_declared`
