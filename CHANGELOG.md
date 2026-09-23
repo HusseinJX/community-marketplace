@@ -2,9 +2,58 @@
 
 All notable changes to this project are documented here.
 
-## [Unreleased] — storefront, onboarding, images (branch `design/airbnb-system`, 2026-08-22)
+## v140–v144 — backlog, canvass, public art, tags (2026-09-23)
 
-> **NOT DEPLOYED.** 32 commits (`1aa1452..f102d12`). Prod still runs ~`1aa1452`.
+> **DEPLOYED.** Prod runs `a08ed13` (v144). Full per-deploy table in `deploy.md`;
+> the session write-up is `session-context/2026-09-23-deploys-canvass-tags.md`.
+
+Prod had been on v139 since 25 August. Five deploys in one day: the four-week
+backlog (`/orders`, persistent shopper lists, memberships, flyer→venue), a home
+that had been fetching its feed twice on every visit, the live canvass tool, the
+public-art tool with multi-artist credit, and public tags.
+
+### Added
+- **`/orders`** — purchases, tickets and memberships in one timeline, scoped by
+  VERIFIED Clerk emails only.
+- **Shopper lists persist** (`shopper_lists`). The localStorage copy is now the
+  signed-out draft, merged up on first signed-in render, idempotent by name.
+- **`/joindemo/live`** — find a business on Maps, read a web-researched story,
+  create their unclaimed profile. Read on the demo password; **write needs an
+  admin**.
+- **Public art** (super-admin) — photograph a mural and credit every artist,
+  creating artists inline with researched profiles. `post_member_tags` lets one
+  post credit several people.
+- **Instagram-shaped profile feed** — Behind the scenes (posted BY the business)
+  and From the community, two tabs over one square grid.
+- **Tags** (`tags` + `member_tags`) — public tag pages, applied while canvassing
+  or edited on any profile. Bounded THING → dates on the tag; bounded EDGE →
+  dates on the membership.
+
+### Fixed
+- **Home requested the For-you feed twice** — 383KB and ~2.6s per visit, half
+  discarded, because `tasteId` arrives a render late and SWR saw two keys.
+- **`/api/events/feed` 119KB → 104KB**, with themes classified server-side first
+  — naive truncation would have re-filed 22 of 120 events.
+- **`/memberships` offered a Join that could only 404** (demo fixtures with a
+  live CTA).
+- **`/orders` flashed "No orders yet."** at signed-out visitors — guarded on
+  `isLoaded && !isSignedIn` instead of `!isLoaded` first.
+- **Cookie banner sat on top of desktop cards** — a 3.5rem offset clearing a
+  `md:hidden` nav.
+- **Every tag write failed silently** — a partial unique index cannot back
+  `ON CONFLICT` through PostgREST.
+
+### Infrastructure
+- **`design/airbnb-system` had never been pushed.** 333 commits, including
+  everything live on the App Store, existed on one laptop. Pushed; `main`
+  fast-forwarded from `583e11b` (4 months stale); all `prod-v*` tags pushed.
+
+---
+
+## [Superseded] — storefront, onboarding, images (branch `design/airbnb-system`, 2026-08-22)
+
+> Shipped as v132–v138. The "NOT DEPLOYED" note below was true when written and
+> is kept for the detail, not the status.
 
 ### Fixed
 - **Production served every image unoptimized.** `sharp` could not load in the container —
