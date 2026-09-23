@@ -11,6 +11,8 @@ import {
 import { MemberJsonLd } from "@/components/JsonLd";
 import { BackToHome } from "@/components/BackToHome";
 import { RememberOrigin } from "@/components/RememberOrigin";
+import { Tag as TagIcon } from "lucide-react";
+import { getTagsForMember } from "@/lib/tags";
 import { getOwnerUserIds, getProductsByMember, getVendorEventsByMember, getVendorSettings, type SupabaseProduct, type VendorEvent } from "@/lib/vendor-connect";
 import { ALL_PLATFORMS, platformById, type CustomLink, type StoredLink } from "@/lib/links";
 
@@ -176,13 +178,14 @@ export default async function MemberProfilePage({
   // don't, because support links are EXTERNAL money and must stay structurally
   // apart from anything purchasable. See lib/links.ts.
   let ownerUserIds: string[] = [];
+  let memberTags: Awaited<ReturnType<typeof getTagsForMember>> = [];
   let supportLinks: StoredLink[] = [];
   let otherLinks: StoredLink[] = [];
   let customLinks: CustomLink[] = [];
   let fetchError: string | null = null;
 
   try {
-    const [memberRes, eventsRes, prods, vEvents, bcasts, settings, owner] = await Promise.all([
+    const [memberRes, eventsRes, prods, vEvents, bcasts, settings, owner, tagLinks] = await Promise.all([
       getMember(id),
       listEvents({ memberId: id, limit: 20 }),
       getProductsByMember(id),
@@ -194,6 +197,9 @@ export default async function MemberProfilePage({
       // Who claimed this business — the only thing separating a post made BY
       // them from one made ABOUT them. Empty on an unclaimed profile.
       getOwnerUserIds(id).catch(() => []),
+      // Where they are and what they're part of — a market, a venue, the
+      // festival they traded at. Joins the existing parallel fetch.
+      getTagsForMember(id).catch(() => []),
     ]);
     member = memberRes.member;
     events = eventsRes.events;
@@ -201,6 +207,7 @@ export default async function MemberProfilePage({
     vendorEvents = vEvents;
     broadcasts = bcasts;
     ownerUserIds = owner;
+    memberTags = tagLinks;
     supportLinks = settings?.support_links ?? [];
     otherLinks = settings?.other_links ?? [];
     customLinks = settings?.custom_links ?? [];
@@ -730,6 +737,29 @@ export default async function MemberProfilePage({
                 })}
               </div>
             </Section>
+          )}
+
+          {/* Where they are and what they're part of. Above the facets
+              because "trades at Ferry Plaza on Saturdays" is a more useful
+              fact about a business than how it's owned. */}
+          {memberTags.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {memberTags.map(({ tag, recurrence, role }) => (
+                <Link
+                  key={tag.id}
+                  href={`/tags/${tag.slug}`}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 transition hover:bg-emerald-100"
+                >
+                  <TagIcon className="h-3 w-3" />
+                  {tag.label}
+                  {(recurrence || role) && (
+                    <span className="font-normal text-emerald-700">
+                      · {[role, recurrence].filter(Boolean).join(" · ")}
+                    </span>
+                  )}
+                </Link>
+              ))}
+            </div>
           )}
 
           <BusinessFacets

@@ -15,6 +15,7 @@ import {
   Star,
 } from "lucide-react";
 import { useLogin } from "@/components/auth/ClerkAuthProvider";
+import { TagPicker, type PickedTag } from "@/components/tags/TagPicker";
 
 interface Candidate {
   placeId: string;
@@ -53,6 +54,8 @@ interface Created {
   name: string;
   storySaved: boolean;
   url: string;
+  tagged?: number;
+  tagsAsked?: number;
 }
 
 export function LiveCanvass({ canCreate, signedIn }: { canCreate: boolean; signedIn: boolean }) {
@@ -64,6 +67,11 @@ export function LiveCanvass({ canCreate, signedIn }: { canCreate: boolean; signe
   const [looking, setLooking] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const [creating, setCreating] = useState(false);
+  // Chosen BEFORE the business is created, because that is the order the day
+  // happens in: you are standing in the market, and the next twenty vendors
+  // all belong to it. Kept across a create so the tag doesn't have to be
+  // re-picked for each one.
+  const [tags, setTags] = useState<PickedTag[]>([]);
   const [created, setCreated] = useState<Created | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -129,7 +137,31 @@ export function LiveCanvass({ canCreate, signedIn }: { canCreate: boolean; signe
         return;
       }
       if (!res.ok) throw new Error(data.message ?? data.error ?? "Create failed");
-      setCreated(data);
+
+      // Apply the tags to the business we just made. Best-effort and after the
+      // fact: the profile is the thing that matters, and a failed tag write
+      // must not read as a failed onboarding.
+      //
+      // But count what LANDED, not what was asked for. The first version
+      // reported tags.length and cheerfully said "tagged into 1 tag" while
+      // every write was failing on a bad index — a success message sourced
+      // from intent instead of result.
+      let tagged = 0;
+      if (tags.length && data.memberId) {
+        const results = await Promise.all(
+          tags.map((t) =>
+            fetch("/api/tags", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ tagId: t.id, memberId: data.memberId, memberName: data.name }),
+            })
+              .then((r) => r.ok)
+              .catch(() => false),
+          ),
+        );
+        tagged = results.filter(Boolean).length;
+      }
+      setCreated({ ...data, tagged, tagsAsked: tags.length });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Create failed");
     } finally {
@@ -329,6 +361,10 @@ export function LiveCanvass({ canCreate, signedIn }: { canCreate: boolean; signe
             )}
           </section>
 
+          <section className="rounded-3xl border border-stone-200 bg-white p-5">
+            <TagPicker value={tags} onChange={setTags} coords={null} />
+          </section>
+
           <div className="flex flex-col gap-2 sm:flex-row">
             <button
               type="button"
@@ -369,6 +405,19 @@ export function LiveCanvass({ canCreate, signedIn }: { canCreate: boolean; signe
             {created.storySaved
               ? "Unclaimed profile created, with their story written in."
               : "Unclaimed profile created from the Maps listing. The story didn't come back this time."}
+            {created.tagged
+              ? ` Tagged into ${created.tagged} ${created.tagged === 1 ? "tag" : "tags"}.`
+              : ""}
+            {/* Say so when a tag didn't take. Silence here is how you find out
+                a week later that nothing was tagged. */}
+            {created.tagsAsked && created.tagged !== created.tagsAsked ? (
+              <span className="font-semibold text-amber-700">
+                {" "}
+                {created.tagsAsked - (created.tagged ?? 0)} tag
+                {created.tagsAsked - (created.tagged ?? 0) === 1 ? "" : "s"} didn&apos;t apply — add
+                them from the profile.
+              </span>
+            ) : null}
           </p>
           <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-center">
             <Link
@@ -385,6 +434,8 @@ export function LiveCanvass({ canCreate, signedIn }: { canCreate: boolean; signe
                 setLookup(null);
                 setCandidates(null);
                 setQuery("");
+                // `tags` deliberately survives: the next vendor is almost
+                // always in the same market you are standing in.
               }}
               className="rounded-full border border-stone-200 px-4 py-2.5 text-sm font-semibold text-stone-700 transition hover:bg-stone-50"
             >
