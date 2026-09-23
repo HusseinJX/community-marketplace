@@ -191,18 +191,27 @@ export async function researchMember(
 // the caller already HAS the name and city (a Google Places pick that hasn't
 // been written to the DB, e.g. the /joindemo walkthrough), it can say so
 // directly. Same Perplexity call on the connector; no member, nothing saved.
-export async function researchListing(l: {
-  name: string;
-  city?: string | null;
-  kind?: "business" | "artist";
-}): Promise<{ research: string | null }> {
+// `timeoutMs` because the right leash depends on who is waiting. The /join
+// interview must open promptly and can proceed without the research, so it
+// keeps the tight default. Live canvassing is the opposite: a person is
+// standing there having named their favourite place, the story IS the thing
+// being demonstrated, and a warm connector answers in ~1.3s while a cold one
+// took 7s+ — close enough to 11s to lose the demo to a stopwatch.
+export async function researchListing(
+  l: {
+    name: string;
+    city?: string | null;
+    kind?: "business" | "artist";
+  },
+  opts?: { timeoutMs?: number },
+): Promise<{ research: string | null }> {
   const token = process.env.CONNECTOR_ADMIN_TOKEN || process.env.ADMIN_TOKEN;
   const res = await fetch(fnUrl("enrich"), {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
     body: JSON.stringify({ mode: "research", name: l.name, city: l.city ?? "", kind: l.kind ?? "business" }),
     cache: "no-store",
-    signal: AbortSignal.timeout(11000),
+    signal: AbortSignal.timeout(opts?.timeoutMs ?? 11000),
   });
   if (!res.ok) throw new Error(`research failed: ${res.status}`);
   const d = await res.json();
