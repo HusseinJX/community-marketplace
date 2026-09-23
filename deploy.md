@@ -27,7 +27,8 @@ CapRover stores no git hash — the version number is meaningless without this t
 
 | CapRover version | Deployed | Git commit | Tag |
 |---|---|---|---|
-| **v140** (live) | 2026-09-23 18:20 UTC | `299af25` | `prod-v140` |
+| **v141** (live) | 2026-09-23 19:10 UTC | `98d1cd0` | `prod-v141` |
+| v140 | 2026-09-23 18:20 UTC | `299af25` | `prod-v140` |
 | v139 | 2026-08-25 00:54 UTC | `0de9ddd` | `prod-v139` |
 | v138 | 2026-08-23 05:51 UTC | `a036151` | `prod-v138` |
 | v137 | 2026-08-23 05:39 UTC | `94b10a8` | `prod-v137` |
@@ -38,14 +39,15 @@ CapRover stores no git hash — the version number is meaningless without this t
 | v132 | 2026-08-22 21:26 UTC | `3798f58` | `prod-v132` |
 | v131 | 2026-08-13 22:00 UTC | `1aa1452` | `prod-v131` |
 
-**To go back one deploy (v140 → v139):**
+**To go back one deploy (v141 → v140):**
 
-- **Fast** — CapRover dashboard → `marketplace` → Deployment → pick v139 → revert. The
+- **Fast** — CapRover dashboard → `marketplace` → Deployment → pick v140 → revert. The
   image is already on the droplet; no build, no upload.
-- **Slow** (if the image is gone) — `git checkout prod-v139 && npm run build`, then the
+- **Slow** (if the image is gone) — `git checkout prod-v140 && npm run build`, then the
   normal package + upload below.
 
-**⚠️ A rollback does not undo the database.** v140 added `shopper_lists`
+**⚠️ A rollback does not undo the database.** v141 is code only — no migration,
+so v140 and v141 are interchangeable against the current schema. v140 added `shopper_lists`
 (`20260923120000`) and v139→v140 carries the memberships pair (`20260825120000`,
 `20260825130000`). All three are additive — new tables and columns — so every
 version back to v131 still runs against them. What a rollback to v139 DOES lose
