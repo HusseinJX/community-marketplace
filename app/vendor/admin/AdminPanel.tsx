@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Shield, UserPlus, FileText, Search, Check, Package, Calendar, ExternalLink, UserCircle, Star, PenSquare, ImagePlus, X, Loader2, Store, Radio, Globe, ChevronDown, ClipboardCheck, ShieldAlert, MessagesSquare, Palette } from "lucide-react";
+import { Shield, UserPlus, FileText, Search, Check, Package, Calendar, ExternalLink, UserCircle, Star, PenSquare, ImagePlus, X, Loader2, Store, Radio, Globe, ChevronDown, ClipboardCheck, ShieldAlert, MessagesSquare, Palette, MapPin, PlayCircle } from "lucide-react";
 import { OnboardManager } from "../onboard/OnboardManager";
 import { FeaturedManager } from "../featured/FeaturedManager";
 import { LineupImportManager } from "@/components/admin/LineupImportManager";
@@ -91,6 +91,15 @@ export function AdminPanel({ ownerMemberId }: { ownerMemberId: string }) {
 
       {tab === "create" && (
         <div className="space-y-4">
+          {/* The two doors that live OUTSIDE this panel. Both are ways of
+              getting a business onboarded, so they belong beside the form that
+              does it by hand — and neither was findable from here before. */}
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-stone-200 bg-white p-3">
+            <span className="mr-1 text-xs font-semibold text-stone-500">Onboarding tools</span>
+            <ActionLink href="/joindemo/live" icon={MapPin} label="Live canvass — create from Google Maps" />
+            <ActionLink href="/joindemo" icon={PlayCircle} label="Join demo — the walkthrough" />
+          </div>
+
           {/* Bulk import a whole festival/market lineup from a photo. */}
           <LineupImportManager ownerMemberId={ownerMemberId} />
 
