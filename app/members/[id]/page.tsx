@@ -11,8 +11,9 @@ import {
 import { MemberJsonLd } from "@/components/JsonLd";
 import { BackToHome } from "@/components/BackToHome";
 import { RememberOrigin } from "@/components/RememberOrigin";
-import { Tag as TagIcon } from "lucide-react";
 import { getTagsForMember } from "@/lib/tags";
+import { MemberTags } from "@/components/tags/MemberTags";
+import { isAdmin } from "@/lib/admin";
 import { getOwnerUserIds, getProductsByMember, getVendorEventsByMember, getVendorSettings, type SupabaseProduct, type VendorEvent } from "@/lib/vendor-connect";
 import { ALL_PLATFORMS, platformById, type CustomLink, type StoredLink } from "@/lib/links";
 
@@ -273,6 +274,10 @@ export default async function MemberProfilePage({
       })()
     : null;
   const canEditFacets = !!facetActor && facetActor.memberId === id;
+  // Tags are curated by admins, not by the business: a tag is a shared page
+  // with other people's businesses on it, and "we're at Ferry Plaza" is a
+  // claim about someone else's market.
+  const canEditTags = isAdmin((await auth()).userId);
 
   const interests = (p.interests ?? []) as string[];
   const goals = (p.goals ?? []) as string[];
@@ -742,25 +747,16 @@ export default async function MemberProfilePage({
           {/* Where they are and what they're part of. Above the facets
               because "trades at Ferry Plaza on Saturdays" is a more useful
               fact about a business than how it's owned. */}
-          {memberTags.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {memberTags.map(({ tag, recurrence, role }) => (
-                <Link
-                  key={tag.id}
-                  href={`/tags/${tag.slug}`}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 transition hover:bg-emerald-100"
-                >
-                  <TagIcon className="h-3 w-3" />
-                  {tag.label}
-                  {(recurrence || role) && (
-                    <span className="font-normal text-emerald-700">
-                      · {[role, recurrence].filter(Boolean).join(" · ")}
-                    </span>
-                  )}
-                </Link>
-              ))}
-            </div>
-          )}
+          <MemberTags
+            memberId={id}
+            memberName={name}
+            canEdit={canEditTags}
+            initial={memberTags.map(({ tag, recurrence, role }) => ({
+              tag: { id: tag.id, slug: tag.slug, label: tag.label, kind: tag.kind },
+              recurrence,
+              role,
+            }))}
+          />
 
           <BusinessFacets
             memberId={id}
