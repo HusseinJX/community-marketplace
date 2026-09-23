@@ -3,6 +3,7 @@ import sharp from 'sharp'
 import { getOpenAI, VISION_MODEL, CHAT_MODEL, IMAGE_MODEL } from '@/lib/openai'
 import { buildBusinessContext, buildSystemPrompt } from '@/lib/business-context'
 import { uploadImage } from '@/lib/storage'
+import { getProductsByMember } from '@/lib/vendor-connect'
 import { makeMenuPng, makeCounterPng } from './helpers/synthetic'
 
 const ZAHAB = '89516919-256f-4a95-96df-fc9d285f664a' // seeded member with real products
@@ -85,22 +86,44 @@ describe('OpenAI vision — menu extraction (live)', () => {
 describe('Assistant brain — context + grounded answer (live)', () => {
   it('builds context from real data and answers grounded in it', async () => {
     const ctx = await buildBusinessContext(ZAHAB)
-    // Supabase seed products must show up in the assembled knowledge
-    expect(ctx.knowledgeBlob.toLowerCase()).toContain('consultation')
+
+    // The member's LIVE catalogue must show up in the assembled knowledge.
+    //
+    // This used to assert the literal string 'consultation', a seeded product
+    // that stopped existing on 2026-08-22 when Printify was connected and the
+    // four manual products were deactivated — so the test failed for a month
+    // while the code it covers was fine. Asserting against a row that can be
+    // deactivated by ordinary catalogue work is a test that breaks on data,
+    // not on regressions. Ask the question the test actually means instead:
+    // whatever this member currently sells, does the brain know about it?
+    const active = await getProductsByMember(ZAHAB)
+    expect(active.length).toBeGreaterThan(0)
+    const blob = ctx.knowledgeBlob.toLowerCase()
+    const known = active.filter((p) => blob.includes(p.name.toLowerCase()))
+    expect(known.length).toBeGreaterThan(0)
 
     // Ask a direct factual lookup — this tests grounding/retrieval (not the
     // model's comparative arithmetic, which is non-deterministic on a mini model).
+    //
+    // The product is picked from the LIVE catalogue for the same reason as
+    // above: this used to ask about a seeded "Energy Consultation" at $150,
+    // and once that row was gone the assistant correctly answered "I don't
+    // have information about that" — a PASSING behaviour scored as a failure.
+    const subject = known[0]
     const r = await getOpenAI().chat.completions.create({
       model: CHAT_MODEL,
       messages: [
         { role: 'system', content: buildSystemPrompt(ctx) },
-        { role: 'user', content: 'How much does the Energy Consultation cost?' },
+        { role: 'user', content: `How much does the ${subject.name} cost?` },
       ],
       temperature: 0,
     })
     const answer = r.choices[0].message.content!.toLowerCase()
-    // seeded Energy Consultation is $150 — answer must come from the real data
-    expect(answer).toContain('150')
+    // The price must come from the catalogue, not from the model. Compared in
+    // DOLLARS because that is what the knowledge blob renders — and note
+    // `SupabaseProduct.price` holds CENTS despite the bare name, so this
+    // assertion reads 4400 as $44.
+    expect(answer).toContain(String(Math.round(subject.price / 100)))
   })
 })
 
