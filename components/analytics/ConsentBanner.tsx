@@ -31,8 +31,11 @@ export function ConsentBanner() {
 
   return (
     <div
-      className="fixed inset-x-0 z-40 px-3"
-      style={{ bottom: "calc(3.5rem + env(safe-area-inset-bottom))" }}
+      /* The 3.5rem clears the bottom nav — but BottomNav is `md:hidden`, so on
+         desktop that offset lifted the banner off the bottom edge and parked it
+         on top of the cards instead. Clear the nav where there is one, sit on
+         the edge where there isn't. */
+      className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-40 px-3 md:bottom-4"
       role="dialog"
       aria-label="Cookie consent"
     >

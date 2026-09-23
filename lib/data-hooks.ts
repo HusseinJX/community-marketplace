@@ -456,11 +456,17 @@ export interface PersonalizeParams {
  *
  * POST because the request carries a sentence and a coordinate pair; the key is
  * the serialised body, which is what makes two identical requests one request.
+ *
+ * `ready` exists because tasteId is only knowable in the browser and so arrives
+ * one render late. Without the gate the first render keys on tasteId:null and
+ * the second on the real id — two different keys, two full requests, ~190KB and
+ * a second of work thrown away on every single home visit. Waiting one tick for
+ * a localStorage read costs nothing; firing twice costs a round trip.
  */
-export function usePersonalizedEvents(p: PersonalizeParams) {
+export function usePersonalizedEvents(p: PersonalizeParams, ready = true) {
   const body = JSON.stringify(p);
   const { data, isLoading, error } = useSWR(
-    ["events-personalize", body],
+    ready ? ["events-personalize", body] : null,
     ([, payload]: [string, string]) =>
       fetch("/api/events/personalize", {
         method: "POST",
@@ -482,7 +488,10 @@ export function usePersonalizedEvents(p: PersonalizeParams) {
       revalidateIfStale: false,
     },
   );
-  return { data, loading: isLoading, error: error as Error | undefined };
+  // Not-ready is still loading from the caller's point of view — the feed is
+  // coming, it just hasn't been asked for yet. Reporting false would flash an
+  // empty state between mount and the first fetch.
+  return { data, loading: isLoading || !ready, error: error as Error | undefined };
 }
 
 /**

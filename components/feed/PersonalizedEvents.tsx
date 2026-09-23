@@ -286,7 +286,13 @@ export function PersonalizedEvents({
   // late; the feed simply isn't personalised for that first paint, which is the
   // same feed everyone got before profiles existed.
   const [taste, setTaste] = useState<string | null>(null);
-  useEffect(() => setTaste(tasteId()), []);
+  // Distinguishes "not read yet" from "read, and there is no saved taste" —
+  // both are null, and firing the feed on the first means fetching it twice.
+  const [tasteRead, setTasteRead] = useState(false);
+  useEffect(() => {
+    setTaste(tasteId());
+    setTasteRead(true);
+  }, []);
   const [remembered, setRemembered] = useState<string | null>(null);
 
   // The feed itself. SWR keyed on the request, so coming back to an unchanged
@@ -305,7 +311,7 @@ export function PersonalizedEvents({
     // control that could only ever make the evening emptier.
     maxMiles: null,
     tasteId: taste,
-  }) as { data: Result | undefined; loading: boolean; error: Error | undefined };
+  }, tasteRead) as { data: Result | undefined; loading: boolean; error: Error | undefined };
 
   // The search button lives a level up now, so it has to be told when the feed
   // is working or "Go" would look inert while the request is in flight.

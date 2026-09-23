@@ -3,6 +3,7 @@ import { getPublicEvents, getMemberEvents } from '@/lib/vendor-connect'
 import { getAcceptedLineupCounts } from '@/lib/collab-network'
 import { listEvents } from '@/lib/api'
 import { isHiddenMember } from '@/lib/hidden-members'
+import { themeOf } from '@/lib/event-themes'
 
 export const runtime = 'nodejs'
 
@@ -14,6 +15,9 @@ export const runtime = 'nodejs'
 // — 100 visitors were 100 connector round-trips for data that changes a few
 // times a day. Now they share one.
 export const revalidate = 60
+
+/** Enough for the two clamped lines a card shows, plus room for a longer one. */
+const DESCRIPTION_CHARS = 200
 
 export interface FeedEvent {
   eventId: string
@@ -41,6 +45,10 @@ export interface FeedEvent {
   /** Canonical page on the source site — where a scraped card links instead of
       a member profile, because its "host" is a calendar, not a business. */
   eventUrl: string | null
+  /** Theme key, classified HERE from the full description before it is
+      shortened for transport. Without this, trimming the payload would quietly
+      re-file every event whose keyword sat past the cut. */
+  theme: string
 }
 
 // Public community-feed events: real in-app organizer/vendor events
@@ -79,6 +87,7 @@ export async function GET() {
         collaboratorList: [{ id: e.member_id, name: e.member_name ?? 'Organizer' }],
         sourceId: e.source_id,
         eventUrl: e.event_url,
+        theme: '',
       })
     }
   } catch {
@@ -127,10 +136,22 @@ export async function GET() {
         collaboratorList: e.memberId ? [{ id: e.memberId, name: e.memberName ?? 'Organizer' }] : [],
         sourceId: null,
         eventUrl: null,
+        theme: '',
       })
     }
   } catch {
     /* connector down — return whatever we have */
+  }
+
+  // The cards render `description` at line-clamp-2 (~120 chars) and nothing
+  // reads it in full, but it was 34% of a 119KB payload — the single biggest
+  // thing on the wire, most of it never seen. Classify from the whole text
+  // first, then send a card's worth of it.
+  for (const e of out) {
+    e.theme = themeOf(e)
+    if (e.description.length > DESCRIPTION_CHARS) {
+      e.description = e.description.slice(0, DESCRIPTION_CHARS).trimEnd() + '…'
+    }
   }
 
   return NextResponse.json({ events: out })

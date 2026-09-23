@@ -52,7 +52,17 @@ export const EVENT_THEMES: EventTheme[] = [
 
 const FALLBACK: Omit<EventTheme, "keywords"> = { key: "more", label: "More events", emoji: "✨" };
 
-export function themeOf(e: FeedEvent): string {
+/**
+ * Takes only what it reads, so the feed route can call it while BUILDING a
+ * FeedEvent — before the theme field it returns has been filled in.
+ *
+ * `theme` arrives pre-computed from the feed, classified from the FULL text
+ * before the description was shortened for transport. Trust it when it's there:
+ * re-deriving from the truncated copy would re-file any event whose keyword sat
+ * past the cut. The keyword pass stays for events from anywhere else.
+ */
+export function themeOf(e: Pick<FeedEvent, "title" | "description"> & { theme?: string }): string {
+  if (e.theme) return e.theme;
   const hay = `${e.title} ${e.description}`.toLowerCase();
   for (const t of EVENT_THEMES) {
     if (t.keywords.some((k) => hay.includes(k))) return t.key;
