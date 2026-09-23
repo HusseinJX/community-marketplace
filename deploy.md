@@ -27,7 +27,8 @@ CapRover stores no git hash — the version number is meaningless without this t
 
 | CapRover version | Deployed | Git commit | Tag |
 |---|---|---|---|
-| **v142** (live) | 2026-09-23 20:25 UTC | `a75f328` | `prod-v142` |
+| **v143** (live) | 2026-09-23 21:05 UTC | `7d819ab` | `prod-v143` |
+| v142 | 2026-09-23 20:25 UTC | `a75f328` | `prod-v142` |
 | v141 | 2026-09-23 19:10 UTC | `98d1cd0` | `prod-v141` |
 | v140 | 2026-09-23 18:20 UTC | `299af25` | `prod-v140` |
 | v139 | 2026-08-25 00:54 UTC | `0de9ddd` | `prod-v139` |
@@ -40,14 +41,18 @@ CapRover stores no git hash — the version number is meaningless without this t
 | v132 | 2026-08-22 21:26 UTC | `3798f58` | `prod-v132` |
 | v131 | 2026-08-13 22:00 UTC | `1aa1452` | `prod-v131` |
 
-**To go back one deploy (v142 → v141):**
+**To go back one deploy (v143 → v142):**
 
-- **Fast** — CapRover dashboard → `marketplace` → Deployment → pick v141 → revert. The
+- **Fast** — CapRover dashboard → `marketplace` → Deployment → pick v142 → revert. The
   image is already on the droplet; no build, no upload.
-- **Slow** (if the image is gone) — `git checkout prod-v141 && npm run build`, then the
+- **Slow** (if the image is gone) — `git checkout prod-v142 && npm run build`, then the
   normal package + upload below.
 
-**⚠️ A rollback does not undo the database.** v142 is code only, but it is the
+**⚠️ A rollback does not undo the database.** v143 added `post_member_tags`
+(`20260923140000`) — additive, and v142 ignores it, so rolling back is safe with
+one consequence worth knowing: a multi-artist post reverts to showing only its
+FIRST credit, because that is the one in `posts.tagged_member_id`. The other
+tags are not lost, just unread until v143 is back. v142 is code only, but it is the
 first deploy that can CREATE real directory members from the browser
 (`/joindemo/live`, admin-only). Rolling back removes the tool, not the profiles
 it made — those live in the connector and are curated out via
