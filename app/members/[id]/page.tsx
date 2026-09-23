@@ -11,7 +11,7 @@ import {
 import { MemberJsonLd } from "@/components/JsonLd";
 import { BackToHome } from "@/components/BackToHome";
 import { RememberOrigin } from "@/components/RememberOrigin";
-import { getProductsByMember, getVendorEventsByMember, getVendorSettings, type SupabaseProduct, type VendorEvent } from "@/lib/vendor-connect";
+import { getOwnerUserIds, getProductsByMember, getVendorEventsByMember, getVendorSettings, type SupabaseProduct, type VendorEvent } from "@/lib/vendor-connect";
 import { ALL_PLATFORMS, platformById, type CustomLink, type StoredLink } from "@/lib/links";
 
 // Everything the profile can show in its social row: any platform whose value
@@ -39,7 +39,7 @@ import { getEntitlements } from "@/lib/entitlements";
 import { memberImages } from "@/lib/member-images";
 import { ENDORSEMENTS } from "@/lib/endorsements";
 import { EndorsementRows } from "@/components/EndorsementRows";
-import { MemoriesGrid } from "@/components/posts/MemoriesGrid";
+import { ProfileFeed } from "@/components/posts/ProfileFeed";
 import { readServes, focusLabel } from "@/lib/org-focus";
 import { GivesBackBadges } from "@/components/giving/GivesBackBadges";
 import { BusinessFacets } from "@/components/business/BusinessFacets";
@@ -175,13 +175,14 @@ export default async function MemberProfilePage({
   // social platforms live on the member profile and are read below; these two
   // don't, because support links are EXTERNAL money and must stay structurally
   // apart from anything purchasable. See lib/links.ts.
+  let ownerUserIds: string[] = [];
   let supportLinks: StoredLink[] = [];
   let otherLinks: StoredLink[] = [];
   let customLinks: CustomLink[] = [];
   let fetchError: string | null = null;
 
   try {
-    const [memberRes, eventsRes, prods, vEvents, bcasts, settings] = await Promise.all([
+    const [memberRes, eventsRes, prods, vEvents, bcasts, settings, owner] = await Promise.all([
       getMember(id),
       listEvents({ memberId: id, limit: 20 }),
       getProductsByMember(id),
@@ -190,12 +191,16 @@ export default async function MemberProfilePage({
       // people can browse what they've shown, not just what's on right now.
       getBroadcastsByMember(id, true),
       getVendorSettings(id),
+      // Who claimed this business — the only thing separating a post made BY
+      // them from one made ABOUT them. Empty on an unclaimed profile.
+      getOwnerUserIds(id).catch(() => []),
     ]);
     member = memberRes.member;
     events = eventsRes.events;
     supabaseProducts = prods;
     vendorEvents = vEvents;
     broadcasts = bcasts;
+    ownerUserIds = owner;
     supportLinks = settings?.support_links ?? [];
     otherLinks = settings?.other_links ?? [];
     customLinks = settings?.custom_links ?? [];
@@ -739,16 +744,6 @@ export default async function MemberProfilePage({
           {/* Posting happens IN CONTEXT — you post from the page the post lands
               on, so "where does this go?" answers itself. (The global "+" in the
               top nav is gone; the event + broadcast pages have the same CTA.) */}
-          <Link
-            href={`/share?business=${id}&businessName=${encodeURIComponent(name)}`}
-            className="flex items-center justify-between rounded-2xl border border-dashed border-indigo-200 bg-indigo-50/50 p-4 transition hover:border-indigo-300 hover:bg-indigo-50"
-          >
-            <span className="text-sm font-medium text-stone-800">📸 Been here? Post a photo</span>
-            <span className="text-sm font-medium text-indigo-700">Share →</span>
-          </Link>
-
-          <MemoriesGrid memberId={id} title={`Tagged at ${name}`} />
-
           <MembershipTiers
             plans={membershipPlans}
             memberName={name}
@@ -765,6 +760,10 @@ export default async function MemberProfilePage({
             featuredProduct={p.featuredProduct as string | undefined}
             shopUrl={shopUrl || undefined}
           />
+
+          {/* The feed is the bottom of the profile and the point of the page:
+              what this business actually looks like from the inside. */}
+          <ProfileFeed memberId={id} memberName={name} ownerUserIds={ownerUserIds} />
         </main>
 
         {/* Sidebar.

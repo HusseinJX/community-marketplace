@@ -749,6 +749,28 @@ export async function getVendorProfile(clerkUserId: string): Promise<VendorProfi
   return data as VendorProfile
 }
 
+/**
+ * Everyone who owns this business — the Clerk ids linked to a member. Empty
+ * when nobody has claimed it.
+ *
+ * The profile's feed uses this to tell a post made BY the business from a post
+ * made ABOUT it by a customer. Same rows, same wall; the author is the only
+ * thing that separates behind-the-scenes from a memory.
+ *
+ * A LIST, not one id. `vendor_profiles` holds a row per person per business
+ * and several already have two — a founder and whoever actually runs the
+ * account. Taking the first would file the other owner's own posts as customer
+ * memories and hide their "post the first one" prompt from them.
+ */
+export async function getOwnerUserIds(memberId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('vendor_profiles')
+    .select('clerk_user_id')
+    .eq('member_id', memberId)
+  if (error || !data?.length) return []
+  return (data as { clerk_user_id: string }[]).map((r) => r.clerk_user_id).filter(Boolean)
+}
+
 export async function setVendorProfile(
   clerkUserId: string,
   memberId: string,
