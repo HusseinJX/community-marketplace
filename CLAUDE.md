@@ -51,9 +51,9 @@ Full map in `docs/context/architecture.md`. Orientation:
 
 - **App shell** = Instagram-style nav (`app/layout.tsx` + `ClerkProvider`/`StoreProvider`): `components/TopNav.tsx` + `components/BottomNav.tsx`, safe-area aware.
 - **Home** `app/page.tsx` — tabs `Events · Feed · Shop`; Events has a For you / What's on toggle (`components/feed/PersonalizedEvents.tsx`).
-- **Shopper surfaces**: `/explore`, `/share`, `/shopper`, `/messages` (WhatsLocal Assistant), `/events`, `/live`, `/cart`, `/checkout`, `/favorites`, `/tickets`, `/resources`, `/petitions`, `/sf`.
+- **Shopper surfaces**: `/explore`, `/share`, `/shopper`, `/messages` (WhatsLocal Assistant), `/events`, `/live`, `/cart`, `/checkout`, `/favorites`, `/orders` (purchases + tickets + memberships in one timeline), `/tickets` (the QR wallet), `/shops`, `/shopper/lists`, `/memberships`, `/resources`, `/petitions`, `/sf`.
 - **Member profiles** `app/members/[id]` (server components) — claim banner, business facets, memories wall, giving badges, `AskAssistant` widget.
-- **Vendor portal** `app/vendor/*` (Clerk-protected): dashboard, products, events, orders, messages (customer DMs + own agent), network/collabs, organize (lineup + blasts + tickets + attendees), assistant, integrations, billing, qr, live, checkin, bookings, admin (super-admin + moderation + scraped drafts + featured).
+- **Vendor portal** `app/vendor/*` (Clerk-protected): dashboard, products, events, orders, messages (customer DMs + own agent), network/collabs, organize (lineup + blasts + tickets + attendees), memberships, assistant, integrations, billing, qr, live, checkin, bookings, admin (super-admin + moderation + scraped drafts + featured).
 - **APIs** `app/api/*` mirror those surfaces; all vendor writes go through `resolveActor` (`lib/admin.ts`).
 - **Data** comes from the Community Connector Agent API (`lib/api.ts`) + Supabase (`lib/vendor-connect.ts`).
 
@@ -69,7 +69,7 @@ Major subsystems, each written up in the architecture doc: **commerce** (Stripe 
 ## Commerce
 **Selling is FREE (2026-08-14) — the 5% on sales IS the business model.** `commerce` lives in `FREE_CAN`; Pro ($30/mo) is now the AI agent (text + voice) + analytics, nothing to do with selling. Never re-introduce a subscription wall in front of a vendor's first sale without changing that one line in `lib/entitlements.ts` deliberately.
 
-Stripe Connect Express per vendor, per-vendor checkout, **5% platform fee on items only, always**. Every payment creates a durable `orders` row (confirm-payment + `payment_intent.succeeded` webhook). Catalog sync (Shopify/Square) via Composio + Trigger.dev. Order lifecycle: `paid → ready → dispatched → delivered | collected | completed | refunded`.
+Stripe Connect Express per vendor, per-vendor checkout, **5% platform fee on items only, always**. **Vendor memberships** are the same machinery on a recurring basis (destination charge, our 5% on every renewal) and are fenced off from platform plans: they carry `kind: membership`, get their own Stripe customer, and the platform webhook refuses any price it doesn't recognise — without that fence a vendor joining another business's membership silently cancels the Pro plan they pay us for. Perks are **real-world only** (money off, a free pastry, early access); a digital perk would drag every membership into StoreKit under Apple 3.1.1. Every payment creates a durable `orders` row (confirm-payment + `payment_intent.succeeded` webhook). Catalog sync (Shopify/Square) via Composio + Trigger.dev. Order lifecycle: `paid → ready → dispatched → delivered | collected | completed | refunded`.
 
 **Two invariants — every commerce bug so far came from relaxing one:**
 1. **The server derives, the client never decides** — prices from the catalog, fulfillment from the basket, fees from the vendor's rules.
@@ -77,12 +77,13 @@ Stripe Connect Express per vendor, per-vendor checkout, **5% platform fee on ite
 
 After any commerce change, audit for the two shapes that produced silent bugs: **trusting a caller for something the server can derive**, and **an active-only product lookup used AFTER payment** (`getProductsByMember` filters `active`; post-payment code must use `getAllProductsByMember` — they paid, so whether it's still listed is irrelevant).
 
-## ▶ START HERE — three verification actions
+## ▶ START HERE — four verification actions
 The gap is no longer code. Full backlog in `docs/context/pending.md`.
 
 1. **Charge ONE real card** — validates ticketing, shop pickup, self-delivery AND digital delivery at once. ⚠️ `.env.local` holds **live** Stripe keys, so a local checkout charges for real; add `sk_test_`/`pk_test_` first to rehearse.
 2. **Verify Square with a SANDBOX token** — `npx tsx scripts/square-smoke.mts <sandbox-token>`. Free, zero risk, do it **before any vendor connects**. Needs FOUR scopes: `APPOINTMENTS_READ`, `APPOINTMENTS_WRITE`, `ITEMS_READ`, `CUSTOMERS_WRITE`.
 3. ~~**Connect Printify**~~ — DONE (2026-08-22). Xeno's shop is connected, 26 designs / 199 variant rows imported with per-variant galleries, and a real $4.75 postage quote came back. **`createOrder` is still unproven** — nothing has ever been sent for production, which only a real charge can do.
+4. **Publish ONE real membership** — `membership_plans` is **empty**, so `/memberships` is showing placeholders and the member discount at checkout has never been watched come off a real total. `scripts/memberships-smoke.mts` covers the logic (25 checks); the first real plan is the first real test.
 
 Also outstanding: no real card has ever been charged; the ticket email has never gone through Resend for real; the door check-in screen and the vendor Delivery/Printify cards have never been seen rendered (auth redirects a headless session); Uber Direct is blocked on account activation at Uber's end.
 
@@ -98,7 +99,7 @@ Sentry owns errors end to end; PostHog owns product analytics + session replay (
 **PostHog session replay is ON at 100%.** Masking is a CODE concern: every surface rendering what a person SAID carries `data-private`. **A new conversation surface must be marked or it is recorded verbatim.**
 
 ## Supabase (xeno project)
-Full table reference: `docs/context/database.md`. The ones you'll meet most: `vendor_profiles`, `products` (+`kind`), `orders`, `vendor_settings`, `vendor_secrets` (service-role ONLY), `vendor_events` (in-app AND scraped AND embeddings), `event_ticket_types`/`event_tickets`, `event_attendees`, `booking_requests`, `collab_invites`/`collab_rooms`/`collab_messages`, `posts`, `broadcasts`, `chat_conversations`/`chat_messages`, `shopper_taste` (service-role ONLY), `device_tokens`.
+Full table reference: `docs/context/database.md`. The ones you'll meet most: `vendor_profiles`, `products` (+`kind`), `orders`, `vendor_settings`, `vendor_secrets` (service-role ONLY), `vendor_events` (in-app AND scraped AND embeddings), `event_ticket_types`/`event_tickets`, `event_attendees`, `booking_requests`, `collab_invites`/`collab_rooms`/`collab_messages`, `posts`, `broadcasts`, `chat_conversations`/`chat_messages`, `shopper_taste` (service-role ONLY), `shopper_lists`, `membership_plans`/`memberships`, `support_threads`/`support_messages` (service-role ONLY), `saved_members`/`saved_events`, `device_tokens`.
 
 ## Key Conventions
 The load-bearing subset. Full list in `docs/context/conventions.md`.
@@ -116,6 +117,9 @@ The load-bearing subset. Full list in `docs/context/conventions.md`.
 - **`next/image` quality needs `images.qualities` in Next 16.** A `quality` prop not on that allowlist is **silently ignored**. Current list: `[75, 88, 90]`.
 - **The model runs ONCE per new item, never per request.** Scraping is $0; each event is labelled and embedded once at ingest. The only per-request calls are reading one person's sentence. Never move labelling, embedding or extraction onto a read path.
 - **Notifying a user = push + email, ALWAYS, via `lib/notify.ts`** — `notifyUser` / `notifyMemberUser` (+ `…Safe` fire-and-forget for request handlers: `void notifyMemberUserSafe(id, {...})`, never awaited on the hot path). Push alone means a vendor without the iOS app gets **nothing**. Audit any new `notifyMemberSafe` (the push-only primitive from `lib/push.ts`) for exactly that.
+- **A placeholder must not offer an action that can't work.** `/memberships` falls back to demo plans when `membership_plans` is empty, and each one rendered a live "Join membership" that POSTed an id with no row behind it — a guaranteed 404 on a public page, shipped because nobody clicked it signed in. Fixtures carry `demo: true` and offer "Example membership" instead. Any fallback fixture on a surface with a CTA needs the same flag.
+- **Guard on `isLoaded` BEFORE `isSignedIn`, every time.** `useAuth()` reports `isSignedIn: false` while Clerk is still loading, so `if (isLoaded && !isSignedIn)` renders the signed-IN branch to a signed-out visitor for one beat — `/orders` flashed "No orders yet." at people before it knew who they were. Wait on `!isLoaded` first.
+- **Anything a person builds signed-out needs a merge path, not just a local write.** Shopper lists were localStorage-only, so "My lists" died on a second device. They persist in `shopper_lists` now; the local copy is a draft merged up on first signed-in render, idempotent by name (unique index on `(user_id, lower(name))`) because that merge re-runs on every device — and the draft is cleared only AFTER the server accepts it.
 - **Client data fetching = SWR.** Use the shared hooks in `lib/data-hooks.ts`; **never write a raw `useEffect`+`fetch` on mount** for those datasets. **Never call `listMembers` from a client component** — route through `app/api/directory`.
 - **Google Places = money. `lib/places.ts` owns the spending rules** — read the header before touching it. Search on submit never on keystroke; 24h caches; never re-buy what Text Search already returned; pass `region` or Google biases on our server's IP.
 - **One search box per screen** — the top slot swaps with the tab; never stack two.
@@ -159,7 +163,7 @@ npm test   # vitest run
 ```
 `tests/` holds **live integration tests** — real OpenAI + Supabase, no mocks, billable (~$0.04/run incl. one `gpt-image-1` generation). Run deliberately, not on every commit. `tests/setup-env.ts` loads `.env.local`.
 
-Smoke scripts run against the REAL DB and clean up after themselves: `ticketing-smoke.mts`, `self-delivery-smoke.mts`, `product-kind-smoke.mts`, `digital-smoke.mts`, `printify-smoke.mts`, `bookings-smoke.mts`, `square-smoke.mts`, `voice-booking-smoke.mts`, `taste-smoke.mts`.
+Smoke scripts run against the REAL DB and clean up after themselves: `ticketing-smoke.mts`, `self-delivery-smoke.mts`, `product-kind-smoke.mts`, `digital-smoke.mts`, `printify-smoke.mts`, `bookings-smoke.mts`, `square-smoke.mts`, `voice-booking-smoke.mts`, `taste-smoke.mts`, `memberships-smoke.mts` (25 checks, incl. the platform-plan fence), `shopper-lists-smoke.mts` (18 checks, incl. cross-user isolation).
 
 ## Environment Variables
 Full reference — every var, where to get it, what breaks without it — in `docs/context/environment.md`. The traps worth knowing here:
@@ -173,6 +177,7 @@ Full reference — every var, where to get it, what breaks without it — in `do
 ## Recent Decisions
 Full dated log in `docs/context/decisions.md`. The most recent, briefly:
 
+- **2026-09-23 — v140: four weeks of backlog went out, and three things the testing found.** One deploy carried `/orders` (purchases + tickets + memberships in one timeline, scoped by VERIFIED Clerk emails only, no address or payment intent in the payload), **shopper lists that persist** (`shopper_lists`, migration `20260923120000`), vendor **memberships**, public flyer → venue resolution, and the 2026-08-31 marketplace surface checkpoint. Clicking it all signed-in is what found the bugs: a **Join button on placeholder plans that could only ever 404**, an **`isLoaded` guard in the wrong order** flashing "No orders yet." at signed-out visitors, and lists that **only existed in one browser**. All three are now conventions above. `membership_plans` is still empty, so the member discount at checkout remains unwatched by a real total.
 - **2026-08-22 — one claim flow, and the paste-a-link hole.** `/claim/<id>` (printed on NFC cards, returned by Canvass) is now a redirect into **the real join flow** — `/join?claim=<id>` enters at the same `who` step a fresh join reaches after the Google search, then the same OTP, then links → catalogue → payouts → interview. The standalone claim page is gone and with it **"verify by pasting your Google Maps URL"**, which proved nothing: `/api/claim` now refuses every method except `phone_otp` and `self_owned`, and stamps `ownerName`/`ownerRole`. Onboarding's last screen no longer shows plans (`SHOW_PLANS`, and the auto-renew disclosure rides with them). `/joindemo` has a second door demoing the claim entry.
 - **2026-08-22 — support chat.** "Chat with our team" on top of every home tab (signed-in only) → `/support/chat`; answered from the **Support tab in `/vendor/admin`**. `support_threads`/`support_messages` are **service-role ONLY**; unread is two counters on the thread row (the badge polls one row, never an aggregate) and every write goes through `lib/support.ts` — a second writer is how a red badge starts lying. Both transcripts carry `data-private`. `/support` (the public help page) is untouched.
 - **2026-08-22 — vendor photos + hubs.** `/vendor/about` can add/remove/reorder profile photos at last, and **the owner's `profile.images` now beats hardcoded `MEMBER_HERO_IMAGES`** — it was the other way round, so edits would have changed nothing on screen. The dashboard's Shop and Profile buttons open hubs (`/vendor/shop`, `/vendor/profile`) instead of a catalogue and an edit form; Petitions is hidden for vendors. **A subscription price in a SERVER component needs `components/billing/NativeGate`** (Apple 3.1.1 — in-app prices must come from StoreKit).

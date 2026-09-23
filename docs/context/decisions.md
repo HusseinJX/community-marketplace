@@ -2,6 +2,59 @@
 
 Split out of CLAUDE.md (2026-08-13). Newest first, as it was written.
 
+## 2026-09-23 — v140, and what clicking it signed-in found
+
+Four weeks of work went out in one deploy: `/orders` (purchases, tickets and
+memberships in one reverse-chronological timeline), shopper lists that persist,
+vendor memberships, public flyer → venue resolution, and the 2026-08-31
+marketplace surface checkpoint. Prod had been on v139 since 25 August.
+
+The code was already written. What this session added was **testing it while
+signed in**, and that is what found all three bugs — none of which a headless
+signed-out sweep could see, because each one lives behind an account.
+
+**A placeholder offered an action that could not work.** `/memberships` falls
+back to three demo plans when `membership_plans` is empty — which it is, no
+business has published one — and each fixture rendered a live "Join membership".
+Clicking it POSTed an id with no row behind it: `/api/memberships/join` answered
+`404 plan_unavailable` and the card said "Couldn't start that just now."
+Textbook error handling on a button that could never succeed. The fixtures carry
+`demo: true` now and offer "Example membership"; the section reads "Coming soon"
+and says plainly that nobody nearby has published one, so three placeholders
+don't read as three real offers. **The rule: any fallback fixture on a surface
+with a CTA needs that flag.**
+
+**An auth guard in the wrong order.** `/orders` checked
+`if (isLoaded && !isSignedIn)`. While Clerk resolves, `isSignedIn` is already
+`false` but `isLoaded` is not yet `true`, so the check fell through and painted
+the signed-in branch — filter chips and "No orders yet." — at signed-out
+visitors for one beat. The app telling someone they had bought nothing before it
+knew who they were. **Guard on `!isLoaded` first, always.**
+
+**Lists that only existed in one browser.** Shopper lists were localStorage-only
+(`wl_shopper_lists`), so "My lists" was a promise the software didn't keep: gone
+on a second device, gone with cleared site data. They live in `shopper_lists`
+now, behind `/api/shopper-lists` and `useShopperLists`, the same shape as
+`saved_members`. The local copy stays as the **signed-out draft** and is merged
+up on the first signed-in render — idempotent by name (unique index on
+`(user_id, lower(name))`), because that merge re-runs on every device someone
+signs in on, and three devices must not mean three "Coffee crawl" lists. The
+draft is cleared **only after** the server accepts it; the other order loses
+lists on a flaky connection. Signed-out now says the lists are device-only, so
+the gap is visible instead of silent. `scripts/shopper-lists-smoke.mts` covers
+it against the live DB — 18 checks, including that one person can neither read,
+write nor delete another's lists.
+
+Also settled that day: `design/airbnb-system` had **never been pushed**. Every
+prod deploy since v131 came off that branch, so 333 commits — including
+everything live on the App Store — existed on one laptop and nowhere else. It is
+on the remote now, `main` fast-forwarded to match, and all the `prod-v*` tags
+pushed.
+
+Still unproven: `membership_plans` is empty, so the member discount has never
+been watched come off a real total. The logic has 25 smoke checks; the first
+real plan is the first real test.
+
 ## 2026-08-22 — one claim flow, and the paste-a-link hole
 
 **A Maps URL is not proof of anything.** The standalone claim page offered "verify by
