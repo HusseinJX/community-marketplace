@@ -10,10 +10,19 @@ export interface PublicMembershipPlan extends MembershipPlan {
   memberName: string
   memberCategory: string | null
   memberImage: string | null
+  /**
+   * True for the placeholder plans below — the ones shown while no business
+   * has published a real membership yet. They exist to show what the page is
+   * FOR, and nothing behind them exists: their ids are not rows, so
+   * /api/memberships/join answers 404 for every one of them. The card reads
+   * this and offers an example, not a Join button that cannot work.
+   */
+  demo?: boolean
 }
 
 const DEMO_PLANS: PublicMembershipPlan[] = [
   {
+    demo: true,
     id: 'demo-membership-mma',
     member_id: 'demo-courtside-sports-bar',
     memberName: 'Courtside Sports Bar',
@@ -32,6 +41,7 @@ const DEMO_PLANS: PublicMembershipPlan[] = [
     updated_at: '2026-08-01T00:00:00.000Z',
   },
   {
+    demo: true,
     id: 'demo-membership-pottery',
     member_id: 'demo-dani-cruz',
     memberName: 'Dani Cruz',
@@ -50,6 +60,7 @@ const DEMO_PLANS: PublicMembershipPlan[] = [
     updated_at: '2026-08-02T00:00:00.000Z',
   },
   {
+    demo: true,
     id: 'demo-membership-yoga',
     member_id: 'demo-casa-verde',
     memberName: 'Casa Verde Plant Co',

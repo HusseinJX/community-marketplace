@@ -36,6 +36,9 @@ export function MembershipsMarketplace() {
     });
   }, [category, plans, query]);
 
+  // Every plan a placeholder means nobody has published one yet.
+  const allExamples = plans.length > 0 && plans.every((plan) => plan.demo);
+
   return (
     <main className="min-h-screen bg-stone-50 pb-24 pt-6">
       <div className="mx-auto max-w-6xl px-4 md:px-8">
@@ -88,11 +91,18 @@ export function MembershipsMarketplace() {
           <div className="mb-3 flex items-end justify-between gap-3">
             <div>
               <p className="t-meta font-semibold uppercase tracking-[0.16em] text-coral-700">
-                Available locally
+                {allExamples ? "Coming soon" : "Available locally"}
               </p>
               <h2 className="text-2xl font-semibold tracking-tight text-stone-950">
                 Memberships to browse
               </h2>
+              {/* Don't let three placeholders read as three real offers. */}
+              {allExamples && (
+                <p className="mt-1 t-meta text-stone-500">
+                  No business nearby has published a membership yet — here is what
+                  one looks like.
+                </p>
+              )}
             </div>
             <p className="shrink-0 t-meta font-semibold text-stone-500">
               {filtered.length} {filtered.length === 1 ? "plan" : "plans"}
@@ -217,15 +227,24 @@ function MembershipBrowseCard({ plan }: { plan: PublicMembershipPlan }) {
         )}
 
         <div className="mt-auto grid gap-2 pt-5">
-          <button
-            type="button"
-            onClick={() => void join()}
-            disabled={busy}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-stone-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-stone-800 disabled:opacity-60"
-          >
-            {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-            Join membership
-          </button>
+          {/* A placeholder plan has no row behind it, so Join could only ever
+              fail. Show what the page is for and send them to the business
+              instead of handing them a button that 404s. */}
+          {plan.demo ? (
+            <p className="rounded-full bg-stone-100 px-4 py-2.5 text-center text-sm font-semibold text-stone-500">
+              Example membership
+            </p>
+          ) : (
+            <button
+              type="button"
+              onClick={() => void join()}
+              disabled={busy}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-stone-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-stone-800 disabled:opacity-60"
+            >
+              {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+              Join membership
+            </button>
+          )}
           <Link
             href={`/members/${plan.member_id}`}
             className="inline-flex w-full items-center justify-center rounded-full border border-stone-200 px-4 py-2.5 text-sm font-semibold text-stone-700 transition hover:border-stone-300 hover:bg-stone-50"
