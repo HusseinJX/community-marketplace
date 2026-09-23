@@ -61,10 +61,41 @@ membership shows in the wallet, counts towards "you have 6 local memberships",
 and buys nothing. The wallet is allowed to take your word for it; the till is
 not.
 
-Confirmation is a vendor action, not a document: `/vendor/memberships` grows a
-"claimed by" list — *"7 people say they're members. Confirm the ones you
-recognise."* That is a two-minute job for a business that already knows its
-regulars, and it is how a linked membership becomes useful.
+### How confirmation actually happens — decided 2026-09-23
+
+**At the counter, on first redemption. Not from a roster.**
+
+The obvious design is a CSV of member emails, and it is a trap: a synchronisation
+problem in disguise. Upload today, stale tomorrow — members join, lapse, leave —
+and keeping it current means integrating with Mindbody or Square, which is the
+exact thing linked memberships exist to avoid, reintroduced through the back
+door.
+
+The insight: **confirmation does not need to be complete or current. It only
+needs to be true at the moment of redemption.** So the first time a
+`self_declared` member tries to redeem, the staff screen asks one question:
+
+> *"Sam says they're a member. Are they?"*  **Yes** / **No**
+
+Yes promotes them to `vendor_confirmed` permanently. Two seconds, answered by
+someone standing in front of them who knows better than any export.
+
+Why this beats a roster:
+
+- **Zero onboarding friction.** The business does nothing to begin. Load-bearing
+  for the wedge — the moment step one is "export your member list", most local
+  businesses stop.
+- **Self-limiting in the right direction.** Only members who actually turn up
+  get confirmed, which is exactly the population worth having.
+- **Degrades gracefully.** A wrong yes costs one discount. A stale CSV silently
+  denies real members, which is far worse and much harder to notice.
+
+A bulk import stays available for businesses that ask for it. It must not be
+the path.
+
+A small "claimed by" list in `/vendor/memberships` is still worth having — a
+business that wants to confirm its regulars up front should be able to — but it
+is an option, never a prerequisite.
 
 ## 3. Benefits that count
 
@@ -176,14 +207,25 @@ With the above it gains the things that make it worth opening weekly:
 3. **Credits + redemption**, reusing the ticket/scanner machinery.
 4. **Wallet surfacing** — balances, monthly spend, Redeem.
 
+## 7a. What we are actually selling the business
+
+Not "we'll list your membership" — every directory says that. **"We'll get your
+members to turn up."**
+
+Being the place people manage memberships means being the place people cancel
+them, and vendors will feel that. Leaning into it is the right trade: the wallet
+that makes cancelling easy is the wallet people trust enough to fill, and a
+membership someone USES is a membership they do not cancel. The usage surface is
+the retention product. *"Your members redeemed 340 benefits this month"* is
+worth more to a gym than a hidden cancel button, and it is a number only we can
+show them.
+
 ## 8. Open questions
 
 - **Does a linked membership ever become billed?** The obvious move once a
   business sees its members here is "bill through us instead" — one tap for the
   business, a re-entered card for every member. Probably a per-member offer at
   their next renewal rather than a migration.
-- **Who confirms at a big business?** `vendor_confirmed` assumes someone knows
-  the regulars. A 400-member gym needs a CSV of emails, not a list to tick.
 - **Do benefits ever apply off-platform?** A member buying at the counter, not
   through checkout. The scanner handles it — but then our 5% never sees that
   sale, which is correct and worth being deliberate about.
