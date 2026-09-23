@@ -1,20 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { ArrowRight, ListPlus, Store } from "lucide-react";
-import { readShopperLists, createShopperList, type ShopperList } from "@/lib/shopper-lists";
-import { useDirectory } from "@/lib/data-hooks";
+import { useDirectory, useShopperLists } from "@/lib/data-hooks";
 import { DEMO_MEMBERS } from "@/lib/demo-members";
 
 export function ShopperListsClient() {
-  const [lists, setLists] = useState<ShopperList[]>([]);
   const [name, setName] = useState("");
   const { members } = useDirectory();
-
-  useEffect(() => {
-    setLists(readShopperLists());
-  }, []);
+  const { lists, signedIn, loading, create } = useShopperLists();
 
   const namesById = useMemo(() => {
     const map = new Map<string, string>();
@@ -29,8 +24,8 @@ export function ShopperListsClient() {
     return map;
   }, [members]);
 
-  const create = () => {
-    setLists(createShopperList(name));
+  const submit = () => {
+    void create(name);
     setName("");
   };
 
@@ -55,7 +50,7 @@ export function ShopperListsClient() {
         />
         <button
           type="button"
-          onClick={create}
+          onClick={submit}
           disabled={!name.trim()}
           className="inline-flex items-center gap-2 rounded-full bg-stone-950 px-4 py-2 t-meta font-semibold text-white transition hover:bg-stone-800 disabled:opacity-50"
         >
@@ -64,8 +59,20 @@ export function ShopperListsClient() {
         </button>
       </div>
 
+      {!signedIn && lists.length > 0 && (
+        <p className="mt-3 rounded-2xl bg-amber-50 px-4 py-3 text-xs text-amber-900">
+          These lists are saved on this device only. Sign in and they follow you
+          to your phone.
+        </p>
+      )}
+
       <div className="mt-6 space-y-3">
-        {lists.length ? (
+        {loading ? (
+          <div className="rounded-3xl border border-stone-200 bg-white p-6">
+            <div className="h-4 w-32 animate-pulse rounded bg-stone-100" />
+            <div className="mt-3 h-3 w-20 animate-pulse rounded bg-stone-100" />
+          </div>
+        ) : lists.length ? (
           lists.map((list) => (
             <article key={list.id} className="rounded-3xl border border-stone-200 bg-white p-4 shadow-[var(--shadow-soft)]">
               <div className="flex items-start justify-between gap-3">

@@ -43,12 +43,9 @@ import { HOME_TABS, DEFAULT_HOME_TAB, toHomeTab, rememberHomeTab, type HomeTab }
 import { SupportCard } from "@/components/support/SupportCard";
 import { useLogin } from "@/components/auth/ClerkAuthProvider";
 import { useIsMdUp } from "@/lib/use-media-query";
-import { useDirectory, useMembershipPlans, useShopProducts } from "@/lib/data-hooks";
+import { useDirectory, useMembershipPlans, useShopProducts, useShopperLists } from "@/lib/data-hooks";
 import { memberImages } from "@/lib/member-images";
 import { AddToListMenu } from "@/components/AddToListMenu";
-import {
-  savePublicShopperList,
-} from "@/lib/shopper-lists";
 import type { ShopProduct } from "@/app/api/products/route";
 import type { PublicMembershipPlan } from "@/app/api/memberships/plans/route";
 import type { Member } from "@/lib/types";
@@ -1433,6 +1430,7 @@ function FeaturedShopCard({ member }: { member: Member }) {
 
 function PublicShopListCard({ list }: { list: DemoPublicShopList }) {
   const [saved, setSaved] = useState(false);
+  const { savePublic } = useShopperLists();
 
   return (
     <article className="overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-[var(--shadow-soft)]">
@@ -1472,7 +1470,7 @@ function PublicShopListCard({ list }: { list: DemoPublicShopList }) {
           <button
             type="button"
             onClick={() => {
-              savePublicShopperList(list.title, list.members.map((member) => member.id));
+              void savePublic(list.title, list.members.map((member) => member.id));
               setSaved(true);
             }}
             className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full bg-stone-950 px-3 py-2 text-xs font-semibold text-white transition hover:bg-stone-800"

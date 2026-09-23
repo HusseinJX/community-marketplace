@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 import { useAuth } from "@clerk/nextjs";
 import type { Member } from "@/lib/types";
@@ -12,6 +12,14 @@ import type { PublicMembershipPlan } from "@/app/api/memberships/plans/route";
 import type { Activity } from "@/lib/unread";
 import type { CollaborationSummary } from "@/lib/collab-network";
 import { fetchLiveBroadcasts } from "@/lib/demo-live-fixtures";
+import {
+  addMemberToShopperList,
+  clearShopperLists,
+  createShopperList,
+  readShopperLists,
+  savePublicShopperList,
+  takeShopperLists,
+} from "@/lib/shopper-lists";
 
 // Shared, cached data hooks. Every surface that needs one of these datasets
 // pulls from the SAME SWR key, so:
@@ -286,6 +294,128 @@ export function useSavedMembers() {
   );
 
   return { saved, savedIds: ids, toggle, loading: isLoading && !data };
+}
+
+// ── Shopper lists ────────────────────────────────────────────────────────────
+
+export interface ShopperListRow {
+  id: string;
+  name: string;
+  memberIds: string[];
+  createdAt: string;
+}
+
+const NO_LISTS: ShopperListRow[] = [];
+
+/**
+ * Shopper lists — "Coffee crawl", "Saturday errands".
+ *
+ * Signed in, the server is the truth. Signed out, the browser keeps a draft in
+ * localStorage so the feature still works before anyone has an account, and
+ * that draft is merged up the first time a signed-in user is seen. The merge
+ * is idempotent by list name, so it is safe on every device and every session.
+ */
+export function useShopperLists() {
+  const { isLoaded, isSignedIn } = useAuth();
+  const merged = useRef(false);
+
+  const { data, mutate, isLoading } = useSWR<{ lists?: ShopperListRow[] }>(
+    isSignedIn ? "/api/shopper-lists" : null,
+  );
+
+  // Local draft, for the signed-out case. Held in state so a write re-paints.
+  const [local, setLocal] = useState<ShopperListRow[]>(NO_LISTS);
+  useEffect(() => {
+    if (!isSignedIn) setLocal(readShopperLists());
+  }, [isSignedIn]);
+
+  // The one-time lift of the signed-out draft into the account.
+  useEffect(() => {
+    if (!isSignedIn || merged.current) return;
+    const draft = takeShopperLists();
+    if (!draft.length) {
+      merged.current = true;
+      return;
+    }
+    merged.current = true;
+    void (async () => {
+      try {
+        const res = await fetch("/api/shopper-lists", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "merge", lists: draft }),
+        });
+        if (!res.ok) throw new Error("merge failed");
+        // Only now — a cleared draft with a failed write is a lost list.
+        clearShopperLists();
+        await mutate();
+      } catch {
+        merged.current = false; // try again next mount
+      }
+    })();
+  }, [isSignedIn, mutate]);
+
+  const lists = isSignedIn ? data?.lists ?? NO_LISTS : local;
+
+  const post = useCallback(
+    async (body: Record<string, unknown>) => {
+      const res = await fetch("/api/shopper-lists", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error("failed");
+      const json = (await res.json()) as { lists?: ShopperListRow[] };
+      await mutate({ lists: json.lists ?? [] }, { revalidate: false });
+    },
+    [mutate],
+  );
+
+  /** Create a list, or fold the business into the one already named that. */
+  const create = useCallback(
+    async (name: string, memberId?: string) => {
+      if (!name.trim()) return;
+      if (!isSignedIn) {
+        setLocal(createShopperList(name, memberId));
+        return;
+      }
+      await post({ action: "create", name, memberIds: memberId ? [memberId] : [] });
+    },
+    [isSignedIn, post],
+  );
+
+  const addMember = useCallback(
+    async (listId: string, memberId: string) => {
+      if (!isSignedIn) {
+        setLocal(addMemberToShopperList(listId, memberId));
+        return;
+      }
+      await post({ action: "add", listId, memberId });
+    },
+    [isSignedIn, post],
+  );
+
+  /** Save a whole curated list (the "Save this list" on a shelf). */
+  const savePublic = useCallback(
+    async (name: string, memberIds: string[]) => {
+      if (!isSignedIn) {
+        setLocal(savePublicShopperList(name, memberIds));
+        return;
+      }
+      await post({ action: "create", name, memberIds });
+    },
+    [isSignedIn, post],
+  );
+
+  return {
+    lists,
+    signedIn: !!isSignedIn,
+    // Signed out there is nothing to wait for; the draft is already in hand.
+    loading: !isLoaded || (!!isSignedIn && isLoading && !data),
+    create,
+    addMember,
+    savePublic,
+  };
 }
 
 // Stable identity so consumers' useMemo deps don't churn on every render.

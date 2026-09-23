@@ -7,8 +7,7 @@ import { AddToListMenu } from "@/components/AddToListMenu";
 import { HomeSearch } from "@/components/home/HomeSearch";
 import { LocalDirectory } from "@/components/home/LocalDirectory";
 import { MapView } from "@/components/MapView";
-import { useDirectory } from "@/lib/data-hooks";
-import { savePublicShopperList } from "@/lib/shopper-lists";
+import { useDirectory, useShopperLists } from "@/lib/data-hooks";
 
 type ShopsView = "shops" | "lists" | "map";
 
@@ -94,6 +93,7 @@ export function ShopsClient() {
 
 function PublicListsView() {
   const [saved, setSaved] = useState<string | null>(null);
+  const { savePublic } = useShopperLists();
 
   return (
     <section className="mx-auto max-w-6xl px-4 pb-12 pt-6 md:px-8">
@@ -129,7 +129,7 @@ function PublicListsView() {
               <button
                 type="button"
                 onClick={() => {
-                  savePublicShopperList(list.title, list.members.map((member) => member.id));
+                  void savePublic(list.title, list.members.map((member) => member.id));
                   setSaved(list.title);
                 }}
                 className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-stone-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-stone-800"

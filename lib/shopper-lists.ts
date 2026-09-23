@@ -101,3 +101,25 @@ export function savePublicShopperList(name: string, memberIds: string[]): Shoppe
   writeShopperLists(next);
   return next;
 }
+
+/**
+ * Hand the local draft over and forget it. Called once, the moment a signed-in
+ * user is seen (useShopperLists), so lists built before signing in follow the
+ * person into their account instead of being stranded on one browser.
+ *
+ * Clearing is the caller's job, and only after the server has accepted them —
+ * see `clearShopperLists`. Reading without clearing would re-merge forever;
+ * clearing without a confirmed write would lose them.
+ */
+export function takeShopperLists(): ShopperList[] {
+  return readShopperLists();
+}
+
+export function clearShopperLists(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(KEY);
+  } catch {
+    /* nothing to clear */
+  }
+}

@@ -111,7 +111,22 @@ export function OrdersClient() {
     fetcher,
   );
 
-  if (isLoaded && !isSignedIn) {
+  // Clerk resolves a beat after paint. Without this, a signed-out visitor sees
+  // the filter chips and "No orders yet." flash past before the sign-in card —
+  // the app telling them they have bought nothing before it knows who they are.
+  if (!isLoaded) {
+    return (
+      <main className="mx-auto max-w-3xl space-y-6 px-4 py-8 md:px-8">
+        <BackToHome href="/shopper" label="Your space" />
+        <div className="card-soft p-6">
+          <div className="h-4 w-40 animate-pulse rounded bg-stone-100" />
+          <div className="mt-3 h-3 w-24 animate-pulse rounded bg-stone-100" />
+        </div>
+      </main>
+    );
+  }
+
+  if (!isSignedIn) {
     return (
       <main className="mx-auto max-w-3xl space-y-6 px-4 py-8 md:px-8">
         <BackToHome href="/shopper" label="Your space" />

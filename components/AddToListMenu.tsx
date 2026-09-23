@@ -1,13 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ListPlus, X } from "lucide-react";
-import {
-  addMemberToShopperList,
-  createShopperList,
-  readShopperLists,
-  type ShopperList,
-} from "@/lib/shopper-lists";
+import { useShopperLists } from "@/lib/data-hooks";
 
 export function AddToListMenu({
   memberId,
@@ -21,12 +16,10 @@ export function AddToListMenu({
   buttonClassName?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [lists, setLists] = useState<ShopperList[]>([]);
   const [name, setName] = useState("");
-
-  useEffect(() => {
-    if (open) setLists(readShopperLists());
-  }, [open]);
+  // Shared SWR key: every Add-to-list button on a page of ~80 cards reads the
+  // same list set, and one write re-paints all of them.
+  const { lists, create, addMember } = useShopperLists();
 
   return (
     <div className="relative">
@@ -63,7 +56,7 @@ export function AddToListMenu({
                   key={list.id}
                   type="button"
                   onClick={() => {
-                    setLists(addMemberToShopperList(list.id, memberId));
+                    void addMember(list.id, memberId);
                     setOpen(false);
                   }}
                   className="block w-full rounded-xl px-3 py-2 text-left text-sm font-semibold text-stone-800 hover:bg-stone-50"
@@ -85,7 +78,7 @@ export function AddToListMenu({
             <button
               type="button"
               onClick={() => {
-                setLists(createShopperList(name, memberId));
+                void create(name, memberId);
                 setName("");
                 setOpen(false);
               }}
