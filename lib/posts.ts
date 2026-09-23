@@ -41,6 +41,12 @@ export interface Post {
   // attached by the API layer (not columns on the row)
   reactions?: number
   reacted?: boolean
+  /**
+   * Everyone tagged in this post, from post_member_tags — several artists on
+   * one mural. Absent on posts with no multi-tag, where `tagged_member_id` is
+   * still the whole answer.
+   */
+  tags?: { id: string; name: string | null }[]
 }
 
 export type NewPost = Omit<Post, 'id' | 'created_at' | 'reactions' | 'reacted'>
@@ -71,7 +77,21 @@ const TAG_REACTIONS = 'post-reactions'
 const cachedPostRows = unstable_cache(
   async (scope: 'all' | 'member' | 'event', id: string | null, limit: number) => {
     let q = db().from('posts').select('*').eq('removed', false).neq('moderation_status', 'pending')
-    if (scope === 'member' && id) q = q.eq('tagged_member_id', id)
+    if (scope === 'member' && id) {
+      // A member can be tagged in two places: the original single column, and
+      // post_member_tags for posts with several people in them. Union, or a
+      // mural shows up for its first artist and nobody else.
+      const { data: tagged } = await db()
+        .from('post_member_tags')
+        .select('post_id')
+        .eq('member_id', id)
+        .order('created_at', { ascending: false })
+        .limit(limit)
+      const ids = ((tagged as { post_id: string }[]) ?? []).map((t) => t.post_id)
+      q = ids.length
+        ? q.or(`tagged_member_id.eq.${id},id.in.(${ids.join(',')})`)
+        : q.eq('tagged_member_id', id)
+    }
     if (scope === 'event' && id) q = q.eq('tagged_event_id', id)
     const { data, error } = await q.order('created_at', { ascending: false }).limit(limit)
     if (error || !data) return [] as Post[]
@@ -152,10 +172,67 @@ export async function toggleReaction(postId: string, userId: string): Promise<{ 
   return { reacted: !existing, count: count ?? 0 }
 }
 
-export async function createPost(p: NewPost): Promise<Post> {
+export async function createPost(
+  p: NewPost,
+  /**
+   * Everyone else in the post. A mural has several artists and each of them
+   * should find it on their own page; `tagged_member_id` can only name one.
+   * Pass ALL of them here including the primary — the write is idempotent per
+   * (post, member), and leaving the primary out would make it the one tag the
+   * union has to special-case.
+   */
+  alsoTagged?: { id: string; name?: string | null }[],
+): Promise<Post> {
   const { data, error } = await db().from('posts').insert(p).select().single()
   if (error || !data) throw new Error(`Failed to create post: ${error?.message}`)
-  return data as Post
+  const post = data as Post
+
+  const tags = (alsoTagged ?? []).filter((t) => t?.id)
+  if (tags.length) {
+    // Best-effort: the post exists and is already visible. A failed tag write
+    // must not throw away a photo somebody just took.
+    await db()
+      .from('post_member_tags')
+      .upsert(
+        tags.map((t) => ({ post_id: post.id, member_id: t.id, member_name: t.name ?? null })),
+        { onConflict: 'post_id,member_id' },
+      )
+      .then(undefined, () => undefined)
+  }
+  return post
+}
+
+/**
+ * Tags for a page of posts, in ONE query.
+ *
+ * Batched for the same reason reactions are: a feed of 50 posts asking one at a
+ * time is 50 round trips for a handful of rows.
+ */
+export async function getTagsForPosts(
+  postIds: string[],
+): Promise<Record<string, { id: string; name: string | null }[]>> {
+  if (postIds.length === 0) return {}
+  const { data } = await db()
+    .from('post_member_tags')
+    .select('post_id, member_id, member_name')
+    .in('post_id', postIds)
+  const out: Record<string, { id: string; name: string | null }[]> = {}
+  for (const r of (data as { post_id: string; member_id: string; member_name: string | null }[]) ?? []) {
+    ;(out[r.post_id] ??= []).push({ id: r.member_id, name: r.member_name })
+  }
+  return out
+}
+
+/** Everyone tagged in a post, for the chips under it. */
+export async function getPostTags(postId: string): Promise<{ id: string; name: string | null }[]> {
+  const { data } = await db()
+    .from('post_member_tags')
+    .select('member_id, member_name')
+    .eq('post_id', postId)
+  return ((data as { member_id: string; member_name: string | null }[]) ?? []).map((r) => ({
+    id: r.member_id,
+    name: r.member_name,
+  }))
 }
 
 // Drop content the viewer should never see (App Store 1.2): globally-removed

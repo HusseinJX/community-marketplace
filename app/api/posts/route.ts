@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
-import { createPost, getPosts, getPostsByMemberId, getPostsByEventId, getReactionsForPosts, invalidatePosts } from '@/lib/posts'
+import { createPost, getPosts, getPostsByMemberId, getPostsByEventId, getReactionsForPosts, getTagsForPosts, invalidatePosts } from '@/lib/posts'
 import { isDemoMode } from '@/lib/demo-admin'
 import { rateLimit } from '@/lib/rate-limit'
 import { screen } from '@/lib/ai-moderation'
@@ -20,11 +20,18 @@ export async function GET(request: Request) {
       : event
         ? await getPostsByEventId(event, 100, userId)
         : await getPosts(50, userId)
-    const reactions = await getReactionsForPosts(posts.map((p) => p.id), userId)
+    const ids = posts.map((p) => p.id)
+    // Both batched, both independent — a mural's five artists and its hearts
+    // are two queries for the whole page, not two per post.
+    const [reactions, tags] = await Promise.all([
+      getReactionsForPosts(ids, userId),
+      getTagsForPosts(ids).catch(() => ({}) as Record<string, { id: string; name: string | null }[]>),
+    ])
     const enriched = posts.map((p) => ({
       ...p,
       reactions: reactions[p.id]?.count ?? 0,
       reacted: reactions[p.id]?.reacted ?? false,
+      tags: tags[p.id],
     }))
     return NextResponse.json({ posts: enriched })
   } catch {

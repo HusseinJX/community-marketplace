@@ -4,10 +4,11 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Shield, UserPlus, FileText, Search, Check, Package, Calendar, ExternalLink, UserCircle, Star, PenSquare, ImagePlus, X, Loader2, Store, Radio, Globe, ChevronDown, ClipboardCheck, ShieldAlert, MessagesSquare } from "lucide-react";
+import { Shield, UserPlus, FileText, Search, Check, Package, Calendar, ExternalLink, UserCircle, Star, PenSquare, ImagePlus, X, Loader2, Store, Radio, Globe, ChevronDown, ClipboardCheck, ShieldAlert, MessagesSquare, Palette } from "lucide-react";
 import { OnboardManager } from "../onboard/OnboardManager";
 import { FeaturedManager } from "../featured/FeaturedManager";
 import { LineupImportManager } from "@/components/admin/LineupImportManager";
+import { PublicArtManager } from "@/components/admin/PublicArtManager";
 import { EventDrafts } from "@/components/admin/EventDrafts";
 import { PublicEventFlyerImport } from "@/components/admin/PublicEventFlyerImport";
 import { ModerationQueue } from "@/components/admin/ModerationQueue";
@@ -25,9 +26,9 @@ const TYPES = ["vendor", "artist", "organizer", "shopper", "influencer"] as cons
 // "Add by transcript" is no longer a tab — it lives as an expandable panel at
 // the top of the Create-profile content (both create members, so they belong
 // together).
-type Tab = "create" | "behalf" | "sourcing" | "drafts" | "moderation" | "support" | "organizer" | "post" | "featured";
+type Tab = "create" | "behalf" | "sourcing" | "drafts" | "moderation" | "support" | "organizer" | "post" | "featured" | "art";
 // "post" and "featured" are parked (disabled) — kept at the END of the order.
-const TABS: Tab[] = ["create", "behalf", "sourcing", "drafts", "moderation", "support", "organizer", "post", "featured"];
+const TABS: Tab[] = ["create", "behalf", "sourcing", "drafts", "moderation", "support", "organizer", "art", "post", "featured"];
 const DISABLED_TABS: Tab[] = ["post", "featured"];
 
 export function AdminPanel({ ownerMemberId }: { ownerMemberId: string }) {
@@ -82,6 +83,7 @@ export function AdminPanel({ ownerMemberId }: { ownerMemberId: string }) {
           {/* People writing to us from the card on every home tab. */}
           <TabButton active={tab === "support"} onClick={() => setTab("support")} icon={MessagesSquare} label="Support" />
           <TabButton active={tab === "organizer"} onClick={() => setTab("organizer")} icon={Calendar} label="Organizer" />
+          <TabButton active={tab === "art"} onClick={() => setTab("art")} icon={Palette} label="Public art" />
           <TabButton active={tab === "post"} onClick={() => setTab("post")} icon={PenSquare} label="Add post" disabled />
           <TabButton active={tab === "featured"} onClick={() => setTab("featured")} icon={Star} label="Featured lists" disabled />
         </div>
@@ -116,6 +118,7 @@ export function AdminPanel({ ownerMemberId }: { ownerMemberId: string }) {
         </div>
       )}
       {tab === "behalf" && <ActOnBehalf />}
+      {tab === "art" && <PublicArtManager />}
       {tab === "post" && <AddPost />}
       {tab === "featured" && <FeaturedManager />}
       {tab === "sourcing" && <SourcingPanel onDetailChange={setSourcingDetail} />}

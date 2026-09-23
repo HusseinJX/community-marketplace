@@ -117,18 +117,31 @@ export function PostLightbox({
           )}
         </div>
 
-        {(post.body || post.tagged_member_id || post.tagged_event_id) && (
+        {(post.body || post.tagged_member_id || post.tags?.length || post.tagged_event_id) && (
           <div className="space-y-2 px-4 pb-4">
             {post.body && <p className="text-sm leading-relaxed text-stone-700">{post.body}</p>}
+            {post.location && (
+              <p className="text-xs text-stone-500">📍 {post.location}</p>
+            )}
             <div className="flex flex-wrap gap-2">
-              {post.tagged_member_id && post.tagged_member_name && (
+              {/* Everyone credited. `tags` holds the full list for a post with
+                  several people on it (a mural's artists); a post with only the
+                  single legacy column falls back to that, so nothing that
+                  predates multi-tagging loses its credit. */}
+              {(post.tags?.length
+                ? post.tags
+                : post.tagged_member_id
+                  ? [{ id: post.tagged_member_id, name: post.tagged_member_name }]
+                  : []
+              ).map((t) => (
                 <Link
-                  href={`/members/${post.tagged_member_id}`}
+                  key={t.id}
+                  href={`/members/${t.id}`}
                   className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-700 hover:bg-indigo-100"
                 >
-                  📍 {post.tagged_member_name}
+                  📍 {t.name || "View profile"}
                 </Link>
-              )}
+              ))}
               {post.tagged_event_id && post.tagged_event_title && (
                 <Link
                   href={`/events/${post.tagged_event_id}`}
