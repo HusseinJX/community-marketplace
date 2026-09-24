@@ -2,6 +2,39 @@
 
 All notable changes to this project are documented here.
 
+## [Unreleased] — Growth console demo (2026-09-23)
+
+> **NOT DEPLOYED, and not linked from anywhere.** `/vendor/growth` is reached by
+> typing the path, sits behind the vendor portal's Clerk gate, and carries a
+> permanent "none of this is a real account" strip.
+
+### Added
+- **`/vendor/growth`** — the ads + SEO console, as a working UI on invented data.
+  Five tabs: Overview (spend vs attributed revenue, the four numbers, the top of
+  the agent queue), Ads (every campaign across Google and Meta in one table
+  sorted by return, with a mobile card fallback), Search & profile (Search
+  Console queries with position bars and opportunity callouts, Google Business
+  Profile, site health), Agent (the approve/dismiss queue, an autonomy dial and
+  the guardrails it cannot cross), Connections (what is linked, what scopes we
+  would ask for, and what we can actually prove).
+- **`lib/growth-demo.ts` / `lib/growth-demo-seo.ts`** — deterministic fixtures.
+  Seeded PRNG, weekday seasonality, budget capping that actually caps, and a
+  `budgetCappedPct` derived from the series rather than typed by hand.
+- **`components/vendor/growth/GrowthCharts.tsx`** — hand-rolled SVG spend/revenue
+  chart with a crosshair readout, sparklines, weekly bars and an inverted
+  position bar. No charting dependency added.
+
+### Notes
+- Attribution is graded on screen — Exact / Counted / Reported — and **no
+  tracking pixel is involved anywhere**, so this does not touch the App Store
+  "no tracking occurs" statement.
+- The gating item for a real version is **our** platform access (Google Ads
+  developer token, Meta App Review), not the vendor's API keys.
+- Full write-up and the seam for the real version: `docs/context/growth-console.md`.
+- Where those ads land is specced in `features/vendor-sites.md` — we host, on the
+  vendor's own domain, starting at `offers.<their-domain>`; static files in a repo
+  they can take, anything dynamic embedded back here.
+
 ## v140–v144 — backlog, canvass, public art, tags (2026-09-23)
 
 > **DEPLOYED.** Prod runs `a08ed13` (v144). Full per-deploy table in `deploy.md`;

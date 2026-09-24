@@ -2,6 +2,124 @@
 
 Split out of CLAUDE.md (2026-08-13). Newest first, as it was written.
 
+## 2026-09-23 — where the ads land: we host, on their domain
+
+`features/vendor-sites.md`. A spec, nothing built.
+
+The Growth console forced the question. Ads have to point somewhere, and if that
+somewhere is a site we cannot see, the reporting is back to clicks — which is
+what the agency was doing when it got fired. Hosting the landing pages is the
+only thing that moves a vendor who does not sell through us from "whatever their
+GA4 claims" to a counted lead.
+
+**The answer is host, but on THEIR domain.** Ownership on the web is the domain
+name; if it CNAMEs to us the vendor keeps their brand, their SEO equity, their
+email and a one-day exit, and we keep the rendering. A site on
+`<them>.whatslocal.ai` is the version that feels like a trap and is also worse
+for them, because the SEO accrues to us and an ad landing on someone else's
+domain converts worse.
+
+**Phase one is a subdomain, not a migration.** `offers.<their-domain>` — one
+CNAME, nothing existing touched, and it holds exactly the pages they do not have
+and we need: the funnel, the lead magnets, the landing pages. The main site
+follows once a funnel has made money, rather than as a leap of faith.
+
+**Static files, shared runtime, deliberate snowflake.** The site is static on a
+CDN and anything dynamic is an embed pointing back here — so hosting has no
+on-call rotation, commerce stays on our rails at 5%, and the conversion still
+happens on a surface we own. The markup is bespoke per vendor, which is the
+product; the maintenance answer is a small `platform.js` from our CDN owning
+click-id capture, forms and embeds (one deploy fixes the fleet) plus the fact
+that an agent can patch N repos at once. Snowflakes were unmaintainable in 2015
+because patching them was human-hours-per-site. It is a job now, not an
+impossibility — budget for it.
+
+**Source of truth is files in a Git repo**, which answers ownership and editing
+at once: our agent commits, their Claude commits, a push webhook builds. No
+conflict logic to invent, because Git is the conflict logic. The agent never
+force-pushes — one rewritten history erases the ownership claim more thoroughly
+than any contract clause could. And the export is not a feature to build: the
+repo *is* the site, plain static files that run anywhere, which is precisely why
+the lock-in fear dissolves. Realistically 95% of vendors will never open it; it
+is the proof they could leave, and that proof is the trust story.
+
+**Two rules that keep the ownership from being a claim.** The registrant is
+always the vendor — a domain in our name is the one irreversible hostage. And we
+never take their nameservers and never touch MX: the commonest way a small
+business's world breaks is a nameserver change that silently drops their Google
+Workspace records and kills email for three days.
+
+Free, deliberately — same reasoning that moved `commerce` into `FREE_CAN`. A
+fast, distinctive site on their own domain is the strongest acquisition offer we
+have, it costs static hosting, and it installs the measurement surface the ads
+business needs. And the site stays up if they stop paying: read-only, no banner.
+Static files cost nothing to keep serving, and a site going dark the day a card
+declines is a reputational event for us, not for them.
+
+This does not collide with `features/storefront-theming.md` — the boundary is
+the domain. On whatslocal.ai everything stays our renderer with theme tokens,
+never a snowflake, because those pages live in our feed and our search. On their
+domain it is generated files, bespoke by design. Both specs hold.
+
+## 2026-09-23 — a Growth console, built as a demo on purpose
+
+`/vendor/growth`. Unlinked from the nav, behind the portal's Clerk gate, with a
+permanent undismissable strip saying none of it is a real account. Every figure
+comes from `lib/growth-demo.ts`.
+
+The bet it represents: local businesses know they need ads, cannot run them, and
+are being quoted $1,000/month by agencies they are trying to escape. The console
+is the shape of doing it for them — link the accounts, an agent proposes the
+changes, they approve, and the reporting is honest about how much of each number
+is actually known.
+
+**Why a demo rather than the real thing.** The code is the easy half. Google Ads
+needs a reviewed developer token, Meta needs App Review plus Business
+Verification for `ads_management`, and Business Profile needs an allowlist
+request. Weeks, and reviewed. Search Console and GA4 need only OAuth and could
+ship this week. Building the screens first is what lets the shape be argued
+about while that queue moves — but the strip is load-bearing: the failure mode
+here is a convincing fake dashboard that a real vendor stumbles into, which is
+the same shape as the memberships placeholder that rendered a Join button with
+no row behind it.
+
+**Attribution is graded, and the grade is on screen.** Exact = an order placed
+on WhatsLocal, where the ad's link carries a click id we wrote and the `orders`
+row carries it back — deterministic, no pixel, immune to ad blockers and iOS.
+Counted = a lead on a landing page we host. Reported = whatever their own GA4
+says, which in the demo and in most real accounts is nothing at all, because no
+conversion events were ever configured. That third row is why "fix your
+tracking" is the first item in the agent queue rather than a footnote.
+
+The Counted row is the argument for **hosting** campaign landing pages rather
+than only designing them: it is what extends measurement to a vendor who does
+not sell through us. Without it we are back to reporting clicks, which is what
+the agency was doing when it got fired.
+
+**No pixel anywhere**, so this feature does not touch the App Store "no tracking
+occurs" statement and needs none of the ad-pixel env vars. The line to decide
+deliberately later: uploading conversions back INTO Google and Meta is the
+largest single performance lever and is also sharing purchase data with a third
+party for advertising — a privacy-label change. Off, and the copy says so.
+
+**Two rules the fixtures follow**, both learned from bugs elsewhere in this
+repo. Deterministic (seeded PRNG, never `Math.random()` — numbers that reshuffle
+on navigation read as fake, and a server/client mismatch hydrates badly). And
+the prose must match the table: the agent's copy quotes rounded figures because
+the 90-day window rolls forward daily, and `budgetCappedPct` is derived from the
+series rather than declared, after a first pass where the copy said "71% of
+days" while the generated data said 87% — and where every campaign was pinned to
+its budget, which made the "budget-limited" badge meaningless.
+
+Not decided: pricing (ungated today; the natural home is a `growth` capability
+under Pro, but it may deserve its own price, which on iOS means a new StoreKit
+product), whether to decline vendors below a spend floor of roughly $300/month
+where Google cannot learn anything, and the fact that this is really a second
+product with a different buyer and a different support load rather than a
+feature of the marketplace.
+
+Full write-up: `docs/context/growth-console.md`.
+
 ## 2026-09-23 — v140, and what clicking it signed-in found
 
 Four weeks of work went out in one deploy: `/orders` (purchases, tickets and
