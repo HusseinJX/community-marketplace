@@ -74,6 +74,9 @@
 - `RESEND_API_KEY` — Resend API key. Email blasts no-op until set (SMS still works).
 - `RESEND_FROM` — verified sender, e.g. `WhatsLocal AI <events@whatslocal.ai>`. Required alongside the key.
 
+**Support chat — staff access from Feedbase:**
+- `SUPPORT_API_SECRET` — shared secret. When a request to `/api/support/threads` or `/api/support/threads/[id]` carries a matching `x-support-secret` header, it gets staff access alongside super-admins (`lib/support-auth.ts`, constant-time compare). The same value lives in Feedbase's Convex deployment. **Unset = off** (admins only). Server-only, never `NEXT_PUBLIC_`.
+
 **SMS (organizer blasts + Uber notifications):** reuses `CONNECTOR_URL` + `CONNECTOR_ADMIN_TOKEN` (proxied to the connector-agent `sms-send` Twilio function). `lib/sms.ts` no-ops if unset.
 
 **Push notifications (native APNs — no third party):**

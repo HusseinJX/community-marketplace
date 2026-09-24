@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
-import { auth, currentUser } from '@clerk/nextjs/server'
-import { isAdmin } from '@/lib/admin'
+import { currentUser } from '@clerk/nextjs/server'
+import { supportStaff } from '@/lib/support-auth'
 import { cleanBody, getThreadById, listMessages, markRead, send } from '@/lib/support'
 import { notifyUserSafe } from '@/lib/notify'
 
@@ -8,10 +8,10 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 // One conversation, from the staff side: read it, answer it, mark it read.
+// Super-admins, or Feedbase's Messages tab via the shared secret (lib/support-auth).
 
-export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { userId } = await auth()
-  if (!isAdmin(userId)) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  if (!(await supportStaff(req))) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   const { id } = await params
   const thread = await getThreadById(id)
   if (!thread) return NextResponse.json({ error: 'No such thread' }, { status: 404 })
@@ -20,8 +20,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
 // POST { body } → reply as staff.
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { userId } = await auth()
-  if (!isAdmin(userId)) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+  const staff = await supportStaff(req)
+  if (!staff) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
   const { id } = await params
   const thread = await getThreadById(id)
@@ -31,7 +31,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const body = cleanBody(raw?.body)
   if (!body) return NextResponse.json({ error: 'Empty reply' }, { status: 400 })
 
-  const me = await currentUser().catch(() => null)
+  // Secret callers have no Clerk session; they sign as the team.
+  const me = staff.via === 'admin' ? await currentUser().catch(() => null) : null
   const { message } = await send({
     clerkUserId: thread.clerk_user_id,
     sender: 'staff',
@@ -51,9 +52,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 }
 
 // PATCH → mark this thread read on OUR side.
-export async function PATCH(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { userId } = await auth()
-  if (!isAdmin(userId)) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  if (!(await supportStaff(req))) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   const { id } = await params
   await markRead(id, 'staff')
   return NextResponse.json({ ok: true })
