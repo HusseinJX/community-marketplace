@@ -2,11 +2,17 @@
 
 All notable changes to this project are documented here.
 
-## [Unreleased] — Growth console demo (2026-09-23)
+## v146 — Growth console demo + Feedbase answers support chat (2026-09-24)
 
-> **NOT DEPLOYED, and not linked from anywhere.** `/vendor/growth` is reached by
-> typing the path, sits behind the vendor portal's Clerk gate, and carries a
-> permanent "none of this is a real account" strip.
+> **DEPLOYED** as v146 (`1ef19d1`, tag `prod-v146`). `/vendor/growth` is linked
+> only from super-admin (→ Demos), sits behind the vendor portal's Clerk gate, and
+> carries a permanent "none of this is a real account" strip.
+
+### Added — support
+- **Feedbase can answer support chat.** `/api/support/threads` and `/[id]` accept
+  `x-support-secret` = `SUPPORT_API_SECRET` alongside a super-admin session
+  (`lib/support-auth.ts`); secret replies are signed as the team. Set on CapRover
+  2026-09-24; verified on prod (no header / wrong secret → 403, right → 200).
 
 ### Added
 - **`/vendor/growth`** — the ads + SEO console, as a working UI on invented data.
