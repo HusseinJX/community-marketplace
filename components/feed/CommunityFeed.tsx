@@ -286,7 +286,11 @@ export function CommunityFeed({
         className={
           boardView
             ? "gap-4 [column-fill:_balance] columns-1 sm:columns-2 lg:columns-3 [&>*]:mb-4 [&>*]:break-inside-avoid"
-            : "mx-auto max-w-2xl space-y-4"
+            : // Phone: edge to edge, the way a feed reads on a phone. The list
+              // cancels the page gutter and every card in it drops its rounding,
+              // side borders and shadow, leaving top/bottom rules between posts.
+              // md+: the centred column of cards.
+              "mx-auto max-w-2xl space-y-4 max-md:-mx-4 max-md:space-y-2 max-md:[&>*]:rounded-none max-md:[&>*]:border-x-0 max-md:[&>*]:shadow-none"
         }
       >
         {shown.map((item, i) => (
@@ -305,7 +309,14 @@ export function CommunityFeed({
                 section of their own — you're meant to come across one, not go
                 looking for a list. Each card hides itself unless you're near it,
                 so most people see none and someone in the Mission sees theirs. */}
-            {CHAT_SLOTS.get(i) && <CommunityChatCard chat={CHAT_SLOTS.get(i)!} />}
+            {/* Not a post, so on a phone it keeps a little inset from the
+                screen edge while the posts around it run edge to edge.
+                empty:hidden — the card renders nothing when you're not near. */}
+            {CHAT_SLOTS.get(i) && (
+              <div className="empty:hidden max-md:px-3">
+                <CommunityChatCard chat={CHAT_SLOTS.get(i)!} />
+              </div>
+            )}
           </Fragment>
         ))}
       </div>

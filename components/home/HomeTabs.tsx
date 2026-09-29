@@ -1182,9 +1182,14 @@ function ShopDiscovery() {
             ))}
           </div>
         ) : featuredShops.length ? (
-          <div className="grid gap-3 md:grid-cols-4 lg:grid-cols-5">
+          // Phone: a sideways rail of 240px cards — the same size as the
+          // category rails this heading opens (LocalDirectory), instead of one
+          // full-width square per shop. md+: the grid, already about that size.
+          <div className="-mx-4 flex gap-4 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:mx-0 md:grid md:grid-cols-4 md:gap-3 md:overflow-visible md:px-0 lg:grid-cols-5">
             {featuredShops.map((member) => (
-              <FeaturedShopCard key={member.id} member={member} />
+              <div key={member.id} className="w-60 shrink-0 sm:w-64 md:w-auto">
+                <FeaturedShopCard member={member} />
+              </div>
             ))}
           </div>
         ) : (
@@ -1205,9 +1210,13 @@ function ShopDiscovery() {
             as-is or use it as a starting point for your own.
           </p>
         </div>
-        <div className="grid gap-3 md:grid-cols-3">
+        {/* One sideways row of lists, like the rails above — each list is a
+            card you flick past, not a column you scroll down through. */}
+        <div className="-mx-4 flex gap-4 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:-mx-8 md:px-8">
           {DEMO_PUBLIC_SHOP_LISTS.map((list) => (
-            <PublicShopListCard key={list.title} list={list} />
+            <div key={list.title} className="w-72 shrink-0 sm:w-80">
+              <PublicShopListCard list={list} />
+            </div>
           ))}
         </div>
       </section>
@@ -1373,7 +1382,7 @@ function FeaturedShopCard({ member }: { member: Member }) {
               src={image}
               alt={name}
               fill
-              sizes="(min-width:1024px) 33vw, 100vw"
+              sizes="(min-width:1024px) 20vw, (min-width:768px) 25vw, 256px"
               className="object-cover transition duration-300 group-hover:scale-105"
             />
           )}
@@ -1403,9 +1412,11 @@ function PublicShopListCard({ list }: { list: DemoPublicShopList }) {
   const { savePublic } = useShopperLists();
 
   return (
-    <article className="overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-[var(--shadow-soft)]">
+    // h-full + flex column: cards in the row share a height, and the buttons
+    // sit on the bottom edge of every card however long its list is.
+    <article className="flex h-full flex-col overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-[var(--shadow-soft)]">
       <div className={`h-2 bg-gradient-to-r ${list.accent}`} />
-      <div className="p-4">
+      <div className="flex flex-1 flex-col p-4">
         <div className="mb-3 flex items-center gap-2">
           <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full bg-stone-200 ring-2 ring-white">
             <Image
@@ -1422,11 +1433,11 @@ function PublicShopListCard({ list }: { list: DemoPublicShopList }) {
         </div>
         <h3 className="text-base font-semibold text-stone-950">{list.title}</h3>
         <p className="mt-1 text-sm leading-5 text-stone-500">{list.description}</p>
-        <div className="mt-4 space-y-2">
+        <div className="mt-3 divide-y divide-stone-200">
           {list.members.map((member) => (
             <div
               key={member.id}
-              className="flex items-center justify-between gap-2 rounded-2xl bg-stone-50 px-3 py-2 transition hover:bg-stone-100"
+              className="flex items-center justify-between gap-2 py-2.5"
             >
               <Link href={`/members/${member.id}`} className="min-w-0 flex-1">
                 <span className="block text-sm font-semibold text-stone-900">{member.name}</span>
@@ -1436,7 +1447,7 @@ function PublicShopListCard({ list }: { list: DemoPublicShopList }) {
             </div>
           ))}
         </div>
-        <div className="mt-4 flex gap-2">
+        <div className="mt-auto flex gap-2 pt-4">
           <button
             type="button"
             onClick={() => {

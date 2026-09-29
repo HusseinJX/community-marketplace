@@ -37,7 +37,11 @@ export function ProductBuy({
   const selected = variants.find((v) => v.id === selectedId) ?? variants[0];
 
   return (
-    <div className="grid gap-6 md:grid-cols-2 md:gap-10">
+    // grid-cols-1 is not redundant: it makes the phone column minmax(0, 1fr).
+    // Without it the implicit column sizes to its widest child — the thumbnail
+    // strip, as wide as every variant image laid end to end — and a product
+    // with many variants pushed the whole page off the side of a phone.
+    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-10">
       <ProductGallery
         images={selected?.images?.length ? selected.images : []}
         alt={selected ? `${alt} — ${selected.label}`.replace(/ — $/, "") : alt}
