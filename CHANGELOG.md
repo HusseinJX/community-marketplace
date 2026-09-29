@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented here.
 
+## v153 — an edge-to-edge feed, and a product page that fits a phone (2026-09-29)
+
+> **DEPLOYED** as v153 (`daf8341`, tag `prod-v153`). Web-only.
+
+### Changed — feed & shop tab (phones)
+- **Feed posts run edge to edge**; cards drop rounding, side borders and shadow. The community chat
+  card keeps a 12px inset — it isn't a post. md+ unchanged.
+- **"Local spots worth a look"** is a sideways rail of 240px cards, the size of the category rails
+  it opens. **"Lists from local creators"** is a sideways row of equal-height cards, list rows split
+  by divider lines instead of grey pills.
+
+### Fixed — product page
+- **A product with many variants overflowed the phone** (xen0 Hoodie: 584px on a 390px screen). The
+  gallery grid had no explicit column, so it sized to the thumbnail strip; `grid-cols-1` makes it
+  `minmax(0, 1fr)` and the strip scrolls inside.
+
 ## v152 — the Profile hub, and a business profile you can read (2026-09-29)
 
 > **DEPLOYED** as v152 (`dabd006`, tag `prod-v152`; also carries `9f56feb`). Web-only.
