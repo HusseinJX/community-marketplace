@@ -2,6 +2,28 @@
 
 All notable changes to this project are documented here.
 
+## v151 — the vendor dashboard is the working area (2026-09-29)
+
+> **DEPLOYED** as v151 (`255f92b`, tag `prod-v151`; also carries `2960493`, `8ddb3b9`). Web-only.
+
+### Changed — vendor portal
+- **/vendor opens on the catalogue.** Four separate pills — Products · Sales · Events · Messages
+  (`?view=`) — each rendering inline below. Products has **Products | Subscriptions** (`?kind=`, the
+  tier editor); Sales has **Sales | Memberships** (`?tab=`, subscribers + the numbers). The existing
+  ProductsManager / OrdersList / MembershipsManager (`show="plans"|"members"`) / EventsManager /
+  MessagesShell are reused as-is; the standalone pages remain for deep links.
+- **Welcome row:** title · QR · white "+ Post" · ⚙︎ gear (menu: Tools, Profile). The section tile row,
+  the Shop and Posts tiles, and the portal's Home / Messages tab bar are gone; Messages gains a
+  "Go back" (hidden while a chat is open). Integrations moved from the Shop hub to /vendor/about.
+- **Add product is a centred modal**; "Add with a photo" is folded behind a ✨ in its header.
+- **The Free / Basic / Pro preview switch is removed for everyone**, including its localStorage
+  override of the real plan — hiding only the control would have stranded anyone on a previewed tier.
+- An open conversation on `/vendor?view=messages` still fills the screen: welcome row, pills, footer
+  and section gaps step aside on the existing `data-chat-open` flag.
+
+### Changed — shop tab
+- The memberships block is a light-grey edge-to-edge band on phones (still a card on desktop).
+
 ## v150 — the sports rail is a full-width strip at the top of Events (2026-09-29)
 
 > **DEPLOYED** as v150 (`9004d71`, tag `prod-v150`). Web-only.
