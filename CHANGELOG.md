@@ -2,6 +2,33 @@
 
 All notable changes to this project are documented here.
 
+## v152 — the Profile hub, and a business profile you can read (2026-09-29)
+
+> **DEPLOYED** as v152 (`dabd006`, tag `prod-v152`; also carries `9f56feb`). Web-only.
+
+### Changed — vendor portal
+- **/vendor/profile** is Edit profile · Plan & billing · Integrations · Account, with Sign out at the
+  bottom. Integrations left the Edit profile page.
+- **New /vendor/account** — the signed-in email and Delete account (App Store 5.1.1(v), one tap from
+  Profile). The dashboard's welcome row no longer carries the email, Delete account or Sign out.
+
+### Fixed — bottom nav
+- A vendor's **Profile tab goes straight to /vendor** (it went via /shopper's server redirect — two
+  loads on the native app), and stays highlighted across /vendor instead of falling back to Explore.
+
+### Changed — shop tab
+- **"Local spots worth a look" opens every shop by category** — `LocalDirectory`'s rails, back in
+  place, each title expanding into the list + map split (same `RailHeader` as the Events themes).
+
+### Changed — business profile
+- **Posts · Products · Events switch** under "Our story"; the shop and events list moved into it.
+  Posts shows the business's own posts, then **Tagged** below — always, with "No posts to show yet."
+- **Hours are a table**, identical days folded ("Tue – Thu"). `lib/business-hours.ts` now reads
+  Google's "5:00 – 9:30 PM" as 5pm (it read 05:00) and accepts split days — which also fixes the
+  open/closed label on cards for places like that.
+- Chip lists show 4 then "+N more"; "bar · bar" dedupes; business facets and "Find them online" are
+  hidden (`SHOW_FACETS_AND_SOCIALS`).
+
 ## v151 — the vendor dashboard is the working area (2026-09-29)
 
 > **DEPLOYED** as v151 (`255f92b`, tag `prod-v151`; also carries `2960493`, `8ddb3b9`). Web-only.
