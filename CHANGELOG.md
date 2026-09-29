@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented here.
 
+## v150 — the sports rail is a full-width strip at the top of Events (2026-09-29)
+
+> **DEPLOYED** as v150 (`9004d71`, tag `prod-v150`). Web-only.
+
+### Changed
+- **Live sports rail → edge-to-edge strip on phones**, leading the Events tab above "Events near you",
+  12px under the header band; cards scroll off both screen edges. Desktop keeps the card. Heading is
+  now "Upcoming Sports Fixtures". ⚠️ The rail still lists broadcasts ON NOW (pulsing dot, "1h 40m left"),
+  so the heading and the contents disagree — open decision. Self-hiding when nothing is live, and on
+  prod `/api/broadcasts` is currently empty, so App Store users won't see it until a venue goes live.
+
+### Fixed
+- **24px of dead space at the top of every home tab.** The CityHeader and SupportCard wrappers kept
+  `pt-3` while rendering nothing; they are `empty:hidden` now.
+
 ## v149 — phones render one display-zoom step out (2026-09-29)
 
 > **DEPLOYED** as v149 (`e945070`, tag `prod-v149`). Web-only; the App Store app picks it up on next launch.
