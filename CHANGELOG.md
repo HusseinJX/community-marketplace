@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented here.
 
+## v149 — phones render one display-zoom step out (2026-09-29)
+
+> **DEPLOYED** as v149 (`e945070`, tag `prod-v149`). Web-only; the App Store app picks it up on next launch.
+
+### Changed
+- **The phone UI read as zoomed-in.** The viewport now sets `initialScale`/`maximumScale` to 0.875, so a
+  390pt iPhone lays out a ~446px page — the effect of a display's "More Space" setting. Chosen over a
+  smaller root font-size because ~600 sizes are hard px (`text-[13px]` …) and would ignore a rem change.
+  maximumScale must equal initialScale or iOS auto-zooms on input focus. Desktop ignores the meta.
+  Verified in the Simulator in both Safari and the real app shell.
+
 ## v148 — on a phone, the title row scrolls away and search + tabs stay (2026-09-29)
 
 > **DEPLOYED** as v148 (`094ca2f`, tag `prod-v148`). Web-only.
