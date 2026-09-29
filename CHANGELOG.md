@@ -2,6 +2,24 @@
 
 All notable changes to this project are documented here.
 
+## v147 — the phone header is still again (2026-09-29)
+
+> **DEPLOYED** as v147 (`df6b137`, tag `prod-v147`). Web-only; reaches the App Store app on next launch.
+
+### Fixed
+- **The home title row flew out on every downward scroll on phones.** The 2026-08-31 checkpoint
+  (`7aec163`, live since v140) added a phone-only scroll driver (`--hdr-title-p`) that undid v135's
+  decision that the fold is a pointer-device behaviour. Removed; the search/tab band pins directly
+  under the nav again. Desktop keeps the fold.
+
+### Diagnosed, no code change
+- **"Stuck loading after picking a Google account" in the iOS app** was the app's own webview
+  state, not the deploy: Clerk logged every sign-in and created the session, but the stale client
+  never used it. Deleting and reinstalling the app fixed it. Everything after Google (session
+  activation → vendor dashboard) was verified in a Simulator build of the real shell against prod.
+  Worth knowing: `clerk-js` loads from Clerk's CDN as floating `@6` (6.34.1 since 2026-09-25), so
+  it can change under the live app without a deploy — it was tested and is not the cause.
+
 ## v146 — Growth console demo + Feedbase answers support chat (2026-09-24)
 
 > **DEPLOYED** as v146 (`1ef19d1`, tag `prod-v146`). `/vendor/growth` is linked
