@@ -1,6 +1,6 @@
 'use client'
 
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { VendorBackBar } from '@/components/vendor/VendorBackBar'
 
 // The vendor portal's visual chrome (padded main + back bar). There is no
@@ -17,6 +17,7 @@ import { VendorBackBar } from '@/components/vendor/VendorBackBar'
 // usePathname re-renders on every navigation, so it's always accurate.
 export function VendorChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const params = useSearchParams()
 
   // The sign-in page is a public, self-contained landing — render it bare,
   // without the portal chrome, so it never sits inside the portal's padding.
@@ -26,7 +27,12 @@ export function VendorChrome({ children }: { children: React.ReactNode }) {
   // its composer above the bottom nav, so it drops the page's vertical padding
   // and min-height. Everything else keeps the normal chrome. (Horizontal
   // padding is ALWAYS applied so content never touches the screen edges.)
-  const fullScreen = pathname.startsWith('/vendor/messages')
+  //
+  // The dashboard's Messages view (/vendor?view=messages) is the same surface
+  // rendered inline, so it gets the same treatment.
+  const fullScreen =
+    pathname.startsWith('/vendor/messages') ||
+    (pathname === '/vendor' && params.get('view') === 'messages')
 
   return (
     <div className={fullScreen ? 'bg-stone-50' : 'min-h-screen bg-stone-50'}>

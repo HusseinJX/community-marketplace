@@ -46,7 +46,11 @@ const BLANK = {
   perks: [""],
 };
 
-export function MembershipsManager() {
+// `show` splits the screen for the vendor dashboard (2026-09-29):
+//   "plans"   — the tiers + editor (Products → Subscriptions: what you sell)
+//   "members" — the numbers + who's subscribed (Sales → Memberships: what sold)
+//   "all"     — both, as /vendor/memberships has always shown them.
+export function MembershipsManager({ show = "all" }: { show?: "all" | "plans" | "members" } = {}) {
   const { data, isLoading, mutate } = useSWR<Payload>("/api/vendor/memberships", fetcher);
   const [form, setForm] = useState<typeof BLANK | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -128,6 +132,8 @@ export function MembershipsManager() {
 
   return (
     <div className="space-y-6">
+      {show !== "plans" && (
+      <>
       {/* What it adds up to. Three numbers, because a membership business is
           really only ever asking two questions: how many, and how much. */}
       <div className="grid grid-cols-3 gap-3">
@@ -147,6 +153,11 @@ export function MembershipsManager() {
         </div>
       </div>
 
+      </>
+      )}
+
+      {show !== "members" && (
+      <>
       {/* Tiers */}
       <div>
         <div className="mb-3 flex items-center justify-between">
@@ -346,8 +357,16 @@ export function MembershipsManager() {
         </div>
       )}
 
+      </>
+      )}
+
       {/* Members */}
-      {members.length > 0 && (
+      {show === "members" && members.length === 0 && !isLoading && (
+        <p className="rounded-2xl border border-dashed border-stone-200 p-6 text-center t-meta text-stone-500">
+          No members yet. They&apos;ll appear here once someone joins one of your tiers.
+        </p>
+      )}
+      {show !== "plans" && members.length > 0 && (
         <div>
           <p className="section-label mb-3">Your members</p>
           <div className="space-y-2">

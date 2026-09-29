@@ -18,7 +18,11 @@ export function SiteFooter() {
   if (FULL_SCREEN.some((p) => pathname?.startsWith(p))) return null;
 
   return (
-    <footer className="mt-16 border-t border-stone-200 bg-white">
+    // data-site-footer: also hidden whenever a conversation is open
+    // (globals.css), which covers chats rendered INLINE on another path —
+    // the vendor dashboard's Messages view lives at /vendor?view=messages,
+    // which the path list above can't see.
+    <footer data-site-footer className="mt-16 border-t border-stone-200 bg-white">
       <div className="mx-auto max-w-7xl px-4 py-12 md:px-8">
         {/* brand(2) + Explore + Connect = 4 columns. The brand spans 2, so the
             column count has to stay one ahead of the number of link columns. */}

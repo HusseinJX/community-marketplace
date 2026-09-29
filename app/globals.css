@@ -48,8 +48,12 @@ body[data-viewport-lock="true"] > main {
 /* An open conversation takes the whole screen: the portal's "Go back" row hides
    (the conversation has its own back to the list), leaving just the app top nav
    and bottom nav, which is exactly --app-chrome. Set by MessagesShell. */
-body[data-chat-open="true"] [data-vendor-nav] {
+body[data-chat-open="true"] [data-vendor-nav],
+body[data-chat-open="true"] [data-site-footer] {
   display: none;
+}
+body[data-chat-open="true"] [data-chat-stack] > * {
+  margin-block: 0;
 }
 
 @theme inline {

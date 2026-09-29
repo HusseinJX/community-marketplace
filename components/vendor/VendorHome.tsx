@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Calendar, UserCircle, MessageSquare, Wrench } from 'lucide-react'
 import { CollabMatchHero } from '@/components/vendor/CollabMatchHero'
 import { Opportunities } from '@/components/vendor/Opportunities'
 import { UpcomingCollabs, useUpcomingCollabs } from '@/components/vendor/ActiveCollabs'
@@ -39,18 +38,6 @@ const SHOW_COLLABS: boolean = false
  * thing on the screen. A dashboard that opens with fourteen equal tiles asks
  * the vendor to read a menu before doing anything; these four are the menu.
  */
-function BigTile({ href, Icon, label }: { href: string; Icon: typeof Calendar; label: string }) {
-  return (
-    <Link
-      href={href}
-      className="card-soft card-hover flex min-w-0 flex-col items-center justify-center gap-1.5 px-1 py-3 text-center"
-    >
-      <Icon className="h-5 w-5 text-indigo-500" />
-      <span className="max-w-full truncate text-xs font-semibold text-stone-900">{label}</span>
-    </Link>
-  )
-}
-
 // Tile + Section (the dashboard's own grouped list) were deleted with the list
 // itself — the hub pages use components/vendor/HubTile, which is the same row
 // in one place. Restore from git if the grouped dashboard ever comes back.
@@ -119,23 +106,15 @@ export function VendorHome({
       )}
       */}
 
-      {/* One row of four: the sections that are NOT the shop. The shop itself
-          is the dashboard now (Products | Sales, rendered as `children` right
-          under this row), so its tile went; Posts became the "Create new post"
-          pill beside the welcome title. */}
-      <div className="mb-6 grid grid-cols-4 gap-2">
-        <BigTile href="/vendor/events" Icon={Calendar} label="Events" />
-        {/* Messages was reachable only from the portal's own nav row, which is
-            a place you look for a section rather than a place you look for a
-            person waiting on you. */}
-        <BigTile href="/vendor/messages" Icon={MessageSquare} label="Messages" />
-        {/* Things a business USES — the agent, giving, resources — as opposed
-            to what it IS, which is Profile. */}
-        <BigTile href="/vendor/tools" Icon={Wrench} label="Tools" />
-        <BigTile href="/vendor/profile" Icon={UserCircle} label="Profile" />
-      </div>
-
+      {/* The section tile row is gone (2026-09-29): Products · Sales · Events ·
+          Messages are pills at the top of `children` (DashboardShop), and Tools
+          / Profile sit behind the gear beside "+ Post". */}
       {children}
+
+      {/* data-vendor-nav: everything below the dashboard's content steps
+          aside while a Messages conversation is open (globals.css), so the
+          chat keeps the full height it is sized to. */}
+      <div data-vendor-nav className="contents">
 
       {/* Commitments before discovery: an event you already said yes to
           outranks anything you might browse. Self-hides when you're on none. */}
@@ -215,6 +194,7 @@ export function VendorHome({
           asked a business owner to go and be a citizen while they were trying
           to run a shop. */}
 
+      </div>
     </>
   )
 }

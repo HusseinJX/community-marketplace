@@ -14,20 +14,24 @@ import { TitleQrButton } from "@/components/vendor/TitleQrButton";
 import { VendorSignOut } from "@/components/vendor/VendorSignOut";
 import { DeleteAccountButton } from "@/components/account/DeleteAccountButton";
 import { AssistantLauncher } from "@/components/assistant/AssistantLauncher";
-import { DashboardShop } from "@/components/vendor/DashboardShop";
+import { DashboardShop, type ShopView } from "@/components/vendor/DashboardShop";
+import { DashboardMenu } from "@/components/vendor/DashboardMenu";
 import { Plus } from "lucide-react";
 
 export default async function VendorDashboard({
   searchParams,
 }: {
-  searchParams: Promise<{ memberId?: string; view?: string; kind?: string }>;
+  searchParams: Promise<{ memberId?: string; view?: string; kind?: string; tab?: string }>;
 }) {
   const { userId } = await auth()
-  const { memberId: requested, view: rawView, kind: rawKind } = await searchParams
-  // The dashboard IS the shop now (see DashboardShop). Anything unrecognised
-  // falls back to the catalogue, which is where it opens.
-  const view = rawView === "sales" ? "sales" : "products"
+  const { memberId: requested, view: rawView, kind: rawKind, tab: rawTab } = await searchParams
+  // The dashboard is the vendor's working area (see DashboardShop): Products ·
+  // Sales · Events · Messages. Anything unrecognised falls back to the
+  // catalogue, which is where it opens.
+  const view: ShopView =
+    rawView === "sales" || rawView === "events" || rawView === "messages" ? rawView : "products"
   const kind = rawKind === "subscriptions" ? "subscriptions" : "regular"
+  const salesTab = rawTab === "memberships" ? "memberships" : "orders"
   const demo = !userId && (await isDemoActive())
   const clerkUser = userId ? await currentUser() : null
   const user = clerkUser
@@ -128,9 +132,15 @@ export default async function VendorDashboard({
   }
 
   return (
-    <div className="space-y-6">
-      {/* Welcome */}
-      <div>
+    // data-chat-stack: the section gaps (space-y-6) collapse while a Messages
+    // conversation is open (globals.css) — the chat is sized to the exact
+    // height between the app's navs, and a leftover 24px gap would scroll it.
+    <div data-chat-stack className="space-y-6">
+      {/* Welcome. data-vendor-nav: steps aside while a Messages conversation
+          is open, like the section pills, so the chat gets the full height.
+          On the Messages view the portal drops its py-10 (VendorChrome treats
+          it as a full-screen surface), so this block brings its own top gap. */}
+      <div data-vendor-nav className={view === "messages" ? "pt-10" : undefined}>
         <div className="flex items-center gap-2.5">
           <h1 className="min-w-0 truncate text-xl font-semibold text-stone-900">
             Welcome, {businessName}
@@ -148,6 +158,8 @@ export default async function VendorDashboard({
             <Plus className="h-3.5 w-3.5" />
             Post
           </Link>
+          {/* Tools + Profile — the two former tiles that aren't sections. */}
+          <DashboardMenu />
           {!demo && (
             <div className="ml-auto shrink-0">
               <VendorSignOut />
@@ -195,11 +207,13 @@ export default async function VendorDashboard({
         <DashboardShop
           view={view}
           kind={kind}
+          salesTab={salesTab}
           memberId={memberId}
           memberName={businessName}
           isAdmin={admin}
           adminDemo={demo}
           actingFor={admin && requested ? requested : undefined}
+          plan={plan}
         />
       </VendorHome>
 
