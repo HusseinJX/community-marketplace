@@ -418,77 +418,6 @@ export function HomeTabs() {
     };
   }, [store, foldEnabled]);
 
-  useEffect(() => {
-    const root = document.documentElement;
-
-    if (foldEnabled) {
-      root.style.removeProperty("--hdr-title-p");
-      root.classList.remove("wl-title-moving");
-      return;
-    }
-
-    const reduce =
-      typeof window.matchMedia === "function" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-    let cur = 0;
-    let target = 0;
-    let lastY = window.scrollY;
-    let running = 0;
-    let moving = false;
-
-    const clamp = (v: number) => Math.min(1, Math.max(0, v));
-    const DISTANCE = 72;
-    const CATCH = 0.34;
-
-    const paint = (v: number) => {
-      root.style.setProperty("--hdr-title-p", v.toFixed(3));
-      const inFlight = v > 0.001 && v < 0.999;
-      if (inFlight !== moving) {
-        moving = inFlight;
-        root.classList.toggle("wl-title-moving", inFlight);
-      }
-    };
-
-    const kick = () => {
-      if (!running) running = window.requestAnimationFrame(loop);
-    };
-
-    function loop() {
-      running = 0;
-      const gap = target - cur;
-      if (reduce || Math.abs(gap) < 0.0015) cur = target;
-      else cur += gap * CATCH;
-      paint(cur);
-      if (cur !== target) kick();
-    }
-
-    const onScroll = () => {
-      const y = Math.max(0, window.scrollY);
-      const delta = y - lastY;
-      lastY = y;
-
-      if (y < 12) target = 0;
-      else if (Math.abs(delta) > 0.5) target = clamp(target + delta / DISTANCE);
-      kick();
-    };
-    const onTouchStart = () => {
-      lastY = Math.max(0, window.scrollY);
-    };
-
-    paint(cur);
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("touchstart", onTouchStart, { passive: true });
-
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("touchstart", onTouchStart);
-      if (running) window.cancelAnimationFrame(running);
-      root.classList.remove("wl-title-moving");
-      root.style.removeProperty("--hdr-title-p");
-    };
-  }, [foldEnabled]);
-
   // Tapping the compact pill is the one move with no gesture behind it, so it
   // is a magnet rather than a track: aim at open and HOLD there, against a
   // scroll position that still says collapsed. The hold is what keeps it
@@ -649,7 +578,7 @@ export function HomeTabs() {
           // scrolled 700px down would open it far above the viewport and the
           // tap would look like it did nothing. Stuck under the header, it
           // opens where the reader is actually looking.
-          top: "calc((var(--top-nav) + env(safe-area-inset-top)) * (1 - var(--hdr-title-p, 0)))",
+          top: "calc(var(--top-nav) + env(safe-area-inset-top))",
           // The browser must not "helpfully" re-scroll to keep the content
           // below in place when this opens and closes — that compensation is
           // what fought the expand (see the scroll handler above), and it also
