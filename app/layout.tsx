@@ -47,10 +47,16 @@ export const metadata: Metadata = {
 // bar in the native (Capacitor) app. No-op (0px insets) on web/desktop.
 export const viewport: Viewport = {
   width: "device-width",
-  initialScale: 1,
+  // Zoomed out one step, like a display's "More Space" setting: everything —
+  // text, spacing, icons, px AND rem — renders at 87.5%, so a 390pt iPhone
+  // lays out a ~446px page. Doing it here rather than via the root font-size
+  // is deliberate: ~600 sizes in the app are hard px (text-[13px]) and would
+  // not follow a rem change, which would scramble the hierarchy.
+  // Desktop browsers ignore the viewport meta, so this is phones only.
+  initialScale: 0.875,
   // Lock scale so iOS doesn't auto-zoom on input focus (and leave it zoomed)
-  // — gives the native app a stable, app-like feel.
-  maximumScale: 1,
+  // — gives the native app a stable, app-like feel. Must equal initialScale.
+  maximumScale: 0.875,
   userScalable: false,
   viewportFit: "cover",
 };
