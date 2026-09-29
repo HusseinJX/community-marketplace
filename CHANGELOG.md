@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented here.
 
+## v154 — feed cards match the event cards (2026-09-29)
+
+> **DEPLOYED** as v154 (`54073e1`, tag `prod-v154`). Web-only.
+
+### Changed — feed (phones)
+- **Feed cards wear the Events tab's card shell**: inset in the gutter, `rounded-xl`, no shadow,
+  8px apart — replacing v153's edge-to-edge posts, so switching tabs no longer changes what a card
+  looks like. md+ unchanged.
+
 ## v153 — an edge-to-edge feed, and a product page that fits a phone (2026-09-29)
 
 > **DEPLOYED** as v153 (`daf8341`, tag `prod-v153`). Web-only.
