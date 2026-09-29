@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented here.
 
+## v148 — on a phone, the title row scrolls away and search + tabs stay (2026-09-29)
+
+> **DEPLOYED** as v148 (`094ca2f`, tag `prod-v148`). Web-only.
+
+### Fixed
+- **v147 over-corrected.** Hiding the wordmark row while search and the tab switcher stay WAS the
+  intended phone behaviour; what was wrong was the motion (an eased rAF driver that lagged the finger
+  and slid the row back in on any upward scroll). Rebuilt with no scroll code: on home below 640px the
+  app header is `position: relative`, the band sticks at the safe-area top, and `.wl-notch-cover`
+  fills the status bar once the header has gone. Desktop keeps the fold; other pages keep the sticky
+  header.
+
 ## v147 — the phone header is still again (2026-09-29)
 
 > **DEPLOYED** as v147 (`df6b137`, tag `prod-v147`). Web-only; reaches the App Store app on next launch.
