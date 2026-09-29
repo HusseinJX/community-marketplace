@@ -714,7 +714,10 @@ export function HomeTabs() {
           outside them rather than being repeated three times. Its own line:
           sharing one with "Events near you" put two titles of different weight
           on a row that already ends in three toggles. */}
-      <div className={`mx-auto px-4 pt-3 md:px-8 ${titleWidth}`}>
+      {/* empty:hidden — when there is nothing to say (the city is already in
+          the title row, or the card is signed-out) the wrapper must not keep
+          its pt-3, or every tab opens on 24px of dead space. */}
+      <div className={`mx-auto px-4 pt-3 empty:hidden md:px-8 ${titleWidth}`}>
         <CityHeader />
       </div>
 
@@ -722,7 +725,7 @@ export function HomeTabs() {
           tab without being written three times and without re-mounting (and
           re-polling) each time you switch. Renders nothing at all when signed
           out. */}
-      <div className={`mx-auto px-4 pt-3 md:px-8 ${titleWidth}`}>
+      <div className={`mx-auto px-4 pt-3 empty:hidden md:px-8 ${titleWidth}`}>
         <SupportCard />
       </div>
 
@@ -847,6 +850,15 @@ export function HomeTabs() {
           in the row that switches between whole sections of the app. */}
       {tab === "events" && (
         <div className="pb-24 pt-4">
+          {/* Live now — first thing on the tab, above even the heading, because
+              "happening right now" is the most urgent answer to "what's on near
+              me". On a phone it is a strip, set off from the header band by 12px
+              (the block's pt-4 less this -mt-1). Self-hiding when nothing is
+              live, and empty:hidden takes the offset with it. */}
+          <div className="mx-auto -mt-1 max-w-6xl px-4 empty:hidden md:mt-0 md:px-8">
+            <LiveNowRail />
+          </div>
+
           {/* Same width as the city line above and as the content below —
               see `titleWidth`. Fixed at 2xl the heading sat indented from its
               own content and the toggles floated in the middle of the screen. */}
@@ -896,13 +908,6 @@ export function HomeTabs() {
                 in the same place on both views — the same placement Feed and
                 Shop (LocalDirectory `belowHeader`) already use. */}
             <div className="mt-1">{supplyLink}</div>
-          </div>
-
-          {/* Live now — above all three views, because "happening right now" is
-              the most urgent answer to "what's on near me" and it was one tab
-              away. Self-hiding when nothing is live. */}
-          <div className="mx-auto max-w-6xl px-4 pt-4 md:px-8">
-            <LiveNowRail />
           </div>
 
           {/* Calendar = the dated list · spark = themed rails · map = pins. */}

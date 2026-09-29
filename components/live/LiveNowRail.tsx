@@ -10,7 +10,7 @@ import { useBroadcasts } from "@/lib/data-hooks";
 import { matchKeyOf } from "@/lib/demo-live-fixtures";
 import type { LiveBroadcast } from "./types";
 
-// Compact "Live now near you" strip — the top of the home EVENTS tab.
+// Compact "Upcoming Sports Fixtures" strip — the top of the home EVENTS tab.
 //
 // A broadcast is an event: it is a thing happening at a place, at a time, that
 // you could go to. It just happens to have started already. Keeping it on its
@@ -43,14 +43,18 @@ export function LiveNowRail() {
   if (items.length === 0) return null;
 
   return (
-    <section className="mb-6 overflow-hidden rounded-2xl border border-rose-100 bg-gradient-to-br from-rose-50 to-orange-50 p-4">
-      <div className="mb-3 flex items-center justify-between">
+    // Phone: an edge-to-edge strip — it cancels the page's px-4 gutter, drops
+    // the rounding and side borders, and keeps only a rule top and bottom, so
+    // "live" reads as a band across the feed rather than one more card in it.
+    // md+: the original card, since a band across a wide window just stretches.
+    <section className="-mx-4 mb-6 overflow-hidden border-y border-rose-100 bg-gradient-to-r from-rose-50 to-orange-50 py-4 md:mx-0 md:rounded-2xl md:border md:bg-gradient-to-br md:p-4">
+      <div className="mb-3 flex items-center justify-between px-4 md:px-0">
         <h2 className="flex items-center gap-1.5 text-sm font-semibold text-rose-700">
           <span className="relative flex h-2 w-2">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-500 opacity-75" />
             <span className="relative inline-flex h-2 w-2 rounded-full bg-rose-600" />
           </span>
-          Live now near you
+          Upcoming Sports Fixtures
         </h2>
         {/* The feed tab, not "/" — home defaults to Products now, so /live's
             redirect to the index would land somewhere with no broadcasts. */}
@@ -62,7 +66,9 @@ export function LiveNowRail() {
         </Link>
       </div>
 
-      <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1">
+      {/* Cards scroll off the screen edge on a phone: the strip has no side
+          padding, so the px-4 here is only where the row STARTS. */}
+      <div className="flex gap-3 overflow-x-auto px-4 pb-1 md:-mx-1 md:px-1">
         {ranked.slice(0, 12).map((b) => (
           <Link
             key={b.id}
