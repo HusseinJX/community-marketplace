@@ -1,10 +1,11 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
-import { VendorNav } from '@/components/vendor/VendorNav'
 import { VendorBackBar } from '@/components/vendor/VendorBackBar'
 
-// The vendor portal's visual chrome (nav header + padded main + back bar).
+// The vendor portal's visual chrome (padded main + back bar). There is no
+// portal tab row any more — the Home / Messages bar was removed 2026-09-29;
+// Messages is a tile on the dashboard and every deeper page has "Go back".
 //
 // This is CLIENT-side on purpose. It reads the CURRENT route via usePathname
 // instead of the Server layout's headers() pathname — because Next persists the
@@ -27,22 +28,8 @@ export function VendorChrome({ children }: { children: React.ReactNode }) {
   // padding is ALWAYS applied so content never touches the screen edges.)
   const fullScreen = pathname.startsWith('/vendor/messages')
 
-  // Super-admin is a focused back-office surface, not part of the vendor's own
-  // Home/Messages flow — hide the primary tab bar there (VendorBackBar in <main>
-  // still provides the way back).
-  const hideNav = pathname.startsWith('/vendor/admin')
-
   return (
     <div className={fullScreen ? 'bg-stone-50' : 'min-h-screen bg-stone-50'}>
-      {/* data-vendor-nav: an open chat hides this row (globals.css) so the
-          conversation gets the whole screen. */}
-      {!hideNav && (
-        <header data-vendor-nav className="border-b border-stone-200 bg-white px-3 py-3 sm:px-6 sm:py-4">
-          <div className="mx-auto flex max-w-5xl items-center gap-2">
-            <VendorNav />
-          </div>
-        </header>
-      )}
       <main className={`mx-auto max-w-5xl px-4 sm:px-6 ${fullScreen ? '' : 'py-10'}`}>
         <VendorBackBar />
         {children}

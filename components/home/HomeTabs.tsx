@@ -980,17 +980,21 @@ function ShopDiscovery() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 pb-24 pt-4 md:px-8">
-      <section className="overflow-hidden rounded-[2rem] border border-stone-200 bg-stone-950 text-white shadow-[var(--shadow-lift)]">
+      {/* Phone: an edge-to-edge band, like the sports strip on Events — it
+          cancels the page gutter, drops rounding, side borders and the shadow,
+          and sits 12px under the header band (-mt-1 off the pt-4). md+: the
+          original card. */}
+      <section className="-mx-4 -mt-1 overflow-hidden border-y border-stone-200 bg-stone-100 text-stone-950 md:mx-0 md:mt-0 md:rounded-[2rem] md:border md:shadow-[var(--shadow-lift)]">
         <div className="grid gap-6 p-5 md:grid-cols-[1.2fr_0.8fr] md:p-7">
           <div>
-            <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 t-meta font-semibold text-white/80 ring-1 ring-white/15">
-              <BadgePercent className="h-3.5 w-3.5 text-coral-300" />
+            <span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 t-meta font-semibold text-stone-700 ring-1 ring-stone-200">
+              <BadgePercent className="h-3.5 w-3.5 text-coral-600" />
               Local memberships
             </span>
             <h2 className="mt-4 max-w-2xl text-3xl font-semibold tracking-tight md:text-5xl">
               One place for the memberships you actually use.
             </h2>
-            <p className="mt-3 max-w-xl t-body text-white/70">
+            <p className="mt-3 max-w-xl t-body text-stone-600">
               Gyms, MMA studios, pottery classes, yoga spaces, salons, and neighborhood spots can
               sell recurring memberships here. Shoppers can keep all of them in one account.
             </p>
@@ -998,7 +1002,7 @@ function ShopDiscovery() {
               {["Gym memberships", "Classes and studios", "Local recurring perks"].map((perk) => (
                 <span
                   key={perk}
-                  className="rounded-full bg-white/10 px-3 py-1.5 text-sm font-medium text-white/85 ring-1 ring-white/10"
+                  className="rounded-full bg-white px-3 py-1.5 text-sm font-medium text-stone-700 ring-1 ring-stone-200"
                 >
                   {perk}
                 </span>

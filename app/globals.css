@@ -20,20 +20,16 @@
      components/TopNav together, never one alone. */
   --top-nav: 5rem;
   --bottom-nav: 3.25rem;
-  --vendor-nav: 3.8rem;
   /* Everything between the viewport and a full-screen page's box. */
   --app-chrome: calc(
     var(--top-nav) + env(safe-area-inset-top) + var(--bottom-nav) + env(safe-area-inset-bottom)
   );
-  /* The vendor portal hangs its own nav row under the top nav. */
-  --vendor-chrome: calc(var(--app-chrome) + var(--vendor-nav));
+  /* The vendor portal used to hang its own Home/Messages row under the top
+     nav; that row is gone (2026-09-29), so its chrome IS the app's. Kept as
+     a name so the portal's full-height pages have one knob if it returns. */
+  --vendor-chrome: var(--app-chrome);
 }
 
-@media (min-width: 640px) {
-  :root {
-    --vendor-nav: 4.3rem; /* header padding steps py-3 → py-4 */
-  }
-}
 
 /* A full-screen view (a chat) pins the document to the viewport: the PAGE never
    scrolls, and the one region inside it that asked to scroll is the only thing
@@ -49,9 +45,9 @@ body[data-viewport-lock="true"] > main {
   min-height: 0;
 }
 
-/* An open conversation takes the whole screen: the portal's own nav row (Home /
-   Messages) hides, leaving just the app top nav and bottom nav. The chat then
-   sizes off --app-chrome rather than --vendor-chrome. Set by MessagesShell. */
+/* An open conversation takes the whole screen: the portal's "Go back" row hides
+   (the conversation has its own back to the list), leaving just the app top nav
+   and bottom nav, which is exactly --app-chrome. Set by MessagesShell. */
 body[data-chat-open="true"] [data-vendor-nav] {
   display: none;
 }

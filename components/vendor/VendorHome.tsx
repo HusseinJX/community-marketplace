@@ -1,9 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { Package, Calendar, UserCircle, Radio, MessageSquare, Wrench } from 'lucide-react'
-import { PLAN_KEY, PlanSwitch, type Tier } from '@/components/vendor/PlanSwitch'
 import { CollabMatchHero } from '@/components/vendor/CollabMatchHero'
 import { Opportunities } from '@/components/vendor/Opportunities'
 import { UpcomingCollabs, useUpcomingCollabs } from '@/components/vendor/ActiveCollabs'
@@ -16,10 +15,7 @@ import { EventLinkImport } from '@/components/vendor/EventLinkImport'
 // The vendor front door: who to team up with, and what's already looking for you.
 // Everything else on this page is plumbing and sits below, in one list.
 //
-// Tier still gates what's shown, read from the plan (and whatever the shared
-// preview switch last set). The switch is demo scaffolding — not the first thing
-// a real business should see — so it's pinned at the BOTTOM of the page and only
-// rendered in the admin demo (or for admins), never for a real signed-in vendor.
+// Tier still gates what's shown, read from the account's real plan.
 
 // Upcoming leads: what you're already committed to, before anything to discover.
 type CollabView = 'upcoming' | 'join' | 'create'
@@ -72,23 +68,14 @@ export function VendorHome({
   memberId?: string | null
   memberName?: string
   isAdmin?: boolean
-  // In the admin demo we lead with a demo intro strip and expose the tier
-  // preview switch at the bottom — both hidden for a real signed-in vendor.
+  // The admin demo leads with a demo intro strip, hidden for a real vendor.
   demo?: boolean
 }) {
-  const initial: Tier = plan === 'member' ? 'member' : plan === 'free' ? 'free' : 'pro'
-  const [tier, setTier] = useState<Tier>(initial)
-
-  useEffect(() => {
-    const v = localStorage.getItem(PLAN_KEY)
-    if (v === 'free' || v === 'member' || v === 'pro') setTier(v)
-  }, [])
-
-  // The preview switch writes the shared key so every collab surface inherits it.
-  const pickTier = (t: Tier) => {
-    setTier(t)
-    try { localStorage.setItem(PLAN_KEY, t) } catch { /* private mode */ }
-  }
+  // The account's REAL plan, and nothing else. There used to be a Free/Basic/Pro
+  // preview switch (admins + demo) whose pick lived in localStorage and
+  // OVERRODE this — removed 2026-09-29, including the override, so a stale
+  // pick can't leave anyone looking at a tier they don't have.
+  const tier = plan === 'member' ? 'member' : plan === 'free' ? 'free' : 'pro'
 
   const rank = tier === 'pro' ? 2 : tier === 'member' ? 1 : 0
   // Sending collab invites is a Basic (Member+) capability; Pro is shop + agent.
@@ -114,9 +101,6 @@ export function VendorHome({
   // Fall back to the first VISIBLE tab rather than naming one, so hiding a tab
   // can never strand the panel on a view with no control to leave it.
   const view: CollabView = tabs.includes(collabView) ? collabView : tabs[0]
-
-  // The tier toggle is demo scaffolding — show it in the admin demo, or to admins.
-  const showPlanSwitch = demo || isAdmin
 
   return (
     <>
@@ -233,13 +217,6 @@ export function VendorHome({
           asked a business owner to go and be a citizen while they were trying
           to run a shop. */}
 
-      {/* Tier preview — pinned at the bottom (demo scaffolding). Flips what the
-          whole dashboard shows; the shared key carries it to the collab surfaces. */}
-      {showPlanSwitch && (
-        <div className="mt-2">
-          <PlanSwitch tier={tier} onPick={pickTier} caption="Preview what each tier unlocks." />
-        </div>
-      )}
     </>
   )
 }
