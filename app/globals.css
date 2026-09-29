@@ -562,6 +562,35 @@ textarea,
   --hdr-p: 0;
 }
 
+/* Home on a phone: the title row scrolls away, search + tabs stay.
+   Plain position, no scroll driver — the row leaves exactly as fast as the
+   finger moves the page and returns only when the page is back at the top.
+   A driver that eased toward the scroll (7aec163, v140–v146) lagged the
+   finger and slid back in on the slightest upward scroll, which read as the
+   header flying around. 640px matches the desktop fold's gate in HomeTabs,
+   so exactly one of the two behaviours is ever active. */
+.wl-notch-cover {
+  display: none;
+}
+@media (max-width: 639px) {
+  .wl-app-header--home {
+    position: relative;
+  }
+  .wl-hdr-band {
+    /* Beats the inline desktop offset (under the nav) — there is no nav
+       above it to sit under once the title row has scrolled off. */
+    top: env(safe-area-inset-top) !important;
+  }
+  .wl-notch-cover {
+    display: block;
+    position: fixed;
+    inset: 0 0 auto 0;
+    height: env(safe-area-inset-top);
+    background: var(--hdr-2);
+    z-index: 25;
+  }
+}
+
 /* A folding band. The wrapper publishes its own content height as --hdr-h
    (measured, never guessed) and interpolates a real px height off it —
    grid-template-rows 1fr→0fr cannot be interpolated at all on older Safari,

@@ -29,9 +29,17 @@ export function AppHeader() {
   const hasSearchBandBelow = pathname === "/";
 
   return (
+    <>
+    {/* Home on a phone: this header is NOT sticky (see .wl-app-header--home in
+        globals.css) — the title row scrolls away with the page, 1:1 under the
+        finger, and the search + tab band sticks to the top instead. This strip
+        covers the notch once the header has gone, so the feed never shows
+        through the status bar. Zero height in a browser, where the inset is 0. */}
+    {hasSearchBandBelow && <div className="wl-notch-cover" aria-hidden />}
     <header
       className={
-        "wl-app-header sticky top-0 z-30 " + (hasSearchBandBelow ? "" : "border-b border-stone-200")
+        "wl-app-header sticky top-0 z-30 " +
+        (hasSearchBandBelow ? "wl-app-header--home" : "border-b border-stone-200")
       }
       style={{
         paddingTop: "env(safe-area-inset-top)",
@@ -48,5 +56,6 @@ export function AppHeader() {
         <TopNav />
       </div>
     </header>
+    </>
   );
 }
