@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
-import { CreditCard, ExternalLink, UserCircle } from "lucide-react";
+import { CreditCard, ExternalLink, KeyRound, Plug, UserCircle } from "lucide-react";
 import { getVendorProfile } from "@/lib/vendor-connect";
 import { isAdmin } from "@/lib/admin";
 import { demoMemberId, isDemoActive } from "@/lib/demo-server";
 import { getEntitlements, PLAN_META } from "@/lib/entitlements";
 import { HubTile } from "@/components/vendor/HubTile";
+import { VendorSignOut } from "@/components/vendor/VendorSignOut";
 
 export const metadata = { title: "Profile" };
 
@@ -68,7 +69,29 @@ export default async function VendorProfileHubPage({
           label="Plan & billing"
           desc={`Current plan: ${PLAN_META[plan].label}`}
         />
+        {/* The external hookups — shop catalog sync, delivery, payout bank.
+            Part of how the business is set up, so it sits beside the plan. */}
+        <HubTile
+          href="/vendor/integrations"
+          Icon={Plug}
+          label="Integrations"
+          desc="Shop, delivery & bank payouts"
+        />
+        <HubTile
+          href="/vendor/account"
+          Icon={KeyRound}
+          label="Account"
+          desc="Your sign-in email & deleting your account"
+        />
       </div>
+
+      {/* Sign out lives here, at the bottom of the settings, not on the
+          dashboard. Hidden in demo — there is no session to end. */}
+      {userId && (
+        <div className="border-t border-stone-100 pt-4">
+          <VendorSignOut />
+        </div>
+      )}
     </div>
   );
 }

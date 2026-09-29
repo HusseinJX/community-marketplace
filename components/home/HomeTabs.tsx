@@ -9,6 +9,8 @@ import {
   CalendarRange,
   Store,
   ArrowRight,
+  ChevronLeft,
+  ChevronRight,
   ShoppingBag,
   Sparkles,
   Map as MapIcon,
@@ -28,6 +30,7 @@ import { useUser } from "@clerk/nextjs";
 import { Marketplace } from "@/components/shop/Marketplace";
 import { EventSearchBar } from "@/components/feed/EventSearchBar";
 import { CityHeader } from "@/components/home/CityHeader";
+import { LocalDirectory } from "@/components/home/LocalDirectory";
 import { LiveNowRail } from "@/components/live/LiveNowRail";
 import { CommunityEventsLive } from "@/components/live/CommunityEventsLive";
 import { EventsMapView } from "@/components/live/EventsMapView";
@@ -955,6 +958,15 @@ export function HomeTabs() {
 }
 
 function ShopDiscovery() {
+  // "Local spots worth a look" opens every shop by category — the rails that
+  // were this tab before the memberships landing (LocalDirectory), where each
+  // rail's title in turn expands into the list + map split. Same arrow-opens-
+  // the-category affordance as the Events themes (both use RailHeader).
+  const [allShops, setAllShops] = useState(false);
+  const openAllShops = () => {
+    setAllShops(true);
+    window.scrollTo({ top: 0 });
+  };
   const { products, loading: productsLoading } = useShopProducts();
   const { plans, loading: membershipsLoading } = useMembershipPlans();
   const { members, loading: shopsLoading } = useDirectory();
@@ -977,6 +989,20 @@ function ShopDiscovery() {
         .slice(0, 6),
     [members],
   );
+
+  if (allShops) {
+    return (
+      <div className="mx-auto max-w-6xl px-4 pb-24 pt-4 md:px-8">
+        <button
+          onClick={() => setAllShops(false)}
+          className="mb-2 inline-flex items-center gap-1 text-sm font-medium text-stone-600 hover:text-stone-900"
+        >
+          <ChevronLeft className="h-4 w-4" /> Shop
+        </button>
+        <LocalDirectory showHeading={false} />
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-6xl px-4 pb-24 pt-4 md:px-8">
@@ -1130,17 +1156,23 @@ function ShopDiscovery() {
             <p className="t-meta font-semibold uppercase tracking-[0.16em] text-stone-500">
               Featured shops
             </p>
-            <h2 className="text-2xl font-semibold tracking-tight text-stone-950">
+            {/* The heading IS the way in, with the arrow as the affordance —
+                the whole row is the target, like RailHeader on Events. */}
+            <button
+              onClick={openAllShops}
+              className="group flex items-center gap-1.5 text-left text-2xl font-semibold tracking-tight text-stone-950"
+            >
               Local spots worth a look
-            </h2>
+              <ChevronRight className="h-6 w-6 shrink-0 text-stone-400 transition group-hover:translate-x-0.5 group-hover:text-stone-900" />
+            </button>
           </div>
-          <Link
-            href="/shops"
+          <button
+            onClick={openAllShops}
             className="hidden shrink-0 items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3 py-2 t-meta font-semibold text-stone-700 transition hover:border-stone-300 sm:inline-flex"
           >
             Browse shops
             <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
+          </button>
         </div>
 
         {shopsLoading && featuredShops.length === 0 ? (

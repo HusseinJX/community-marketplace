@@ -11,8 +11,6 @@ import { VendorHome } from "@/components/vendor/VendorHome";
 import { SellChecklist, type SellStep } from "@/components/vendor/SellChecklist";
 import { uberConfigured } from "@/lib/uber-direct";
 import { TitleQrButton } from "@/components/vendor/TitleQrButton";
-import { VendorSignOut } from "@/components/vendor/VendorSignOut";
-import { DeleteAccountButton } from "@/components/account/DeleteAccountButton";
 import { AssistantLauncher } from "@/components/assistant/AssistantLauncher";
 import { DashboardShop, type ShopView } from "@/components/vendor/DashboardShop";
 import { DashboardMenu } from "@/components/vendor/DashboardMenu";
@@ -38,7 +36,6 @@ export default async function VendorDashboard({
     ? {
         id: clerkUser.id,
         firstName: clerkUser.firstName ?? null,
-        email: clerkUser.emailAddresses?.[0]?.emailAddress ?? null,
       }
     : null
 
@@ -147,8 +144,7 @@ export default async function VendorDashboard({
           </h1>
           {profileUrl && <TitleQrButton url={profileUrl} businessName={businessName} />}
           {/* Posting is one action, so it is a pill in the title row rather
-              than a section tile — left, right after the QR button; Sign out
-              (when shown) takes the right edge. Same destination the Posts
+              than a section tile — left, right after the QR button. Same destination the Posts
               tile had: the vendor door of the /share composer. */}
           <Link
             href="/share?vendor=1"
@@ -160,18 +156,9 @@ export default async function VendorDashboard({
           </Link>
           {/* Tools + Profile — the two former tiles that aren't sections. */}
           <DashboardMenu />
-          {!demo && (
-            <div className="ml-auto shrink-0">
-              <VendorSignOut />
-            </div>
-          )}
         </div>
-        {user?.email && <p className="mt-1 text-sm text-stone-500">{user.email}</p>}
-        {!demo && (
-          <div className="mt-2">
-            <DeleteAccountButton />
-          </div>
-        )}
+        {/* The email, Delete account and Sign out moved to the Profile hub
+            (/vendor/profile → Account, and Sign out at the bottom). */}
       </div>
 
       {/* Profile-link banner — shown until a member profile is claimed (not in demo) */}

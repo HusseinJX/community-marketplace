@@ -6,8 +6,6 @@ import { demoMemberId, isDemoActive } from '@/lib/demo-server'
 import { getMember } from '@/lib/api'
 import { memberImages } from '@/lib/member-images'
 import { BusinessProfileEditor, type BusinessDetails } from '@/components/vendor/BusinessProfileEditor'
-import { HubTile } from '@/components/vendor/HubTile'
-import { Plug } from 'lucide-react'
 
 export const metadata = { title: 'Business profile' }
 
@@ -90,24 +88,12 @@ export default async function VendorAboutPage({
       </div>
 
       {memberId ? (
-        <>
-          <BusinessProfileEditor
-            memberId={memberId}
-            initialDetails={details}
-            initialImages={images}
-            publicHref={`/members/${memberId}`}
-          />
-          {/* The external hookups — shop catalog sync, delivery, payout bank.
-              Moved here from the Shop hub (2026-09-29) when the dashboard
-              became the shop: they are part of how the business is SET UP,
-              which is this page, not something you do while selling. */}
-          <HubTile
-            href="/vendor/integrations"
-            Icon={Plug}
-            label="Integrations"
-            desc="Shop, delivery & bank payouts"
-          />
-        </>
+        <BusinessProfileEditor
+          memberId={memberId}
+          initialDetails={details}
+          initialImages={images}
+          publicHref={`/members/${memberId}`}
+        />
       ) : (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
           <p className="text-sm font-medium text-amber-900">Link your member profile first</p>

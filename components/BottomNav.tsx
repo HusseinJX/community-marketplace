@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Compass, User, Clapperboard } from "lucide-react";
 import { FEATURES } from "@/lib/features";
+import { useMyMemberId } from "@/lib/data-hooks";
 
 /**
  * The shopper tab bar.
@@ -20,14 +21,23 @@ import { FEATURES } from "@/lib/features";
  * Saved, Tickets and Cart moved into the top-row cart menu on mobile, keeping
  * the bottom bar focused on primary movement rather than account utilities.
  */
-const ITEMS = [
+//
+// `also`: other paths the tab owns. Profile owns /vendor because that is where
+// a vendor's Profile tab goes — without it, the highlight fell back to Explore
+// on the vendor's own dashboard.
+const ITEMS: { href: string; label: string; icon: typeof User; also?: string[] }[] = [
   { href: "/", label: "Explore", icon: Compass },
   ...(FEATURES.shorts ? [{ href: "/shorts", label: "Shorts", icon: Clapperboard }] : []),
-  { href: "/shopper", label: "Profile", icon: User },
+  { href: "/shopper", label: "Profile", icon: User, also: ["/vendor"] },
 ];
 
 export function BottomNav() {
   const pathname = usePathname();
+  // A vendor's Profile tab goes straight to /vendor. /shopper would redirect
+  // them there anyway, but only after a server round-trip — two loads in a row
+  // on the native app. Until this is known the link stays /shopper, which still
+  // lands in the right place via that redirect.
+  const { memberId } = useMyMemberId();
 
   // Shown app-wide, including the vendor portal, so Home/Profile is always one
   // tap away. (The global spacer in app/layout.tsx reserves room for it.)
@@ -49,15 +59,17 @@ export function BottomNav() {
           // is the only one that has to be defined by exclusion. Listing the
           // others explicitly means adding a tab can't silently make Explore
           // look active on that tab's own pages.
-          const owned = ITEMS.filter((t) => t.href !== "/").map((t) => t.href);
+          const paths = (t: (typeof ITEMS)[number]) => [t.href, ...(t.also ?? [])];
+          const owned = ITEMS.filter((t) => t.href !== "/").flatMap(paths);
           const active =
             it.href === "/"
               ? !owned.some((h) => pathname.startsWith(h))
-              : pathname.startsWith(it.href);
+              : paths(it).some((h) => pathname.startsWith(h));
+          const href = it.href === "/shopper" && memberId ? "/vendor" : it.href;
           return (
             <Link
               key={it.href}
-              href={it.href}
+              href={href}
               aria-label={it.label}
               aria-current={active ? "page" : undefined}
               className={
