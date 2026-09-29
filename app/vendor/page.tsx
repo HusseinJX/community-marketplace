@@ -14,14 +14,20 @@ import { TitleQrButton } from "@/components/vendor/TitleQrButton";
 import { VendorSignOut } from "@/components/vendor/VendorSignOut";
 import { DeleteAccountButton } from "@/components/account/DeleteAccountButton";
 import { AssistantLauncher } from "@/components/assistant/AssistantLauncher";
+import { DashboardShop } from "@/components/vendor/DashboardShop";
+import { Plus } from "lucide-react";
 
 export default async function VendorDashboard({
   searchParams,
 }: {
-  searchParams: Promise<{ memberId?: string }>;
+  searchParams: Promise<{ memberId?: string; view?: string; kind?: string }>;
 }) {
   const { userId } = await auth()
-  const { memberId: requested } = await searchParams
+  const { memberId: requested, view: rawView, kind: rawKind } = await searchParams
+  // The dashboard IS the shop now (see DashboardShop). Anything unrecognised
+  // falls back to the catalogue, which is where it opens.
+  const view = rawView === "sales" ? "sales" : "products"
+  const kind = rawKind === "subscriptions" ? "subscriptions" : "regular"
   const demo = !userId && (await isDemoActive())
   const clerkUser = userId ? await currentUser() : null
   const user = clerkUser
@@ -130,6 +136,18 @@ export default async function VendorDashboard({
             Welcome, {businessName}
           </h1>
           {profileUrl && <TitleQrButton url={profileUrl} businessName={businessName} />}
+          {/* Posting is one action, so it is a pill in the title row rather
+              than a section tile — left, right after the QR button; Sign out
+              (when shown) takes the right edge. Same destination the Posts
+              tile had: the vendor door of the /share composer. */}
+          <Link
+            href="/share?vendor=1"
+            aria-label="Create new post"
+            className="inline-flex shrink-0 items-center gap-1 rounded-full border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-900 transition hover:border-stone-300 hover:bg-stone-50 active:scale-95"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Post
+          </Link>
           {!demo && (
             <div className="ml-auto shrink-0">
               <VendorSignOut />
@@ -173,7 +191,17 @@ export default async function VendorDashboard({
         memberName={businessName}
         isAdmin={admin}
         demo={demo}
-      />
+      >
+        <DashboardShop
+          view={view}
+          kind={kind}
+          memberId={memberId}
+          memberName={businessName}
+          isAdmin={admin}
+          adminDemo={demo}
+          actingFor={admin && requested ? requested : undefined}
+        />
+      </VendorHome>
 
       {/* General assistant (connector brain — same one from Messages/SMS) as a
           floating button for account + business-profile help. */}

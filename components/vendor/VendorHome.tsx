@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Package, Calendar, UserCircle, Radio, MessageSquare, Wrench } from 'lucide-react'
+import { Calendar, UserCircle, MessageSquare, Wrench } from 'lucide-react'
 import { CollabMatchHero } from '@/components/vendor/CollabMatchHero'
 import { Opportunities } from '@/components/vendor/Opportunities'
 import { UpcomingCollabs, useUpcomingCollabs } from '@/components/vendor/ActiveCollabs'
@@ -39,14 +39,14 @@ const SHOW_COLLABS: boolean = false
  * thing on the screen. A dashboard that opens with fourteen equal tiles asks
  * the vendor to read a menu before doing anything; these four are the menu.
  */
-function BigTile({ href, Icon, label }: { href: string; Icon: typeof Package; label: string }) {
+function BigTile({ href, Icon, label }: { href: string; Icon: typeof Calendar; label: string }) {
   return (
     <Link
       href={href}
-      className="card-soft card-hover flex flex-col items-center justify-center gap-2 px-3 py-6 text-center"
+      className="card-soft card-hover flex min-w-0 flex-col items-center justify-center gap-1.5 px-1 py-3 text-center"
     >
-      <Icon className="h-6 w-6 text-indigo-500" />
-      <span className="text-sm font-semibold text-stone-900">{label}</span>
+      <Icon className="h-5 w-5 text-indigo-500" />
+      <span className="max-w-full truncate text-xs font-semibold text-stone-900">{label}</span>
     </Link>
   )
 }
@@ -56,7 +56,7 @@ function BigTile({ href, Icon, label }: { href: string; Icon: typeof Package; la
 // in one place. Restore from git if the grouped dashboard ever comes back.
 
 export function VendorHome({
-  plan, memberId, memberName = 'A local business', isAdmin = false, demo = false,
+  plan, memberId, memberName = 'A local business', isAdmin = false, demo = false, children,
 }: {
   // Only the tier switch reads this now — the order count and the plan LABEL
   // moved to the hub pages that show them (/vendor/shop, /vendor/profile),
@@ -70,6 +70,9 @@ export function VendorHome({
   isAdmin?: boolean
   // The admin demo leads with a demo intro strip, hidden for a real vendor.
   demo?: boolean
+  // The dashboard's main content (the shop: Products | Sales), placed between
+  // the section row and the collab/lineup blocks.
+  children?: React.ReactNode
 }) {
   // The account's REAL plan, and nothing else. There used to be a Free/Basic/Pro
   // preview switch (admins + demo) whose pick lived in localStorage and
@@ -116,18 +119,11 @@ export function VendorHome({
       )}
       */}
 
-      {/* Top level: six buttons, nothing else. Two up on a phone, three across
-          on a laptop.
-          Each one opens a HUB, not a screen: Shop holds products, orders and
-          integrations; Profile holds edit, billing, the agent, giving and
-          resources. Shop used to open the catalogue directly, which made orders
-          and payouts feel like a different part of the app — and left the
-          dashboard carrying a list of everything under the buttons. Posts is
-          the exception, because posting is one thing: it points at the vendor
-          door of /share (the composer), not at the memories flow. */}
-      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <BigTile href="/vendor/shop" Icon={Package} label="Shop" />
-        <BigTile href="/share?vendor=1" Icon={Radio} label="Posts" />
+      {/* One row of four: the sections that are NOT the shop. The shop itself
+          is the dashboard now (Products | Sales, rendered as `children` right
+          under this row), so its tile went; Posts became the "Create new post"
+          pill beside the welcome title. */}
+      <div className="mb-6 grid grid-cols-4 gap-2">
         <BigTile href="/vendor/events" Icon={Calendar} label="Events" />
         {/* Messages was reachable only from the portal's own nav row, which is
             a place you look for a section rather than a place you look for a
@@ -138,6 +134,8 @@ export function VendorHome({
         <BigTile href="/vendor/tools" Icon={Wrench} label="Tools" />
         <BigTile href="/vendor/profile" Icon={UserCircle} label="Profile" />
       </div>
+
+      {children}
 
       {/* Commitments before discovery: an event you already said yes to
           outranks anything you might browse. Self-hides when you're on none. */}

@@ -1,5 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
-import { BadgeCheck, Package, Plug, ShoppingCart } from "lucide-react";
+import { BadgeCheck, Package, ShoppingCart } from "lucide-react";
 import { getOrdersByMember, getVendorProfile } from "@/lib/vendor-connect";
 import { getMembersForVendor, ENTITLED_STATUSES } from "@/lib/memberships";
 import { isAdmin } from "@/lib/admin";
@@ -8,7 +8,11 @@ import { HubTile } from "@/components/vendor/HubTile";
 
 export const metadata = { title: "Shop" };
 
-// The Shop button on the dashboard opens THIS, not the product list.
+// No longer linked from the dashboard (2026-09-29): the dashboard IS the shop
+// now (components/vendor/DashboardShop). Kept for existing links; Integrations
+// moved to /vendor/about.
+//
+// The Shop button on the dashboard used to open THIS, not the product list.
 //
 // Selling is three things — what you sell, what people bought, and the plumbing
 // that makes both work — and only one of them is the catalogue. Going straight
@@ -75,14 +79,6 @@ export default async function VendorShopPage({
               ? `${memberCount} ${memberCount === 1 ? "member" : "members"}`
               : "Monthly perks for regulars"
           }
-        />
-        {/* One home for the external hookups: shop catalog, delivery, and the
-            payout bank account. */}
-        <HubTile
-          href="/vendor/integrations"
-          Icon={Plug}
-          label="Integrations"
-          desc="Shop, delivery & bank payouts"
         />
       </div>
     </div>

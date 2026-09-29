@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Plus, Trash2, Check } from 'lucide-react'
+import { Plus, Trash2, Check, Sparkles, X } from 'lucide-react'
 import { ImageCaptureUploader } from '@/components/ImageCaptureUploader'
 import { UpgradePrompt, upgradeFrom } from '@/components/billing/UpgradePrompt'
 import { demoProducts } from '@/lib/demo-catalog'
@@ -33,6 +33,9 @@ export function ProductsManager({
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
+  // The photo capture (menu / shelf scan) lives INSIDE the add modal, folded
+  // behind the ✨ in its header — it used to be a card permanently on the page.
+  const [showPhoto, setShowPhoto] = useState(false)
   const [form, setForm] = useState({ name: '', description: '', price: '', kind: 'good' as ProductKind })
   const [upgrade, setUpgrade] = useState<'member' | 'pro' | null>(null)
   const [file, setFile] = useState<{ path: string; name: string; size: number } | null>(null)
@@ -100,6 +103,21 @@ export function ProductsManager({
     setProducts((p) => p.filter((x) => x.id !== id))
   }
 
+  // Esc closes the add modal, like every other sheet in the app.
+  useEffect(() => {
+    if (!showAdd) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowAdd(false)
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [showAdd])
+
+  function openAdd() {
+    setShowPhoto(false)
+    setShowAdd(true)
+  }
+
   async function addManual() {
     if (!form.name.trim()) return
     // A digital product with no file is a promise nobody can keep — the buyer
@@ -160,7 +178,7 @@ export function ProductsManager({
             {isAdmin && <span className="ml-2 rounded-full bg-stone-900 px-2 py-0.5 text-xs text-white">admin</span>}
           </p>
         </div>
-        <button onClick={() => setShowAdd((s) => !s)} className="inline-flex items-center gap-1.5 rounded-xl bg-stone-900 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-stone-800">
+        <button onClick={openAdd} className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3.5 py-2 text-[13px] font-medium text-stone-900 transition hover:border-stone-300 hover:bg-stone-50">
           <Plus className="h-4 w-4" /> Add product
         </button>
       </div>
@@ -172,62 +190,133 @@ export function ProductsManager({
         />
       )}
 
+      {/* Add product — a centred modal. The ✨ in its
+          header unfolds "Add with a photo" above the manual form; a scan's
+          drafts land in Pending approval, so saving one closes the modal to
+          show them. */}
       {showAdd && (
-        <div className="card-soft space-y-3 p-4">
-          <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Product name" className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm" />
-          <input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Description" className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm" />
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-stone-500">$</span>
-            <input value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} type="number" placeholder="0.00" className="w-32 rounded-lg border border-stone-200 px-3 py-2 text-sm" />
-          </div>
-          {/* What kind of thing this is decides how it gets fulfilled — a
-              service must never reach the buyer as "Pick up".
-
-              Tickets are excluded: they're sold on the event, not the catalog. */}
-          <div className="flex flex-wrap gap-1.5">
-            {(['good', 'service', 'digital'] as const).map((k) => (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-stone-900/50 p-4 backdrop-blur-sm"
+          onClick={() => setShowAdd(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="add-product-title"
+            onClick={(e) => e.stopPropagation()}
+            className="max-h-[85dvh] w-full max-w-lg overflow-y-auto rounded-3xl bg-white p-5 shadow-xl"
+          >
+            <div className="mb-4 flex items-center gap-2">
+              <h2 id="add-product-title" className="text-lg font-semibold text-stone-900">
+                Add product
+              </h2>
               <button
-                key={k}
                 type="button"
-                onClick={() => setForm({ ...form, kind: k })}
+                onClick={() => setShowPhoto((v) => !v)}
+                aria-expanded={showPhoto}
+                aria-label="Add with a photo"
+                title="Add with a photo"
                 className={
-                  'rounded-lg border px-3 py-1.5 text-[13px] font-medium transition ' +
-                  (form.kind === k
-                    ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
-                    : 'border-stone-200 text-stone-600 hover:border-stone-300')
+                  'ml-auto grid h-9 w-9 place-items-center rounded-full transition ' +
+                  (showPhoto
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100')
                 }
               >
-                {KIND_DEFS[k].label}
+                <Sparkles className="h-[18px] w-[18px]" />
               </button>
-            ))}
-          </div>
-          <p className="text-xs text-stone-500">{KIND_DEFS[form.kind].blurb}</p>
-
-          {form.kind === 'digital' && (
-            <div className="rounded-lg bg-stone-50 p-3">
-              <label className="block text-xs font-medium text-stone-600">
-                The file customers get
-              </label>
-              <input
-                type="file"
-                onChange={(e) => uploadFile(e.target.files?.[0])}
-                className="mt-1.5 block w-full text-xs file:mr-3 file:rounded-lg file:border-0 file:bg-stone-900 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-white"
-              />
-              {uploading && <p className="mt-2 text-xs text-stone-500">Uploading…</p>}
-              {file && !uploading && (
-                <p className="mt-2 text-xs text-emerald-700">{file.name} ready</p>
-              )}
-              {fileError && <p className="mt-2 text-xs text-rose-600">{fileError}</p>}
-              <p className="mt-2 text-xs text-stone-400">
-                Stored privately. Buyers get their own link — it can&apos;t be shared by copying a URL.
-              </p>
+              <button
+                type="button"
+                onClick={() => setShowAdd(false)}
+                aria-label="Close"
+                className="grid h-9 w-9 place-items-center rounded-full text-stone-500 transition hover:bg-stone-100 hover:text-stone-900"
+              >
+                <X className="h-5 w-5" />
+              </button>
             </div>
-          )}
-          <button onClick={addManual} className="rounded-lg bg-indigo-600 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-indigo-700">Save</button>
+
+            {showPhoto && (
+              <div className="mb-4">
+                <ImageCaptureUploader
+                  memberId={memberId}
+                  memberName={memberName}
+                  mode="products"
+                  onSaved={() => {
+                    setShowAdd(false)
+                    load()
+                  }}
+                />
+              </div>
+            )}
+
+            {/* A 402 from the save lands here too — behind the modal it
+                would be invisible and Save would look like it did nothing. */}
+            {upgrade && (
+              <div className="mb-4">
+                <UpgradePrompt
+                  requires={upgrade}
+                  message="Selling & catalog tools are on the Pro plan. Upgrade to add products, connect your shop, and use AI capture."
+                />
+              </div>
+            )}
+
+            <div className="space-y-3">
+
+            <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Product name" className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm" />
+            <input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Description" className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm" />
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-stone-500">$</span>
+              <input value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} type="number" placeholder="0.00" className="w-32 rounded-lg border border-stone-200 px-3 py-2 text-sm" />
+            </div>
+            {/* What kind of thing this is decides how it gets fulfilled — a
+                service must never reach the buyer as "Pick up".
+
+                Tickets are excluded: they're sold on the event, not the catalog. */}
+            <div className="flex flex-wrap gap-1.5">
+              {(['good', 'service', 'digital'] as const).map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => setForm({ ...form, kind: k })}
+                  className={
+                    'rounded-lg border px-3 py-1.5 text-[13px] font-medium transition ' +
+                    (form.kind === k
+                      ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                      : 'border-stone-200 text-stone-600 hover:border-stone-300')
+                  }
+                >
+                  {KIND_DEFS[k].label}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-stone-500">{KIND_DEFS[form.kind].blurb}</p>
+
+            {form.kind === 'digital' && (
+              <div className="rounded-lg bg-stone-50 p-3">
+                <label className="block text-xs font-medium text-stone-600">
+                  The file customers get
+                </label>
+                <input
+                  type="file"
+                  onChange={(e) => uploadFile(e.target.files?.[0])}
+                  className="mt-1.5 block w-full text-xs file:mr-3 file:rounded-lg file:border-0 file:bg-stone-900 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-white"
+                />
+                {uploading && <p className="mt-2 text-xs text-stone-500">Uploading…</p>}
+                {file && !uploading && (
+                  <p className="mt-2 text-xs text-emerald-700">{file.name} ready</p>
+                )}
+                {fileError && <p className="mt-2 text-xs text-rose-600">{fileError}</p>}
+                <p className="mt-2 text-xs text-stone-400">
+                  Stored privately. Buyers get their own link — it can&apos;t be shared by copying a URL.
+                </p>
+              </div>
+            )}
+            <button onClick={addManual} className="rounded-lg bg-indigo-600 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-indigo-700">Save</button>
+            </div>
+          </div>
         </div>
       )}
 
-      <ImageCaptureUploader memberId={memberId} memberName={memberName} mode="products" onSaved={load} />
 
       {loading ? (
         <p className="text-sm text-stone-500">Loading…</p>
