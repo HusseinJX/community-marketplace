@@ -20,18 +20,18 @@ interface Tile {
 /**
  * The bottom of a business profile, shaped like an Instagram profile.
  *
- * Two tabs over one square grid, and the split is the whole point:
+ * Two stacked blocks of square grid (they were tabs until 2026-09-29), and
+ * the split is the whole point:
  *
  *   Behind the scenes — posted BY the business. The bread at 5am, the new
  *     delivery, the thing that broke. This is what the platform is FOR, and it
  *     leads.
  *   From the community — posted ABOUT the business by everyone else. The
- *     memories wall, which existed first and is now the second tab.
+ *     memories wall, which existed first and now sits second ("Tagged").
  *
  * Same rows in `posts`, same wall; `author_id` against the owner's Clerk id is
  * the only thing that separates them. A business with no owner yet (an
- * unclaimed profile) has no behind-the-scenes tab at all — there is nobody who
- * could have posted it.
+ * unclaimed profile) still shows the Posts block, empty.
  */
 export function ProfileFeed({
   memberId,
@@ -46,7 +46,6 @@ export function ProfileFeed({
   const { posts: fetched } = useMemories(memberId);
   const [posts, setPosts] = useState<Post[]>([]);
   const [open, setOpen] = useState<Post | null>(null);
-  const [tab, setTab] = useState<Tab>("behind");
   const { isSignedIn, userId } = useAuth();
 
   useEffect(() => {
@@ -67,22 +66,14 @@ export function ProfileFeed({
     return { behind, community };
   }, [posts, owners]);
 
-  // Open on whichever tab has something in it. A business that only has
-  // customer photos shouldn't greet everyone with an empty grid — but the
-  // OWNER should see their empty one, because for them it's the prompt.
-  useEffect(() => {
-    if (!isOwner && behind.length === 0 && community.length > 0) setTab("community");
-  }, [isOwner, behind.length, community.length]);
+  const tilesOf = (list: Post[]): Tile[] =>
+    list.flatMap((post) => [
+      ...post.image_urls.map((url) => ({ post, url, kind: "image" as const })),
+      ...post.video_urls.map((url) => ({ post, url, kind: "video" as const })),
+    ]);
 
-  const active = tab === "behind" ? behind : community;
-  const tiles: Tile[] = active.flatMap((post) => [
-    ...post.image_urls.map((url) => ({ post, url, kind: "image" as const })),
-    ...post.video_urls.map((url) => ({ post, url, kind: "video" as const })),
-  ]);
-
-  // Nothing at all, and nobody who could fix it → render nothing, exactly as
-  // the memories wall used to.
-  if (posts.length === 0 && !isOwner) return null;
+  // Always rendered, even with nothing in it: the section sits under "Our
+  // story" on every profile, and an empty one says so rather than vanishing.
 
   async function react(postId: string) {
     const flip = (p: Post): Post =>
@@ -108,108 +99,92 @@ export function ProfileFeed({
   const countOf = (list: Post[]) =>
     list.reduce((n, p) => n + p.image_urls.length + p.video_urls.length, 0);
 
-  return (
-    <section>
-      {/* Tabs, centred and evenly split — the Instagram profile bar. */}
-      <div className="flex border-t border-stone-200">
-        {(
-          [
-            { key: "behind" as const, label: "Behind the scenes", icon: Grid3x3, list: behind },
-            { key: "community" as const, label: "From the community", icon: Users, list: community },
-          ]
-        )
-          // Hide the behind-the-scenes tab entirely when nobody owns the page:
-          // an empty tab on an unclaimed profile reads as a business that
-          // never posts, rather than one that hasn't arrived yet.
-          .filter((t) => t.key !== "behind" || owners.size > 0)
-          .map(({ key, label, icon: Icon, list }) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setTab(key)}
-              className={`flex flex-1 items-center justify-center gap-2 border-t-2 px-2 py-3 text-xs font-semibold uppercase tracking-[0.08em] transition ${
-                tab === key
-                  ? "border-stone-900 text-stone-900"
-                  : "border-transparent text-stone-400 hover:text-stone-600"
-              }`}
-            >
-              <Icon className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">{label}</span>
-              <span className="sm:hidden">{key === "behind" ? "Posts" : "Tagged"}</span>
-              {countOf(list) > 0 && <span className="text-stone-400">{countOf(list)}</span>}
-            </button>
-          ))}
-      </div>
-
-      {tiles.length > 0 ? (
-        <div className="mt-1 grid grid-cols-3 gap-1 sm:gap-1.5">
-          {tiles.map((t, i) => (
-            <button
-              key={`${t.url}-${i}`}
-              onClick={() => setOpen(t.post)}
-              className="group relative aspect-square overflow-hidden bg-stone-100 sm:rounded-md"
-            >
-              {t.kind === "video" ? (
-                youtubeThumb(t.url) ? (
+  // One stacked block per kind, business first: what they posted, then what
+  // everyone else tagged them in. (These were two tabs; stacked, a visitor
+  // sees both without knowing there was a second one to tap.)
+  const block = (kind: Tab, list: Post[]) => {
+    const tiles = tilesOf(list);
+    return (
+      <div>
+        <div className="flex items-center justify-center gap-2 border-t border-stone-200 py-3 text-xs font-semibold uppercase tracking-[0.08em] text-stone-900">
+          {kind === "behind" ? <Grid3x3 className="h-3.5 w-3.5" /> : <Users className="h-3.5 w-3.5" />}
+          {kind === "behind" ? "Posts" : "Tagged"}
+          {countOf(list) > 0 && <span className="text-stone-400">{countOf(list)}</span>}
+        </div>
+        {tiles.length > 0 ? (
+          <div className="mt-1 grid grid-cols-3 gap-1 sm:gap-1.5">
+            {tiles.map((t, i) => (
+              <button
+                key={`${t.url}-${i}`}
+                onClick={() => setOpen(t.post)}
+                className="group relative aspect-square overflow-hidden bg-stone-100 sm:rounded-md"
+              >
+                {t.kind === "video" ? (
+                  youtubeThumb(t.url) ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={youtubeThumb(t.url)!}
+                      alt=""
+                      className="h-full w-full object-cover transition group-hover:scale-105"
+                    />
+                  ) : (
+                    <video src={t.url} muted playsInline className="h-full w-full object-cover" />
+                  )
+                ) : (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={youtubeThumb(t.url)!}
+                    src={t.url}
                     alt=""
                     className="h-full w-full object-cover transition group-hover:scale-105"
                   />
-                ) : (
-                  <video src={t.url} muted playsInline className="h-full w-full object-cover" />
-                )
-              ) : (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={t.url}
-                  alt=""
-                  className="h-full w-full object-cover transition group-hover:scale-105"
-                />
-              )}
-              {t.kind === "video" && (
-                <span className="absolute right-1.5 top-1.5 rounded bg-black/55 px-1 text-[10px] font-medium text-white">
-                  ▶
-                </span>
-              )}
-              {(t.post.reactions ?? 0) > 0 && (
-                <span className="absolute bottom-1.5 left-1.5 inline-flex items-center gap-0.5 rounded-full bg-black/50 px-1.5 py-0.5 text-[10px] font-medium text-white">
-                  <Heart className="h-2.5 w-2.5 fill-current" /> {t.post.reactions}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-      ) : (
-        <EmptyGrid tab={tab} isOwner={isOwner} memberId={memberId} memberName={memberName} />
-      )}
+                )}
+                {t.kind === "video" && (
+                  <span className="absolute right-1.5 top-1.5 rounded bg-black/55 px-1 text-[10px] font-medium text-white">
+                    ▶
+                  </span>
+                )}
+                {(t.post.reactions ?? 0) > 0 && (
+                  <span className="absolute bottom-1.5 left-1.5 inline-flex items-center gap-0.5 rounded-full bg-black/50 px-1.5 py-0.5 text-[10px] font-medium text-white">
+                    <Heart className="h-2.5 w-2.5 fill-current" /> {t.post.reactions}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <EmptyGrid tab={kind} isOwner={isOwner} memberId={memberId} memberName={memberName} />
+        )}
+        {tiles.length > 0 && (
+          <div className="mt-3 flex justify-center">
+            {kind === "behind" && isOwner ? (
+              <Link
+                href="/share?vendor=1"
+                className="inline-flex items-center gap-2 rounded-full border border-stone-200 px-4 py-2 text-sm font-semibold text-stone-700 transition hover:bg-stone-50"
+              >
+                <Camera className="h-4 w-4" />
+                Post another
+              </Link>
+            ) : kind === "community" ? (
+              <Link
+                href={`/share?business=${memberId}&businessName=${encodeURIComponent(memberName)}`}
+                className="inline-flex items-center gap-2 rounded-full border border-stone-200 px-4 py-2 text-sm font-semibold text-stone-700 transition hover:bg-stone-50"
+              >
+                <Camera className="h-4 w-4" />
+                Add yours
+              </Link>
+            ) : null}
+          </div>
+        )}
+      </div>
+    );
+  };
 
-      {/* The way in, for a grid that already has something in it. The empty
-          states carry their own call to action; this is the one that used to
-          live above the wall as "Been here? Post a photo" and would otherwise
-          have disappeared the moment a single photo existed. */}
-      {tiles.length > 0 && (
-        <div className="mt-3 flex justify-center">
-          {tab === "behind" && isOwner ? (
-            <Link
-              href="/share?vendor=1"
-              className="inline-flex items-center gap-2 rounded-full border border-stone-200 px-4 py-2 text-sm font-semibold text-stone-700 transition hover:bg-stone-50"
-            >
-              <Camera className="h-4 w-4" />
-              Post another
-            </Link>
-          ) : tab === "community" ? (
-            <Link
-              href={`/share?business=${memberId}&businessName=${encodeURIComponent(memberName)}`}
-              className="inline-flex items-center gap-2 rounded-full border border-stone-200 px-4 py-2 text-sm font-semibold text-stone-700 transition hover:bg-stone-50"
-            >
-              <Camera className="h-4 w-4" />
-              Add yours
-            </Link>
-          ) : null}
-        </div>
-      )}
+  return (
+    <section className="space-y-8">
+      {/* Always both, Posts first — an unclaimed profile gets its "No posts
+          to show yet." too, so Tagged sits in the same place on every page. */}
+      {block("behind", behind)}
+      {block("community", community)}
 
       {open && (
         <PostLightbox
@@ -264,17 +239,15 @@ function EmptyGrid({
   if (tab === "behind") {
     return (
       <div className="mt-1 rounded-2xl border border-dashed border-stone-300 bg-white px-6 py-10 text-center">
-        <p className="text-sm text-stone-500">
-          {memberName} hasn&apos;t posted behind the scenes yet.
-        </p>
+        <p className="text-sm text-stone-500">No posts to show yet.</p>
       </div>
     );
   }
 
   return (
     <div className="mt-1 rounded-2xl border border-dashed border-stone-300 bg-white px-6 py-10 text-center">
-      <p className="text-sm font-semibold text-stone-950">Been here?</p>
-      <p className="mt-1 text-sm text-stone-500">Your photo would be the first.</p>
+      <p className="text-sm text-stone-500">No posts to show yet.</p>
+      <p className="mt-1 text-sm text-stone-500">Been here? Your photo would be the first.</p>
       <Link
         href={`/share?business=${memberId}&businessName=${encodeURIComponent(memberName)}`}
         className="mt-4 inline-flex items-center gap-2 rounded-full border border-stone-200 px-4 py-2.5 text-sm font-semibold text-stone-700 transition hover:bg-stone-50"

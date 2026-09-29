@@ -31,6 +31,8 @@ import { MemberTypeBadge } from "@/components/MemberTypeBadge";
 import { EventCard } from "@/components/EventCard";
 import { MiniMap } from "@/components/MiniMap";
 import { ShopSection } from "@/components/ShopSection";
+import { hoursRows, hoursLines } from "@/lib/business-hours";
+import { ProfileTabs } from "@/components/profile/ProfileTabs";
 import { MembershipTiers } from "@/components/membership/MembershipTiers";
 import { getActivePlansByMember, activeMembershipFor } from "@/lib/memberships";
 import { ActionBar } from "@/components/ActionBar";
@@ -60,6 +62,17 @@ const TYPE_GRADIENTS: Record<string, string> = {
   influencer: "from-pink-300 to-rose-400",
 };
 
+// Typed `boolean`, not the literal, so TypeScript keeps checking the hidden
+// branches instead of treating them as unreachable.
+const SHOW_FACETS_AND_SOCIALS: boolean = false;
+
+// A chip list shows the first few; the rest sit behind "+N more". Enrichment
+// can hand back a dozen menu items, and a wall of chips reads as noise rather
+// than a highlight. The toggle is a hidden checkbox inside the "+N more" label
+// (group-has-checked), so it stays a server component — no client JS — and
+// the revealed chips are real flex items in the same row.
+const TAG_LIMIT = 4;
+
 function Tags({ items, color = "stone" }: { items: string[]; color?: string }) {
   const cls =
     color === "indigo"
@@ -67,14 +80,50 @@ function Tags({ items, color = "stone" }: { items: string[]; color?: string }) {
       : color === "emerald"
       ? "bg-emerald-50 text-emerald-700"
       : "bg-stone-100 text-stone-700";
+  const unique = [...new Map(items.map((i) => [i.toLowerCase(), i])).values()];
+  const rest = unique.length - TAG_LIMIT;
   return (
-    <div className="flex flex-wrap gap-2">
-      {items.map((item) => (
-        <span key={item} className={`rounded-full px-3 py-1 text-sm ${cls}`}>
+    <div className="group flex flex-wrap gap-2">
+      {unique.map((item, i) => (
+        <span
+          key={item}
+          className={`rounded-full px-3 py-1 text-sm ${cls} ${i >= TAG_LIMIT ? "hidden group-has-[:checked]:inline-block" : ""}`}
+        >
           {item}
         </span>
       ))}
+      {rest > 0 && (
+        <label className="cursor-pointer rounded-full px-3 py-1 text-sm font-medium text-stone-500 hover:text-stone-900 group-has-[:checked]:hidden">
+          <input type="checkbox" className="sr-only" />+{rest} more
+        </label>
+      )}
     </div>
+  );
+}
+
+// Hours as a small table, runs of identical days folded ("Tue – Thu"). A
+// string that doesn't parse is shown one entry per line instead of as one
+// run-on sentence — never re-interpreted.
+function BusinessHours({ raw }: { raw: string }) {
+  const rows = hoursRows(raw);
+  if (!rows) {
+    return (
+      <ul className="mt-1 space-y-0.5 text-sm text-stone-700">
+        {hoursLines(raw).map((l, i) => (
+          <li key={i}>{l}</li>
+        ))}
+      </ul>
+    );
+  }
+  return (
+    <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+      {rows.map((r) => (
+        <div key={r.days} className="contents">
+          <dt className="whitespace-nowrap text-stone-500">{r.days}</dt>
+          <dd className={r.hours === "Closed" ? "text-stone-400" : "text-stone-800"}>{r.hours}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 
@@ -286,6 +335,10 @@ export default async function MemberProfilePage({
   const menuHighlights = (p.menuHighlights ?? []) as string[];
   const products = (p.products ?? []) as string[];
   const shopUrl = (p.shopUrl || p.etsyUrl || p.shopifyUrl || "") as string;
+  // Same test ShopSection uses to decide it has anything to show — kept in step
+  // so the Products tab says "nothing yet" exactly when the section would be empty.
+  const hasShop =
+    supabaseProducts.length > 0 || products.length > 0 || !!p.priceRange || !!p.featuredProduct || !!shopUrl;
   const venueTypes = (p.venueTypes ?? []) as string[];
   const needsMost = (p.needsMost ?? []) as string[];
   const connectWith = (p.connectWith ?? []) as string[];
@@ -368,9 +421,13 @@ export default async function MemberProfilePage({
             same two words, which is three visual elements for one idea. */}
         {(location || p.category || p.subcategory) && (
           <div className="mt-2 t-lead font-normal text-stone-500">
-            {[p.category as string | undefined, p.subcategory as string | undefined, location]
-              .filter(Boolean)
-              .join(" · ")}
+            {/* Deduped case-insensitively — category and subcategory are often
+                the same word ("bar · bar"). */}
+            {[...new Map(
+              [p.category as string | undefined, p.subcategory as string | undefined, location]
+                .filter((v): v is string => !!v)
+                .map((v) => [v.toLowerCase(), v]),
+            ).values()].join(" · ")}
           </div>
         )}
         {p.vibe && (
@@ -395,9 +452,11 @@ export default async function MemberProfilePage({
         />
       </header>
 
-      <div className="mt-10 grid gap-10 lg:grid-cols-3">
+      {/* Organizers keep a sidebar (their events list); everyone else is one
+          full-width column since "Find them online" moved into it. */}
+      <div className={`mt-10 grid gap-10 ${memberType === "organizer" ? "lg:grid-cols-3" : ""}`}>
         {/* Main column */}
-        <main className="space-y-10 lg:col-span-2">
+        <main className={`space-y-10 ${memberType === "organizer" ? "lg:col-span-2" : ""}`}>
           {memberType === "organizer" ? (
             <section>
               <div className="flex items-center justify-between">
@@ -432,41 +491,158 @@ export default async function MemberProfilePage({
             </Section>
           )}
 
-          {/* Hours, address and the map sit DIRECTLY under About.
-              They used to live in the sidebar, which on desktop is fine but on
-              mobile stacks after everything in the main column — so the two
-              facts a visitor most often wants ("when are they open, where are
-              they") landed below the memories wall and the whole shop. Moved
-              for every breakpoint rather than duplicated behind `lg:hidden`,
-              because a second copy would mount MiniMap twice and Leaflet would
-              build a whole second map (plus tiles) to keep one of them hidden. */}
-          {hasBusiness && (
+          {/* Section order (2026-09-29): story → Posts|Products|Events switch →
+              details/tags → find them online → what they offer → the business
+              card → map. The image grid comes straight after the
+              story it illustrates; the map closes the page, with the facts a
+              visitor acts on last (where, when, how to call) just above it. */}
+          {/* Posts · Products · Events — one switch, one panel at a time.
+              A null panel shows its own "nothing yet" line (ProfileTabs). The
+              shop and the events list used to be separate sections further
+              down; they are tabs of this one now. */}
+          <ProfileTabs
+            posts={<ProfileFeed memberId={id} memberName={name} ownerUserIds={ownerUserIds} />}
+            products={
+              hasShop ? (
+                <ShopSection
+                  memberId={id}
+                  memberName={name}
+                  supabaseProducts={supabaseProducts}
+                  apiProducts={products}
+                  priceRange={p.priceRange as string | undefined}
+                  featuredProduct={p.featuredProduct as string | undefined}
+                  shopUrl={shopUrl || undefined}
+                />
+              ) : null
+            }
+            events={
+              memberType === "organizer" ? undefined : vendorEvents.length > 0 || events.length > 0 ? (
+                <>
+                  {vendorEvents.length > 0 && (
+                    <div className="mb-3 grid gap-3 sm:grid-cols-2">
+                      {vendorEvents.map((ev) => (
+                        <Link key={ev.id} href={`/events/${ev.id}`} className="card-soft card-hover group flex items-stretch gap-3 p-3">
+                          {ev.poster_image_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={ev.poster_image_url} alt={ev.title} className="w-20 shrink-0 self-stretch rounded-lg object-cover" />
+                          ) : (
+                            <div className="w-20 shrink-0 self-stretch rounded-lg bg-gradient-to-br from-indigo-300 to-purple-500" />
+                          )}
+                          <div className="min-w-0 flex-1 py-0.5">
+                            <div className="truncate font-medium text-stone-900">{ev.title}</div>
+                            <div className="mt-1 truncate text-sm text-stone-500">
+                              {[ev.event_date, ev.event_time].filter(Boolean).join(" · ")}
+                            </div>
+                            {ev.location && <div className="truncate text-sm text-stone-500">{ev.location}</div>}
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                  {events.length > 0 && (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {events.map((ev) => (
+                        <EventCard key={ev.id} event={ev} />
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : null
+            }
+          />
+
+          {broadcasts.length > 0 && (
+            <Section title="Games shown here">
+              <div className="grid gap-3 sm:grid-cols-2">
+                {broadcasts.map((b) => {
+                  const live = isLive(b);
+                  const cover = b.image_urls?.[0];
+                  return (
+                    <Link key={b.id} href={`/live/${b.id}`} className="card-soft card-hover group flex items-stretch gap-3 p-3">
+                      {cover ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={cover} alt={b.whats_on || "broadcast"} className="w-20 shrink-0 self-stretch rounded-lg object-cover" />
+                      ) : (
+                        <div className="flex w-20 shrink-0 items-center justify-center self-stretch rounded-lg bg-gradient-to-br from-rose-300 to-orange-400 text-2xl">
+                          {eventEmoji(b.event_slug)}
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1 py-0.5">
+                        <div className="flex items-center gap-2">
+                          <span className="truncate text-xs font-medium text-stone-500">{liveEventLabel(b.event_slug, b.event_label)}</span>
+                          {live && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-white">
+                              <span className="h-1.5 w-1.5 rounded-full bg-white" /> Live
+                            </span>
+                          )}
+                        </div>
+                        <div className="truncate font-medium text-stone-900">
+                          {b.whats_on || liveEventLabel(b.event_slug, b.event_label)}
+                        </div>
+                        <div className="mt-0.5 truncate text-sm text-stone-500">
+                          {live
+                            ? timeLeftLabel(b.ends_at)
+                            : new Date(b.starts_at).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })}
+                        </div>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </Section>
+          )}
+
+          {/* Where they are and what they're part of. Above the facets
+              because "trades at Ferry Plaza on Saturdays" is a more useful
+              fact about a business than how it's owned. */}
+          <MemberTags
+            memberId={id}
+            memberName={name}
+            canEdit={canEditTags}
+            initial={memberTags.map(({ tag, recurrence, role }) => ({
+              tag: { id: tag.id, slug: tag.slug, label: tag.label, kind: tag.kind },
+              recurrence,
+              role,
+            }))}
+          />
+
+          {/* Business facets (size / ownership, with Edit) and "Find them
+              online" are HIDDEN (2026-09-29) — flip to restore. The action row
+              at the top already carries their socials as icons. */}
+          {SHOW_FACETS_AND_SOCIALS && (
+            <BusinessFacets
+              memberId={id}
+              initialSize={p.businessSize as string | undefined}
+              initialOwnership={readOwnership(p)}
+              canEdit={canEditFacets}
+            />
+          )}
+
+          <GivesBackBadges memberId={id} memberName={name} />
+
+          {/* "Find them online" — the full list, with a handle you can read.
+              The action row above is icon-only and made for a glance; this is
+              the one you scan when you actually want their Instagram.
+
+              Same catalogue as everything else (lib/links), same marks. This
+              was the THIRD hand-written copy of the platform list on this page,
+              with its own icon set (components/business/SocialIcons, now
+              deleted) and its own href rules — so a platform could render three
+              different ways, or be missing from one of them. */}
+          {SHOW_FACETS_AND_SOCIALS && socialDetails.length > 0 && (
             <div className="card-soft p-4">
-              <div className="section-label">Business</div>
-              {/* The business NAME is not repeated here — it is the page title
-                  two inches above. Nor is "Visit website": the action row at the
-                  top of the profile already carries it. */}
-              {(p.businessCategory || p.businessType) && (
-                <div className="mt-2 text-xs text-stone-500 capitalize">
-                  {(p.businessCategory || p.businessType) as string}
-                </div>
-              )}
-              {p.businessAddress && (
-                <div className="mt-3 text-sm text-stone-600">{p.businessAddress as string}</div>
-              )}
-              {p.businessHours && (
-                <div className="mt-3">
-                  <div className="section-label">Hours</div>
-                  <div className="mt-1 text-sm text-stone-700">{p.businessHours as string}</div>
-                </div>
-              )}
-              {p.businessPhone && (
-                <a href={`tel:${p.businessPhone}`} className="mt-3 block text-sm text-stone-700 hover:text-indigo-700">
-                  {p.businessPhone as string}
-                </a>
-              )}
-              {/* Leave-a-review moved to the profile action row (ActionBar's
-                  "Leave a Google review"); hidden here to avoid duplication. */}
+              <div className="section-label">Find them online</div>
+              <ul className="mt-3 space-y-2.5">
+                {socialDetails.map(({ plat, value, href }) => (
+                  <li key={plat.id}>
+                    <SocialLink
+                      href={href}
+                      label={plat.input === "handle" ? `@${value.replace(/^@/, "")}` : plat.label}
+                      icon={<PlatformIcon platform={plat.id} className="h-4 w-4" brand />}
+                    />
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
 
@@ -553,31 +729,6 @@ export default async function MemberProfilePage({
                 ))}
               </div>
             </div>
-          )}
-
-          {hasLocation && (
-            <div className="card-soft overflow-hidden">
-              <div className="section-label px-5 pt-5 pb-4">Location</div>
-              {location && <div className="px-5 pb-4 -mt-2 text-sm text-stone-600">{location}</div>}
-              <MiniMap lat={p.latitude as number} lng={p.longitude as number} color={pinColor} />
-              {p.googleMapsUrl && (
-                <a
-                  href={p.googleMapsUrl as string}
-                  target="_blank" rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-1.5 border-t border-stone-100 py-3 text-xs text-indigo-700 hover:bg-stone-50 transition"
-                >
-                  Open in Google Maps →
-                </a>
-              )}
-            </div>
-          )}
-
-          {p.reviewsSummary && (
-            <Section title="What people say">
-              <blockquote className="border-l-2 border-indigo-200 pl-4 italic text-stone-700">
-                &ldquo;{p.reviewsSummary as string}&rdquo;
-              </blockquote>
-            </Section>
           )}
 
           {(services.length > 0 || specialties.length > 0) && (
@@ -668,104 +819,13 @@ export default async function MemberProfilePage({
             </Section>
           )}
 
-          {memberType !== "organizer" && (
-            <Section title="Events">
-              {vendorEvents.length > 0 && (
-                <div className="mb-3 grid gap-3 sm:grid-cols-2">
-                  {vendorEvents.map((ev) => (
-                    <Link key={ev.id} href={`/events/${ev.id}`} className="card-soft card-hover group flex items-stretch gap-3 p-3">
-                      {ev.poster_image_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={ev.poster_image_url} alt={ev.title} className="w-20 shrink-0 self-stretch rounded-lg object-cover" />
-                      ) : (
-                        <div className="w-20 shrink-0 self-stretch rounded-lg bg-gradient-to-br from-indigo-300 to-purple-500" />
-                      )}
-                      <div className="min-w-0 flex-1 py-0.5">
-                        <div className="truncate font-medium text-stone-900">{ev.title}</div>
-                        <div className="mt-1 truncate text-sm text-stone-500">
-                          {[ev.event_date, ev.event_time].filter(Boolean).join(" · ")}
-                        </div>
-                        {ev.location && <div className="truncate text-sm text-stone-500">{ev.location}</div>}
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              )}
-              {events.length > 0 ? (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {events.map((ev) => (
-                    <EventCard key={ev.id} event={ev} />
-                  ))}
-                </div>
-              ) : vendorEvents.length > 0 ? null : (
-                <></>
-              )}
+          {p.reviewsSummary && (
+            <Section title="What people say">
+              <blockquote className="border-l-2 border-indigo-200 pl-4 italic text-stone-700">
+                &ldquo;{p.reviewsSummary as string}&rdquo;
+              </blockquote>
             </Section>
           )}
-
-          {broadcasts.length > 0 && (
-            <Section title="Games shown here">
-              <div className="grid gap-3 sm:grid-cols-2">
-                {broadcasts.map((b) => {
-                  const live = isLive(b);
-                  const cover = b.image_urls?.[0];
-                  return (
-                    <Link key={b.id} href={`/live/${b.id}`} className="card-soft card-hover group flex items-stretch gap-3 p-3">
-                      {cover ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={cover} alt={b.whats_on || "broadcast"} className="w-20 shrink-0 self-stretch rounded-lg object-cover" />
-                      ) : (
-                        <div className="flex w-20 shrink-0 items-center justify-center self-stretch rounded-lg bg-gradient-to-br from-rose-300 to-orange-400 text-2xl">
-                          {eventEmoji(b.event_slug)}
-                        </div>
-                      )}
-                      <div className="min-w-0 flex-1 py-0.5">
-                        <div className="flex items-center gap-2">
-                          <span className="truncate text-xs font-medium text-stone-500">{liveEventLabel(b.event_slug, b.event_label)}</span>
-                          {live && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-white">
-                              <span className="h-1.5 w-1.5 rounded-full bg-white" /> Live
-                            </span>
-                          )}
-                        </div>
-                        <div className="truncate font-medium text-stone-900">
-                          {b.whats_on || liveEventLabel(b.event_slug, b.event_label)}
-                        </div>
-                        <div className="mt-0.5 truncate text-sm text-stone-500">
-                          {live
-                            ? timeLeftLabel(b.ends_at)
-                            : new Date(b.starts_at).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })}
-                        </div>
-                      </div>
-                    </Link>
-                  );
-                })}
-              </div>
-            </Section>
-          )}
-
-          {/* Where they are and what they're part of. Above the facets
-              because "trades at Ferry Plaza on Saturdays" is a more useful
-              fact about a business than how it's owned. */}
-          <MemberTags
-            memberId={id}
-            memberName={name}
-            canEdit={canEditTags}
-            initial={memberTags.map(({ tag, recurrence, role }) => ({
-              tag: { id: tag.id, slug: tag.slug, label: tag.label, kind: tag.kind },
-              recurrence,
-              role,
-            }))}
-          />
-
-          <BusinessFacets
-            memberId={id}
-            initialSize={p.businessSize as string | undefined}
-            initialOwnership={readOwnership(p)}
-            canEdit={canEditFacets}
-          />
-
-          <GivesBackBadges memberId={id} memberName={name} />
 
           {/* Posting happens IN CONTEXT — you post from the page the post lands
               on, so "where does this go?" answers itself. (The global "+" in the
@@ -777,29 +837,65 @@ export default async function MemberProfilePage({
             currentPlanId={viewerMembership?.plan_id ?? null}
           />
 
-          <ShopSection
-            memberId={id}
-            memberName={name}
-            supabaseProducts={supabaseProducts}
-            apiProducts={products}
-            priceRange={p.priceRange as string | undefined}
-            featuredProduct={p.featuredProduct as string | undefined}
-            shopUrl={shopUrl || undefined}
-          />
 
-          {/* The feed is the bottom of the profile and the point of the page:
-              what this business actually looks like from the inside. */}
-          <ProfileFeed memberId={id} memberName={name} ownerUserIds={ownerUserIds} />
+          {/* The business card — address, hours, phone — second to last, with
+              the map closing the page under it. (It once sat directly under
+              About; the 2026-09-29 order puts what they are and what they
+              offer first, and where/when last.) Moved for every breakpoint
+              rather than duplicated behind `lg:hidden`, because a second copy
+              would mount MiniMap twice and Leaflet would build a second map. */}
+          {hasBusiness && (
+            <div className="card-soft p-4">
+              <div className="section-label">Business</div>
+              {/* The business NAME is not repeated here — it is the page title
+                  two inches above. Nor is "Visit website": the action row at the
+                  top of the profile already carries it. */}
+              {(p.businessCategory || p.businessType) && (
+                <div className="mt-2 text-xs text-stone-500 capitalize">
+                  {(p.businessCategory || p.businessType) as string}
+                </div>
+              )}
+              {p.businessAddress && (
+                <div className="mt-3 text-sm text-stone-600">{p.businessAddress as string}</div>
+              )}
+              {p.businessHours && (
+                <div className="mt-3">
+                  <div className="section-label">Hours</div>
+                  <BusinessHours raw={p.businessHours as string} />
+                </div>
+              )}
+              {p.businessPhone && (
+                <a href={`tel:${p.businessPhone}`} className="mt-3 block text-sm text-stone-700 hover:text-indigo-700">
+                  {p.businessPhone as string}
+                </a>
+              )}
+              {/* Leave-a-review moved to the profile action row (ActionBar's
+                  "Leave a Google review"); hidden here to avoid duplication. */}
+            </div>
+          )}
+
+          {hasLocation && (
+            <div className="card-soft overflow-hidden">
+              <div className="section-label px-5 pt-5 pb-4">Location</div>
+              {location && <div className="px-5 pb-4 -mt-2 text-sm text-stone-600">{location}</div>}
+              <MiniMap lat={p.latitude as number} lng={p.longitude as number} color={pinColor} />
+              {p.googleMapsUrl && (
+                <a
+                  href={p.googleMapsUrl as string}
+                  target="_blank" rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-1.5 border-t border-stone-100 py-3 text-xs text-indigo-700 hover:bg-stone-50 transition"
+                >
+                  Open in Google Maps →
+                </a>
+              )}
+            </div>
+          )}
         </main>
 
-        {/* Sidebar.
-            Sticky on desktop: the facts a visitor keeps coming back for — where
-            they are, how to reach them — were scrolling away behind a page that
-            can run very long (about, hours, map, memories, the whole shop). On
-            a phone it stays in normal flow, stacked under the main column,
-            because there is nothing beside it to stick to. */}
+        {/* Sidebar — organizers only (their events list). Sticky on desktop;
+            on a phone it stacks under the main column. */}
+        {memberType === "organizer" && (
         <aside className="space-y-6 lg:sticky lg:self-start" style={{ top: "calc(var(--top-nav) + 1rem + env(safe-area-inset-top))" }}>
-          {memberType === "organizer" && (
             <div className="card-soft p-4">
               <div className="section-label">Events</div>
               <ul className="mt-3 space-y-3">
@@ -828,35 +924,8 @@ export default async function MemberProfilePage({
                 ))}
               </ul>
             </div>
-          )}
-
-          {/* "Find them online" — the full list, with a handle you can read.
-              The action row above is icon-only and made for a glance; this is
-              the one you scan when you actually want their Instagram.
-
-              Same catalogue as everything else (lib/links), same marks. This
-              was the THIRD hand-written copy of the platform list on this page,
-              with its own icon set (components/business/SocialIcons, now
-              deleted) and its own href rules — so a platform could render three
-              different ways, or be missing from one of them. */}
-          {socialDetails.length > 0 && (
-            <div className="card-soft p-4">
-              <div className="section-label">Find them online</div>
-              <ul className="mt-3 space-y-2.5">
-                {socialDetails.map(({ plat, value, href }) => (
-                  <li key={plat.id}>
-                    <SocialLink
-                      href={href}
-                      label={plat.input === "handle" ? `@${value.replace(/^@/, "")}` : plat.label}
-                      icon={<PlatformIcon platform={plat.id} className="h-4 w-4" brand />}
-                    />
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
         </aside>
+        )}
       </div>
 
       {/* Unclaimed profile banner — placed at the bottom so it doesn't dominate the page */}

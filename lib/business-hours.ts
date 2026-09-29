@@ -104,6 +104,36 @@ function parseDaySpan(raw: string): number[] | null {
 
 type Interval = { open: number; close: number };
 
+const MERIDIEM = /\s*(am|pm|a\.m\.|p\.m\.)\s*$/i;
+
+/**
+ * "9AM-6PM" / "5:00 – 9:30 PM" → an interval, or null.
+ *
+ * Google drops the meridiem from the opening time when it matches the closing
+ * one: "5:00 – 9:30 PM" is 5pm, not 05:00. So a bare opening time borrows the
+ * closing time's am/pm — unless that would open after it closes ("11:00 – 2:00
+ * PM" is 11am), in which case it takes the other one. Without this, a dinner
+ * spot read as open from five in the morning.
+ */
+function parseRange(raw: string): Interval | null {
+  const times = raw.split(/[–—]|-|\bto\b/).map((t) => t.trim());
+  if (times.length !== 2) return null;
+  const [a, b] = times;
+  const close = parseTime(b);
+  if (close === null) return null;
+
+  const closeMer = b.match(MERIDIEM)?.[1];
+  if (!MERIDIEM.test(a) && closeMer) {
+    const same = parseTime(`${a} ${closeMer}`);
+    const other = parseTime(`${a} ${/^p/i.test(closeMer) ? "am" : "pm"}`);
+    const open = same !== null && same < close ? same : other;
+    return open === null ? null : { open, close };
+  }
+
+  const open = parseTime(a);
+  return open === null ? null : { open, close };
+}
+
 /**
  * Parse the whole string into per-day intervals.
  * Returns null the moment anything doesn't parse — a partially-understood
@@ -146,15 +176,18 @@ function parseSchedule(raw: string): Map<number, Interval[]> | null {
       continue;
     }
 
-    const times = body.split(/[–—]|-|\bto\b/).map((s) => s.trim());
-    if (times.length !== 2) return null;
-    const open = parseTime(times[0]);
-    const close = parseTime(times[1]);
-    if (open === null || close === null) return null;
+    // A day can have more than one range — Google writes a lunch-and-dinner
+    // place as "11:00 AM – 3:00 PM, 5:00 – 9:30 PM". Every range must parse.
+    const intervals: Interval[] = [];
+    for (const range of body.split(",")) {
+      const iv = parseRange(range);
+      if (!iv) return null;
+      intervals.push(iv);
+    }
 
     for (const d of days) {
       const list = byDay.get(d) ?? [];
-      list.push({ open, close });
+      list.push(...intervals);
       byDay.set(d, list);
     }
   }
@@ -213,4 +246,52 @@ export function hoursStatus(businessHours?: string | null): HoursStatus | null {
   }
 
   return { open: false, label: "Closed" };
+}
+
+export type HoursRow = { days: string; hours: string };
+
+/**
+ * The week as display rows, with runs of identical days folded together:
+ *   Mon        Closed
+ *   Tue – Thu  5 – 9:30pm
+ *   Fri – Sun  11am – 3pm, 5 – 9:30pm
+ *
+ * Null when the string doesn't parse (same rule as hoursStatus) — the caller
+ * then shows the raw text, one entry per line, rather than a guess.
+ */
+export function hoursRows(businessHours?: string | null): HoursRow[] | null {
+  if (!businessHours) return null;
+  const schedule = parseSchedule(businessHours);
+  if (!schedule) return null;
+
+  const dayText = (d: number): string | null => {
+    if (!schedule.has(d)) return null;
+    const ivs = (schedule.get(d) ?? []).slice().sort((a, b) => a.open - b.open);
+    return ivs.length ? ivs.map((iv) => `${fmt(iv.open)} – ${fmt(iv.close)}`).join(", ") : "Closed";
+  };
+
+  // Monday-first, the way a posted schedule reads.
+  const order = [1, 2, 3, 4, 5, 6, 0];
+  const rows: HoursRow[] = [];
+  let i = 0;
+  while (i < order.length) {
+    const text = dayText(order[i]);
+    let j = i;
+    while (j + 1 < order.length && dayText(order[j + 1]) === text) j++;
+    // A day the string never mentioned is unknown, not closed — leave it out.
+    if (text !== null) {
+      const first = DAY_LABEL[order[i]];
+      rows.push({ days: i === j ? first : `${first} – ${DAY_LABEL[order[j]]}`, hours: text });
+    }
+    i = j + 1;
+  }
+  return rows.length ? rows : null;
+}
+
+/** The raw string split into its entries, for when it doesn't parse. */
+export function hoursLines(businessHours: string): string[] {
+  return businessHours
+    .split(/[\n;]+|,(?=\s*[A-Za-z]+\s*:)/)
+    .map((c) => c.trim())
+    .filter(Boolean);
 }
