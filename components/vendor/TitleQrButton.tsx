@@ -1,13 +1,30 @@
 'use client'
 
-import { useState } from 'react'
-import { QrCode, X } from 'lucide-react'
-import { BasicQr } from '@/components/qr/BasicQr'
+import { useEffect, useState } from 'react'
+import { QrCode } from 'lucide-react'
+import { qrPngDataUrl } from '@/lib/qr'
 
-// Small QR button that sits next to the dashboard title. Opens a modal showing
-// the basic (non-AI) QR that links to the business's public profile.
+// Small QR button that sits next to the dashboard title. Opens the code and
+// nothing else — it's for holding the phone up to a customer. Colours and
+// downloads live on /vendor/qr. Tap anywhere (or Escape) to close.
 export function TitleQrButton({ url, businessName }: { url: string; businessName: string }) {
   const [open, setOpen] = useState(false)
+  const [png, setPng] = useState('')
+
+  useEffect(() => {
+    if (!open) return
+    let live = true
+    qrPngDataUrl(url, { dark: '#0c0a09', light: '#ffffff', size: 768 })
+      .then((d) => live && setPng(d))
+      .catch(() => live && setPng(''))
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
+    window.addEventListener('keydown', onKey)
+    return () => {
+      live = false
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [open, url])
+
   return (
     <>
       <button
@@ -22,22 +39,16 @@ export function TitleQrButton({ url, businessName }: { url: string; businessName
 
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          role="dialog"
+          aria-label={`${businessName} QR code`}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6"
           onClick={() => setOpen(false)}
         >
-          <div className="w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
-            <div className="mb-2 flex items-center justify-between">
-              <p className="text-sm font-semibold text-white">{businessName} · QR code</p>
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                aria-label="Close"
-                className="rounded-full bg-white/90 p-1.5 text-stone-600 hover:bg-white"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <BasicQr url={url} businessName={businessName} />
+          <div className="aspect-square w-full max-w-sm rounded-2xl bg-white p-5">
+            {png && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={png} alt={`QR code for ${businessName}`} className="h-full w-full" />
+            )}
           </div>
         </div>
       )}

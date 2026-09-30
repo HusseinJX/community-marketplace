@@ -634,7 +634,10 @@ export function PersonalizedEvents({
         </div>
       )}
 
-      <div className={loading ? "opacity-50 transition-opacity" : "transition-opacity"}>
+      {/* @container: the list is sized by the room it has, not the window —
+          the home Events tab is 6xl wide, /events is a 680px column, and a
+          viewport breakpoint would squeeze three cards into the narrow one. */}
+      <div className={`@container ${loading ? "opacity-50 transition-opacity" : "transition-opacity"}`}>
         {grouped.map(([day, evs]) => (
           <section key={day} className="mt-6">
             {/* The day sticks to the top while its own events are on screen.
@@ -664,12 +667,13 @@ export function PersonalizedEvents({
             >
               {dayLabel(day)}
             </h2>
-            {/* Two columns from lg, one below. The list used to be a 2xl
-                column inside a 6xl page, so on a desktop it was a narrow ribbon
-                with half the window empty beside it — and switching to For you
-                jumped the content width. items-start so an expanded card grows
-                on its own instead of stretching its neighbour to match. */}
-            <ul className="grid items-start gap-2 lg:grid-cols-2">
+            {/* One column on a phone, two from ~576px of room, three from
+                ~896px — the feed's grid view, so the two tabs lay out alike.
+                A grid, not the feed's CSS columns: columns fill top-to-bottom,
+                which would scramble the time order across the day.
+                items-start so an expanded card grows on its own instead of
+                stretching its neighbour to match. */}
+            <ul className="grid items-start gap-2 @xl:grid-cols-2 @xl:gap-4 @4xl:grid-cols-3">
               {evs.map((e) => {
                 // Built once per card and rendered in ONE of two places: over
                 // the poster when there is one, in the header row when there
@@ -721,10 +725,10 @@ export function PersonalizedEvents({
                         rounded="rounded-none"
                         showCounter={false}
                         indicators={false}
-                        // The card is 672px at its widest (max-w-2xl), but the
-                        // carousel's default for this aspect claims 320px — so
-                        // next/image would serve a half-width file and upscale
-                        // it on any desktop. State the real width.
+                        // State the real width: ~360px in three columns on a
+                        // desktop, half the window in two, full width on a
+                        // phone. The carousel's default for this aspect claims
+                        // 320px, which upscales on any tablet.
                         //
                         // MEMORY LEVER #1 (see PAGE above). The mobile branch is
                         // `100vw`, which on a 390px phone at DPR 3 resolves to
@@ -733,7 +737,7 @@ export function PersonalizedEvents({
                         // cap trades sharpness for RAM, quadratically: `800px`
                         // is ~2.2x less, `640px` ~3.5x less. Change it here if
                         // the events feed ever OOMs the iOS webview again.
-                        sizes="(min-width: 1024px) 560px, (min-width: 768px) 672px, 100vw"
+                        sizes="(min-width: 1024px) 380px, (min-width: 640px) 50vw, 100vw"
                         // A poster IS the card here; 75 shows its compression
                         // on flat colour and type, which most event art is.
                         quality={88}

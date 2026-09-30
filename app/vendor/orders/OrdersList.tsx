@@ -143,8 +143,9 @@ export function OrdersList({ title = 'Orders' }: { title?: string }) {
       </div>
 
       {orders.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-stone-300 py-20 text-center text-stone-400 text-sm">
-          No orders yet. They&apos;ll appear here once customers check out.
+        <div className="rounded-2xl border border-dashed border-stone-300 px-6 py-20 text-center text-stone-400 text-sm">
+          <p>No orders yet.</p>
+          <p className="mt-1">They&apos;ll appear here once customers check out.</p>
         </div>
       ) : (
         <div className="space-y-4">
