@@ -42,7 +42,7 @@ export function DashboardMenu() {
         aria-expanded={open}
         aria-label="Tools and profile"
         className={
-          'inline-flex h-8 w-8 items-center justify-center rounded-full border transition active:scale-95 ' +
+          'inline-flex h-[38px] w-[38px] items-center justify-center rounded-full border transition active:scale-95 ' +
           (open
             ? 'border-stone-300 bg-stone-100 text-stone-900'
             : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300 hover:text-stone-900')

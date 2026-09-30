@@ -145,13 +145,15 @@ export default async function VendorDashboard({
           {profileUrl && <TitleQrButton url={profileUrl} businessName={businessName} />}
           {/* Posting is one action, so it is a pill in the title row rather
               than a section tile — left, right after the QR button. Same destination the Posts
-              tile had: the vendor door of the /share composer. */}
+              tile had: the vendor door of the /share composer. Sized like the
+              section pills below (px-4 py-2 text-sm + border = 38px), and so
+              are the QR and settings buttons either side of it. */}
           <Link
             href="/share?vendor=1"
             aria-label="Create new post"
-            className="inline-flex shrink-0 items-center gap-1 rounded-full border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-900 transition hover:border-stone-300 hover:bg-stone-50 active:scale-95"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-stone-200 bg-white px-4 py-2 text-sm font-semibold text-stone-900 transition hover:border-stone-300 hover:bg-stone-50 active:scale-95"
           >
-            <Plus className="h-3.5 w-3.5" />
+            <Plus className="h-4 w-4" />
             Post
           </Link>
           {/* Tools + Profile — the two former tiles that aren't sections. */}

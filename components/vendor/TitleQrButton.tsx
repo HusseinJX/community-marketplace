@@ -32,7 +32,7 @@ export function TitleQrButton({ url, businessName }: { url: string; businessName
         onClick={() => setOpen(true)}
         title="Show your QR code"
         aria-label="Show your QR code"
-        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-stone-200 bg-white text-stone-600 transition hover:border-indigo-300 hover:text-indigo-600"
+        className="inline-flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-lg border border-stone-200 bg-white text-stone-600 transition hover:border-indigo-300 hover:text-indigo-600"
       >
         <QrCode className="h-4 w-4" />
       </button>
