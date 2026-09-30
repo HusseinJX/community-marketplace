@@ -45,7 +45,10 @@ export function ProfileTabs({
               aria-checked={tab === key}
               onClick={() => setTab(key)}
               className={
-                "rounded-full px-4 py-1.5 transition " +
+                // Built like the action row's pills above (Directions, Inquire,
+                // Google review): py-2 + a 1px border + 13px text, not a fixed
+                // height — so the two stay identical if either changes.
+                "inline-flex items-center rounded-full border border-transparent px-3.5 py-2 transition " +
                 (tab === key ? "bg-white text-stone-900 shadow-sm" : "text-stone-500 hover:text-stone-700")
               }
             >

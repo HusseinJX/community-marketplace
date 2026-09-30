@@ -45,7 +45,7 @@ export function GoogleReviewButton({
       }
     >
       <Star className="h-4 w-4 fill-current" />
-      Leave a Google review
+      Google review
     </a>
   );
 }

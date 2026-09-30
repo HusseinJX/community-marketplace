@@ -213,10 +213,17 @@ export async function generateMetadata({
 
 export default async function MemberProfilePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { id } = await params;
+  // DEV-ONLY preview: /members/<id>?preview=links fills every link platform
+  // with a sample value so the link sections can be looked at. Nothing is
+  // written anywhere, and NODE_ENV folds this to false in a production build.
+  const previewLinks =
+    process.env.NODE_ENV !== "production" && (await searchParams).preview === "links";
 
   let member = null;
   let events: EventSuggestion[] = [];
@@ -288,7 +295,24 @@ export default async function MemberProfilePage({
     );
   }
 
-  const p = member.profile ?? {};
+  let p = member.profile ?? {};
+  if (previewLinks) {
+    const sample = (plat: (typeof ALL_PLATFORMS)[number]) =>
+      plat.id === "phone" ? "+14155550123"
+      : plat.id === "email" ? "hello@example.com"
+      : plat.input === "handle" ? (plat.id === "cashapp" ? "$stonegold" : "stonegoldpottery")
+      : `https://example.com/${plat.id}`;
+    const seen = new Set<string>();
+    const unique = ALL_PLATFORMS.filter((pl) => !seen.has(pl.id) && seen.add(pl.id));
+    p = { ...p, ...Object.fromEntries(unique.filter((pl) => pl.profileField).map((pl) => [pl.profileField, sample(pl)])) };
+    supportLinks = unique.filter((pl) => pl.kind === "support" && !pl.profileField).map((pl) => ({ id: pl.id, value: sample(pl) }));
+    otherLinks = unique.filter((pl) => pl.kind !== "support" && !pl.profileField).map((pl) => ({ id: pl.id, value: sample(pl) }));
+    customLinks = [
+      { title: "Book a wheel-throwing class", url: "https://example.com/classes" },
+      { title: "Wholesale enquiries", url: "https://example.com/wholesale" },
+    ];
+  }
+  const showSocials = SHOW_FACETS_AND_SOCIALS || previewLinks;
   const name = (p.name || "Anonymous member") as string;
   const location = [p.neighborhood, p.city].filter(Boolean).join(", ");
   const notesStr = Array.isArray(p.notes)
@@ -385,11 +409,45 @@ export default async function MemberProfilePage({
   };
   const pinColor = memberTypeColor[memberType] ?? "#6B7280";
 
+  // Rendered in two places (phone: main column; lg: side column), one visible
+  // at a time — so it's built once here and the copies can't drift.
+  const memberTagsEl = (
+    <MemberTags
+      memberId={id}
+      memberName={name}
+      canEdit={canEditTags}
+      initial={memberTags.map(({ tag, recurrence, role }) => ({
+        tag: { id: tag.id, slug: tag.slug, label: tag.label, kind: tag.kind },
+        recurrence,
+        role,
+      }))}
+    />
+  );
+
+  // "What they offer" — services/specialties and menu highlights in ONE card.
+  // Same two-copy pattern as the tags: phone in the main column, lg on the right.
+  const offerItems = [...services, ...specialties];
+  const offerCard =
+    offerItems.length > 0 || menuHighlights.length > 0 ? (
+      <div className="card-soft space-y-5 p-4">
+        {offerItems.length > 0 && (
+          <Section title="What they offer">
+            <Tags items={offerItems} color="indigo" />
+          </Section>
+        )}
+        {menuHighlights.length > 0 && (
+          <Section title="Menu highlights">
+            <Tags items={menuHighlights} color="emerald" />
+          </Section>
+        )}
+      </div>
+    ) : null;
+
   return (
     // Tight at the top on a phone: the header, the back link and the hero were
     // eating most of the first screen before you saw the business at all.
-    // Desktop keeps the roomier spacing.
-    <div className="mx-auto max-w-7xl px-4 pb-24 pt-3 md:px-8 md:pt-6">
+    // Desktop matches: the same 12px gap under the nav as the home cards.
+    <div className="mx-auto max-w-7xl px-4 pb-24 pt-3 md:px-8">
       {isIndexable(member) && <MemberJsonLd member={member} />}
       {/* This profile links onward to its own events, so record it as the place
           those events come back to. */}
@@ -408,6 +466,13 @@ export default async function MemberProfilePage({
         );
       })()}
 
+      {/* Desktop: two columns from the TITLE down — the profile on the left,
+          a narrow column on the right for the quick facts (what they offer,
+          the business card, the map, claim). Phone: one column, and the side
+          column falls after the main one — the same order it always had,
+          since those cards already closed the page. */}
+      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start lg:gap-10">
+      <div className="min-w-0">
       {/* Header */}
       <header className="mt-4 border-b border-stone-200 pb-5 md:mt-8 md:pb-8">
         {/* Inline, not a flex row: in a flex row a name that wraps takes the
@@ -458,11 +523,8 @@ export default async function MemberProfilePage({
         />
       </header>
 
-      {/* Organizers keep a sidebar (their events list); everyone else is one
-          full-width column since "Find them online" moved into it. */}
-      <div className={`mt-10 grid gap-10 ${memberType === "organizer" ? "lg:grid-cols-3" : ""}`}>
         {/* Main column */}
-        <main className={`space-y-10 ${memberType === "organizer" ? "lg:col-span-2" : ""}`}>
+        <main className="mt-10 space-y-10">
           {memberType === "organizer" ? (
             <section>
               <div className="flex items-center justify-between">
@@ -601,21 +663,15 @@ export default async function MemberProfilePage({
           {/* Where they are and what they're part of. Above the facets
               because "trades at Ferry Plaza on Saturdays" is a more useful
               fact about a business than how it's owned. */}
-          <MemberTags
-            memberId={id}
-            memberName={name}
-            canEdit={canEditTags}
-            initial={memberTags.map(({ tag, recurrence, role }) => ({
-              tag: { id: tag.id, slug: tag.slug, label: tag.label, kind: tag.kind },
-              recurrence,
-              role,
-            }))}
-          />
+          {/* Phone copy; on lg the tags sit in the side column under "What
+              they offer". empty:hidden — MemberTags renders nothing when a
+              member has no tags and you can't add one. */}
+          <div className="empty:hidden lg:hidden">{memberTagsEl}</div>
 
           {/* Business facets (size / ownership, with Edit) and "Find them
               online" are HIDDEN (2026-09-29) — flip to restore. The action row
               at the top already carries their socials as icons. */}
-          {SHOW_FACETS_AND_SOCIALS && (
+          {showSocials && (
             <BusinessFacets
               memberId={id}
               initialSize={p.businessSize as string | undefined}
@@ -635,7 +691,7 @@ export default async function MemberProfilePage({
               with its own icon set (components/business/SocialIcons, now
               deleted) and its own href rules — so a platform could render three
               different ways, or be missing from one of them. */}
-          {SHOW_FACETS_AND_SOCIALS && socialDetails.length > 0 && (
+          {showSocials && socialDetails.length > 0 && (
             <div className="card-soft p-4">
               <div className="section-label">Find them online</div>
               <ul className="mt-3 space-y-2.5">
@@ -737,17 +793,10 @@ export default async function MemberProfilePage({
             </div>
           )}
 
-          {(services.length > 0 || specialties.length > 0) && (
-            <Section title="What they offer">
-              <Tags items={[...services, ...specialties]} color="indigo" />
-            </Section>
-          )}
-
-          {menuHighlights.length > 0 && (
-            <Section title="Menu highlights">
-              <Tags items={menuHighlights} color="emerald" />
-            </Section>
-          )}
+          {/* Phone copy — on lg it lives in the side column instead. Plain
+              tags, no map, so two copies cost nothing (unlike the Location
+              card, which must never be duplicated). */}
+          {offerCard && <div className="lg:hidden">{offerCard}</div>}
 
           {p.discipline && (
             <Section title="Discipline">
@@ -844,12 +893,50 @@ export default async function MemberProfilePage({
           />
 
 
+        </main>
+      </div>
+
+      <aside className="mt-10 space-y-6 lg:mt-8">
+          {memberType === "organizer" && (
+            <div className="card-soft p-4">
+              <div className="section-label">Events</div>
+              <ul className="mt-3 space-y-3">
+                {events.map((e) => ({
+                  id: e.id,
+                  title: e.title || "Untitled event",
+                  date: e.date || "",
+                  location: e.location || "",
+                  gradient: TYPE_GRADIENTS[memberType] ?? "from-emerald-300 to-teal-500",
+                })).map((ev) => (
+                  <li key={ev.id}>
+                    <Link
+                      href={`/events/${ev.id}`}
+                      className="group flex items-stretch gap-3 rounded-lg p-1 -m-1 transition hover:bg-stone-50"
+                    >
+                      <div className={`shrink-0 self-stretch w-14 rounded-md bg-gradient-to-br ${ev.gradient}`} />
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-medium text-stone-900 group-hover:text-indigo-700">
+                          {ev.title}
+                        </div>
+                        <div className="text-xs text-stone-500">{ev.date}</div>
+                        <div className="truncate text-xs text-stone-500">{ev.location}</div>
+                      </div>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {offerCard && <div className="hidden lg:block">{offerCard}</div>}
+          <div className="hidden empty:hidden lg:block">{memberTagsEl}</div>
           {/* The business card — address, hours, phone — second to last, with
               the map closing the page under it. (It once sat directly under
               About; the 2026-09-29 order puts what they are and what they
               offer first, and where/when last.) Moved for every breakpoint
               rather than duplicated behind `lg:hidden`, because a second copy
-              would mount MiniMap twice and Leaflet would build a second map. */}
+              would mount MiniMap twice and Leaflet would build a second map.
+              That is also why the whole side column comes AFTER main in the
+              DOM: on a phone it lands exactly where these cards always were. */}
           {hasBusiness && (
             <div className="card-soft p-4">
               <div className="section-label">Business</div>
@@ -896,54 +983,19 @@ export default async function MemberProfilePage({
               )}
             </div>
           )}
-        </main>
 
-        {/* Sidebar — organizers only (their events list). Sticky on desktop;
-            on a phone it stacks under the main column. */}
-        {memberType === "organizer" && (
-        <aside className="space-y-6 lg:sticky lg:self-start" style={{ top: "calc(var(--top-nav) + 1rem + env(safe-area-inset-top))" }}>
-            <div className="card-soft p-4">
-              <div className="section-label">Events</div>
-              <ul className="mt-3 space-y-3">
-                {events.map((e) => ({
-                  id: e.id,
-                  title: e.title || "Untitled event",
-                  date: e.date || "",
-                  location: e.location || "",
-                  gradient: TYPE_GRADIENTS[memberType] ?? "from-emerald-300 to-teal-500",
-                })).map((ev) => (
-                  <li key={ev.id}>
-                    <Link
-                      href={`/events/${ev.id}`}
-                      className="group flex items-stretch gap-3 rounded-lg p-1 -m-1 transition hover:bg-stone-50"
-                    >
-                      <div className={`shrink-0 self-stretch w-14 rounded-md bg-gradient-to-br ${ev.gradient}`} />
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-medium text-stone-900 group-hover:text-indigo-700">
-                          {ev.title}
-                        </div>
-                        <div className="text-xs text-stone-500">{ev.date}</div>
-                        <div className="truncate text-xs text-stone-500">{ev.location}</div>
-                      </div>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+          {/* Unclaimed — the last thing in the column, so it doesn't dominate. */}
+          {member.status === 'unclaimed' && (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+              <p className="font-semibold text-amber-900">Is this your business?</p>
+              <p className="mt-1 text-sm text-amber-700">Claim this profile to manage it, receive payments, and connect with customers.</p>
+              <Link href={`/claim/${member.id}`} className="mt-3 inline-block rounded-lg bg-amber-900 px-4 py-2 text-xs font-medium text-white hover:bg-amber-800">
+                Claim this business
+              </Link>
             </div>
-        </aside>
-        )}
+          )}
+      </aside>
       </div>
-
-      {/* Unclaimed profile banner — placed at the bottom so it doesn't dominate the page */}
-      {member.status === 'unclaimed' && (
-        <div className="mt-12 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-          <p className="font-semibold text-amber-900">Is this your business?</p>
-          <p className="mt-1 text-sm text-amber-700">Claim this profile to manage it, receive payments, and connect with customers.</p>
-          <Link href={`/claim/${member.id}`} className="mt-3 inline-block rounded-lg bg-amber-900 px-4 py-2 text-xs font-medium text-white hover:bg-amber-800">
-            Claim this business
-          </Link>
-        </div>
-      )}
 
       {/* Customer-service assistant — a Member+ capability (text agent), Pro adds
           voice. Free/unclaimed listings don't show it. */}

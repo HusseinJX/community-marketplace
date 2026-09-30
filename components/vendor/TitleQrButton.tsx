@@ -41,13 +41,24 @@ export function TitleQrButton({ url, businessName }: { url: string; businessName
         <div
           role="dialog"
           aria-label={`${businessName} QR code`}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
           onClick={() => setOpen(false)}
         >
-          <div className="aspect-square w-full max-w-sm rounded-2xl bg-white p-5">
+          {/* Sized by the SMALLER of the viewport's width and height (minus a
+              1.5rem margin and the notch/home-bar insets), so the square fits
+              a phone in landscape too — sizing by width alone overflowed any
+              screen shorter than it is wide. The image follows the box's
+              width, never a percentage height. */}
+          <div
+            className="aspect-square shrink-0 rounded-2xl bg-white p-4 sm:p-5"
+            style={{
+              width:
+                'min(24rem, calc(100vw - 3rem - env(safe-area-inset-left) - env(safe-area-inset-right)), calc(100dvh - 3rem - env(safe-area-inset-top) - env(safe-area-inset-bottom)))',
+            }}
+          >
             {png && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={png} alt={`QR code for ${businessName}`} className="h-full w-full" />
+              <img src={png} alt={`QR code for ${businessName}`} className="block h-auto w-full" />
             )}
           </div>
         </div>

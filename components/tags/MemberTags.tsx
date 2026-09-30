@@ -36,7 +36,10 @@ export function MemberTags({
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
 
-  if (!links.length && !canEdit) return null;
+  // No tags = nothing on the profile, admin or not. "Add a tag" on an empty
+  // profile is hidden on purpose; tags are applied on the canvass review screen,
+  // and Edit tags still appears once a member has one.
+  if (!links.length && !editing) return null;
 
   async function apply(tagId: string, patch: { role?: string | null; recurrence?: string | null }) {
     setBusy(tagId);
@@ -145,7 +148,7 @@ export function MemberTags({
             className="inline-flex items-center gap-1 rounded-full border border-stone-200 px-3 py-1.5 text-xs font-semibold text-stone-600 transition hover:bg-stone-50"
           >
             {editing ? <Check className="h-3 w-3" /> : <Pencil className="h-3 w-3" />}
-            {editing ? "Done" : links.length ? "Edit tags" : "Add a tag"}
+            {editing ? "Done" : "Edit tags"}
           </button>
         )}
       </div>

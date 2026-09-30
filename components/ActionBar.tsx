@@ -96,6 +96,38 @@ export function ActionBar({
     setTimeout(() => setJustLogged(false), 1500);
   };
 
+  const socialsOwnRow = socials.length >= 3;
+  const socialIcons = (list: SocialLinkItem[]) => (
+    <>
+      {list.map((s) => {
+        const plat = platformById(s.platformId);
+        return (
+          <a
+            key={s.href}
+            href={s.href}
+            target="_blank"
+            rel="noreferrer"
+            aria-label={s.label}
+            title={s.label}
+            // The brand's own colour, on a white pill. A row of fully
+            // brand-coloured circles turns into a wall of confetti next to
+            // the primary actions above it.
+            //
+            // A circle at rest; on hover (or keyboard focus) it widens to show
+            // the platform's name, pushing its neighbours along the row. px-[9px]
+            // + 1px border + a 16px icon = the old 36px circle exactly.
+            className="group/social inline-flex h-9 shrink-0 items-center rounded-full border border-stone-200 bg-white px-[9px] text-stone-600 transition-colors hover:border-stone-400 hover:bg-stone-50"
+          >
+            {plat ? <PlatformIcon platform={plat} className="h-4 w-4 shrink-0" brand /> : <Globe className="h-4 w-4 shrink-0" />}
+            <span className="max-w-0 overflow-hidden whitespace-nowrap text-[13px] font-medium text-stone-700 opacity-0 transition-all duration-200 group-hover/social:ml-1.5 group-hover/social:max-w-[10rem] group-hover/social:opacity-100 group-focus-visible/social:ml-1.5 group-focus-visible/social:max-w-[10rem] group-focus-visible/social:opacity-100">
+              {s.label}
+            </span>
+          </a>
+        );
+      })}
+    </>
+  );
+
   return (
     <div className="mt-4 space-y-2 md:mt-6 md:space-y-3">
       {/* Row 1 — primary actions.
@@ -187,8 +219,11 @@ export function ActionBar({
       )}
       </div>
 
-      {/* Row 2 — Visit website, Google review, then social icons */}
-      {(websiteHref || isVendor || socials.length > 0) && (
+      {/* Row 2 — Visit website, Google review, and the social icons when
+          there are two or fewer. Three or more get row 3 to themselves: tacked
+          onto row 2 a long set wrapped wherever the pills happened to end,
+          half on one line and half on the next. */}
+      {(websiteHref || isVendor || (socials.length > 0 && !socialsOwnRow)) && (
         <div className="-mx-4 flex items-center gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] md:mx-0 md:flex-wrap md:overflow-visible md:px-0 md:pb-0 [&::-webkit-scrollbar]:hidden">
           {websiteHref && (
             <a
@@ -208,27 +243,15 @@ export function ActionBar({
             mapsUrl={googleMapsUrl}
             className={reviewPill}
           />
-          {socials.map((s) => {
-            const plat = platformById(s.platformId);
-            return (
-              <a
-                key={s.href}
-                href={s.href}
-                target="_blank"
-                rel="noreferrer"
-                aria-label={s.label}
-                title={s.label}
-                // The brand's own colour, on a white pill. A row of fully
-                // brand-coloured circles turns into a wall of confetti next to
-                // the primary actions above it.
-                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-stone-200 bg-white text-stone-600 transition hover:border-stone-400 hover:bg-stone-50"
-              >
-                {plat ? <PlatformIcon platform={plat} className="h-4 w-4" brand /> : <Globe className="h-4 w-4" />}
-              </a>
-            );
-          })}
+          {!socialsOwnRow && socialIcons(socials)}
         </div>
       )}
+
+      {/* Row 3 — three or more social icons. */}
+      {/* Never wraps, even on desktop: a hovered icon widening to show its
+          name must slide the others along, not knock the last one onto a new
+          line and make the whole row jump. */}
+      {socialsOwnRow && <div className="-mx-4 flex items-center gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] md:mx-0 md:overflow-visible md:px-0 md:pb-0 [&::-webkit-scrollbar]:hidden">{socialIcons(socials)}</div>}
 
       {supportOpen && (
         <div
