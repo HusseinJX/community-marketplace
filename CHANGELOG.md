@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented here.
 
+## v155 — a 3-column events grid, and a QR you can just hold up (2026-09-29)
+
+> **DEPLOYED** as v155 (`c51552c`, tag `prod-v155`). Web-only.
+
+### Changed
+- **Events tab is a grid**: one column on a phone, two from ~576px of room, three from ~896px —
+  a container query, so the 680px `/events` column never squeezes three cards. Grid (row order),
+  not CSS columns, so time order within a day survives.
+- **Dashboard QR button shows the code and nothing else**; tap anywhere or Escape to close.
+  Colours + downloads stay on `/vendor/qr`.
+- **Empty Sales card** is two lines with side padding instead of one line touching the edges.
+
 ## v154 — feed cards match the event cards (2026-09-29)
 
 > **DEPLOYED** as v154 (`54073e1`, tag `prod-v154`). Web-only.
