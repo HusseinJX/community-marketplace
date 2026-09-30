@@ -389,7 +389,7 @@ export default async function MemberProfilePage({
     // Tight at the top on a phone: the header, the back link and the hero were
     // eating most of the first screen before you saw the business at all.
     // Desktop keeps the roomier spacing.
-    <div className="mx-auto max-w-7xl px-4 pb-24 pt-2 md:px-8 md:pt-8">
+    <div className="mx-auto max-w-7xl px-4 pb-24 pt-3 md:px-8 md:pt-6">
       {isIndexable(member) && <MemberJsonLd member={member} />}
       {/* This profile links onward to its own events, so record it as the place
           those events come back to. */}
@@ -402,7 +402,7 @@ export default async function MemberProfilePage({
         // lib/member-images owns the precedence — the owner's own list first.
         const heroImages = memberImages({ id, profile: p });
         return (
-          <div className="mt-2 md:mt-6">
+          <div>
             <PhotoMosaic images={heroImages} alt={name} gradientClass={gradient} />
           </div>
         );
@@ -410,10 +410,16 @@ export default async function MemberProfilePage({
 
       {/* Header */}
       <header className="mt-4 border-b border-stone-200 pb-5 md:mt-8 md:pb-8">
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="t-hero text-stone-900">{name}</h1>
-          {memberType === "vendor" && <SaveBusinessButton memberId={id} variant="icon" />}
-          <MemberTypeBadge type={p.memberType} />
+        {/* Inline, not a flex row: in a flex row a name that wraps takes the
+            full width and pushes the heart and badge onto a line of their own.
+            Inline, they follow the name's LAST word, and move down together
+            only when there's no room left on that line. */}
+        <div>
+          <h1 className="t-hero inline text-stone-900">{name}</h1>
+          <span className="ml-3 inline-flex items-center gap-3 whitespace-nowrap align-middle">
+            {memberType === "vendor" && <SaveBusinessButton memberId={id} variant="icon" />}
+            <MemberTypeBadge type={p.memberType} />
+          </span>
         </div>
         {/* One line of facts under the title, dot-separated — category and
             place read as a single sentence about what this is and where.

@@ -36,8 +36,14 @@ export function PhotoMosaic({
 }) {
   const [lightbox, setLightbox] = useState<number | null>(null);
 
+  // ONE frame for every case — 16:10 on a phone (the carousel's shape), 420px
+  // tall from md (the mosaic's). No photo was 21:9 and one photo 16:9, so the
+  // hero's height changed with how many photos a business had: 420px, 521px or
+  // 684px from one profile to the next on a desktop.
+  const frame = "aspect-[16/10] w-full md:aspect-auto md:h-[420px]";
+
   if (images.length === 0) {
-    return <div className={`aspect-[21/9] w-full rounded-[var(--r-lg)] bg-gradient-to-br ${gradientClass}`} />;
+    return <div className={`${frame} rounded-[var(--r-lg)] bg-gradient-to-br ${gradientClass}`} />;
   }
 
   // One photo can't be a mosaic — it's just a photo, full width.
@@ -45,7 +51,7 @@ export function PhotoMosaic({
     return (
       <button
         onClick={() => setLightbox(0)}
-        className="relative block aspect-[16/9] w-full overflow-hidden rounded-[var(--r-lg)] bg-stone-100"
+        className={`relative block ${frame} overflow-hidden rounded-[var(--r-lg)] bg-stone-100`}
       >
         <Image src={images[0]} alt={alt} fill sizes="(min-width:1280px) 1200px, 100vw" className="object-cover" priority />
         <Lightbox images={images} alt={alt} index={lightbox} onClose={() => setLightbox(null)} onIndex={setLightbox} />
