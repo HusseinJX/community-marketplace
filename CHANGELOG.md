@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented here.
 
+## v156 — a profile hero that's the same size every time (2026-09-29)
+
+> **DEPLOYED** as v156 (`d51ffa9`, tag `prod-v156`). Web-only.
+
+### Changed — member profile
+- **One hero frame for every photo count**: 16:10 on a phone, 420px tall from md, whether a
+  business has zero, one or many photos. It was 21:9 / 16:9 / mosaic, so on a desktop the hero
+  was 420, 521 or 684px tall depending on the profile.
+- **Less space above the hero**: 56px → 24px on desktop, 16px → 12px on a phone.
+- **Heart + badge follow the name's last word** instead of dropping to their own line when the
+  name wraps.
+
 ## v155 — a 3-column events grid, and a QR you can just hold up (2026-09-29)
 
 > **DEPLOYED** as v155 (`c51552c`, tag `prod-v155`). Web-only.
