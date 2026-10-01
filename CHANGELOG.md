@@ -2,6 +2,25 @@
 
 All notable changes to this project are documented here.
 
+## v157 — a two-column profile, and buttons that match (2026-09-30)
+
+> **DEPLOYED** as v157 (`a3989c0`, tag `prod-v157`). Web-only.
+
+### Changed — member profile
+- **Two columns from the title down on desktop**: the profile on the left, a 320px side
+  column with what they offer, tags, the business card, the map and claim. Menu highlights
+  join "What they offer" in one card. Desktop top gap matches home (12px); the unclaimed
+  banner goes last.
+- **Socials get their own row** at three or more (scrolls sideways on a phone, never wraps);
+  icons widen on hover to show the platform name. "Leave a Google review" → "Google review".
+- Posts/Products/Events pills are built like the action pills, so they're the same size.
+- A member with no tags shows nothing, admin or not.
+
+### Changed — vendor dashboard
+- **The QR popup fits in landscape**: sized by the smaller of viewport width and height,
+  safe-area aware.
+- QR, Post and settings buttons are 38px, matching the section pills.
+
 ## v156 — a profile hero that's the same size every time (2026-09-29)
 
 > **DEPLOYED** as v156 (`d51ffa9`, tag `prod-v156`). Web-only.
