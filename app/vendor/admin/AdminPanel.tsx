@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Shield, UserPlus, FileText, Search, Check, Package, Calendar, ExternalLink, UserCircle, Star, PenSquare, ImagePlus, X, Loader2, Store, Radio, Globe, ChevronDown, ClipboardCheck, ShieldAlert, MessagesSquare, Palette, MapPin, PlayCircle, TrendingUp } from "lucide-react";
+import { Shield, UserPlus, FileText, Search, Check, Package, Calendar, ExternalLink, UserCircle, Star, PenSquare, ImagePlus, X, Loader2, Store, Radio, Globe, ChevronDown, ClipboardCheck, ShieldAlert, MessagesSquare, Palette, MapPin, PlayCircle, TrendingUp, Sparkles } from "lucide-react";
 import { OnboardManager } from "../onboard/OnboardManager";
 import { FeaturedManager } from "../featured/FeaturedManager";
 import { LineupImportManager } from "@/components/admin/LineupImportManager";
@@ -12,6 +12,7 @@ import { PublicArtManager } from "@/components/admin/PublicArtManager";
 import { EventDrafts } from "@/components/admin/EventDrafts";
 import { PublicEventFlyerImport } from "@/components/admin/PublicEventFlyerImport";
 import { ModerationQueue } from "@/components/admin/ModerationQueue";
+import { FeedSeeding } from "@/components/admin/FeedSeeding";
 import { SupportInbox } from "@/components/admin/SupportInbox";
 // The REAL sourcing panel: the registry that actually runs, plus counts from
 // the events it wrote. This used to import SourcingAdmin from the prototype,
@@ -26,9 +27,9 @@ const TYPES = ["vendor", "artist", "organizer", "shopper", "influencer"] as cons
 // "Add by transcript" is no longer a tab — it lives as an expandable panel at
 // the top of the Create-profile content (both create members, so they belong
 // together).
-type Tab = "create" | "behalf" | "sourcing" | "drafts" | "moderation" | "support" | "organizer" | "post" | "featured" | "art";
+type Tab = "create" | "behalf" | "sourcing" | "drafts" | "moderation" | "support" | "organizer" | "post" | "featured" | "art" | "feed";
 // "post" and "featured" are parked (disabled) — kept at the END of the order.
-const TABS: Tab[] = ["create", "behalf", "sourcing", "drafts", "moderation", "support", "organizer", "art", "post", "featured"];
+const TABS: Tab[] = ["create", "behalf", "sourcing", "drafts", "feed", "moderation", "support", "organizer", "art", "post", "featured"];
 const DISABLED_TABS: Tab[] = ["post", "featured"];
 
 export function AdminPanel({ ownerMemberId }: { ownerMemberId: string }) {
@@ -79,6 +80,7 @@ export function AdminPanel({ ownerMemberId }: { ownerMemberId: string }) {
           {/* Sits beside Sourcing: it reviews what Sourcing brings in. */}
           <TabButton active={tab === "drafts"} onClick={() => setTab("drafts")} icon={ClipboardCheck} label="Events" />
           {/* Reports + anything the AI screener held. Apple gives us 24h. */}
+          <TabButton active={tab === "feed"} onClick={() => setTab("feed")} icon={Sparkles} label="Feed" />
           <TabButton active={tab === "moderation"} onClick={() => setTab("moderation")} icon={ShieldAlert} label="Moderation" />
           {/* People writing to us from the card on every home tab. */}
           <TabButton active={tab === "support"} onClick={() => setTab("support")} icon={MessagesSquare} label="Support" />
@@ -146,6 +148,8 @@ export function AdminPanel({ ownerMemberId }: { ownerMemberId: string }) {
           <EventDrafts />
         </div>
       )}
+
+      {tab === "feed" && <FeedSeeding />}
 
       {tab === "moderation" && <ModerationQueue />}
 

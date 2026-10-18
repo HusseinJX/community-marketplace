@@ -224,6 +224,9 @@ export default async function MemberProfilePage({
   // written anywhere, and NODE_ENV folds this to false in a production build.
   const previewLinks =
     process.env.NODE_ENV !== "production" && (await searchParams).preview === "links";
+  // ?tab=events / ?tab=products open that tab first (the feed's Atlas card links here).
+  const tabRaw = (await searchParams).tab;
+  const tabParam = typeof tabRaw === "string" ? tabRaw : null;
 
   let member = null;
   let events: EventSuggestion[] = [];
@@ -569,6 +572,7 @@ export default async function MemberProfilePage({
               shop and the events list used to be separate sections further
               down; they are tabs of this one now. */}
           <ProfileTabs
+            initialTab={tabParam === "events" || tabParam === "products" ? tabParam : "posts"}
             posts={<ProfileFeed memberId={id} memberName={name} ownerUserIds={ownerUserIds} />}
             products={
               hasShop ? (

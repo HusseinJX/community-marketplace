@@ -2,14 +2,16 @@
 
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { Rows3, LayoutGrid } from "lucide-react";
-import { type FeedItem, type EventFeedItem, type SharePostFeedItem } from "@/lib/demo-feed";
+import { type FeedItem, type EventFeedItem, type SharePostFeedItem, type AutoFeedItem } from "@/lib/demo-feed";
 import { EventFeedCard } from "@/components/feed/EventFeedCard";
 import { VendorPostCard } from "@/components/feed/VendorPostCard";
 import { CommunityPostCard } from "@/components/feed/CommunityPostCard";
+import { AutoFeedCard } from "@/components/feed/AutoFeedCard";
+import { MasonryColumns } from "@/components/feed/MasonryColumns";
 import { MerchCard } from "@/components/feed/MerchCard";
 import { EventsCard } from "@/components/feed/EventsCard";
 import { CommunityChatCard } from "@/components/community/CommunityChatCard";
-import { useEventsFeed, usePosts } from "@/lib/data-hooks";
+import { useEventsFeed, useFeedItems, usePosts } from "@/lib/data-hooks";
 import { useHomePosition } from "@/lib/home-position";
 import { byDistance, milesTo } from "@/lib/proximity";
 import { DEMO_COMMUNITY_CHATS } from "@/lib/demo-community-chats";
@@ -34,6 +36,16 @@ function relativeTime(iso: string): string {
 // first is early enough to be met without hunting; the rest arrive over
 // successive "Load more"s, which is the pace you'd find them at anyway.
 const CHAT_SLOT_INDEXES = [1, 7, 11, 15];
+// Seeded WhatsLocal items fill the feed up to this many slots, minus one for
+// every real post — so they RETREAT as people post, with nobody deciding when
+// to turn them off (features/community-feed-seeding.md, "The retreat rule").
+// At AUTO_FILL real posts there are none.
+const AUTO_FILL = 10;
+
+// Feed items on the first screen. With the merch and chat cards slotted in
+// between, 4 items make 6 cards — two rows of three on desktop.
+const FIRST_PAGE = 4;
+
 const CHAT_SLOTS = new Map(
   DEMO_COMMUNITY_CHATS.map((chat, i) => [CHAT_SLOT_INDEXES[i] ?? 19 + i * 4, chat])
 );
@@ -61,8 +73,16 @@ export function CommunityFeed({
   showFilterTabs = true,
   view,
   onViewChange,
+  withEvents = true,
 }: {
   eventsOnly?: boolean;
+  /**
+   * Whether the event list follows the posts. The home Feed tab turns this off
+   * (2026-10-18): with it on, Feed was ~120 events after a handful of posts —
+   * a second copy of the Events tab, which made both read thinner. /events
+   * keeps it.
+   */
+  withEvents?: boolean;
   layout?: "feed" | "rail";
   filter?: CommunityFeedFilter;
   onFilterChange?: (filter: CommunityFeedFilter) => void;
@@ -72,14 +92,14 @@ export function CommunityFeed({
 }) {
   const [ownFilter, setOwnFilter] = useState<CommunityFeedFilter>("all");
   const activeFilter = filter ?? ownFilter;
-  const [visible, setVisible] = useState(5);
+  const [visible, setVisible] = useState(FIRST_PAGE);
   // "list" = a single narrow column (more vertical); "board" = a Pinterest-style
   // masonry (up to 3 columns on desktop).
   const [ownView, setOwnView] = useState<CommunityFeedView>("board");
   const activeView = view ?? ownView;
 
   const setFilter = (next: CommunityFeedFilter) => {
-    setVisible(5);
+    setVisible(FIRST_PAGE);
     if (onFilterChange) onFilterChange(next);
     else setOwnFilter(next);
   };
@@ -89,7 +109,7 @@ export function CommunityFeed({
   };
 
   useEffect(() => {
-    setVisible(5);
+    setVisible(FIRST_PAGE);
   }, [activeFilter]);
 
   // Shared, cached datasets — the /api/events/feed and /api/posts keys are the
@@ -97,6 +117,7 @@ export function CommunityFeed({
   // makes one request each (not 2-3) and returning to the tab paints instantly.
   const { events: rawEvents } = useEventsFeed();
   const { posts: rawPosts } = usePosts();
+  const { items: rawAuto } = useFeedItems();
   // Shared home position — the same one lookup the city header and the events
   // feed use, so this adds no second permission dialog.
   const { position } = useHomePosition();
@@ -119,7 +140,7 @@ export function CommunityFeed({
   // Real events created in-app sort ahead of the demo feed.
   const realEvents = useMemo<EventFeedItem[]>(
     () =>
-      rawEvents.map((e, i) => ({
+      (withEvents || eventsOnly ? rawEvents : []).map((e, i) => ({
         id: `real-${e.eventId}`,
         kind: "event",
         eventId: String(e.eventId),
@@ -136,7 +157,7 @@ export function CommunityFeed({
         // true of an organizer posting, but meaningless for a calendar we read.
         postedAtOrder: (e.sourceId ? -500 : -1000) + i,
       })),
-    [rawEvents]
+    [rawEvents, withEvents, eventsOnly]
   );
 
   // Real community share posts (from the share composer / posts table). These
@@ -176,8 +197,33 @@ export function CommunityFeed({
     [eventsOnly, ranked]
   );
 
+  // WhatsLocal items sit BELOW every real post (-3000…) and above events
+  // (-1000…). Never above a real post, whatever their date.
+  const autoItems = useMemo<AutoFeedItem[]>(() => {
+    if (eventsOnly) return [];
+    const room = Math.max(0, AUTO_FILL - realPosts.length);
+    return rawAuto.slice(0, room).map((a, i) => ({
+      id: `auto-${a.id}`,
+      kind: "auto",
+      author: { id: "whatslocal", name: "WhatsLocal", type: "organizer" },
+      postedAt: relativeTime(a.published_at),
+      postedAtOrder: -2000 + i,
+      layer: a.layer,
+      title: a.title,
+      body: a.body,
+      image: a.image_url,
+      linkUrl: a.link_url,
+      linkLabel: a.link_label,
+      eventId: a.event_id,
+      eventDate: a.event_date,
+      venue: a.venue,
+      neighborhood: a.neighborhood,
+      miles: milesTo(position, { latitude: a.lat, longitude: a.lng }),
+    }));
+  }, [eventsOnly, rawAuto, realPosts.length, position]);
+
   const filtered: FeedItem[] = useMemo(() => {
-    const sorted: FeedItem[] = [...realPosts, ...realEvents].sort((a, b) => a.postedAtOrder - b.postedAtOrder);
+    const sorted: FeedItem[] = [...realPosts, ...autoItems, ...realEvents].sort((a, b) => a.postedAtOrder - b.postedAtOrder);
     if (eventsOnly) return sorted.filter((i) => i.kind === "event");
     // Shoppers = community share posts; Vendors = business content (events +
     // vendor posts). "All" shows everything.
@@ -187,7 +233,7 @@ export function CommunityFeed({
     // below instead of this list.
     if (activeFilter === "chats") return [];
     return sorted;
-  }, [eventsOnly, activeFilter, realEvents, realPosts]);
+  }, [eventsOnly, activeFilter, realEvents, realPosts, autoItems]);
 
   const shown = filtered.slice(0, visible);
   const hasMore = visible < filtered.length;
@@ -202,6 +248,8 @@ export function CommunityFeed({
               <EventFeedCard item={item} />
             ) : item.kind === "share" ? (
               <CommunityPostCard item={item} />
+            ) : item.kind === "auto" ? (
+              <AutoFeedCard item={item} />
             ) : (
               <VendorPostCard item={item} />
             )}
@@ -213,6 +261,44 @@ export function CommunityFeed({
 
   const boardView = activeView === "board";
 
+  // Every card in order — feed items plus the cards slotted between them.
+  const PAGE = 5;
+  const cells: { key: string; node: React.ReactNode }[] = [];
+  shown.forEach((item, i) => {
+    cells.push({
+      key: item.id,
+      node:
+        item.kind === "event" ? (
+          <EventFeedCard item={item} />
+        ) : item.kind === "share" ? (
+          <CommunityPostCard item={item} />
+        ) : item.kind === "auto" ? (
+          <AutoFeedCard item={item} />
+        ) : (
+          <VendorPostCard item={item} />
+        ),
+    });
+    // Official WhatsLocal merch after the 3rd card.
+    if (i === 2) cells.push({ key: "merch", node: <MerchCard /> });
+    // Community chats are seeded through the scroll rather than given a section
+    // of their own — you're meant to come across one, not go looking for a list.
+    // Each card hides itself unless you're near it (empty:hidden).
+    const chat = CHAT_SLOTS.get(i);
+    if (chat) {
+      cells.push({
+        key: `chat-${chat.id}`,
+        node: (
+          <div className="empty:hidden">
+            <CommunityChatCard chat={chat} />
+          </div>
+        ),
+      });
+    }
+  });
+  // The Events promo closes the feed — once everything is loaded. It used to
+  // sit after the 6th card, which a short feed never reaches.
+  if (!hasMore && shown.length > 0) cells.push({ key: "atlas", node: <EventsCard /> });
+
   return (
     <div>
       {!eventsOnly && showFilterTabs && (
@@ -223,7 +309,7 @@ export function CommunityFeed({
               return (
                 <button
                   key={t.id}
-                  onClick={() => { setFilter(t.id); setVisible(5); }}
+                  onClick={() => { setFilter(t.id); setVisible(FIRST_PAGE); }}
                   className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition ${
                     active
                       ? "bg-indigo-600 text-white"
@@ -282,47 +368,33 @@ export function CommunityFeed({
         </div>
       )}
 
-      <div
-        className={
-          boardView
-            ? "gap-4 [column-fill:_balance] columns-1 sm:columns-2 lg:columns-3 [&>*]:mb-4 [&>*]:break-inside-avoid"
-            : // Phone: every card wears the Events tab's card shell — inside the
-              // gutter, rounded-xl, no shadow, 8px apart —
-              // so switching tabs doesn't change what a card looks like.
-              // md+: the centred column of cards.
-              "mx-auto max-w-2xl space-y-4 max-md:space-y-2 max-md:[&>*]:rounded-xl max-md:[&>*]:shadow-none"
-        }
-      >
-        {shown.map((item, i) => (
-          <Fragment key={item.id}>
-            {item.kind === "event" ? (
-              <EventFeedCard item={item} />
-            ) : item.kind === "share" ? (
-              <CommunityPostCard item={item} />
-            ) : (
-              <VendorPostCard item={item} />
-            )}
-            {/* Official WhatsLocal merch after the 3rd card, events after the 6th */}
-            {i === 2 && <MerchCard />}
-            {i === 5 && <EventsCard />}
-            {/* Community chats are seeded through the scroll rather than given a
-                section of their own — you're meant to come across one, not go
-                looking for a list. Each card hides itself unless you're near it,
-                so most people see none and someone in the Mission sees theirs. */}
-            {/* empty:hidden — the card renders nothing when you're not near. */}
-            {CHAT_SLOTS.get(i) && (
-              <div className="empty:hidden">
-                <CommunityChatCard chat={CHAT_SLOTS.get(i)!} />
-              </div>
-            )}
-          </Fragment>
-        ))}
-      </div>
+      {boardView ? (
+        // Masonry that only grows at the bottom: "Load more" continues each
+        // column under its last card; nothing already on screen moves.
+        <MasonryColumns items={cells} />      ) : (
+        <div
+          className={
+            // Phone: every card wears the Events tab's card shell — inside the
+            // gutter, rounded-xl, no shadow, 8px apart —
+            // so switching tabs doesn't change what a card looks like.
+            // md+: the centred column of cards.
+            "mx-auto max-w-2xl space-y-4 max-md:space-y-2 max-md:[&>*]:rounded-xl max-md:[&>*]:shadow-none"
+          }
+        >
+          {cells.map((cell) => (
+            <Fragment key={cell.key}>{cell.node}</Fragment>
+          ))}
+        </div>
+      )}
+
+      {shown.length === 0 && activeFilter !== "chats" && (
+        <p className="py-16 text-center text-sm text-stone-500">Nothing here yet.</p>
+      )}
 
       {hasMore && (
         <div className="mt-6 flex justify-center">
           <button
-            onClick={() => setVisible((v) => v + 5)}
+            onClick={() => setVisible((v) => v + PAGE)}
             className="rounded-full border border-stone-200 bg-white px-5 py-2 text-sm font-medium text-stone-700 hover:border-stone-300"
           >
             Load more

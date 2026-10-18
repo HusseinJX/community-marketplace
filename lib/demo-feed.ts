@@ -55,7 +55,28 @@ export type SharePostFeedItem = FeedItemBase & {
   reacted?: boolean;
 };
 
-export type FeedItem = EventFeedItem | VendorPostFeedItem | SharePostFeedItem;
+/**
+ * Seeded WhatsLocal content from `feed_items` (lib/feed-items.ts): event
+ * recaps and house voice. Rendered by AutoFeedCard — deliberately NOT dressed
+ * as a person's post (features/community-feed-seeding.md, "Visual separation").
+ */
+export type AutoFeedItem = FeedItemBase & {
+  kind: "auto";
+  layer: string;
+  title?: string | null;
+  body: string;
+  image?: string | null;
+  linkUrl?: string | null;
+  linkLabel?: string | null;
+  /** Our own event page — kept 30 days after the event (pruneFinished). */
+  eventId?: string | null;
+  eventDate?: string | null;
+  venue?: string | null;
+  neighborhood?: string | null;
+  miles?: number | null;
+};
+
+export type FeedItem = EventFeedItem | VendorPostFeedItem | SharePostFeedItem | AutoFeedItem;
 
 const xeno: FeedAuthor = {
   id: "89516919-256f-4a95-96df-fc9d285f664a",

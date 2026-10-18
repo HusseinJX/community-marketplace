@@ -7,6 +7,7 @@ import type { Member } from "@/lib/types";
 import type { LiveBroadcast } from "@/components/live/types";
 import type { FeedEvent } from "@/app/api/events/feed/route";
 import type { Post } from "@/lib/posts";
+import type { PublicFeedItem } from "@/lib/feed-items";
 import type { ShopProduct } from "@/app/api/products/route";
 import type { PublicMembershipPlan } from "@/app/api/memberships/plans/route";
 import type { Activity } from "@/lib/unread";
@@ -98,6 +99,12 @@ export function useMembershipPlans() {
 export function usePosts() {
   const { data, isLoading } = useSWR<{ posts?: ApiPost[] }>("/api/posts");
   return { posts: data?.posts ?? NONE, loading: isLoading && !data };
+}
+
+/** Seeded WhatsLocal feed items — recaps + house voice (lib/feed-items.ts). */
+export function useFeedItems() {
+  const { data, isLoading } = useSWR<{ items?: PublicFeedItem[] }>("/api/feed-items");
+  return { items: data?.items ?? NONE, loading: isLoading && !data };
 }
 
 /** Local member directory (home "Who's local" rail + /explore share one key). */

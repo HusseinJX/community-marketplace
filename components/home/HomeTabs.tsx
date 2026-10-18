@@ -837,6 +837,7 @@ export function HomeTabs() {
             <div className="mb-5 mt-1">{supplyLink}</div>
             <CommunityFeed
               layout="feed"
+              withEvents={false}
               filter={feedFilter}
               onFilterChange={setFeedFilter}
               showFilterTabs={false}

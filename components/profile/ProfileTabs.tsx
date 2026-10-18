@@ -17,13 +17,16 @@ export function ProfileTabs({
   posts,
   products,
   events,
+  initialTab = "posts",
 }: {
   posts: ReactNode;
   products: ReactNode | null;
   /** Omit (undefined) to drop the Events tab entirely — organizers. */
   events?: ReactNode | null;
+  /** Which tab opens first — `?tab=events` links straight to the events (the Atlas card). */
+  initialTab?: Key;
 }) {
-  const [tab, setTab] = useState<Key>("posts");
+  const [tab, setTab] = useState<Key>(initialTab === "events" && events === undefined ? "posts" : initialTab);
 
   const tabs: { key: Key; label: string }[] = [
     { key: "posts", label: "Posts" },

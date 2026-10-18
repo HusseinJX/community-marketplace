@@ -6,7 +6,9 @@ import { Compass, CalendarDays } from "lucide-react";
 // Atlas — official WhatsLocal events. Featured promo card (sibling to MerchCard)
 // injected into the feed + directory grid. Same vertical shape so the two read
 // as a set, with teal/sky branding vs the merch card's stone/indigo.
-const ATLAS_URL = "/?tab=whatson";
+// Atlas events are Xeno's (the founder profile), so the card opens his
+// profile on its Events tab — not the citywide events list.
+const ATLAS_URL = "/members/89516919-256f-4a95-96df-fc9d285f664a?tab=events";
 const ATLAS_IMG =
   "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1200&q=70";
 
