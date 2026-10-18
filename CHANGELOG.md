@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented here.
 
+## v159 — Xeno is listed again (2026-10-18)
+
+> **DEPLOYED** as v159 (`29c19f3`, tag `prod-v159`). Web-only.
+
+### Changed
+- **The founder profile is public again**: Xeno comes off `HIDDEN_MEMBER_IDS` and returns to
+  the directory, `/explore`, landing pages, the sitemap, name search and the events feeds.
+  Posts were never filtered by that list. Only the App Store reviewer's demo vendor stays hidden.
+
 ## v158 — prove it's yours first, every code through Twilio, and sign-in that works (2026-10-18)
 
 > **DEPLOYED** as v158 (`991d4ce`, tag `prod-v158`). Web-only. CapRover gained
