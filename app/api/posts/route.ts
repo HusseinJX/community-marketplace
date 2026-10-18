@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { createPost, getPosts, getPostsByMemberId, getPostsByEventId, getReactionsForPosts, getTagsForPosts, invalidatePosts } from '@/lib/posts'
 import { isDemoMode } from '@/lib/demo-admin'
+import { getDemoPosts } from '@/lib/demo-posts'
 import { rateLimit } from '@/lib/rate-limit'
 import { screen } from '@/lib/ai-moderation'
 import { logModerationEvent, attachModerationContentId } from '@/lib/moderation'
@@ -33,6 +34,12 @@ export async function GET(request: Request) {
       reacted: reactions[p.id]?.reacted ?? false,
       tags: tags[p.id],
     }))
+    // Local demo only (prod pins demo mode off): pad the main feed with fixture
+    // posts so the board has something to lay out. Scoped feeds stay real.
+    if (isDemoMode() && !member && !event) {
+      const merged = [...enriched, ...getDemoPosts()].sort((a, b) => b.created_at.localeCompare(a.created_at))
+      return NextResponse.json({ posts: merged })
+    }
     return NextResponse.json({ posts: enriched })
   } catch {
     return NextResponse.json({ posts: [] })

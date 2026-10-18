@@ -75,7 +75,7 @@ export function CommunityFeed({
   const [visible, setVisible] = useState(5);
   // "list" = a single narrow column (more vertical); "board" = a Pinterest-style
   // masonry (up to 3 columns on desktop).
-  const [ownView, setOwnView] = useState<CommunityFeedView>("list");
+  const [ownView, setOwnView] = useState<CommunityFeedView>("board");
   const activeView = view ?? ownView;
 
   const setFilter = (next: CommunityFeedFilter) => {

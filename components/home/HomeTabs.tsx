@@ -146,7 +146,7 @@ export function HomeTabs() {
   // so the header box filters what is on screen as you type.
   const [productQuery, setProductQuery] = useState("");
   const [feedFilter, setFeedFilter] = useState<CommunityFeedFilter>("all");
-  const [feedView, setFeedView] = useState<CommunityFeedView>("list");
+  const [feedView, setFeedView] = useState<CommunityFeedView>("board");
   const [feedFilterOpen, setFeedFilterOpen] = useState(false);
   const feedFilterRef = useRef<HTMLDivElement | null>(null);
 
