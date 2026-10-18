@@ -6,12 +6,13 @@
 // still able to sign in, still able to run their own vendor portal. This list
 // only answers "should strangers browsing the app be shown this?".
 //
-// It is a curation exception, not a general mechanism. Two kinds of entry
-// qualify: accounts that exist for a purpose other than being found (the App
-// Store reviewer's demo vendor), and our own listings, which would otherwise
-// sit in the directory competing with the local businesses the directory is
-// for. Anything else — a business we simply don't want to show — is a
-// moderation decision and belongs in lib/moderation.ts, not here.
+// It is a curation exception, not a general mechanism. What qualifies is an
+// account that exists for a purpose other than being found (the App Store
+// reviewer's demo vendor). Our own listings used to qualify too; Xeno, the
+// founder profile, was UNHIDDEN on 2026-10-18 — the founder is a real local
+// voice, and the feed is being seeded with posts as Xeno. Anything else — a
+// business we simply don't want to show — is a moderation decision and
+// belongs in lib/moderation.ts, not here.
 //
 // Readers: lib/api.ts (listMembers → directory, explore, landing, sitemap) and
 // lib/vendor-connect.ts (getPublicEvents / getMemberEvents → the events feed),
@@ -25,14 +26,12 @@
 // stranger browses. A product is not a listing; it is a thing for sale, and a
 // storefront that hides real stock while it has almost none is not curating,
 // it is empty. The two reasons for hiding a member both survive it: the
-// reviewer's demo vendor has no products, and our own listing still stays out
+// reviewer's demo vendor has no products, and a hidden listing still stays out
 // of the directory it would otherwise compete in.
 //
-// So this is not an oversight to tidy up. If you are here because the shop
-// shows Xeno and the directory does not, that is the intended state.
+// So this is not an oversight to tidy up.
 export const HIDDEN_MEMBER_IDS: readonly string[] = [
   "03e75c7c-28bf-44ee-ab0d-82379a4f75cd", // WhatsLocal Review (Demo Vendor) — exists for App Review
-  "89516919-256f-4a95-96df-fc9d285f664a", // Xeno — our own founder profile
 ];
 
 const HIDDEN = new Set<string>(HIDDEN_MEMBER_IDS);
