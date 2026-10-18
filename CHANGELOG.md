@@ -2,6 +2,33 @@
 
 All notable changes to this project are documented here.
 
+## v160 — a Feed with something in it, and events that keep their page (2026-10-18)
+
+> **DEPLOYED** as v160 (`12c8a7f`, tag `prod-v160`). Web-only. Trigger.dev worker
+> `20261018.2` deployed the same day (scraper changes below).
+
+### Changed — Feed
+- **WhatsLocal posts** (`feed_items`, its own table): 8 hand-picked recaps of events that
+  happened, each a big poster, one sentence that says what the event WAS (never how it
+  went) and an "Event page" pill to our page. Shown as WhatsLocal, below every real post,
+  one fewer per real post. They don't expire; Super-admin → Feed can pause them all.
+- **The ~120-event list is off the Feed tab** — it was a second copy of the Events tab.
+- **Masonry that only grows**: first screen is 6 cards; Load more continues under the last
+  card in each column instead of re-splitting every card.
+- Atlas card closes the feed and opens Xeno's profile on its Events tab (`?tab=events`).
+- Three demo community chats removed (Dolores Park stays).
+- Super-admin → Feed: drafts for Xeno to edit and "Post as me" under his own account.
+
+### Changed — events (scraper, Trigger.dev)
+- Finished events are kept **30 days**, not deleted the next morning — their pages stop 404ing.
+- **Full descriptions** with line breaks (no 400-char cut); the event page shows them as written.
+- **Funcheap**: the button is the organiser's RSVP/site, never Funcheap; its categories,
+  region, top-pick and sponsored flags are saved.
+
+### Removed
+- All 11 posts in `posts` hidden (10 seeded fake-persona endorsements tagged to real
+  businesses, and one test post).
+
 ## v159 — Xeno is listed again (2026-10-18)
 
 > **DEPLOYED** as v159 (`29c19f3`, tag `prod-v159`). Web-only.

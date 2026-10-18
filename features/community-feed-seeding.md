@@ -1,6 +1,10 @@
 # Community feed seeding — making the feed alive without polluting it
 
-Status: **spec, not built** (2026-08-13)
+Status: **phase-1 slice live in v160 (2026-10-18)** — `feed_items` table, `AutoFeedCard`,
+retreat rule (one fewer per real post), pause switch, Xeno drafts queue. Content is a few
+HAND-PICKED event recaps (`postRecapsFor`), not a generator: a bulk version wrote 276 rows
+(133 repeats of daily-listed exhibitions) and was deleted the same day. House-voice "how to
+post" items were tried and dropped — the app talking about itself. Spec below is the rest.
 
 ## The problem
 
