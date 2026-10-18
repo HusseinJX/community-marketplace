@@ -27,7 +27,8 @@ CapRover stores no git hash — the version number is meaningless without this t
 
 | CapRover version | Deployed | Git commit | Tag |
 |---|---|---|---|
-| **v157** (live) | 2026-09-30 | `a3989c0` | `prod-v157` |
+| **v158** (live) | 2026-10-18 | `991d4ce` | `prod-v158` |
+| v157 | 2026-09-30 | `a3989c0` | `prod-v157` |
 | v156 | 2026-09-29 | `d51ffa9` | `prod-v156` |
 | v155 | 2026-09-29 | `c51552c` | `prod-v155` |
 | v154 | 2026-09-29 | `54073e1` | `prod-v154` |

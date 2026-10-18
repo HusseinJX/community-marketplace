@@ -2,6 +2,36 @@
 
 All notable changes to this project are documented here.
 
+## v158 — prove it's yours first, every code through Twilio, and sign-in that works (2026-10-18)
+
+> **DEPLOYED** as v158 (`991d4ce`, tag `prod-v158`). Web-only. CapRover gained
+> `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SERVICE_SID` the same day.
+
+### Changed — /join
+- **Ownership before account**: find → code to the listing's phone → findings → links →
+  sign in. The code check writes only a signed, httpOnly proof cookie (`lib/join-proof.ts`);
+  `/api/join/commit` creates or claims the page after sign-in, rebuilt server-side.
+- **The findings are on screen**, and the interview opens with "anything we got wrong?"
+- **Every ownership code is our own Twilio Verify call** (`lib/twilio-verify.ts`) — fresh
+  listings and existing pages alike. The connector's OTP path is no longer used.
+
+### Fixed
+- **Web Google/Apple sign-in on /join never worked**: `signUp.authenticateWithPopup` returns
+  when the popup is pointed at the provider, so the session check after it always failed
+  ("make sure the popup wasn't blocked"). Now a full redirect with a sessionStorage resume.
+- **A page with no claim status could be re-claimed** — the connector's `claim-profile`
+  only refuses the literal `"claimed"`. Codes and commits now require `status === "unclaimed"`.
+- **`/vendor/setup` "verified" ownership by matching public listing details** (phone typed
+  in, website email, Instagram, "Other"), and `/api/vendor/verify` accepted them from any
+  signed-in caller. It now uses the same code flow; the route is deleted. Its search
+  listed the first 50 members with no names — it goes through `/api/directory` now.
+
+### Removed
+- `/api/otp`, `/api/vendor/verify`; `phone_otp` on `/api/claim` (self-owned only).
+
+### Changed — feed
+- Opens in **board** view. `lib/demo-posts.ts` pads the feed in local demo mode only.
+
 ## v157 — a two-column profile, and buttons that match (2026-09-30)
 
 > **DEPLOYED** as v157 (`a3989c0`, tag `prod-v157`). Web-only.
