@@ -183,6 +183,13 @@ Match → enrich/update the existing record instead of creating a new one.
    sets `verified:true` from an inbound caller-ID — it links the caller + enriches
    but leaves ownership `pending_outbound_otp`; the /claim OTP is the only path to
    verified. Connector deployed + `TELNYX_*` env confirmed live.
+   **Superseded 2026-10-18:** the marketplace sends and checks every code itself
+   via Twilio Verify (`lib/twilio-verify.ts`, `/api/join/verify/*`,
+   `/api/join/commit`) for fresh listings and existing pages alike; the
+   connector's `otp-request`/`phone_otp` path is no longer called from here.
+   `/api/otp` and `/api/vendor/verify` are deleted — `/vendor/setup` uses the
+   same code flow. A page must be explicitly `status: "unclaimed"` to get a code,
+   because `claim-profile` only refuses the literal `"claimed"`.
 2. **Pull website + phone from the Maps listing** (Places API) instead of trusting
    typed fields.
 3. 🟡 **Artist self-owned account** — PARTIAL (2026-07-06). BUILT: entity-vs-person

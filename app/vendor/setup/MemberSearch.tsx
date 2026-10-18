@@ -3,20 +3,13 @@
 import { useState } from 'react'
 import VerifyOwnership from './VerifyOwnership'
 
-interface MemberProfile {
-  businessPhone?: string
-  websiteUrl?: string
-  instagramHandle?: string
-  googleMapsUrl?: string
-}
-
 interface Member {
   id: string
-  name: string
-  profile?: MemberProfile
-  city?: string
-  type?: string
+  status?: string
+  profile?: { name?: string; businessName?: string; city?: string; neighborhood?: string }
 }
+
+const nameOf = (m: Member) => m.profile?.businessName || m.profile?.name || 'Unnamed'
 
 export default function MemberSearch() {
   const [query, setQuery] = useState('')
@@ -30,10 +23,9 @@ export default function MemberSearch() {
     setLoading(true)
     setError(null)
     try {
-      const base = process.env.NEXT_PUBLIC_API_BASE || 'https://community-connector-agent.netlify.app'
-      const url = new URL('/.netlify/functions/marketplace-members', base)
-      url.searchParams.set('search', query)
-      const res = await fetch(url.toString())
+      // /api/directory does the literal name search; the connector's own
+      // `search` param is ignored and returned the first 50 members.
+      const res = await fetch(`/api/directory?search=${encodeURIComponent(query.trim())}`)
       if (!res.ok) throw new Error('Search failed')
       const data = await res.json()
       setResults(data.members ?? [])
@@ -47,7 +39,7 @@ export default function MemberSearch() {
   if (selected) {
     return (
       <VerifyOwnership
-        member={selected}
+        member={{ id: selected.id, name: nameOf(selected) }}
         onBack={() => setSelected(null)}
       />
     )
@@ -80,15 +72,23 @@ export default function MemberSearch() {
           {results.map((m) => (
             <li key={m.id} className="flex items-center justify-between px-5 py-4">
               <div>
-                <p className="text-sm font-medium text-stone-900">{m.name}</p>
-                {m.city && <p className="text-xs text-stone-500">{m.city}</p>}
+                <p className="text-sm font-medium text-stone-900">{nameOf(m)}</p>
+                {(m.profile?.neighborhood || m.profile?.city) && (
+                  <p className="text-xs text-stone-500">{m.profile?.neighborhood || m.profile?.city}</p>
+                )}
               </div>
-              <button
-                onClick={() => setSelected(m)}
-                className="rounded-lg bg-stone-900 px-4 py-2 text-xs font-medium text-white hover:bg-stone-700"
-              >
-                This is me
-              </button>
+              {/* Only an explicitly unclaimed page can take a code — the
+                  send route refuses anything else, so don't offer it. */}
+              {m.status === 'unclaimed' ? (
+                <button
+                  onClick={() => setSelected(m)}
+                  className="rounded-lg bg-stone-900 px-4 py-2 text-xs font-medium text-white hover:bg-stone-700"
+                >
+                  This is me
+                </button>
+              ) : (
+                <span className="text-xs text-stone-400">Already claimed</span>
+              )}
             </li>
           ))}
         </ul>
