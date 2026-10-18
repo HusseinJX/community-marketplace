@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented here.
 
+## v162 — the chrome XENØ logo on the merch card (2026-10-18)
+
+> **DEPLOYED** as v162 (`cec450c`, tag `prod-v162`). Web-only.
+
+### Changed
+- The merch card shows the chrome XENØ / ~~phobia~~ / LOVE THY NEIGHBOR logo, centred on a
+  panel in the image's own off-white. Replaces the flat wordmark from v161.
+- (Data, not code) Xeno's profile photos replaced with three new images; the old ones
+  remain in storage.
+
 ## v161 — the XeNø wordmark on the merch card (2026-10-18)
 
 > **DEPLOYED** as v161 (`5906d6c`, tag `prod-v161`). Web-only.
