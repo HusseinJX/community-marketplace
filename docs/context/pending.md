@@ -4,6 +4,20 @@ Split out of CLAUDE.md. CLAUDE.md keeps only the START HERE block.
 
 ## Pending / TODO
 
+### Open from 2026-10-18 (v158–v160)
+- **One business per account.** `vendor_profiles` is one row per Clerk user, so claiming a
+  second page silently REPLACES the first link (seen in testing). Decide: multi-business
+  accounts, or refuse a second claim with a clear message.
+- **QR review cards** — designed, not built: unique printed codes (`/q/<code>`) that start
+  unassigned and get linked to a business by an admin scan when handed out; re-pointable,
+  scan-counted. Printer needs a CSV of links (variable-data printing).
+- **Seeded posts don't refill.** The 8 WhatsLocal posts are hand-picked; new ones need
+  `postRecapsFor([...ids])` run deliberately. Xeno drafts go stale ~a day after writing.
+- **`/join` on prod has only been run by a test page.** First real business through it is
+  the first live run; brand-new Google accounts (not just existing ones) are untested.
+- A page whose only phone is `businessPhone` with no `googleMapsUrl` resolves fine now via
+  admin `member-get`; one with no phone at all still gets "message our team".
+
 ### ▶ START HERE (set 2026-08-10) — three verification actions
 The gap is no longer code. Seven commerce features are shipped, deployed and correct in arithmetic, in code and against the real database; three have never been proven against reality. In order:
 1. **Charge ONE real card** — validates ticketing, shop pickup, self-delivery AND digital delivery at once. ⚠️ `.env.local` holds **live** Stripe keys, so a local checkout charges for real; add `sk_test_`/`pk_test_` first to rehearse.

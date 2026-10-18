@@ -21,27 +21,25 @@ import { Sparkles, ShoppingBag } from "lucide-react";
 // `allowsBackForwardNavigationGestures` (or we route this through
 // @capacitor/browser for an in-app sheet with a Done button).
 const MERCH_URL = "https://xen0.whatslocal.ai";
-const MERCH_IMG =
-  "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=1200&q=70";
+// The xen0 wordmark, trimmed to the lettering so it centres exactly — the
+// source file sat a few pixels off-centre in a mostly-white square.
+const MERCH_IMG = "/xeno-wordmark.png";
 
 export function MerchCard({ className }: { className?: string }) {
   return (
     <article
       className={`group flex h-full flex-col overflow-hidden rounded-2xl border border-stone-800 bg-stone-900 text-white shadow-sm ${className ?? ""}`}
     >
-      <div className="relative min-h-[180px] flex-1 overflow-hidden">
+      <div className="relative flex min-h-[220px] flex-1 items-center justify-center overflow-hidden bg-white">
+        {/* Centred both ways on a white panel; the badge floats over the corner. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={MERCH_IMG}
-          alt="xen0 merch"
-          className="absolute inset-0 h-full w-full object-cover opacity-90 transition duration-300 group-hover:scale-105"
+          alt="xen0"
+          className="w-3/5 max-w-[260px] object-contain transition duration-300 group-hover:scale-105"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-stone-900 via-stone-900/20 to-transparent" />
-        <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-black/40 px-2.5 py-1 text-[10px] font-medium uppercase tracking-wide text-white ring-1 ring-white/20 backdrop-blur">
+        <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-stone-900/80 px-2.5 py-1 text-[10px] font-medium uppercase tracking-wide text-white backdrop-blur">
           <Sparkles className="h-3 w-3" /> Official merch
-        </span>
-        <span className="absolute bottom-3 left-4 text-xl font-bold tracking-tight drop-shadow">
-          xen0
         </span>
       </div>
 

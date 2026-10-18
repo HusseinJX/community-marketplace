@@ -2,6 +2,49 @@
 
 Split out of CLAUDE.md (2026-08-13). Newest first, as it was written.
 
+## 2026-10-18 — v158–v160: ownership before account, one code path, a Feed with something in it
+
+**/join verifies before it signs in (v158).** Order is find → code to the listing's
+phone → findings → links → sign in. The code check writes nothing but a signed,
+httpOnly proof cookie (`lib/join-proof.ts`, 15 min sent / 2 h verified); the first
+write is `/api/join/commit` after sign-in, which rebuilds every fact server-side.
+The findings are shown on screen and the interview opens by asking what we got wrong.
+
+**Every ownership code is our own Twilio Verify call** (`lib/twilio-verify.ts`) —
+fresh listings and existing pages alike. The connector's `otp-request`/`phone_otp`
+path is no longer called; `/api/otp` and `/api/vendor/verify` are deleted and
+`/vendor/setup` uses the same code flow. Two traps found while testing: the
+connector's public member read strips `businessPhone` and omits `status`, so the
+code routes read through admin `member-get` (`getMemberAdmin`); and `claim-profile`
+only refuses the literal `"claimed"`, so a self-made page with NO status was
+re-claimable — codes and commits now require `status === "unclaimed"`.
+
+**Web sign-in on /join never worked.** `signUp.authenticateWithPopup` returns when the
+popup is POINTED at the provider, not when it finishes, so the session check after it
+always failed ("make sure the popup wasn't blocked"). It is a full-page redirect now,
+with the flow stashed in sessionStorage and resumed on return.
+
+**Xeno is a public listing again (v159).** Only the App Store reviewer stays hidden.
+
+**The Feed (v160).** All 11 rows in `posts` hidden — 10 were seeded fake-persona raves
+tagged to real businesses ("the staff here are the nicest" on a psychology club). The
+Feed tab no longer repeats the ~120-event list. Seeded content lives in `feed_items`
+(never `posts`): **8 hand-picked recaps**, written once each by `postRecapsFor()`, shown
+as WhatsLocal in their own card, below every real post, no expiry, pausable from
+Super-admin → Feed. A bulk generator wrote 276 (one exhibition listed daily became 45
+recaps) and was deleted the same day — **a few, by hand, is the design**. A recap may
+say what an event WAS, never how it went. Drafts for Xeno are edited and posted by him,
+under his own account.
+
+**Events keep their page for 30 days.** `pruneFinished` deleted every scraped event the
+morning after, so nothing could link to something that just happened. Public lists
+already filter to today-onward, so keeping them shows nothing as upcoming.
+
+**Scraped descriptions are whole.** Every adapter cut at 400 chars and flattened line
+breaks; a concert series lost 92% of its schedule. Funcheap's button is the organiser's
+RSVP/site read off the page — never Funcheap — and its categories, region, top-pick and
+sponsored flags are kept.
+
 ## 2026-09-23 — where the ads land: we host, on their domain
 
 `features/vendor-sites.md`. A spec, nothing built.
