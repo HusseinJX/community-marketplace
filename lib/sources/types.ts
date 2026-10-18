@@ -32,7 +32,12 @@ export interface ScrapedEvent {
   venue: string | null
   location: string | null
   description: string | null
-  url: string
+  /**
+   * Where the "event site" button goes. Usually the source's own page; for an
+   * aggregator (Funcheap) it is the ORGANISER's link found on that page, or
+   * null — we don't send people to the aggregator.
+   */
+  url: string | null
   imageUrl: string | null
   access: Access
   tags: string[]

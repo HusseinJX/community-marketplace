@@ -7,7 +7,7 @@
 // Currently: Downtown SF (ctykit CMS). The same recipe may port to other
 // neighbourhood BIDs running ctykit.
 
-import { fetchText, pooled, toText } from '../fetch'
+import { fetchText, pooled, toText, toTextLines } from '../fetch'
 import type { ScrapedEvent, SourceDef } from '../types'
 
 const MONTHS: Record<string, number> = {
@@ -85,7 +85,7 @@ export async function scrapeCtykit(src: SourceDef): Promise<ScrapedEvent[]> {
       end,
       venue: loc.split(',')[0] || null,
       location: loc || null,
-      description: toText(details).slice(0, 400) || null,
+      description: toTextLines(details) || null,
       url: base + slug,
       imageUrl: img,
       access: 'unknown',

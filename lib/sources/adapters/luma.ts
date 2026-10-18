@@ -96,11 +96,12 @@ export async function scrapeLuma(src: SourceDef): Promise<ScrapedEvent[]> {
 
   // Descriptions exist only as og:description on the event page.
   await pooled(events, async (ev) => {
+    if (!ev.url) return
     const html = await fetchText(ev.url, { timeoutMs: 18_000, retries: 1 })
     const m =
       /<meta[^>]+property="og:description"[^>]+content="([^"]*)"/i.exec(html) ??
       /<meta[^>]+name="description"[^>]+content="([^"]*)"/i.exec(html)
-    if (m) ev.description = decodeEntities(m[1]).slice(0, 400)
+    if (m) ev.description = decodeEntities(m[1])
   }, 5)
 
   return events

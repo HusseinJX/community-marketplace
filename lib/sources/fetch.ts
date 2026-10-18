@@ -109,6 +109,32 @@ export function toText(html: string | null | undefined): string {
     .trim()
 }
 
+/**
+ * Strip tags to readable text, KEEPING the paragraph and line breaks.
+ *
+ * toText() flattens everything onto one line, which is right for a title and
+ * wrong for a description: a concert schedule with dates, venues and programs
+ * became one wall of text. Block ends and <br> become newlines; spaces collapse
+ * within a line; runs of blank lines collapse to one.
+ */
+export function toTextLines(html: string | null | undefined): string {
+  if (!html) return ''
+  return decodeEntities(
+    html
+      .replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/(p|div|li|h[1-6]|tr)>/gi, '\n')
+      .replace(/<li[^>]*>/gi, '\n• ')
+      .replace(/<[^>]+>/g, ' '),
+  )
+    .replace(/\r/g, '')
+    .split('\n')
+    .map((l) => l.replace(/[ \t\u00a0]+/g, ' ').trim())
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
 export function absolute(base: string, href: string): string {
   try {
     return new URL(href, base).toString()

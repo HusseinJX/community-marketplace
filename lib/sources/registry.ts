@@ -54,7 +54,9 @@ export const SOURCES: SourceDef[] = [
     // Human-curated FREE events — the closest thing to a mission-aligned
     // firehose in SF. No feed, but every event page carries JSON-LD Event and
     // the site exposes /YYYY/MM/DD/ date archives (~24 links each).
-    config: { base: 'https://sf.funcheap.com', mode: 'archive', maxEvents: 220, browserUa: true },
+    // pageExtras: the organiser's link (never a link back to Funcheap) and the
+    // post's own categories / region, read off the page already fetched.
+    config: { base: 'https://sf.funcheap.com', mode: 'archive', maxEvents: 220, browserUa: true, pageExtras: 'wordpress' },
     windowDays: 7,
     expectAtLeast: 105, // observed 175 on 2026-08-02
   },

@@ -13,7 +13,7 @@
 //   2. Pagination is unstable: the same event can appear on two pages. Dedupe on
 //      the id, never on ordinal position.
 
-import { fetchText, pooled, toText } from '../fetch'
+import { fetchText, pooled, toText, toTextLines } from '../fetch'
 import { parseIcs, splitStamp, shiftHours } from '../ics'
 import type { Access, ScrapedEvent, SourceDef } from '../types'
 
@@ -129,7 +129,7 @@ export async function scrapeDrupalIcs(src: SourceDef): Promise<ScrapedEvent[]> {
       end: le.time,
       venue: c.venue,
       location: ics.location ?? null,
-      description: toText(ics.description).slice(0, 400) || null,
+      description: toTextLines(ics.description) || null,
       url: c.url,
       imageUrl: c.imageUrl,
       access,

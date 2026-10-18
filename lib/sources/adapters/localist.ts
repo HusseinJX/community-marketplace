@@ -4,7 +4,7 @@
 // It ships a documented, paginated JSON API at /api/2/events, and uniquely
 // carries an explicit `free` boolean, so we never have to infer price.
 
-import { fetchJson, toText } from '../fetch'
+import { fetchJson, toText, toTextLines } from '../fetch'
 import { plausible } from '../geo'
 import type { ScrapedEvent, SourceDef } from '../types'
 
@@ -71,7 +71,7 @@ export async function scrapeLocalist(src: SourceDef): Promise<ScrapedEvent[]> {
         end: en.time,
         venue: e.location_name ?? null,
         location: [e.location_name, e.room_number, e.address].filter(Boolean).join(', ') || null,
-        description: (e.description_text ?? toText(e.description)).slice(0, 400) || null,
+        description: (e.description_text ?? toTextLines(e.description)) || null,
         url: e.localist_url ?? `${base}/event/${e.url_path ?? ''}`,
         imageUrl: e.photo_url ?? null,
         access: 'unknown',

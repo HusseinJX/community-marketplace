@@ -9,7 +9,7 @@
 //                  at an event page carrying its own JSON-LD. This is how
 //                  Funcheap works: ~24 curated free events per day.
 
-import { fetchText, pooled, toText, absolute, fullSizeWordPressImage } from '../fetch'
+import { fetchText, pooled, toText, toTextLines, decodeEntities, absolute, fullSizeWordPressImage } from '../fetch'
 import type { ScrapedEvent, SourceDef } from '../types'
 
 interface LdPlace { name?: string; address?: unknown }
@@ -115,7 +115,7 @@ function toEvent(node: Record<string, unknown>, src: SourceDef, pageUrl: string)
     end: en.time,
     venue,
     location: full,
-    description: toText(e.description).slice(0, 400) || null,
+    description: toTextLines(e.description) || null,
     url: e.url ?? pageUrl,
     imageUrl: img ?? null,
     access: 'unknown',
@@ -126,6 +126,77 @@ function toEvent(node: Record<string, unknown>, src: SourceDef, pageUrl: string)
     geoVia: null,
     neighborhood: null,
   }
+}
+
+// ── Aggregator page extras (config.pageExtras: 'wordpress') ─────────────────
+//
+// Funcheap's JSON-LD carries the description as plain text: "RSVP" and "maps"
+// survive as words, the links behind them do not, and the categories are not
+// in it at all. They ARE on the page we already fetched, so read them there.
+
+// Links that are never the organiser: social, maps, the site's own furniture.
+const NOT_ORGANISER = /facebook\.|twitter\.|\bx\.com|instagram\.|pinterest\.|tiktok\.|youtube\.|linkedin\.|maps\.google|google\.com\/maps|goo\.gl|wordpress\.org|gravatar|colorlabsproject|apple\.com|play\.google|mailto:|tel:/i
+// Link text that says "this is how you go / book".
+const ORGANISER_TEXT = /\b(rsvp|tickets?|register|registration|sign ?up|book|reserve|official (site|website)|website|more info|event info|details)\b/i
+
+/** The organiser's link from the post body: an RSVP/tickets link first, else the first outbound one. */
+function organiserLink(html: string, base: string): string | null {
+  const host = new URL(base).hostname.replace(/^www\./, '')
+  // From the post itself — everything before it is header and navigation.
+  const start = html.indexOf('class="post')
+  const body = start >= 0 ? html.slice(start) : html
+  let first: string | null = null
+  for (const m of body.matchAll(/<a\b[^>]*href=["']([^"'#]+)["'][^>]*>([\s\S]*?)<\/a>/gi)) {
+    const href = decodeEntities(m[1])
+    if (!/^https?:\/\//.test(href) || href.includes(host) || NOT_ORGANISER.test(href)) continue
+    if (ORGANISER_TEXT.test(toText(m[2]))) return href
+    first ??= href
+  }
+  return first
+}
+
+/**
+ * The post's own taxonomy, from its rel="tag" links (the rest of the page's
+ * category links are the site menu, not this event):
+ *   /region/<x>/          → neighbourhood ("Civic Center")
+ *   /category/…/top-pick/ → 'top-pick'   (editors' pick — a ranking signal)
+ *   /category/sponsored/  → 'sponsored'  (a paid listing — keep it out of editorial)
+ *   other categories      → event types ("Live Music", "Community")
+ *   …/in-person/          → dropped (a format, not a category)
+ */
+function postTaxonomy(html: string): { tags: string[]; neighborhood: string | null } {
+  const tags = new Set<string>()
+  let neighborhood: string | null = null
+  for (const m of html.matchAll(/<a\b([^>]*\brel=["'][^"']*\btag\b[^"']*["'][^>]*)>([\s\S]*?)<\/a>/gi)) {
+    const href = m[1].match(/href=["']([^"']+)["']/)?.[1] ?? ''
+    const label = toText(m[2]).replace(/^\*|\*$/g, '').trim()
+    if (!label) continue
+    if (/\/region\//.test(href)) neighborhood ??= label
+    else if (/\/top-pick\//.test(href)) tags.add('top-pick')
+    else if (/\/sponsored\//.test(href)) tags.add('sponsored')
+    else if (/in-person|online|virtual/.test(href)) continue
+    else if (/\/category\//.test(href)) tags.add(label)
+  }
+  return { tags: [...tags], neighborhood }
+}
+
+function withPageExtras(ev: ScrapedEvent, html: string, base: string): ScrapedEvent {
+  const { tags, neighborhood } = postTaxonomy(html)
+  return {
+    ...ev,
+    // The organiser, never the aggregator: no link beats a link to Funcheap.
+    url: organiserLink(html, base),
+    tags: [...new Set([...ev.tags, ...tags])],
+    neighborhood: ev.neighborhood ?? neighborhood,
+  }
+}
+
+/** One event page → its event, with the page extras when the source asks for them. */
+export function eventFromPage(html: string, src: SourceDef, pageUrl: string): ScrapedEvent | null {
+  const node = extractLdNodes(html).find(isEvent)
+  const ev = node ? toEvent(node, src, pageUrl) : null
+  const base = String(src.config.base).replace(/\/$/, '')
+  return ev && src.config.pageExtras === 'wordpress' ? withPageExtras(ev, html, base) : ev
 }
 
 /**
@@ -182,8 +253,7 @@ export async function scrapeJsonLd(src: SourceDef): Promise<ScrapedEvent[]> {
 
   const pages = await pooled(links, async (u) => {
     const html = await fetchText(u, { timeoutMs: 20_000, browserUa, retries: 1 })
-    const node = extractLdNodes(html).find(isEvent)
-    return node ? toEvent(node, src, u) : null
+    return eventFromPage(html, src, u)
   }, 6)
 
   return upsizeImages(pages.filter((e): e is ScrapedEvent => e !== null))

@@ -60,8 +60,13 @@ export function autoPublishes(sourceId: string): boolean {
   return byId(sourceId)?.pattern !== 'recipe'
 }
 
-/** Longest description we keep. Full text lives at `event_url`. */
-const MAX_DESC = 2000
+/**
+ * Longest description we keep. Was 2000 here and 400 in every adapter, which
+ * cut a Funcheap concert series' schedule at "Sunday, October 18," — the full
+ * text (~4800 chars) is what the event page is for. The feed cards trim their
+ * own excerpt (/api/events/feed ships 200), so this only reaches the page.
+ */
+const MAX_DESC = 6000
 
 /**
  * `event_time` is free text that goes straight onto the card, and every event

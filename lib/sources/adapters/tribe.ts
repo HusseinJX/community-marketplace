@@ -9,7 +9,7 @@
 // A parallel `/events/?ical=1` export also exists but is capped and thinner, so
 // the JSON API is preferred and ICS is only a fallback.
 
-import { fetchJson, toText, decodeEntities } from '../fetch'
+import { fetchJson, toText, toTextLines, decodeEntities } from '../fetch'
 import type { ScrapedEvent, SourceDef } from '../types'
 
 interface TribeTerm { name?: string }
@@ -94,7 +94,7 @@ export async function scrapeTribe(src: SourceDef): Promise<ScrapedEvent[]> {
         end: e.all_day ? null : en.time,
         venue: venue?.venue ?? null,
         location: [venue?.venue, venue?.address, venue?.city].filter(Boolean).join(', ') || null,
-        description: (toText(e.excerpt) || toText(e.description)).slice(0, 400) || null,
+        description: (toTextLines(e.description) || toTextLines(e.excerpt)) || null,
         url: e.url ?? base,
         imageUrl: image,
         // The plugin has no visibility field — anything on a public calendar is

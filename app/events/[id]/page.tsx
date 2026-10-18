@@ -376,7 +376,9 @@ export default async function EventDetailPage({
             {description && (
               <section>
                 <p className="section-label mb-4">About this event</p>
-                <p className="text-stone-700 leading-relaxed">{description}</p>
+                {/* pre-line: scraped descriptions keep their line breaks now
+                    (lib/sources/fetch.ts toTextLines) — a schedule is lines. */}
+                <p className="whitespace-pre-line text-stone-700 leading-relaxed">{description}</p>
               </section>
             )}
 

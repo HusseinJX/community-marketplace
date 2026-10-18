@@ -71,7 +71,9 @@ export function EventFeedCard({ item }: { item: EventFeedItem }) {
               rel="noopener noreferrer"
               className="text-sm text-stone-500 hover:text-stone-700 hover:underline"
             >
-              Source
+              {/* The organiser's link for an aggregator like Funcheap, else the
+                  calendar's own page — never a link back to the aggregator. */}
+              Event site
             </a>
           )}
         </div>

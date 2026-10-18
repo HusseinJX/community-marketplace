@@ -9,7 +9,7 @@
 //   • `?format=ical` only works on true calendar collections and silently
 //     returns the HTML page otherwise — do not rely on it.
 
-import { fetchJson, toText } from '../fetch'
+import { fetchJson, toText, toTextLines } from '../fetch'
 import type { ScrapedEvent, SourceDef } from '../types'
 
 interface SqspLocation { addressTitle?: string; addressLine1?: string; addressLine2?: string }
@@ -62,7 +62,7 @@ export async function scrapeSquarespace(src: SourceDef): Promise<ScrapedEvent[]>
       end: e?.time ?? null,
       venue: L.addressTitle ?? null,
       location: [L.addressTitle, L.addressLine1, L.addressLine2].filter(Boolean).join(', ') || null,
-      description: (toText(it.body) || toText(it.excerpt)).slice(0, 400) || null,
+      description: (toTextLines(it.body) || toTextLines(it.excerpt)) || null,
       url: base + (it.fullUrl ?? ''),
       imageUrl: it.assetUrl ?? null,
       access: 'unknown',
