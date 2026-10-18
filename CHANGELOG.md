@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented here.
 
+## v161 — the XeNø wordmark on the merch card (2026-10-18)
+
+> **DEPLOYED** as v161 (`5906d6c`, tag `prod-v161`). Web-only.
+
+### Changed
+- The merch card (feed + `/browse`) shows the XeNø wordmark, trimmed to its lettering and
+  centred on a white panel, instead of a stock t-shirt photo.
+- CLAUDE.md, `docs/context/decisions.md` and `pending.md` brought up to date for v158–v160.
+
 ## v160 — a Feed with something in it, and events that keep their page (2026-10-18)
 
 > **DEPLOYED** as v160 (`12c8a7f`, tag `prod-v160`). Web-only. Trigger.dev worker
