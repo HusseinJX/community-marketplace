@@ -47,11 +47,11 @@ export interface DraftEvent {
 /**
  * Drafts nobody has ruled on yet, soonest first.
  *
- * Finished events are left out: approving one publishes it into a feed that
- * prunes it on the next sweep, so the decision is work with no outcome. The
- * test mirrors pruneFinished() exactly — judged on the END date where there is
- * one, so a months-long exhibition that opened in June is still a live
- * decision, while a one-night thing in March is not.
+ * Finished events are left out: approving one publishes it into feeds that
+ * only list today-onward, so the decision is work with no outcome. Judged on
+ * the END date where there is one (as pruneFinished() is), so a months-long
+ * exhibition that opened in June is still a live decision, while a one-night
+ * thing in March is not.
  *
  * City-local, never UTC: after 5pm Pacific a UTC "today" would start hiding
  * drafts for events happening that same evening.

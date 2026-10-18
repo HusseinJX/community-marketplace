@@ -344,17 +344,28 @@ export async function persistScraped(
 }
 
 /**
- * Remove scraped events that have finished.
+ * Remove scraped events that finished more than KEEP_FINISHED_DAYS ago.
  *
  * Only ever touches rows this scraper owns (`source_id IS NOT NULL`) — an
  * in-app organizer event is somebody's work and is never deleted by a sweep.
  * Without this the table grows without bound, since a source stops listing an
  * event once it is over and the upsert would leave the last copy behind forever.
+ *
+ * NOT the day after it ends (2026-10-18). That used to be the rule, and it
+ * meant a past event's page 404'd the next morning — so nothing could link to
+ * something that just happened (a feed post about Sunday, a share, a memory).
+ * Every public list already filters to today-onward on its own
+ * (getPublicEvents, getMemberEvents, /api/events/personalize), so a finished
+ * event kept here shows nowhere as upcoming; it only keeps its page.
  */
+const KEEP_FINISHED_DAYS = 30
+
 export async function pruneFinished(opts: { log?: (s: string) => void } = {}): Promise<number> {
   // City-local: deleting on a UTC date would bin events that are still to
   // come this evening in San Francisco.
-  const today = sfToday()
+  const d = new Date(`${sfToday()}T12:00:00Z`)
+  d.setUTCDate(d.getUTCDate() - KEEP_FINISHED_DAYS)
+  const cutoff = d.toISOString().slice(0, 10)
 
   // Multi-day events are judged on their end date, matching isCurrent() in the
   // runner — otherwise a running exhibition gets deleted the day after it opens.
@@ -362,7 +373,7 @@ export async function pruneFinished(opts: { log?: (s: string) => void } = {}): P
     .from('vendor_events')
     .delete()
     .not('source_id', 'is', null)
-    .or(`end_date.lt.${today},and(end_date.is.null,event_date.lt.${today})`)
+    .or(`end_date.lt.${cutoff},and(end_date.is.null,event_date.lt.${cutoff})`)
     .select('id')
 
   if (error) {
