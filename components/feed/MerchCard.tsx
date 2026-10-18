@@ -21,22 +21,24 @@ import { Sparkles, ShoppingBag } from "lucide-react";
 // `allowsBackForwardNavigationGestures` (or we route this through
 // @capacitor/browser for an in-app sheet with a Done button).
 const MERCH_URL = "https://xen0.whatslocal.ai";
-// The xen0 wordmark, trimmed to the lettering so it centres exactly — the
-// source file sat a few pixels off-centre in a mostly-white square.
-const MERCH_IMG = "/xeno-wordmark.png";
+// The chrome XENØ / "phobia" / LOVE THY NEIGHBOR logo, trimmed to its content
+// with even padding so it centres exactly. The panel behind it is the image's
+// own off-white (#fefefb) — chrome has white in its highlights, so it cannot be
+// cut out like a flat wordmark, and a mismatched panel would show its edge.
+const MERCH_IMG = "/xeno-phobia.jpg";
 
 export function MerchCard({ className }: { className?: string }) {
   return (
     <article
       className={`group flex h-full flex-col overflow-hidden rounded-2xl border border-stone-800 bg-stone-900 text-white shadow-sm ${className ?? ""}`}
     >
-      <div className="relative flex min-h-[220px] flex-1 items-center justify-center overflow-hidden bg-white">
+      <div className="relative flex min-h-[240px] flex-1 items-center justify-center overflow-hidden bg-[#fefefb] py-10">
         {/* Centred both ways on a white panel; the badge floats over the corner. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={MERCH_IMG}
-          alt="xen0"
-          className="w-3/5 max-w-[260px] object-contain transition duration-300 group-hover:scale-105"
+          alt="XENØ — phobia crossed out — Love thy neighbor"
+          className="w-[70%] max-w-[280px] object-contain transition duration-300 group-hover:scale-105"
         />
         <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-stone-900/80 px-2.5 py-1 text-[10px] font-medium uppercase tracking-wide text-white backdrop-blur">
           <Sparkles className="h-3 w-3" /> Official merch
