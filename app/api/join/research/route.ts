@@ -8,6 +8,8 @@ import { researchMember, researchListing } from "@/lib/api";
 import { buildInterviewBrief, type BriefInput } from "@/lib/onboard";
 import { isDemoMode } from "@/lib/demo-admin";
 import { isJoinDemoActive } from "@/lib/joindemo";
+import { readVerifiedProof } from "@/lib/join-proof";
+import { rateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -74,14 +76,30 @@ async function writeCache(key: string, v: CachedResearch): Promise<void> {
 // or failed research pass just falls back to the seed. Never blocks the flow.
 export async function POST(req: Request) {
   const { userId } = await auth();
-  if (!userId && !isDemoMode() && !(await isJoinDemoActive())) {
+  // Since 2026-10-01 the findings come BEFORE sign-in, straight after the
+  // ownership code. So a verified proof (lib/join-proof) is a pass too — and
+  // it is the only anonymous pass outside the demo, which keeps this paid
+  // search behind "answered a code on a real business's phone".
+  const proof = userId ? null : await readVerifiedProof();
+  if (!userId && !proof && !isDemoMode() && !(await isJoinDemoActive())) {
     return NextResponse.json({ error: "Sign in" }, { status: 401 });
   }
+  const limited = rateLimit({ req, name: "join-research", id: userId ?? null, limit: 10, windowMs: 600_000 });
+  if (limited) return limited;
 
   const body = await req.json().catch(() => ({}));
-  const memberId = String(body.memberId ?? "").trim();
-  const seed = (body.seed ?? {}) as BriefInput;
-  if (!memberId)
+  let memberId = String(body.memberId ?? "").trim();
+  let seed = (body.seed ?? {}) as BriefInput;
+  if (proof) {
+    // Research what was VERIFIED, not whatever the body names.
+    if (proof.target.kind === "member") {
+      memberId = proof.target.memberId;
+    } else {
+      memberId = "";
+      seed = { ...seed, name: proof.target.name, city: proof.target.city ?? seed.city ?? null };
+    }
+  }
+  if (!memberId && !seed.name)
     return NextResponse.json({ error: "memberId required" }, { status: 400 });
 
   let research: string | null = null;
@@ -104,7 +122,9 @@ export async function POST(req: Request) {
     // (This used to `throw` here, which meant /joindemo never web-searched at all
     // and opened the interview knowing nothing but the Places listing — and Places
     // has no editorial summary for most small businesses, so usually just a name.)
-    const isDemoMember = memberId.startsWith("demo");
+    // No member id at all = a listing verified before sign-in; nothing is
+    // stored yet, so the search keys off the listing's name and city.
+    const isDemoMember = !memberId || memberId.startsWith("demo");
     try {
       if (isDemoMember) {
         const name = (seed.name ?? "").trim();
@@ -136,7 +156,7 @@ export async function POST(req: Request) {
     await writeCache(key, { research, enriched });
   }
 
-  const brief = buildInterviewBrief({
+  const facts: BriefInput = {
     ...seed,
     category: seed.category ?? enriched.category ?? null,
     subcategory: seed.subcategory ?? enriched.subcategory ?? null,
@@ -145,8 +165,31 @@ export async function POST(req: Request) {
     // Only true when the seed carried the vendor's own list (shop setup).
     catalogFromVendor: seed.catalogFromVendor === true && !!seed.products?.length,
     services: seed.services ?? enriched.services ?? null,
-    research,
-  });
+  };
+  const brief = buildInterviewBrief({ ...facts, research });
 
-  return NextResponse.json({ brief, hasResearch: Boolean(research) });
+  // The findings go back as well as the brief, because the person SEES them
+  // now: the step opens on what we found, and the conversation is for fixing
+  // it. A brief they can't read is homework they can't mark.
+  return NextResponse.json({
+    brief,
+    hasResearch: Boolean(research),
+    research: research ? readable(research) : null,
+    facts,
+  });
+}
+
+// Perplexity prose is written for a model, not a person: citation markers
+// ("[1][3]") and markdown emphasis. Fine in the brief, noise on screen.
+function readable(text: string): string {
+  return text
+    // The trailing "Sources: url, url, …" block is for the model's grounding;
+    // on a phone it is a wall of URLs longer than the findings.
+    .replace(/\n\s*Sources?:[\s\S]*$/i, "")
+    .replace(/\[\d+(?:,\s*\d+)*\]/g, "")
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/^#+\s*/gm, "")
+    .replace(/[ \t]+([.,;:])/g, "$1")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
 }

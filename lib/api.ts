@@ -111,6 +111,26 @@ export async function getMember(
   ]);
 }
 
+// The FULL member, straight from Firestore (connector member-get, admin-authed,
+// uncached). Server-only. The public read above strips businessPhone and
+// omits the top-level claim `status`, which is exactly what an ownership check
+// needs — so the code routes read through this, never getMember().
+export async function getMemberAdmin(
+  id: string,
+): Promise<{ id: string; status: string | null; profile: Record<string, unknown> } | null> {
+  const token = process.env.CONNECTOR_ADMIN_TOKEN || process.env.ADMIN_TOKEN;
+  const res = await fetch(fnUrl("member-get", { id }), {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`member-get failed: ${res.status}`);
+  const d = await res.json();
+  // member-get also searches the sim collection; only real members can be claimed.
+  if (d.collection && d.collection !== "members") return null;
+  return { id: d.id, status: d.status ?? null, profile: d.profile ?? {} };
+}
+
 // Create a brand-new member in the connector (Firestore + embeddings). Server-only
 // — uses the admin token. Used by the onboarding flows (manual interview + QR chat).
 export async function createMember(

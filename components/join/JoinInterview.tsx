@@ -1,32 +1,37 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Mic, MessageSquare, Loader2, Sparkles, Send, ArrowRight, Check } from "lucide-react";
+import { Mic, MessageSquare, Loader2, Sparkles, Send, ArrowRight, Check, MapPin, Star, Globe, Clock, Tag } from "lucide-react";
 import { VoiceCall } from "@/components/VoiceCall";
 import type { BriefInput } from "@/lib/onboard";
 
-// The onboarding INTERVIEW step of /join. The member already exists + is
-// verified; this conversation (voice or text) enriches it — description,
-// category, what they sell, price, socials, and (the real prize) how they want
-// to collaborate — which powers their local matches.
+// The FINDINGS step of /join, straight after ownership is verified. The member
+// already exists; this conversation (voice or text) enriches it — description,
+// category, what they sell, socials, and (the real prize) how they want to
+// collaborate — which powers their local matches.
 //
-// On mount we run a fast web-search research pass (/api/join/research) so the
-// interviewer opens ALREADY KNOWING them — reflecting back their story and
-// asking them to confirm it (the "wow, it knows me" moment) before asking for
-// more. The `brief` it produces is threaded into both voice + text modes.
+// On mount we run a fast web-search research pass (/api/join/research) and SHOW
+// what came back: the listing facts and what the web says. That is the hook
+// (2026-10-01). It used to run silently behind a "Bring your page to life"
+// screen, so the research was paid for and the person never saw it — and
+// "tell us about your business" is a much harder thing to start talking about
+// than "here is what we found, what did we get wrong?". Correcting something
+// about yourself takes no effort to begin. The `brief` is threaded into both
+// modes with `refine` on, so the host opens by asking for fixes rather than
+// reading the screen back to them.
 //
-// Both modes POST the transcript to /api/join/enrich (full connector brain →
-// enrich-in-place, re-embeds). Everything here is optional: "Skip" jumps to done.
+// Both modes hand the transcript to the parent, which POSTs it to
+// /api/join/enrich (full connector brain → enrich-in-place, re-embeds) once the
+// page exists. Everything here is optional: "Looks right" moves straight on.
 
 type Mode = "choose" | "text" | "voice";
-interface Msg { role: "user" | "assistant"; content: string }
+export interface Msg { role: "user" | "assistant"; content: string }
 
 export function JoinInterview({
   memberId,
   bizName,
   kind,
   seed,
-  demo = false,
   onDone,
 }: {
   memberId: string;
@@ -35,18 +40,24 @@ export function JoinInterview({
   // What we already know client-side (Google Places pick, or the artist's name +
   // city). Sent to /api/join/research as the instant baseline for the brief.
   seed?: BriefInput;
-  // DEMO: run the real interview (grounded in the real Places brief) but skip the
-  // enrich write at the end — no profile is created or updated.
+  /** Kept for the call sites; nothing here writes any more. */
   demo?: boolean;
-  onDone: () => void;
+  /** The conversation, for the parent to save once there is a page. Empty on skip. */
+  onDone: (messages: Msg[]) => void;
 }) {
   const [mode, setMode] = useState<Mode>("choose");
   const [saving, setSaving] = useState(false);
-  const [saveErr, setSaveErr] = useState("");
+  // Saving moved to the parent; the error slot stays for the voice/text views.
+  const saveErr = "";
 
   // undefined = research still running; string = ready (may be ""); the interview
   // modes wait on this so the agent opens warm.
   const [brief, setBrief] = useState<string | undefined>(undefined);
+  // What is shown. Separate from the brief because the brief is written for the
+  // model; these are written for the person.
+  const [research, setResearch] = useState<string | null>(null);
+  const [facts, setFacts] = useState<BriefInput>(seed ?? {});
+  const [readMore, setReadMore] = useState(false);
   const started = useRef(false);
 
   useEffect(() => {
@@ -60,6 +71,8 @@ export function JoinInterview({
           body: JSON.stringify({ memberId, seed: seed ?? {} }),
         });
         const d = await res.json().catch(() => ({}));
+        if (typeof d.research === "string" && d.research.trim()) setResearch(d.research);
+        if (d.facts && typeof d.facts === "object") setFacts(d.facts as BriefInput);
         setBrief(typeof d.brief === "string" ? d.brief : "");
       } catch {
         setBrief("");
@@ -69,78 +82,153 @@ export function JoinInterview({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [memberId]);
 
-  // Persist the transcript, then finish. Enrichment is best-effort — the page
-  // already exists, so a hiccup here should never trap the person.
-  async function saveAndDone(messages: Msg[]) {
+  // Hand the transcript UP rather than saving it here. Since 2026-10-01 this
+  // step can run before there is an account (or a page) to save it to, so the
+  // parent holds it and writes it after sign-in, with everything else.
+  function saveAndDone(messages: Msg[]) {
     setSaving(true);
-    setSaveErr("");
-    // DEMO: nothing to persist — the interview was real, the finish is stubbed.
-    if (demo) {
-      onDone();
-      return;
-    }
-    try {
-      const res = await fetch("/api/join/enrich", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ memberId, messages }),
-      });
-      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Couldn't save.");
-      onDone();
-    } catch (e) {
-      setSaveErr(e instanceof Error ? e.message : "Couldn't save your answers.");
-      setSaving(false);
-    }
+    onDone(messages);
   }
 
   if (mode === "choose") {
+    const loading = brief === undefined;
+    const place = [facts.neighborhood, facts.city].filter(Boolean).join(", ");
+    const category = [facts.category, facts.subcategory].filter(Boolean).join(" · ");
+    const rows: { icon: typeof MapPin; text: string }[] = [];
+    if (facts.address || place) rows.push({ icon: MapPin, text: String(facts.address || place) });
+    if (category) rows.push({ icon: Tag, text: category });
+    if (facts.rating) {
+      rows.push({
+        icon: Star,
+        text: `${facts.rating}${facts.ratingCount ? ` · ${facts.ratingCount} Google reviews` : " on Google"}`,
+      });
+    }
+    if (facts.websiteUrl) rows.push({ icon: Globe, text: String(facts.websiteUrl).replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "") });
+    const offerings = [...(facts.products || []), ...(facts.services || [])].filter(Boolean).slice(0, 8);
+
     return (
-      <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Sparkles className="h-5 w-5 text-violet-600" />
-          <h1 className="text-xl font-bold text-stone-900">Bring your page to life</h1>
-        </div>
-        <p className="text-sm text-stone-500">
-          A quick 2-minute interview about {bizName}. It writes your profile and powers who WhatsLocal
-          matches you with — collaborators, events, customers. Talk it out or type it.
-        </p>
-        <p className="flex items-center gap-1.5 text-xs font-medium text-violet-600">
-          {brief === undefined ? (
+      <div className="space-y-5">
+        <header>
+          <div className="mb-4 grid h-14 w-14 place-items-center rounded-full bg-coral-50">
+            {loading ? (
+              <Loader2 className="h-7 w-7 animate-spin text-coral-600" />
+            ) : (
+              <Sparkles className="h-7 w-7 text-coral-600" />
+            )}
+          </div>
+          <h1 className="text-[28px] font-bold leading-tight tracking-tight text-stone-900">
+            {loading ? `Looking up ${bizName}…` : `Here's what we found`}
+          </h1>
+          <p className="mt-2 text-[15px] leading-relaxed text-stone-500">
+            {loading
+              ? "Reading your listing and searching the web — a few seconds."
+              : `Your page is written from this. Check it over — then tell us what we got wrong or missed.`}
+          </p>
+        </header>
+
+        {/* The facts — mostly the Google listing, already paid for. */}
+        {rows.length > 0 && (
+          <section className="rounded-2xl border border-stone-200 bg-white p-4">
+            <p className="text-[15px] font-semibold text-stone-900">{facts.name || bizName}</p>
+            <dl className="mt-2.5 space-y-2 text-[14px] text-stone-600">
+              {rows.map((r, i) => (
+                <div key={i} className="flex gap-2.5">
+                  <r.icon className="mt-0.5 h-4 w-4 shrink-0 text-stone-400" />
+                  <dd className="min-w-0 break-words">{r.text}</dd>
+                </div>
+              ))}
+              {facts.hours && (
+                <div className="flex gap-2.5">
+                  <Clock className="mt-0.5 h-4 w-4 shrink-0 text-stone-400" />
+                  <dd className="min-w-0 whitespace-pre-line text-[13px] leading-relaxed">{compactHours(String(facts.hours))}</dd>
+                </div>
+              )}
+            </dl>
+            {offerings.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {offerings.map((o) => (
+                  <span key={o} className="rounded-full bg-stone-100 px-2.5 py-1 text-[12px] text-stone-700">{o}</span>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* What the web says. Shown as soon as it lands; a skeleton until then
+            so the card doesn't jump in under someone already reading. */}
+        <section className="rounded-2xl border border-stone-200 bg-white p-4">
+          <h2 className="flex items-center gap-2 text-[13px] font-semibold uppercase tracking-wide text-stone-500">
+            <Sparkles className="h-3.5 w-3.5 text-coral-600" /> What the web says
+          </h2>
+          {loading ? (
+            <div className="mt-3 space-y-2">
+              <div className="h-3 w-full animate-pulse rounded bg-stone-100" />
+              <div className="h-3 w-11/12 animate-pulse rounded bg-stone-100" />
+              <div className="h-3 w-2/3 animate-pulse rounded bg-stone-100" />
+            </div>
+          ) : research ? (
             <>
-              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Looking up {bizName}…
+              <p
+                className={
+                  "mt-2.5 whitespace-pre-line text-[14px] leading-relaxed text-stone-700" +
+                  (readMore ? "" : " line-clamp-[9]")
+                }
+              >
+                {research}
+              </p>
+              {research.length > 420 && (
+                <button
+                  onClick={() => setReadMore((v) => !v)}
+                  className="mt-1.5 text-[13px] font-semibold text-stone-900 underline underline-offset-2"
+                >
+                  {readMore ? "Show less" : "Read it all"}
+                </button>
+              )}
             </>
           ) : (
-            <>
-              <Sparkles className="h-3.5 w-3.5" /> Did some homework — I already know a bit about you.
-            </>
+            <p className="mt-2.5 text-[14px] leading-relaxed text-stone-500">
+              We couldn&apos;t find much about {bizName} online — which is exactly why we&apos;d rather
+              hear it from you.
+            </p>
           )}
-        </p>
+        </section>
+
+        {/* The hook. Fixing what we found is the reason to start talking. */}
         <div className="space-y-2 pt-1">
+          <p className="text-[15px] font-semibold text-stone-900">
+            {research ? "Anything wrong, missing or out of date?" : "Fill in the gaps"}
+          </p>
           <button
             onClick={() => setMode("voice")}
-            className="flex w-full items-center gap-3 rounded-xl border border-stone-200 bg-white p-4 text-left hover:border-violet-300 hover:bg-violet-50"
+            disabled={loading}
+            className="flex w-full items-center gap-3 rounded-2xl border-2 border-stone-200 bg-white p-4 text-left transition hover:border-stone-900 active:scale-[0.98] disabled:opacity-50"
           >
-            <Mic className="h-5 w-5 text-violet-600" />
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-coral-50">
+              <Mic className="h-5 w-5 text-coral-600" />
+            </span>
             <span className="flex-1">
-              <span className="block text-sm font-semibold text-stone-900">Talk it out</span>
-              <span className="block text-xs text-stone-500">A quick voice call — no phone number, right here</span>
+              <span className="block text-[15px] font-semibold text-stone-900">Talk it through</span>
+              <span className="block text-[13px] text-stone-500">A 2-minute voice call, right here — no phone number</span>
             </span>
             <ArrowRight className="h-4 w-4 text-stone-300" />
           </button>
           <button
             onClick={() => setMode("text")}
-            className="flex w-full items-center gap-3 rounded-xl border border-stone-200 bg-white p-4 text-left hover:border-violet-300 hover:bg-violet-50"
+            disabled={loading}
+            className="flex w-full items-center gap-3 rounded-2xl border-2 border-stone-200 bg-white p-4 text-left transition hover:border-stone-900 active:scale-[0.98] disabled:opacity-50"
           >
-            <MessageSquare className="h-5 w-5 text-violet-600" />
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-coral-50">
+              <MessageSquare className="h-5 w-5 text-coral-600" />
+            </span>
             <span className="flex-1">
-              <span className="block text-sm font-semibold text-stone-900">Type it</span>
-              <span className="block text-xs text-stone-500">A short back-and-forth chat</span>
+              <span className="block text-[15px] font-semibold text-stone-900">Type your fixes</span>
+              <span className="block text-[13px] text-stone-500">A short back-and-forth chat</span>
             </span>
             <ArrowRight className="h-4 w-4 text-stone-300" />
           </button>
         </div>
-        <button onClick={onDone} className="text-xs font-medium text-stone-400 hover:text-stone-600">
-          Skip for now — I&apos;ll do this later
+        <button onClick={() => onDone([])} className="w-full py-1 text-[13px] font-medium text-stone-400 transition hover:text-stone-700">
+          Looks right — continue
         </button>
       </div>
     );
@@ -150,7 +238,17 @@ export function JoinInterview({
     return <VoiceInterview bizName={bizName} kind={kind} brief={brief} saving={saving} saveErr={saveErr} onSave={saveAndDone} onBack={() => setMode("choose")} />;
   }
 
-  return <TextInterview bizName={bizName} brief={brief} saving={saving} saveErr={saveErr} onSave={saveAndDone} onBack={() => setMode("choose")} />;
+  return <TextInterview bizName={bizName} brief={brief} hasFindings={!!research} saving={saving} saveErr={saveErr} onSave={saveAndDone} onBack={() => setMode("choose")} />;
+}
+
+// Google hands hours back as "Monday: 7:30 AM – 6:00 PM, Tuesday: …" — seven
+// near-identical clauses. Same hours every day reads as one line; anything
+// else is one day per line rather than a paragraph.
+function compactHours(raw: string): string {
+  const days = raw.split(/,\s*(?=[A-Z][a-z]+day:)|\n/).map((d) => d.trim()).filter(Boolean);
+  const times = days.map((d) => d.replace(/^[A-Za-z]+day:\s*/, ""));
+  if (days.length === 7 && times.every((t) => t === times[0])) return `Every day · ${times[0]}`;
+  return days.join("\n");
 }
 
 // A shared "getting the interviewer ready" panel while research is still running.
@@ -209,7 +307,7 @@ function VoiceInterview({
         <VoiceCall
           memberName={bizName}
           tokenUrl="/api/onboard/voice"
-          tokenBody={{ name: bizName, kind, brief }}
+          tokenBody={{ name: bizName, kind, brief, refine: true }}
           // The interviewer must open with what it researched — that recognition
           // IS the point of this step. Without this it waits for the member to
           // talk first and the whole beat is lost.
@@ -244,6 +342,7 @@ function VoiceInterview({
 function TextInterview({
   bizName,
   brief,
+  hasFindings,
   saving,
   saveErr,
   onSave,
@@ -251,12 +350,21 @@ function TextInterview({
 }: {
   bizName: string;
   brief: string | undefined;
+  /** Research came back and is on screen — open by asking what to fix. */
+  hasFindings: boolean;
   saving: boolean;
   saveErr: string;
   onSave: (m: Msg[]) => void;
   onBack: () => void;
 }) {
-  const [messages, setMessages] = useState<Msg[]>([]);
+  // With findings on screen the opener is a fixed line, not a model call: the
+  // model kept reciting the screen back and jumping to the wants pitch, and
+  // this one line is the whole hook — it should never vary.
+  const [messages, setMessages] = useState<Msg[]>(() =>
+    hasFindings
+      ? [{ role: "assistant", content: `Hi! That's what we found on ${bizName} — anything we got wrong, missing, or out of date?` }]
+      : [],
+  );
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const openerAsked = useRef(false);
@@ -273,13 +381,15 @@ function TextInterview({
     if (brief === undefined || openerAsked.current) return;
     openerAsked.current = true;
     const fallback = `Hey — good to meet you. I went looking for ${bizName} and didn't turn up as much as I'd like, so I'd rather hear it from you than guess. Tell me about it in your own words.`;
+    // Findings on screen: the opener was set in the initial state (below).
+    if (hasFindings) return;
     (async () => {
       setBusy(true);
       try {
         const res = await fetch("/api/onboard/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ messages: [], brief }),
+          body: JSON.stringify({ messages: [], brief, refine: true }),
         });
         const d = await res.json();
         setMessages([{ role: "assistant", content: d.reply || fallback }]);
@@ -303,7 +413,7 @@ function TextInterview({
       const res = await fetch("/api/onboard/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: next, brief }),
+        body: JSON.stringify({ messages: next, brief, refine: true }),
       });
       const d = await res.json();
       setMessages([...next, { role: "assistant", content: d.reply || "Got it!" }]);
@@ -359,7 +469,7 @@ function TextInterview({
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && send()}
-          placeholder="Type your answer…"
+          placeholder="What should we fix or add?"
           className="w-full bg-transparent text-sm outline-none"
         />
         <button onClick={send} disabled={busy || !text.trim()} className="text-violet-600 disabled:text-stone-300" aria-label="Send">

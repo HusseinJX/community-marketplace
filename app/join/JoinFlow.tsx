@@ -9,11 +9,13 @@ import { JoinInterview } from "@/components/join/JoinInterview";
 import { LinksStep } from "@/components/join/LinksStep";
 import { ShopSetup } from "@/components/join/ShopSetup";
 import type { StoredLink } from "@/lib/links";
+import type { LinkSet } from "@/components/links/LinkEditor";
+import type { Msg } from "@/components/join/JoinInterview";
 import { GoogleIcon, AppleIcon } from "@/components/auth/OAuthBrandIcons";
 import { useIsNativeApp, isNativeApp } from "@/lib/native";
 import { nativeGoogleSignIn } from "@/lib/native-auth";
 import type { BriefInput } from "@/lib/onboard";
-import type { PlaceCandidate } from "@/lib/places";
+import type { PlaceCandidate, PlaceDetails } from "@/lib/places";
 
 // Mask a real phone to "(•••) •••-1234" — the demo shows the business's actual
 // Google-listing number as the (fake) verify target, same as the real flow.
@@ -42,14 +44,25 @@ const DEMO_CLAIM = {
 /** The plan picker on the final screen. See the note at its render block. */
 const SHOW_PLANS: boolean = false;
 
-// Self-serve "fresh join" — matches the rep-flow mockup:
-//   pick type → who you are + phone (code #1, Clerk) → confirm →
-//   (entities) find business on Google → verify ownership (code #2, Twilio) →
-//   (artists) straight through → done + plan picker.
-// Reuses: Clerk phone auth, /api/places/*, /api/members/create, /api/otp,
-// /api/claim, /api/vendor/profile.
+// Self-serve "fresh join". The order (2026-10-01):
+//
+//   entities  find your business → code to the listing's number → what we
+//             found (talk/type to fix it) → links → SIGN IN (name, role,
+//             Google/Apple) → products → payouts → ways to sell → done
+//   artists / not on Maps
+//             name → SIGN IN → findings → links → products → payouts → …
+//
+// Entities sign in LAST because nothing before that point writes anything:
+// the code check leaves a signed proof cookie (lib/join-proof.ts), the
+// findings and the voice call are allowed on that proof, and the links and
+// the conversation are held here until /api/join/commit creates the page.
+// Artists and unlisted businesses have no number to prove, so the account is
+// their proof and comes first, as before.
 
 type Kind = "vendor" | "organizer" | "artist";
+// sessionStorage key for the flow's state across the sign-in redirect.
+const RESUME_KEY = "join_oauth_resume";
+
 type Step = "type" | "who" | "business" | "code2" | "working" | "links" | "interview" | "done" | "setup" | "sellways";
 
 const TYPES: { key: Kind; icon: typeof Store; label: string; sub: string }[] = [
@@ -102,19 +115,40 @@ function seedFromListing(details: { website?: string | null; phone?: string | nu
 }
 
 /**
- * A chosen Google listing, resolved but not yet claimed.
+ * A chosen Google listing, not yet claimed.
  *
- * `profile` is what /api/members/create will be handed, `seed` is the warm
- * baseline for the interview, `links` the prefilled website + phone. All three
- * are built from the single details call made when the listing was tapped.
+ * `seed` is the warm baseline for the findings, `links` the prefilled website
+ * + phone. Both start from the search result and fill in from the listing
+ * details that come back with the ownership code. The page itself is built on
+ * the server from the placeId — nothing here is trusted about the business.
  */
 interface Picked {
   placeId: string;
   name: string;
-  profile: Record<string, unknown>;
   seed: BriefInput;
   links: StoredLink[];
   phoneHint: string | null;
+}
+
+/** The interview brief, built from one Google listing. */
+function seedFromDetails(details: Partial<PlaceDetails> | null | undefined, p: { name: string; address?: string | null; rating?: number | null; userRatingsTotal?: number | null; types?: string[] }): BriefInput {
+  const category =
+    (details?.types || p.types || [])
+      .find((t: string) => !["point_of_interest", "establishment", "food", "store"].includes(t))
+      ?.replace(/_/g, " ") ?? null;
+  return {
+    name: p.name,
+    category,
+    city: details?.city ?? null,
+    neighborhood: details?.neighborhood ?? null,
+    description: details?.summary ?? null,
+    websiteUrl: details?.website ?? null,
+    rating: details?.rating ?? p.rating ?? null,
+    ratingCount: details?.userRatingsTotal ?? p.userRatingsTotal ?? null,
+    hours: details?.hours ?? null,
+    types: details?.types ?? p.types ?? null,
+    address: details?.address ?? p.address ?? null,
+  };
 }
 
 // The full candidate the search returns — rating, geometry, types and all. It's
@@ -207,7 +241,7 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
     // after they signed in and tell them to sign out again. Read off the router
     // for the same reason claimId is — window.location lags a soft navigation.
     if (claimedId) return true;
-    try { return !!sessionStorage.getItem("join_apple_resume"); } catch { return false; }
+    try { return !!sessionStorage.getItem(RESUME_KEY); } catch { return false; }
   });
 
   /**
@@ -256,10 +290,6 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
   // opens warm — set from the Google Places pick (entities) or the artist form.
   const [seed, setSeed] = useState<BriefInput>({});
 
-  // Names of whatever they listed during shop setup. Handed to the interview
-  // so the conversation has something to be about.
-  const [addedProducts, setAddedProducts] = useState<string[]>([]);
-
   // What the links step opens with. Never a blank list when we already paid
   // for the answer: the website AND the phone number both come free with the
   // details call we already make.
@@ -279,10 +309,25 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
   // which is what lets the Apple redirect stash and restore it.
   const [picked, setPicked] = useState<Picked | null>(null);
 
+  // The ownership code has gone out (the code2 screen has two halves).
+  const [codeSent, setCodeSent] = useState(false);
+  // Ownership is PROVEN but no page or account exists yet — the proof sits in
+  // a cookie and /api/join/commit turns it into a page after sign-in.
+  const [pendingCommit, setPendingCommit] = useState(false);
+  // Held until there is a page to write them to.
+  const [transcript, setTranscript] = useState<Msg[]>([]);
+  const [linksDraft, setLinksDraft] = useState<LinkSet | null>(null);
+
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
 
   const isArtist = kind === "artist";
+
+  // Every step is a new screen. Without this, leaving a long one (links, the
+  // findings) lands the next one scrolled to the footer on a phone.
+  useEffect(() => {
+    window.scrollTo({ top: 0 });
+  }, [step]);
 
   // ── Step 1: type ──────────────────────────────────────────────────────────
   //
@@ -326,7 +371,9 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
     setBizName(DEMO_CLAIM.name);
     setSeed({ name: DEMO_CLAIM.name, address: DEMO_CLAIM.address, city: "San Francisco" });
     setClaimTarget({ id: DEMO_CLAIM.id, name: DEMO_CLAIM.name, address: DEMO_CLAIM.address });
-    setStep("who");
+    setPhoneHint(DEMO_CLAIM.phoneHint);
+    setCodeSent(false);
+    setStep("code2");
   }
 
   // Return to the onboarding main menu (the type picker) from any step, clearing
@@ -343,6 +390,10 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
     // Same for the page a claim was pointed at: without this, "start over"
     // walks back into the type picker still claiming the last business.
     setClaimTarget(null);
+    setCodeSent(false);
+    setPendingCommit(false);
+    setTranscript([]);
+    setLinksDraft(null);
   }
 
   /**
@@ -362,21 +413,23 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
       // The listing search is the first thing after picking a type.
       case "business":
         return "type";
-      // An artist came straight from the menu. An entity came from the search
-      // — either by picking a listing or by saying they are not on Maps, and
-      // both are reversible while nothing has been created yet.
-      case "who":
-        // A claim was pointed at one specific page — there is no search behind
-        // it, and "start over" is not a step back.
-        if (claimTarget) return null;
-        return isArtist ? "type" : "business";
       // Verifying the wrong listing is the most likely reason to go back, and
       // the search is where you fix it. A claim has no search behind it — the
-      // page was chosen by whoever tapped "is this your business?" — so back
-      // would land on a screen this run never saw.
+      // page was chosen by whoever tapped "is this your business?".
       case "code2":
         return claimTarget ? null : "business";
-      // links / interview / sellways / done sit AFTER the member exists.
+      case "who":
+        // After the findings and links (a verified entity, or an admin acting
+        // on behalf): the links are the screen behind it, and still editable.
+        if (pendingCommit || adminActing) return "links";
+        // A claim was pointed at one specific page — nothing behind it.
+        if (claimTarget) return null;
+        // An artist came straight from the menu; an unlisted business from
+        // the search. Nothing has been created yet either way.
+        return isArtist ? "type" : "business";
+      // findings / links / setup / sellways / done: the findings can't be
+      // re-entered without paying for the research again, and everything
+      // after sign-in has happened to the account.
       default:
         return null;
     }
@@ -392,6 +445,8 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
     if (to === "business") {
       setPicked(null);
       setRemote(false);
+      setCodeSent(false);
+      setCode("");
     }
     setStep(to);
   }
@@ -404,7 +459,7 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
    * on a card, sitting in the directory. Same state, so the same screen: your
    * name, your role, and the account you will manage the page with. Then the
    * identical `working → code2` pair sends and checks a code on the listing's
-   * own number, and the identical `links → setup → interview → sellways` runs
+   * own number, and the identical `interview → links → setup → sellways` runs
    * after it.
    *
    * No session needed to LOOK: everything this reads is on the public profile
@@ -432,16 +487,29 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
         // Already signed in and already the owner — nothing left to verify.
         if (data.stage === "resume") {
           setMidFlow(true);
-          setStep("links");
+          setStep("interview");
           return;
         }
         // An admin acting on behalf is signed in already, so midFlow has to go
         // up or the "log out first" guard would meet them instead of the form.
+        // They see the findings and links like anyone, then the who step at
+        // the end records the OWNER's name and role — no code, since it goes
+        // to the business and the admin can't answer it.
         if (data.admin) {
           setAdminActing(true);
           setMidFlow(true);
+          setStep("interview");
+          return;
         }
-        setStep("who");
+        // An artist's page has no number to prove; the account is the claim,
+        // so they sign in first, as they always have.
+        if (type === "artist") {
+          setStep("who");
+          return;
+        }
+        // Everyone else proves it the same way a fresh join does: a code to
+        // the number on the page, before any account exists.
+        setStep("code2");
       } catch (e) {
         if (cancelled) return;
         setErr(e instanceof Error ? e.message : "Couldn't open that page.");
@@ -462,7 +530,7 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
    * texted to the listing's own number. What it never did is the rest: links,
    * catalogue, payouts, the interview. So it hands over here.
    *
-   * Straight to `links`, which is exactly where confirmOwnership() lands the
+   * Straight to the findings, which is exactly where confirmOwnership() lands the
    * flow that came the long way. The steps behind it are not skipped, they
    * already happened — which is why previousStep() offers no way back to them.
    *
@@ -502,7 +570,7 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
           if (!cancelled && l.ok && Array.isArray(d.links)) setLinkSeed(d.links);
         } catch { /* opens empty */ }
 
-        if (!cancelled) setStep("links");
+        if (!cancelled) setStep("interview");
       } catch (e) {
         if (cancelled) return;
         // Not their page, or the connector is down. Either way this is not a
@@ -517,17 +585,19 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [claimedId, isLoaded, isSignedIn]);
 
-  // In-app Apple sign-in uses a full redirect (the native token strategy is
-  // gated to Clerk's native SDK, and Google-style popups don't work in WKWebView).
-  // A redirect drops this page's in-memory state, so oauthSignUp stashes it and we
-  // restore + advance here once we're back and signed in.
+  // The sign-in redirect drops this page's in-memory state, so oauthSignUp
+  // stashes it and we restore + advance here once we're back and signed in.
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
     let raw: string | null = null;
-    try { raw = sessionStorage.getItem("join_apple_resume"); } catch { /* ignore */ }
+    try { raw = sessionStorage.getItem(RESUME_KEY); } catch { /* ignore */ }
     if (!raw) return;
-    try { sessionStorage.removeItem("join_apple_resume"); } catch { /* ignore */ }
-    let s: { kind?: Kind; name?: string; role?: string; city?: string; picked?: Picked | null; remote?: boolean; bizName?: string };
+    try { sessionStorage.removeItem(RESUME_KEY); } catch { /* ignore */ }
+    let s: {
+      kind?: Kind; name?: string; role?: string; city?: string; picked?: Picked | null; remote?: boolean; bizName?: string;
+      pendingCommit?: boolean; transcript?: Msg[]; linksDraft?: LinkSet | null; seed?: BriefInput;
+      claimTarget?: { id: string; name: string; address: string | null } | null;
+    };
     try { s = JSON.parse(raw); } catch { return; }
     const k: Kind = s.kind ?? "vendor";
     setKind(k);
@@ -536,10 +606,16 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
     setCity(s.city ?? "");
     setRemote(!!s.remote);
     if (s.bizName) setBizName(s.bizName);
+    if (s.seed) setSeed(s.seed);
+    if (s.picked) setPicked(s.picked);
     setMidFlow(true);
     setStep("working");
     // Values are passed explicitly — the setState calls above haven't flushed.
-    if (k === "artist" || s.remote) {
+    if (s.claimTarget && k === "artist") {
+      setClaimTarget(s.claimTarget);
+      setMemberId(s.claimTarget.id);
+      void claimExisting({ memberId: s.claimTarget.id, name: s.name ?? "" });
+    } else if (k === "artist" || s.remote) {
       void finishSelfOwned({
         name: s.name ?? "",
         city: s.city ?? "",
@@ -547,113 +623,68 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
         kind: k,
         role: s.role ?? "Owner",
       });
-    } else if (s.picked) {
-      // The chosen listing survives the redirect too. Without it the person
-      // would come back signed in and be asked to find their business again,
-      // having already found it.
-      setPicked(s.picked);
-      setBizName(s.picked.name);
-      setSeed(s.picked.seed);
-      setLinkSeed(s.picked.links);
-      void claimPicked({ pick: s.picked, name: s.name ?? "", role: s.role ?? "Owner" });
+    } else if (s.pendingCommit) {
+      // Verified, findings done, links typed — everything survived the
+      // redirect, and the proof is in a cookie that never left. Commit.
+      setPendingCommit(true);
+      setTranscript(s.transcript ?? []);
+      setLinksDraft(s.linksDraft ?? null);
+      void commitClaim({
+        kind: k,
+        name: s.name ?? "",
+        role: s.role ?? "Owner",
+        links: s.linksDraft ?? null,
+        transcript: s.transcript ?? [],
+      });
     } else {
       setStep("business");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoaded, isSignedIn]);
 
-  // Advance past sign-in. Artists (self-owned) go straight to setup; an entity
-  // now has a session AND a listing, so this is where the member is created and
-  // the ownership code goes out.
+  // Past sign-in. What happens depends on what was proven BEFORE it:
+  //   a verified listing / claimed page → create or claim it now (commit)
+  //   an admin acting on behalf          → stamp the owner, save, carry on
+  //   an artist's existing page          → self-owned claim, then findings
+  //   an artist or unlisted business     → create their page, then findings
   function afterSignedIn() {
     setStep("working");
-    // Claiming a page that already exists: nothing to create, so this goes
-    // straight to the ownership check on the number that page already carries.
-    if (claimTarget) {
+    if (adminActing) {
+      void adminFinish();
+      return;
+    }
+    if (claimTarget && isArtist) {
       void claimExisting();
       return;
     }
-    // An artist never had an anchor; a remote entity has chosen not to have
-    // one. Both create their page here rather than claiming a listing.
     if (isArtist || remote) void finishSelfOwned();
-    else void claimPicked();
+    else void commitClaim();
   }
 
   /**
-   * Ownership check for an existing page: text a code to the number ON THAT
-   * LISTING and make them read it back.
-   *
-   * The ONLY proof accepted for an entity, here and in /api/claim. The old
-   * standalone claim page also offered "paste your Google Maps URL or Place
-   * ID", which proves nothing whatsoever — both are public, printed on the
-   * listing itself, and copyable by the exact person you are trying to keep
-   * out. It is gone.
-   *
-   * A person's page (artist and friends) has no anchor and never did — the
-   * account IS the claim, same as the artist path in a fresh join.
+   * An artist claiming a page that already exists. A person's page has no
+   * anchor and never did — the account IS the claim, same as a fresh artist.
+   * (Businesses don't come through here any more: they prove the number on the
+   * code2 screen and are committed by /api/join/commit.)
    */
-  async function claimExisting() {
+  async function claimExisting(override?: { memberId: string; name: string }) {
     setBusy(true);
     setErr("");
     try {
-      if (isArtist) {
-        await fetch("/api/claim", {
+      if (!demo) {
+        const res = await fetch("/api/claim", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ memberId, method: "self_owned", value: "me", ownerName: name.trim() }),
+          body: JSON.stringify({
+            memberId: override?.memberId ?? memberId,
+            method: "self_owned",
+            value: "me",
+            ownerName: (override?.name ?? name).trim(),
+          }),
         });
-        await fetch("/api/vendor/profile", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ memberId }),
-        });
-        setStep("links");
-        return;
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Couldn't claim this page.");
       }
-
-      // Acting on behalf. No OTP (the code goes to the business, not to the
-      // admin) and no /api/claim (it links vendor_profiles to the CALLER, which
-      // would quietly make the admin the vendor for someone else's business).
-      // The one thing the who step produced that would otherwise be lost is the
-      // owner's name and role, so that is written straight to the profile.
-      if (adminActing) {
-        await fetch(`/api/members/${memberId}/about`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ownerName: name.trim(), ownerRole: role }),
-        }).catch(() => {
-          /* a detail on the profile, not the reason they are here */
-        });
-        setStep("links");
-        return;
-      }
-
-      // DEMO: no member, no session, no SMS. Show a plausible masked number as
-      // the verify target and move on — same stub claimPicked() uses.
-      if (demo) {
-        setPhoneHint(DEMO_CLAIM.phoneHint);
-        setStep("code2");
-        return;
-      }
-
-      const otp = await (await fetch("/api/otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ memberId }),
-      })).json();
-      if (!otp.sent) {
-        // No number on the listing, or the send failed. There is no second
-        // method to fall back to and inventing one is how this went wrong the
-        // first time — so it stops here and hands them to a human.
-        setErr(
-          otp.error ||
-            "This listing has no phone number we can text, so we can't verify it automatically. Message our team and we'll sort it out.",
-        );
-        setStep("who");
-        return;
-      }
-      setPhoneHint(otp.phoneHint || null);
-      setStep("code2");
+      setStep("interview");
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Something went wrong.");
       setStep("who");
@@ -662,11 +693,124 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
     }
   }
 
-  // ── Step 2 (primary): sign in with Google / Apple (Clerk OAuth popup) ───────
-  // A popup keeps this page — and all its in-memory state (kind, name, the
-  // business you picked) — alive; a full redirect would drop it and dump the
-  // person back at step 1. /sso-callback completes the flow inside the popup and
-  // sets the session on the shared client, then the promise below resolves.
+  /**
+   * Acting on behalf. No code (it goes to the business, not to the admin) and
+   * no /api/claim (it links vendor_profiles to the CALLER, which would quietly
+   * make the admin the vendor for someone else's business). What the who step
+   * produced — the owner's name and role — is written straight to the profile,
+   * then the links and the conversation, like anyone else's.
+   */
+  async function adminFinish() {
+    setBusy(true);
+    setErr("");
+    try {
+      if (!demo) {
+        await fetch(`/api/members/${memberId}/about`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ownerName: name.trim(), ownerRole: role }),
+        }).catch(() => {
+          /* a detail on the profile, not the reason they are here */
+        });
+        await persist(memberId, linksDraft, transcript);
+      }
+      setStep("setup");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /**
+   * Write what was collected before the page existed: the links typed on the
+   * links step, and the findings conversation. Links are awaited (they are on
+   * the next screen's page); the enrich is not — it runs the connector's whole
+   * profiling brain and nobody should wait on it.
+   */
+  async function persist(id: string, links: LinkSet | null, msgs: Msg[]) {
+    if (demo || !id) return;
+    if (links && links.links.length + links.custom.length > 0) {
+      try {
+        const res = await fetch(`/api/members/${id}/links`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(links),
+        });
+        if (!res.ok) throw new Error();
+      } catch {
+        setErr("Your page is set up, but your links didn't save — add them from your profile.");
+      }
+    }
+    if (msgs.some((m) => m.role === "user")) {
+      void fetch("/api/join/enrich", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ memberId: id, messages: msgs }),
+      }).catch(() => {});
+    }
+  }
+
+  /**
+   * Signed in, with ownership already proven: make it theirs.
+   *
+   * The server reads the proof cookie and rebuilds the page from Google; this
+   * sends only who they are. `override` is for the Apple redirect, whose
+   * restored state hasn't flushed through setState yet.
+   */
+  async function commitClaim(override?: { kind: Kind; name: string; role: string; links: LinkSet | null; transcript: Msg[] }) {
+    setBusy(true);
+    setErr("");
+    try {
+      if (demo) {
+        setMemberId(claimTarget?.id ?? "demo-join");
+        setStep("setup");
+        return;
+      }
+      const res = await fetch("/api/join/commit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind: override?.kind ?? kind,
+          ownerName: (override?.name ?? name).trim(),
+          ownerRole: override?.role ?? role,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.memberId) {
+        // The proof expired (two hours) — the only fix is another code.
+        if (res.status === 403) {
+          setPendingCommit(false);
+          setCodeSent(false);
+          setCode("");
+          setErr(data.error || "Your verification expired. Verify the business number again.");
+          setStep("code2");
+          return;
+        }
+        throw new Error(data.error || "Couldn't set up your page.");
+      }
+      setMemberId(data.memberId);
+      setPendingCommit(false);
+      await persist(data.memberId, override?.links ?? linksDraft, override?.transcript ?? transcript);
+      setStep("setup");
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Something went wrong.");
+      setStep("who");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // ── Step 2 (primary): sign in with Google / Apple (Clerk OAuth redirect) ────
+  // A full-page redirect, starting as a SIGN-IN: an existing account completes
+  // directly, a new one is transferred to a sign-up by /sso-callback
+  // (AuthenticateWithRedirectCallback) — Clerk's standard custom flow. The
+  // redirect drops this page's state, so it is stashed first and the resume
+  // effect above carries on once we are back and signed in.
+  //
+  // It used to be signUp.authenticateWithPopup, and that never worked on the
+  // web (2026-10-18): the call returns as soon as the popup is POINTED at the
+  // provider, so the session check after it failed every time ("make sure the
+  // popup wasn't blocked"), and a returning account that Clerk then routed
+  // through /sso-callback fell out onto Clerk's hosted sign-in page.
   async function oauthSignUp(strategy: "oauth_google" | "oauth_apple") {
     if (!name.trim()) return setErr(isArtist ? "Add your name or stage name." : "Add your name.");
     if (remote && !isArtist && !bizName.trim()) {
@@ -685,31 +829,11 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
       afterSignedIn();
       return;
     }
-    // Inside the iOS app the web popup is blocked (WKWebView):
-    //  • Apple — oauth_apple REDIRECT (kept inside the webview; Apple permits its
-    //    sign-in there). The native token strategy 401s from the web SDK. Redirect
-    //    drops our state, so stash it and resume via the effect above.
-    //  • Google — native plugin token (Google blocks webview OAuth).
-    if (isNativeApp()) {
-      if (strategy === "oauth_apple") {
-        try {
-          sessionStorage.setItem("join_apple_resume", JSON.stringify({ kind, name, role, city, picked, remote, bizName }));
-        } catch { /* ignore */ }
-        setBusy(true);
-        try {
-          await clerk.client.signIn.authenticateWithRedirect({
-            strategy: "oauth_apple",
-            redirectUrl: `${window.location.origin}/sso-callback`,
-            redirectUrlComplete: `${window.location.origin}/join`,
-          });
-          // Redirect navigates away; nothing after this runs.
-        } catch (e) {
-          try { sessionStorage.removeItem("join_apple_resume"); } catch { /* ignore */ }
-          setBusy(false);
-          setErr(e instanceof Error ? e.message : "Couldn't start Apple sign-in.");
-        }
-        return;
-      }
+    // Inside the iOS app Google blocks webview OAuth, so Google is the native
+    // plugin token. Apple uses the same redirect as the web — kept inside the
+    // webview, which Apple permits (the native token strategy 401s from the
+    // web SDK).
+    if (isNativeApp() && strategy === "oauth_google") {
       setBusy(true);
       setMidFlow(true);
       try {
@@ -723,33 +847,33 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
       }
       return;
     }
+    stashForResume();
     setBusy(true);
-    setMidFlow(true);
-    // The popup must be opened synchronously inside the click handler or the
-    // browser blocks it; Clerk then drives it to the provider and back.
-    const popup = window.open("", "_blank", "width=520,height=640");
     try {
-      await clerk.client.signUp.authenticateWithPopup({
+      await clerk.client.signIn.authenticateWithRedirect({
         strategy,
         redirectUrl: `${window.location.origin}/sso-callback`,
         redirectUrlComplete: `${window.location.origin}/join`,
-        continueSignUp: true,
-        popup,
       });
-      // Popup resolved — the shared client now holds the session. Guard against a
-      // Clerk instance still requiring extra fields (would leave us un-signed-in).
-      if (!clerk.session && clerk.client.signUp.status !== "complete") {
-        throw new Error("Couldn't finish sign-in. Make sure the popup wasn't blocked.");
-      }
-      afterSignedIn();
+      // Redirect navigates away; nothing after this runs.
     } catch (e) {
-      setMidFlow(false);
-      try { popup?.close(); } catch {}
-      const msg = e instanceof Error ? e.message : "";
-      setErr(/cancel|closed|abort/i.test(msg) ? "Sign-in was cancelled." : msg || "Couldn't sign in with that provider.");
-    } finally {
+      dropResume();
       setBusy(false);
+      setErr(e instanceof Error ? e.message : "Couldn't start sign-in.");
     }
+  }
+
+  // What the resume effect needs to carry on after the sign-in redirect.
+  function stashForResume() {
+    try {
+      sessionStorage.setItem(RESUME_KEY, JSON.stringify({
+        kind, name, role, city, picked, remote, bizName, pendingCommit, transcript, linksDraft, seed,
+        claimTarget: claimTarget && isArtist ? claimTarget : null,
+      }));
+    } catch { /* ignore */ }
+  }
+  function dropResume() {
+    try { sessionStorage.removeItem(RESUME_KEY); } catch { /* ignore */ }
   }
 
   // ── Step 4 (entities): find business on Google ─────────────────────────────
@@ -775,173 +899,111 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
     }
   }
 
-  // Pick a listing → resolve it → go and sign in. NOTHING is created here any
-  // more: the member, the claim and the OTP all need a session, and this runs
-  // before there is one. All this does is spend the one details call and hold
-  // the answer.
+  // Pick a listing → the verify screen. NOTHING is created here, and nothing
+  // is sent yet either: the code goes out when they press the button on the
+  // next screen, so a mis-tap never texts a business.
+  //
+  // No details call from the browser. The real flow gets the listing back
+  // WITH the code (/api/join/verify/send), from the same server that will
+  // build the page — /api/places/details is signed-in only, and this runs
+  // before there is a session. The demo has no send, so it still asks.
   async function chooseListing(p: Place) {
     setResults([]);
     setPq(p.name);
-    setBusy(true);
     setErr("");
-    try {
-      const details = (await (await fetch(`/api/places/details?placeId=${encodeURIComponent(p.placeId)}`)).json()).details;
-      const profile = {
-        name: p.name,
-        memberType: kind,
-        category: (details?.types || []).find((t: string) => !["point_of_interest", "establishment", "food", "store"].includes(t))?.replace(/_/g, " ") || undefined,
-        city: details?.city || undefined,
-        neighborhood: details?.neighborhood || undefined,
-        // Capture the coordinates straight from Google Places — this is the only
-        // reliable source. The connector only back-fills lat/lng by parsing
-        // `@lat,lng` out of a Maps URL, and our place_id URL has no numbers, so
-        // without these the business never lands on the /live map.
-        latitude: typeof details?.lat === "number" ? details.lat : undefined,
-        longitude: typeof details?.lng === "number" ? details.lng : undefined,
-        phone: details?.phone || undefined,
-        // businessPhone is what resolveOwnershipPhone reads for the ownership OTP
-        // (it does NOT read `phone`); googleMapsUrl is the authoritative fallback.
-        businessPhone: details?.phone || undefined,
-        googleMapsUrl: `https://www.google.com/maps/place/?q=place_id:${p.placeId}`,
-        businessDescription: details?.summary || undefined,
-        websiteUrl: details?.website || undefined,
-        // ownerName/ownerRole are filled in at claim time — at this point we
-        // still don't know who they are.
-      };
-      // The interviewer's warm baseline — built from the REAL Places pick either
-      // way. Everything here is already bought and paid for by the search + the
-      // one details call, so none of it is left on the floor: the rating, the
-      // hours and the categories all give the agent something true to open with,
-      // which matters most for the many small businesses Google has no editorial
-      // summary for.
-      const listingSeed: BriefInput = {
-        name: p.name,
-        category: profile.category ?? null,
-        city: details?.city ?? null,
-        neighborhood: details?.neighborhood ?? null,
-        description: details?.summary ?? null,
-        websiteUrl: details?.website ?? null,
-        rating: details?.rating ?? p.rating ?? null,
-        ratingCount: details?.userRatingsTotal ?? p.userRatingsTotal ?? null,
-        hours: details?.hours ?? null,
-        types: details?.types ?? p.types ?? null,
-        address: details?.address ?? p.address ?? null,
-      };
-
-      const pick: Picked = {
-        placeId: p.placeId,
-        name: p.name,
-        profile,
-        seed: listingSeed,
-        links: seedFromListing(details),
-        phoneHint: maskPhone(details?.phone),
-      };
-      setPicked(pick);
-      setBizName(p.name);
-      setSeed(listingSeed);
-      setLinkSeed(pick.links);
-      setStep("who");
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "Something went wrong.");
-    } finally {
-      setBusy(false);
+    let details: PlaceDetails | null = null;
+    if (demo) {
+      setBusy(true);
+      try {
+        details = (await (await fetch(`/api/places/details?placeId=${encodeURIComponent(p.placeId)}`)).json()).details ?? null;
+      } catch {
+        details = null;
+      } finally {
+        setBusy(false);
+      }
     }
+    const pick: Picked = {
+      placeId: p.placeId,
+      name: p.name,
+      seed: seedFromDetails(details, p),
+      links: seedFromListing(details),
+      phoneHint: maskPhone(details?.phone),
+    };
+    setPicked(pick);
+    setBizName(p.name);
+    setSeed(pick.seed);
+    setLinkSeed(pick.links);
+    setCodeSent(false);
+    setCode("");
+    setStep("code2");
   }
 
-  // Signed in, with a listing in hand: create the member from it and send the
-  // ownership code. `override` exists for the Apple redirect, whose restored
-  // state hasn't flushed through setState by the time this runs.
-  async function claimPicked(override?: { pick: Picked; name: string; role: string }) {
-    const pick = override?.pick ?? picked;
-    if (!pick) {
-      // No listing to claim — the only way here is a resume that lost it.
-      setStep("business");
-      return;
-    }
+  /**
+   * Text (or call) the ownership code to the number on the listing.
+   *
+   * The browser names the business — a placeId, or the page it was pointed at
+   * — and never the number. The server looks that up itself.
+   */
+  async function sendCode(channel: "sms" | "call" = "sms") {
     setBusy(true);
     setErr("");
     try {
-      // Who they are is known NOW and not before, so it is stamped on at claim
-      // time rather than baked into the profile at search time.
-      const profile = {
-        ...pick.profile,
-        ownerName: override?.name ?? name,
-        ownerRole: override?.role ?? role,
-      };
-
-      // DEMO: no member created, no OTP sent. Show the business's REAL Google
-      // listing number as the (fake) verify target and move on.
       if (demo) {
-        setMemberId("demo-join");
-        setPhoneHint(pick.phoneHint);
-        setStep("code2");
+        setPhoneHint(picked?.phoneHint ?? DEMO_CLAIM.phoneHint);
+        setCodeSent(true);
         return;
       }
-
-      const created = await (await fetch("/api/members/create", {
+      const res = await fetch("/api/join/verify/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profile, mode: "self" }),
-      })).json();
-      if (!created.memberId) throw new Error(created.error || "Couldn't create the profile.");
-      setMemberId(created.memberId);
-      // Send the ownership code to the listing's phone.
-      const otp = await (await fetch("/api/otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ memberId: created.memberId }),
-      })).json();
-      if (!otp.sent) {
-        setErr(otp.error || "This listing has no phone we can verify. Try a different listing or ask an admin.");
-        setStep("business"); // back to the search, with the error explaining why
-        return;
+        body: JSON.stringify(claimTarget ? { memberId: claimTarget.id } : { placeId: picked?.placeId, channel }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.sent) throw new Error(data.error || "Couldn't send a code.");
+      setPhoneHint(data.phoneHint || null);
+      // The listing rides back with the code: the findings and the links
+      // step open with the real details instead of just a name.
+      if (data.details && picked) {
+        const d = data.details as PlaceDetails;
+        const next: Picked = {
+          ...picked,
+          seed: seedFromDetails(d, { name: picked.name, address: d.address, rating: d.rating, userRatingsTotal: d.userRatingsTotal, types: d.types }),
+          links: seedFromListing(d),
+        };
+        setPicked(next);
+        setSeed(next.seed);
+        setLinkSeed(next.links);
       }
-      setPhoneHint(otp.phoneHint || null);
-      setStep("code2");
+      setCodeSent(true);
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Something went wrong.");
-      setStep("business");
+      setErr(e instanceof Error ? e.message : "Couldn't send a code.");
     } finally {
       setBusy(false);
     }
   }
 
-  // ── Step 5 (entities): verify ownership code #2 → claim + link ─────────────
+  // The code they read back. A match proves the number — and so the business —
+  // but still writes nothing: it upgrades the proof cookie, and the page is
+  // made after sign-in (commitClaim).
   async function confirmOwnership() {
     if (code.trim().length < 4) return setErr("Enter the 6-digit code.");
     setBusy(true);
     setErr("");
     try {
-      // DEMO: any code passes; no claim, no profile link.
-      if (demo) {
-        setCode("");
-        setStep("links");
-        return;
+      if (!demo) {
+        const res = await fetch("/api/join/verify/check", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code: code.trim() }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!data.verified) throw new Error(data.error || "That code didn't match the business's number.");
       }
-      const res = await (await fetch("/api/claim", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        // Who they are rides along with the proof: on a claimed page nothing
-        // else ever asks, and a page whose owner is unnamed is a page we can't
-        // address in an email or a phone call.
-        body: JSON.stringify({
-          memberId,
-          method: "phone_otp",
-          value: code.trim(),
-          ownerName: name.trim() || undefined,
-          ownerRole: role || undefined,
-        }),
-      })).json();
-      if (!res.verified && !res.ok) throw new Error(res.error || "That code didn't match the business's number.");
-      await fetch("/api/vendor/profile", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ memberId }),
-      });
-      // Links come BEFORE the interview: they are typing, the interview is
-      // talking, and the interview is the long one. Asking for links after it
-      // meets someone who has just finished and thinks they are done.
-      setStep("links");
+      setCode("");
+      setPendingCommit(true);
+      // Findings first: the research is the reward for proving it's theirs,
+      // and correcting it is what gets them talking. Links, then sign-in.
+      setStep("interview");
     } catch (e) {
       setErr(e instanceof Error ? e.message : "That code didn't match.");
     } finally {
@@ -980,7 +1042,7 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
         setMemberId("demo-join");
         setBizName(pageName);
         setSeed({ name: pageName, city: ct.trim() || null });
-        setStep("links");
+        setStep("interview");
         return;
       }
       const created = await (await fetch("/api/members/create", {
@@ -1007,17 +1069,15 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
       // No Maps anchor — the seed (name + city) is what the web-search research
       // keys off to open the interview already knowing something about them.
       setSeed({ name: pageName, city: ct.trim() || null });
+      // /api/claim links the account too (lib/claim.ts). The
+      // /api/vendor/profile call that used to follow re-wrote that link as
+      // "pending" with no method — a downgrade, not a backup.
       await fetch("/api/claim", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ memberId: created.memberId, method: "self_owned", value: "me" }),
       });
-      await fetch("/api/vendor/profile", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ memberId: created.memberId }),
-      });
-      setStep("links");
+      setStep("interview");
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Something went wrong.");
       setStep("who");
@@ -1089,31 +1149,26 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
           </button>
         </div>
       )}
-      {step !== "type" && step !== "done" && step !== "interview" && step !== "links" && step !== "setup" && (
+      {step !== "type" && step !== "done" && step !== "interview" && step !== "links" && step !== "setup" && step !== "sellways" && (
         <p className="mb-4 text-xs font-medium uppercase tracking-wide text-stone-400">
-          {/* The caption follows the ORDER, which changed when sign-in moved
-              after the search: for an entity it is now find (1) → claim (2) →
-              verify (3). It said "Step 2 of 2 · the business" on the search
-              screen, which is the first thing an entity now sees. */}
-          {claimTarget
-            // No verify step when acting on behalf, so no count that ends in one.
-            ? adminActing
-              ? "Acting on behalf"
-              : step === "who"
-              ? "Step 1 of 2 · your account"
-              : "Step 2 of 2 · verify"
-            : isArtist
-            ? "Artist"
-            : remote
-              // Find → claim → verify is the ANCHORED flow. Remote skips the
-              // first and has nothing to verify against, so counting steps
-              // that will never arrive would be a lie about what is left.
-              ? "No fixed address"
-              : step === "business"
-                ? "Step 1 of 3 · your business"
+          {/* Words, not counts. A count has been wrong every time the order
+              moved, and the order moved again on 2026-10-01: an entity now
+              finds → verifies → (findings, links) → signs in last. */}
+          {adminActing
+            ? "Acting on behalf"
+            : step === "business"
+              ? "Find your business"
+              : step === "code2"
+                ? "Verify it's yours"
                 : step === "who"
-                  ? "Step 2 of 3 · your account"
-                  : "Step 3 of 3 · verify"}
+                  ? pendingCommit
+                    ? "Last step · your account"
+                    : isArtist
+                      ? "Artist"
+                      : remote
+                        ? "No fixed address"
+                        : "Your account"
+                  : ""}
         </p>
       )}
       {err && <p className="mb-4 rounded-lg bg-rose-50 px-3.5 py-2 text-[13px] text-rose-700">{err}</p>}
@@ -1208,14 +1263,16 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
                   // the wrong thing happening to the wrong account.
                   : adminActing
                     ? `Set up ${bizName || "this business"}`
-                    : `Claim ${bizName || "your business"}`
+                    : `Make ${bizName || "your business"} yours`
             }
             sub={
               isArtist
                 ? "A couple of details, then continue with Google or Apple."
                 : adminActing
                   ? "Who runs this business? We record their name and role on the page — you stay signed in as you."
-                  : "Tell us who you are, then sign in — this is the account you'll manage the page with."
+                  : pendingCommit
+                    ? "Last step. Who you are, and the account you'll manage the page with — then we set up your shop."
+                    : "Tell us who you are, then sign in — this is the account you'll manage the page with."
             }
           />
           {/* What they just picked, shown while they sign in. The listing is the
@@ -1224,21 +1281,27 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
           {!isArtist && (picked || claimTarget) && (
             <div className="flex items-center gap-3 rounded-2xl border border-stone-200 bg-stone-50 p-3">
               <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white">
-                <Store className="h-5 w-5 text-stone-500" />
+                {pendingCommit ? (
+                  <ShieldCheck className="h-5 w-5 text-emerald-600" />
+                ) : (
+                  <Store className="h-5 w-5 text-stone-500" />
+                )}
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[15px] font-semibold text-stone-900">
                   {picked?.name ?? claimTarget?.name}
                 </span>
                 <span className="block truncate text-[13px] text-stone-500">
-                  {(picked?.seed.address as string) ||
-                    claimTarget?.address ||
-                    "From your Google listing"}
+                  {pendingCommit
+                    ? "Verified · you answered the business number"
+                    : (picked?.seed.address as string) ||
+                      claimTarget?.address ||
+                      "From your Google listing"}
                 </span>
               </span>
               {/* "Change" only where there is something to change TO. A claim
                   was pointed at one page; the search behind it doesn't exist. */}
-              {picked && (
+              {picked && !pendingCommit && (
                 <button
                   type="button"
                   onClick={() => { setPicked(null); setStep("business"); }}
@@ -1349,9 +1412,9 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
           <p className="text-xs text-stone-400">
             {adminActing
               ? "Acting on behalf — no code is sent, and the page stays linked to its own owner."
-              : isArtist
+              : isArtist || remote
               ? "You'll finish setting up your page next."
-              : "Next we'll send a code to the number on the listing, to check you can answer it."}
+              : "Signing in makes the page yours. Next: your products and payouts."}
           </p>
         </div>
       )}
@@ -1471,13 +1534,72 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
           <StepHeader
             icon={ShieldCheck}
             title={`Verify you run ${bizName}`}
-            sub={`A different code — to the number on ${bizName}'s Google listing${phoneHint ? ` (${phoneHint})` : ""}, not your phone.`}
+            sub={
+              codeSent
+                ? `We sent a code to the number on ${bizName}'s ${claimTarget ? "page" : "Google listing"}${phoneHint ? ` (${phoneHint})` : ""}. Read it back here.`
+                : `We'll send a code to the number on ${bizName}'s ${claimTarget ? "page" : "Google listing"} — not your phone. Whoever can answer that line can claim the page.`
+            }
           />
-          <input value={code} onChange={(e) => setCode(e.target.value)} inputMode="numeric" placeholder="6-digit code" className="h-14 w-full rounded-xl border border-stone-300 px-3 text-center text-2xl tracking-[0.3em] outline-none transition focus:border-stone-900" />
-          <button onClick={confirmOwnership} disabled={busy} className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-coral-600 px-4 py-3.5 text-[15px] font-semibold text-white transition hover:bg-coral-700 disabled:opacity-60">
-            {busy && <Loader2 className="h-4 w-4 animate-spin" />} Verify ownership
-          </button>
-          <p className="text-xs text-stone-400">Only someone who can receive at the business&apos;s own line can pass this.</p>
+          {/* The listing being verified, so a wrong pick is obvious BEFORE a
+              business gets texted. */}
+          {(picked || claimTarget) && (
+            <div className="flex items-center gap-3 rounded-2xl border border-stone-200 bg-stone-50 p-3">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white">
+                <Store className="h-5 w-5 text-stone-500" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[15px] font-semibold text-stone-900">{picked?.name ?? claimTarget?.name}</span>
+                <span className="block truncate text-[13px] text-stone-500">
+                  {(picked?.seed.address as string) || claimTarget?.address || "From your Google listing"}
+                </span>
+              </span>
+              {picked && !claimTarget && (
+                <button
+                  type="button"
+                  onClick={goBack}
+                  className="shrink-0 text-[13px] font-medium text-stone-500 underline underline-offset-2 hover:text-stone-900"
+                >
+                  Change
+                </button>
+              )}
+            </div>
+          )}
+          {!codeSent ? (
+            <div className="space-y-2">
+              <button
+                onClick={() => void sendCode("sms")}
+                disabled={busy}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-coral-600 px-4 py-3.5 text-[15px] font-semibold text-white transition hover:bg-coral-700 disabled:opacity-60"
+              >
+                {busy && <Loader2 className="h-4 w-4 animate-spin" />} Text the code
+              </button>
+              {/* Plenty of shops answer on a landline, which can't get a text. */}
+              {!claimTarget && (
+                <button
+                  onClick={() => void sendCode("call")}
+                  disabled={busy}
+                  className="w-full py-1 text-[13px] font-medium text-stone-500 transition hover:text-stone-800 disabled:opacity-60"
+                >
+                  It&apos;s a landline — call it instead
+                </button>
+              )}
+            </div>
+          ) : (
+            <>
+              <input value={code} onChange={(e) => setCode(e.target.value)} onKeyDown={(e) => e.key === "Enter" && confirmOwnership()} inputMode="numeric" autoComplete="one-time-code" placeholder="6-digit code" className="h-14 w-full rounded-xl border border-stone-300 px-3 text-center text-2xl tracking-[0.3em] outline-none transition focus:border-stone-900" />
+              <button onClick={confirmOwnership} disabled={busy} className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-coral-600 px-4 py-3.5 text-[15px] font-semibold text-white transition hover:bg-coral-700 disabled:opacity-60">
+                {busy && <Loader2 className="h-4 w-4 animate-spin" />} Verify ownership
+              </button>
+              <button
+                onClick={() => { setCode(""); setCodeSent(false); }}
+                disabled={busy}
+                className="w-full py-1 text-[13px] font-medium text-stone-500 transition hover:text-stone-800"
+              >
+                Didn&apos;t get it? Send a new code
+              </button>
+            </>
+          )}
+          <p className="text-xs text-stone-400">No account needed yet — you&apos;ll sign in at the end, once your page is ready.</p>
         </div>
       )}
 
@@ -1492,27 +1614,40 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
         <LinksStep
           memberId={memberId}
           initialLinks={linkSeed}
+          initial={linksDraft}
           demo={demo}
-          onDone={() => setStep("setup")}
+          // Held, not saved: for a verified listing there is no page yet. The
+          // page exists already for everyone who signed in first (artists,
+          // unlisted, resuming owners), so theirs are written straight away.
+          onSave={(set) => {
+            setLinksDraft(set);
+            if (pendingCommit || adminActing) {
+              setStep("who");
+              return;
+            }
+            setStep("working");
+            void persist(memberId, set, transcript).then(() => setStep("setup"));
+          }}
+          onDone={() => {}}
         />
       )}
 
       {step === "interview" && (
         <JoinInterview
-          memberId={memberId}
+          // "" for a listing verified before sign-in: no page exists yet, and
+          // the research route takes the business from the proof instead.
+          memberId={claimTarget?.id ?? memberId}
           bizName={bizName}
           kind={kind}
-          // The catalogue is part of what we already know, so it travels in the
-          // same seed the Places pick and the web research do. An interviewer
-          // that opens with "what do you sell?" to someone who has just typed
-          // it in reads as not having been listening.
-          seed={
-            addedProducts.length
-              ? { ...seed, products: addedProducts, catalogFromVendor: true }
-              : seed
-          }
+          seed={seed}
           demo={demo}
-          onDone={() => setStep("sellways")}
+          // Findings come straight after verification (2026-10-01): the
+          // research is the reward for proving it's yours, and fixing it is
+          // the easiest conversation to start. Links follow, then the shop.
+          onDone={(msgs) => {
+            setTranscript(msgs);
+            setStep("links");
+          }}
         />
       )}
 
@@ -1613,8 +1748,8 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
             </>
           )}
 
-          {/* Shop setup and the interview are both BEHIND them now (2026-08-22
-              — links → shop → payments → interview → here), so this is the way
+          {/* Shop setup and the interview are both BEHIND them now (2026-10-01
+              — findings → links → shop → payments → sellways → here), so this is the way
               out, not another step. Pointing it back at "setup" would have run
               a finished vendor through the catalogue screen a second time.
 
@@ -1666,18 +1801,14 @@ export function JoinFlow({ demo = false }: { demo?: boolean }) {
         </div>
       )}
 
-      {/* Setting up the shop — catalogue, then payouts, then what those two
-          unlocked. After the plan screen rather than before it, because it is
-          the first thing that is about their business rather than about us. */}
+      {/* Setting up the shop — catalogue, then payouts. Then "sellways", the
+          explainer of what those two unlocked, and the finish. */}
       {step === "setup" && (
         <ShopSetup
           memberId={memberId}
           memberName={bizName}
           demo={demo}
-          // What they just listed, so the interview can ask about it by name
-          // instead of asking what they sell — see the seed below.
-          onProducts={(names) => setAddedProducts(names)}
-          onFinish={() => setStep("interview")}
+          onFinish={() => setStep("sellways")}
         />
       )}
 

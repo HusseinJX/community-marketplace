@@ -3,6 +3,7 @@ import { auth } from '@clerk/nextjs/server'
 import { interviewVoicePrompt } from '@/lib/onboard'
 import { isDemoMode } from '@/lib/demo-admin'
 import { isJoinDemoActive } from '@/lib/joindemo'
+import { readVerifiedProof } from '@/lib/join-proof'
 
 export const runtime = 'nodejs'
 
@@ -12,7 +13,8 @@ export const runtime = 'nodejs'
 // session is a generic *interviewer* that gathers the new member's profile.
 //
 // Not entitlement-gated: the person is mid-join and not yet on a paid plan. It's
-// bounded instead by (a) requiring a signed-in Clerk session and (b) the client's
+// bounded instead by (a) requiring a signed-in Clerk session (or a verified
+// /join ownership proof) and (b) the client's
 // hard call-length cap in VoiceCall. The real OPENAI_API_KEY stays server-side.
 
 const REALTIME_MODEL = process.env.OPENAI_REALTIME_MODEL || 'gpt-realtime-mini'
@@ -20,7 +22,9 @@ const REALTIME_VOICE = process.env.OPENAI_REALTIME_VOICE || 'alloy'
 
 export async function POST(req: Request) {
   const { userId } = await auth()
-  if (!userId && !isDemoMode() && !(await isJoinDemoActive())) {
+  // A verified-but-not-yet-signed-in /join visitor talks through their
+  // findings BEFORE making an account (2026-10-01) — lib/join-proof.
+  if (!userId && !isDemoMode() && !(await isJoinDemoActive()) && !(await readVerifiedProof())) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
   if (!process.env.OPENAI_API_KEY) {
@@ -31,7 +35,8 @@ export async function POST(req: Request) {
   const name = body.name ? String(body.name).slice(0, 120) : undefined
   const kind = body.kind ? String(body.kind).slice(0, 40) : undefined
   const brief = body.brief ? String(body.brief).slice(0, 2000) : undefined
-  const instructions = interviewVoicePrompt({ name, kind, brief })
+  const refine = body.refine === true
+  const instructions = interviewVoicePrompt({ name, kind, brief, refine })
 
   try {
     const res = await fetch('https://api.openai.com/v1/realtime/client_secrets', {

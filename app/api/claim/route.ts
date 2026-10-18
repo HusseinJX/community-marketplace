@@ -1,21 +1,21 @@
 import { NextResponse } from 'next/server'
-import { auth, currentUser } from '@clerk/nextjs/server'
-import { invalidateMembers, invalidateMember } from '@/lib/cache'
-import { setVendorProfile } from '@/lib/vendor-connect'
-import { patchMember } from '@/lib/api'
+import { auth } from '@clerk/nextjs/server'
+import { finishClaim } from '@/lib/claim'
 
 // POST { memberId, method, value, ownerName?, ownerRole? }
 // Proxies verify + claim-profile calls to the connector agent.
 // Clerk userId becomes claimedBy in the claim-profile call.
 // CONNECTOR_ADMIN_TOKEN is held server-side and never exposed to clients.
 //
-// ⚠️ TWO METHODS, AND THE LIST IS THE POINT.
+// ⚠️ ONE METHOD HERE, AND THE LIST IS THE POINT.
 //
-//   phone_otp   — a code texted to the number ON THE LISTING, read back here.
-//                 The only proof an entity can give, because it is the only one
-//                 that requires POSSESSION of something only the business has.
 //   self_owned  — a person's own page. There is no anchor to prove; the account
 //                 is the claim.
+//
+// A BUSINESS proves ownership with a code texted to the number on its listing,
+// and every code goes through Twilio Verify on /api/join/verify/send → check →
+// /api/join/commit. This route used to accept `phone_otp` too, checked by the
+// connector's own OTP store; that was a second code path, so it is gone.
 //
 // The connector will also accept `google_maps`, `instagram`, `website_email`
 // and `gemini`. This app must not send them, and refuses them here rather than
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'memberId, method, and value are required' }, { status: 400 })
   }
 
-  const ALLOWED = ['phone_otp', 'self_owned']
+  const ALLOWED = ['self_owned']
   if (!ALLOWED.includes(method)) {
     return NextResponse.json(
       { error: 'Ownership is proved by a code sent to the number on the listing.' },
@@ -83,57 +83,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ verified: false, evidence: verifyResult.evidence }, { status: 200 })
   }
 
-  // Step 2: claim the profile
-  const claimRes = await fetch(`${apiBase}/.netlify/functions/claim-profile`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ unclaimedId: memberId, claimedBy: userId }),
+  // Steps 2-4 — claim, link the account, stamp the owner. Shared with
+  // /api/join/commit, which reaches the same point by a different route.
+  const done = await finishClaim({
+    memberId,
+    userId,
+    method: verifyResult.method,
+    evidence: verifyResult.evidence,
+    ownerName,
+    ownerRole,
   })
+  if (!done.ok) return NextResponse.json({ error: done.error }, { status: done.status })
 
-  if (!claimRes.ok) {
-    const err = await claimRes.text()
-    return NextResponse.json({ error: err || 'Claim failed' }, { status: claimRes.status })
-  }
-
-  // Step 3: link the Clerk user to the member.
-  //
-  // Without this the claim proved ownership on the connector but left no local
-  // record, so resolveActor found nothing and the vendor was sent to
-  // /vendor/setup to search for and re-verify the business they'd just claimed.
-  // Same row, same shape as /api/vendor/verify writes.
-  try {
-    const clerkUser = await currentUser()
-    const email = clerkUser?.emailAddresses?.[0]?.emailAddress ?? null
-    await setVendorProfile(userId, memberId, email, 'verified', verifyResult.method, verifyResult.evidence)
-  } catch (err) {
-    // The claim itself succeeded — don't fail the request. /vendor/setup is
-    // still there as a manual path if this write didn't land.
-    console.error('claim: vendor_profiles link failed:', err)
-  }
-
-  // Step 4: stamp who claimed it.
-  //
-  // A page joined through the search gets this at creation time, from the same
-  // screen that asks for the account. A CLAIMED page never had a creation
-  // moment of its own, so without this the owner of a business we canvassed is
-  // nobody — no name to greet, no role to know whether we are talking to the
-  // owner or the Tuesday closer.
-  const owner: Record<string, string> = {}
-  if (typeof ownerName === 'string' && ownerName.trim()) owner.ownerName = ownerName.trim()
-  if (typeof ownerRole === 'string' && ownerRole.trim()) owner.ownerRole = ownerRole.trim()
-  if (Object.keys(owner).length > 0) {
-    try {
-      await patchMember(memberId, owner)
-    } catch (err) {
-      // The claim stands either way — this is a detail on the profile, not the
-      // ownership itself.
-      console.error('claim: owner stamp failed:', err)
-    }
-  }
-
-  // Claiming flips status (and indexability) — refresh the directory snapshot,
-  // and this member's own page, which now shows an owner.
-  invalidateMembers()
-  invalidateMember(memberId)
   return NextResponse.json({ verified: true, claimed: true, method: verifyResult.method })
 }

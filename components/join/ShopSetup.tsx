@@ -18,8 +18,8 @@ import {
 } from "lucide-react";
 
 // Setting up the shop, straight after the links step: catalogue, then money.
-// What those two unlocked is explained on the "ready" screen, which now runs
-// AFTER the interview — see the startAt prop.
+// What those two unlocked is explained on the "ready" screen, the last one
+// before the finish — see the startAt prop.
 //
 // THE ORDER IS THE POINT. Catalogue first, because a payout account with
 // nothing to sell is a form you filled in for no reason, while a catalogue with
@@ -98,10 +98,8 @@ export function ShopSetup({
   memberName,
   /**
    * Which half this instance is. "catalog" runs the shop (products, then
-   * payments) and finishes into the interview; "ready" is the three-ways-to-
-   * sell explainer, shown after it. Split because the interview belongs
-   * between them (2026-08-22): the explainer reads as a summary of what you
-   * have set up, and a summary is the wrong thing to interrupt.
+   * payments); "ready" is the ways-to-sell explainer, shown after it as its
+   * own step so the flow can put something between them.
    */
   startAt = "catalog",
   /** Demo opens no hosted flow and connects nothing. */
@@ -289,7 +287,7 @@ export function ShopSetup({
         </button>
 
         <div className="space-y-2 pt-2">
-          <Next label="Next — tell us about you" onClick={() => { setErr(""); onFinish(); }} />
+          <Next label="Next" onClick={() => { setErr(""); onFinish(); }} />
           <Later label="Skip, I'm not selling yet" onClick={() => { setErr(""); onFinish(); }} />
         </div>
       </SetupScreen>

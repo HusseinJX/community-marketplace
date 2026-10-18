@@ -211,6 +211,23 @@ const ARC = [
   'more. Gaps in the research are optional colour: ask at most one, and only if it is free.',
 ].join(' ')
 
+// The /join variant of beat 1 (2026-10-01). There, the findings are ON SCREEN
+// before the conversation starts — the person has just read them — so the
+// recognition beat would be reading their own page back to them. The hook is
+// the opposite: we show our homework, they mark it. Correcting something about
+// yourself is the easiest thing in the world to start talking about, which is
+// what gets them into the call at all.
+const REFINE = [
+  'OVERRIDE — THIS REPLACES BEAT 1 ENTIRELY. They can SEE the research on their screen right now;',
+  'they have just read it. Never recite it, summarise it, or compliment it. YOUR FIRST MESSAGE is',
+  'ONE short line and nothing else, in this shape: "Hi! That is what we found on <name> — anything',
+  'we got wrong, missing, or out of date?" No wants question, no intuition, no menu, no pitch in the',
+  'first message. Then let them correct and add. Take each correction plainly ("got it — so it is',
+  'X, not Y") and never argue with them about their own business. Only when they say it is right',
+  'or have nothing more to fix: say in one line that their page will be written from this, then',
+  'move to beat 2 (wants).',
+].join(' ')
+
 // How it ENDS. The single most-missed piece: an interview with no closing
 // sequence just trails off, and the member never learns what any of it was for.
 function closing(finish: string): string {
@@ -257,14 +274,16 @@ function briefPreamble(brief?: string): string {
 }
 
 // System prompt for the interactive onboarding chat (QR self-onboarding).
-export function onboardingSystemPrompt(eventName?: string, opts?: { brief?: string }): string {
+export function onboardingSystemPrompt(eventName?: string, opts?: { brief?: string; refine?: boolean }): string {
   return [
     'You are a friendly WhatsLocal onboarding host helping a small business or maker join',
     eventName ? `the "${eventName}" event and the WhatsLocal community.` : 'the WhatsLocal community.',
     PRODUCT,
     briefPreamble(opts?.brief),
+    opts?.refine && opts?.brief ? REFINE : '',
     MISSION,
     ARC,
+    opts?.refine && opts?.brief ? REFINE : '',
     PACE,
     NEVER_ASK,
     'Anything the research left blank is fair game in beat 3 — what they sell or do, their category,',
@@ -284,7 +303,7 @@ export function onboardingSystemPrompt(eventName?: string, opts?: { brief?: stri
 // Spoken-style system prompt for the in-browser VOICE onboarding interview
 // (OpenAI Realtime). Used by /join after a business is verified — the goal is to
 // GATHER their profile in a short warm conversation, not to answer as a business.
-export function interviewVoicePrompt(opts?: { name?: string; kind?: string; brief?: string }): string {
+export function interviewVoicePrompt(opts?: { name?: string; kind?: string; brief?: string; refine?: boolean }): string {
   const who = opts?.name ? `"${opts.name}"` : 'a local business or maker'
   const pre = briefPreamble(opts?.brief)
   return [
@@ -295,8 +314,10 @@ export function interviewVoicePrompt(opts?: { name?: string; kind?: string; brie
     PRODUCT,
     pre ||
       'You could not find anything about them online. Open by welcoming them by name, say so plainly and warmly, and that you would rather hear it from them than guess — then go straight to talking about the events and collaborations they want locally.',
+    opts?.refine && pre ? REFINE : '',
     MISSION,
     ARC,
+    opts?.refine && pre ? REFINE : '',
     'Spoken adaptation of beat 1: keep the recognition to a few natural sentences — this is a',
     'call, not a dossier. Pick the two or three most specific things you found, say them like a',
     'friend would, name what you could not find, and hand it back to them.',

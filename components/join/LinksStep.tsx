@@ -28,13 +28,22 @@ export function LinksStep({
   onDone,
   /** Demo runs the whole screen but never writes. */
   demo = false,
+  /**
+   * Hand the links up instead of saving them. /join collects them BEFORE the
+   * account exists (2026-10-01) and writes them after sign-in.
+   */
+  onSave,
+  /** What they had typed, when they come back to this screen. */
+  initial,
 }: {
   memberId: string;
   initialLinks?: StoredLink[];
   onDone: () => void;
   demo?: boolean;
+  onSave?: (set: LinkSet) => void;
+  initial?: LinkSet | null;
 }) {
-  const [set, setSet] = useState<LinkSet>(() => ({ links: initialLinks, custom: [] }));
+  const [set, setSet] = useState<LinkSet>(() => initial ?? { links: initialLinks, custom: [] });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
 
@@ -49,6 +58,10 @@ export function LinksStep({
   async function save() {
     setErr("");
     if (broken.length > 0) return setErr(broken.join(" · "));
+    if (onSave) {
+      onSave(clean);
+      return onDone();
+    }
     if (total === 0 || demo) return onDone();
     setBusy(true);
     try {
@@ -98,7 +111,10 @@ export function LinksStep({
         </button>
         {total > 0 && (
           <button
-            onClick={onDone}
+            onClick={() => {
+              onSave?.({ links: [], custom: [] });
+              onDone();
+            }}
             disabled={busy}
             className="w-full py-1 text-[13px] font-medium text-stone-400 transition hover:text-stone-700 disabled:opacity-60"
           >

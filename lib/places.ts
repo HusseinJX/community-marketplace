@@ -75,6 +75,8 @@ export interface PlaceDetails {
   name: string
   address: string | null
   phone: string | null
+  /** E.164-ish ("+1 415-487-2600") — what an SMS can actually be sent to. */
+  internationalPhone: string | null
   website: string | null
   hours: string | null
   summary: string | null
@@ -218,7 +220,7 @@ export async function placeDetails(placeId: string): Promise<PlaceDetails | null
 
   // Only ever ask for what Text Search cannot give: contact, the editorial
   // summary, opening hours, and the parsed address components (city/hood).
-  const MISSING_FROM_SEARCH = 'formatted_phone_number,website,editorial_summary,opening_hours,address_components'
+  const MISSING_FROM_SEARCH = 'formatted_phone_number,international_phone_number,website,editorial_summary,opening_hours,address_components'
   const fields = known
     ? MISSING_FROM_SEARCH
     : `name,formatted_address,rating,user_ratings_total,types,price_level,business_status,geometry,${MISSING_FROM_SEARCH}`
@@ -249,6 +251,7 @@ export async function placeDetails(placeId: string): Promise<PlaceDetails | null
       businessStatus: known?.businessStatus ?? (r.business_status ?? null),
       // Only Details has these.
       phone: r.formatted_phone_number ?? null,
+      internationalPhone: r.international_phone_number ?? null,
       website: r.website ?? null,
       hours: r.opening_hours?.weekday_text?.join(', ') ?? null,
       summary: r.editorial_summary?.overview ?? null,

@@ -20,12 +20,15 @@ export async function POST(req: Request) {
   const messages: Msg[] = Array.isArray(body.messages) ? body.messages.slice(-20) : []
   const eventName = body.eventName ? String(body.eventName) : undefined
   const brief = body.brief ? String(body.brief).slice(0, 2000) : undefined
+  // /join shows the findings on screen first, so the host opens by asking what
+  // to fix rather than reading them back (REFINE in lib/onboard).
+  const refine = body.refine === true
 
   try {
     const completion = await getOpenAI().chat.completions.create({
       model: CHAT_MODEL,
       messages: [
-        { role: 'system', content: onboardingSystemPrompt(eventName, { brief }) },
+        { role: 'system', content: onboardingSystemPrompt(eventName, { brief, refine }) },
         ...messages.map((m) => ({
           role: m.role === 'assistant' ? ('assistant' as const) : ('user' as const),
           content: String(m.content ?? ''),
