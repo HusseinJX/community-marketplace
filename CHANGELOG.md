@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented here.
 
+## v163 — TODAY / TOMORROW stick on a phone again (2026-10-18)
+
+> **DEPLOYED** as v163 (`4a9f50c`, tag `prod-v163`). Web-only.
+
+### Fixed
+- The Events tab's day headings stuck at the nav height (80px) while on a phone the pinned
+  search/tabs band is ~150px tall — so they stuck BEHIND it and never showed on mobile or
+  the PWA. HomeTabs publishes the band's measured height as `--sticky-under` (phone only);
+  desktop and `/events` are unchanged.
+
 ## v162 — the chrome XENØ logo on the merch card (2026-10-18)
 
 > **DEPLOYED** as v162 (`cec450c`, tag `prod-v162`). Web-only.
