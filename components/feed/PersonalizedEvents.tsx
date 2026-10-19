@@ -663,7 +663,10 @@ export function PersonalizedEvents({
               //    under it, intermittently, depending on which card it met.
               //  - BELOW the header band (z-20), which this must pass under.
               className="sticky z-[15] -mx-4 mb-2 bg-stone-50/95 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-stone-400 backdrop-blur md:-mx-8 md:px-8"
-              style={{ top: "calc(var(--top-nav) + env(safe-area-inset-top))" }}
+              // --sticky-under: on the home tab on a phone, the pinned
+              // search/tabs band's measured height (HomeTabs) — the nav has
+              // scrolled away there. Everywhere else it is unset → the nav.
+              style={{ top: "calc(var(--sticky-under, var(--top-nav)) + env(safe-area-inset-top))" }}
             >
               {dayLabel(day)}
             </h2>

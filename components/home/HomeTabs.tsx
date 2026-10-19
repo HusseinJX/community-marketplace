@@ -193,6 +193,34 @@ export function HomeTabs() {
   // The scroll driver lives in an effect; the pin needs to reach into it.
   const drive = useRef<((p: number, hold: boolean) => void) | null>(null);
 
+  // On a phone the title row scrolls away and THIS band is what stays pinned
+  // at the top — so anything else that sticks (the Events tab's TODAY /
+  // TOMORROW day headings) must stick under the band, not under the nav. They
+  // used `--top-nav` (80px) while the band is ~150px tall, so every day heading
+  // stuck BEHIND the band and was never seen. The band's real height is
+  // published as --sticky-under, measured, and only on a phone; everywhere
+  // else (desktop, /events) the readers fall back to --top-nav.
+  const bandRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const band = bandRef.current;
+    if (!band || typeof window.matchMedia !== "function") return;
+    const root = document.documentElement;
+    const mq = window.matchMedia("(max-width: 639px)");
+    const publish = () => {
+      if (mq.matches) root.style.setProperty("--sticky-under", `${band.offsetHeight}px`);
+      else root.style.removeProperty("--sticky-under");
+    };
+    publish();
+    const ro = new ResizeObserver(publish);
+    ro.observe(band);
+    mq.addEventListener("change", publish);
+    return () => {
+      ro.disconnect();
+      mq.removeEventListener("change", publish);
+      root.style.removeProperty("--sticky-under");
+    };
+  }, []);
+
   // ── The fold is a POINTER-DEVICE behaviour ─────────────────────────────
   // On a phone it was the wrong trade. The whole mechanism above exists to
   // buy back vertical space from a header that a mouse wheel scrolls past in
@@ -570,6 +598,7 @@ export function HomeTabs() {
           stalls before it starts. 0fr collapses to exactly the content's
           height, whatever that turns out to be. */}
       <div
+        ref={bandRef}
         className="wl-hdr-band sticky z-20 border-b border-stone-200"
         style={{
           // Segment two of the shared header ramp — starts on the exact colour
